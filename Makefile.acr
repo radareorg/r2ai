@@ -29,7 +29,10 @@ arm64v35:
 	$(MAKE) -C libr/anal arm64v35
 
 arm64v35-install:
-	cp -f libr/{asm,anal}/p/asm*v35.$(LIBEXT) $(R2PM_PLUGDIR)
+	cp -f libr/{asm,anal}/p/a*arm_v35.$(LIBEXT) $(R2PM_PLUGDIR)
+
+arm64v35-uninstall:
+	rm -f $(R2PM_PLUGDIR)/a*arm_v35.$(LIBEXT)
 
 #	@echo "  install-yara{2,3}  - install Yara 2 or 3 from Git"
 
