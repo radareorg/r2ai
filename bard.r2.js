@@ -1,3 +1,7 @@
+// TODO: this program requires bard-cli to be installed
+// 1) go install github.com/mosajjal/bard-cli@latest
+// 2) login in bard.google.com and take the cookie named: __Secure-1PSID
+// 3) create ~/.bardcli.yaml and put ~/go/bin/bard-cli in $PATH
 (function() {
  	// global settings
 	const settings = {
