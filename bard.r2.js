@@ -63,7 +63,7 @@
 				message += " And uses these strings: " + strings.map(quote).join(', ') + ".\n";
 			}
 			if (settings.usePdc || (imports.length === 0 && strings.length === 0)) {
-				message += ' The pseudo code in base64 looks like:\n```c\n' + r2.cmd("pdc@e:scr.color=0") + '```';
+				message += ' The pseudo code looks like:\n```c\n' + r2.cmd("pdc@e:scr.color=0") + '```';
 			}
 			message += question;
 			bard(message);
@@ -71,33 +71,66 @@
 			console.error ("No function found");
 		}
 	}
-	if (false) {
-		const
-		// message = "\nExplain the following ESIL expression: ";
-		// message = "\nOptimize and give me a decompilation in python of the given function in ESIL";
-		message = "\nTranslate the following instruction to ESIL";
-		queryEsil (message);
+	const actions = {
+		"esil explain": "\nExplain the following ESIL expression: ",
+		"esil decompile": "\nOptimize and give me a decompilation in python of the given function in ESIL",
+		"esil generate": "\nTranslate the following instruction to ESIL",
+		"program generate": "\nTranslate the following instruction to ESIL",
+		"fun name": "\nCan you give this function a better name?",
+		"fun pseudo": "\nCan you provide a pseudocode in python?",
+		"fun explain": "\nPlease, explain what this function is doing",
+		"fun deco": "\nCan you optimize and decompile this function without including any introductory text?",
+		"program frida-trace": "\nGive me a frida script to hook the write function and print the arguments passed.",
+	};
+	function bardAction(action) {
+		if (action.startsWith ("query")) {
+		}
+		if (action in actions) {
+			const a = actions[action];
+			if (action.startsWith ("esil")) {
+				queryEsil(a);
+			} else if (action.startsWith ("program")) {
+				queryProgram(a);
+			} else if (action.startsWith ("fun")) {
+				queryFunction(a);
+			} else {
+				bard(a);
+			}
+		} else {
+			console.error("Unknown action. The following are supported:");
+			console.error("q <your-message>");
+			console.error(Object.keys(actions).join("\n"));
+		}
 	}
-	if (false) {
-		const
-		message = "\nGive me a frida script to hook the write function and print the arguments passed.";
-		queryProgram (message);
-	}
-	if (true) {
-		const
-		// message = "\nCan you give this function a better name?";
-		// message = "\nCan you provide a pseudocode in python?";
-		message = "\nPlease, explain what this function is doing.";
-		// message = "\nCan you optimize and decompile this function for me?";
-		queryFunction (message);
-	}
-	function bard(message) {
-		console.log(message);
-		r2.cmd("p6ds "+ b64(message) + " > q.txt");
-
+	function bard(query) {
+		console.log(query);
+		r2.cmd("p6ds "+ b64(query) + " > q.txt");
 		// r2.call('!x="$(cat q.txt)"; bard-cli "$x"');
-		r2.call('!x="$(cat q.txt)"; bard-cli "$x"');
-		// console.log("\"!bard-cli `echo '" + b64(message) + "' | base64 -D`\"");
-		// r2.call("\"!bard-cli `echo '" + b64(message) + "' | base64 -D`\"");
+		r2.syscmd('x="$(cat q.txt)"; bard-cli "$x"');
+		r2.call ("rm q.txt")
+	}
+	function bardCommand(input) {
+		bardAction(input.slice(4).trim());
+	}
+
+	const registerPlugin = true; // set to false for experimenting
+	if (registerPlugin) {
+		function bardPlugin() {
+			function coreCall(input) {
+				if (input.startsWith("bard")) {
+					bardCommand(input);
+					return true;
+				}
+				return false;
+			}
+			return {
+				name: "bard",
+				desc: "Google Bard AI plugin for radare",
+				call: coreCall,
+			};
+		}
+		r2.plugin("core", bardPlugin);
+	} else {
+		bardAction("fun explain");
 	}
 })();
