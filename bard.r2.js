@@ -1,3 +1,5 @@
+// Google Bard AI plugin for radare2
+// author: pancake/nopcode.org
 // TODO: this program requires bard-cli to be installed
 // 1) go install github.com/mosajjal/bard-cli@latest
 // 2) login in bard.google.com and take the cookie named: __Secure-1PSID
@@ -75,7 +77,6 @@
 		"esil explain": "\nExplain the following ESIL expression: ",
 		"esil decompile": "\nOptimize and give me a decompilation in python of the given function in ESIL",
 		"esil generate": "\nTranslate the following instruction to ESIL",
-		"program generate": "\nTranslate the following instruction to ESIL",
 		"fun name": "\nCan you give this function a better name?",
 		"fun pseudo": "\nCan you provide a pseudocode in python?",
 		"fun explain": "\nPlease, explain what this function is doing",
@@ -84,8 +85,8 @@
 	};
 	function bardAction(action) {
 		if (action.startsWith ("query")) {
-		}
-		if (action in actions) {
+			bard(action.split(/ /g).slice(1).join(' '));
+		} else if (action in actions) {
 			const a = actions[action];
 			if (action.startsWith ("esil")) {
 				queryEsil(a);
@@ -97,13 +98,13 @@
 				bard(a);
 			}
 		} else {
-			console.error("Unknown action. The following are supported:");
-			console.error("q <your-message>");
-			console.error(Object.keys(actions).join("\n"));
+			console.error("Usage: bard [action]  # The following are supported:");
+			console.error("- " + Object.keys(actions).join("\n- "));
+			console.error("- query <your-message>");
 		}
 	}
 	function bard(query) {
-		console.log(query);
+		// console.log(query);
 		r2.cmd("p6ds "+ b64(query) + " > q.txt");
 		// r2.call('!x="$(cat q.txt)"; bard-cli "$x"');
 		r2.syscmd('x="$(cat q.txt)"; bard-cli "$x"');
