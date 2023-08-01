@@ -65,7 +65,7 @@
 				message += " And uses these strings: " + strings.map(quote).join(', ') + ".\n";
 			}
 			if (settings.usePdc || (imports.length === 0 && strings.length === 0)) {
-				message += ' The pseudo code looks like:\n```c\n' + r2.cmd("pdc@e:scr.color=0") + '```';
+				message += ' The function code is:\n```c\n' + r2.cmd("pdc@e:scr.color=0") + '```';
 			}
 			message += question;
 			bard(message);
@@ -80,7 +80,7 @@
 		"fun name": "\nCan you give this function a better name?",
 		"fun pseudo": "\nCan you provide a pseudocode in python?",
 		"fun explain": "\nPlease, explain what this function is doing",
-		"fun deco": "\nCan you optimize and decompile this function without including any introductory text?",
+		"fun deco": "\nOptimize and remove unnecessary code of this C function", //include any explanation", // Display only the optimized code of the following function", // Remove dead code and unnecessary assignments in the following function and rewrite it in Perl ", // optimize and decompile this function without including any introductory text?",
 		"program frida-trace": "\nGive me a frida script to hook the write function and print the arguments passed.",
 	};
 	function bardAction(action) {
