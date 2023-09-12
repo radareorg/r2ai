@@ -9,7 +9,7 @@ QUERY="1 + 1 = [MASK]"
 # models https://huggingface.co/transformers/v3.3.1/pretrained_models.html
 MODEL="gpt2"
 #QUERY="explain what this function does: x=1+2"
-API_TOKEN=""
+API_TOKEN="$(cat hug.key)"
 MODEL="distilgpt2"
 MODEL="gpt2-large"
 
