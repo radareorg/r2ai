@@ -24,7 +24,7 @@ import appdirs
 import traceback
 import inquirer
 import subprocess
-#from rich import print
+from rich import print
 from rich.markdown import Markdown
 import os
 import shutil

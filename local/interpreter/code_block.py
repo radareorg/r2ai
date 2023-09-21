@@ -19,7 +19,7 @@ class CodeBlock:
     self.code = ""
     self.active_line = None
 
-    self.live = Live(auto_refresh=False, console=Console(), vertical_overflow="visible")
+    self.live = Live(auto_refresh=False, console=Console(), vertical_overflow="hidden")
     self.live.start()
 
   def update_from_message(self, message):
@@ -39,6 +39,9 @@ class CodeBlock:
     self.refresh(cursor=False)
     # Destroys live display
     self.live.stop()
+#self.output = ""
+#    self.code = ""
+#    self.active_line = None
 
   def refresh(self, cursor=True):
     # Get code, return if there is none
@@ -71,7 +74,7 @@ class CodeBlock:
         code_table.add_row(syntax)
 
     # Create a panel for the code
-    code_panel = Panel(code_table, box=MINIMAL, style="on #272722")
+    code_panel = Panel(code_table, box=MINIMAL, style="on #272727")
 
     # Create a panel for the output (if there is any)
     if self.output == "" or self.output == "None":

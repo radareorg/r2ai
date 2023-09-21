@@ -1,5 +1,6 @@
 import time
 import sys
+from rich import print
 import inquirer
 import readline
 import interpreter
@@ -61,6 +62,9 @@ Examples:
 
 prompt = "\n\r[0x00000000]>> "
 while True:
+	if interpreter.active_block is not None:
+		#interpreter.active_block.update_from_message("")
+		interpreter.active_block.end()
 	usertext = input(prompt)
 	if len(usertext) < 1:
 		print() # do nothing

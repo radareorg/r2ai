@@ -810,13 +810,12 @@ class Interpreter:
             self.active_block.end()
             language = self.active_block.language
             code = self.active_block.code
-            return
-
+#return
             # Prompt user
-            response = input("  Would you like to run this code? (y/n)\n\n  ")
+# response = input("  Would you like to run this code? (y/n)\n\n  ")
             print("")  # <- Aesthetic choice
 
-            if response.strip().lower() == "y":
+            if False and response.strip().lower() == "y":
               # Create a new, identical block where the code will actually be run
               self.active_block = CodeBlock()
               self.active_block.language = language
