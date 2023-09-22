@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import time
 import sys
 import builtins
@@ -5,6 +7,7 @@ from rich import print
 import inquirer
 import readline
 import interpreter
+import os
 
 interpreter.local = True
 # interpreter.model = "codellama-13b-instruct.Q4_K_M.gguf"
@@ -17,8 +20,8 @@ interpreter.model = "TheBloke/CodeLlama-34B-Instruct-GGUF"
 # interpreter.model = pwd + "codellama-13b-python.ggmlv3.Q4_1.gguf"
 interpreter.system_message = "" #
 
-# interpreter.model = "llama-2-7b-chat-codeCherryPop.ggmlv3.q4_K_M.gguf"
-interpreter.model = "TheBloke/CodeLlama-34B-Instruct-GGUF"
+interpreter.model = "llama-2-7b-chat-codeCherryPop.ggmlv3.q4_K_M.gguf"
+# interpreter.model = "TheBloke/CodeLlama-34B-Instruct-GGUF"
 # interpreter.model = "models/models/codellama-34b-instruct.Q2_K.gguf"
 
 def slurp(f):
@@ -40,8 +43,11 @@ def slurp(f):
 r2 = None
 try:
 	import r2pipe
-	file = sys.argv[1] if len(sys.argv) > 1 else "/bin/ls"
-	r2 = r2pipe.open(file)
+	if "R2PIPE_IN" in os.environ.keys():
+		r2 = r2pipe.open()
+	else:
+		file = sys.argv[1] if len(sys.argv) > 1 else "/bin/ls"
+		r2 = r2pipe.open(file)
 except Exception(e):
 	print(e)
 
@@ -65,18 +71,8 @@ Examples:
   q      -> quit/exit/^C
 """
 
-prompt = "[0x00000000]>> "
-while True:
-	if r2 is not None:
-		off = r2.cmd("s").strip()
-		prompt = "[" + off + "]>> "
-	if interpreter.active_block is not None:
-		#interpreter.active_block.update_from_message("")
-		interpreter.active_block.end()
-	try:
-		usertext = input(prompt).strip()
-	except:
-		break
+
+def runline(usertext):
 	if len(usertext) < 1:
 		builtins.print() # do nothing
 	elif usertext[0] == "?":
@@ -87,7 +83,7 @@ while True:
 		builtins.print("Forgot")
 		interpreter.reset()
 	elif usertext[0] == "q" or usertext == "exit":
-		break
+		return "q"
 	elif usertext[0] == "%":
 		if len(usertext) == 1:
 			print(interpreter.env)
@@ -127,3 +123,23 @@ while True:
 		interpreter.chat(usertext)
 # interpreter.load(res)
 # print(res)
+
+prompt = "[0x00000000]>> "
+while True:
+	if r2 is not None:
+		off = r2.cmd("s").strip()
+		if off == "":
+			off = r2.cmd("s").strip()
+		prompt = "[" + off + "]>> "
+	if interpreter.active_block is not None:
+		#interpreter.active_block.update_from_message("")
+		interpreter.active_block.end()
+	try:
+		usertext = input(prompt).strip()
+	except:
+		break
+	try:
+		if runline(usertext) == "q":
+			break
+	except:
+		continue
