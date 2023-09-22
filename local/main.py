@@ -1,5 +1,6 @@
 import time
 import sys
+import builtins
 from rich import print
 import inquirer
 import readline
@@ -12,18 +13,19 @@ interpreter.local = True
 interpreter.model = "TheBloke/CodeLlama-34B-Instruct-GGUF"
 # interpreter.model = "YokaiKoibito/falcon-40b-GGUF" ## fails
 # interpreter.model = "ItelAi/Chatbot"
-pwd = "" # /Users/pancake/prg/radare2-extras/r2ai/local/"
+# pwd = os.getcwd()
 # interpreter.model = pwd + "codellama-13b-python.ggmlv3.Q4_1.gguf"
 interpreter.system_message = "" #
 
-interpreter.model = "llama-2-7b-chat-codeCherryPop.ggmlv3.q4_K_M.gguf"
-# interpreter.model = "TheBloke/CodeLlama-34B-Instruct-GGUF"
+# interpreter.model = "llama-2-7b-chat-codeCherryPop.ggmlv3.q4_K_M.gguf"
+interpreter.model = "TheBloke/CodeLlama-34B-Instruct-GGUF"
+# interpreter.model = "models/models/codellama-34b-instruct.Q2_K.gguf"
+
 def slurp(f):
 	fd = open(f)
 	res = fd.read()
 	fd.close()
 	return "" + res
-
 
 # script = slurp("/tmp/util.c")
 # usertext = "Describe the purpose of this C function in a single sentence and add it as a comment on top: [CODE]" + script + "[/CODE]"
@@ -31,9 +33,9 @@ def slurp(f):
 # usertext = "Tell me what's the use case for this function and when it should not be used: [CODE]" + script + "[/CODE]"
 # usertext = "Digues en Català i en una sola frase si aquesta funció modifica els continguts dels arguments que reb: [CODE]" + script + "[/CODE]"
 # usertext = "Tell me what's not obvious or wrong in this function: [CODE]" + script + "[/CODE]"
-#usertext = "How to bind this function from Python? [CODE]" + script + "[/CODE]"
-#interpreter.chat(usertext)
-#exit()
+# usertext = "How to bind this function from Python? [CODE]" + script + "[/CODE]"
+# interpreter.chat(usertext)
+# exit()
 
 r2 = None
 try:
@@ -55,26 +57,51 @@ Examples:
   !!aod  -> run the 'aod' command in r2 to describe the instruction and append it to the query
   !aa    -> analyze the binary, run this r2 command without modifying the query buffer
   :a.js  -> load the contents of the given file into the query buffer
+  %k=v   -> set environment variable
   $system prompt -> define the role of the conversation
   which instruction corresponds to this description? -> the query for the chat model
   reset  -> reset the chat (same as pressing enter with an empty line)
+  clear  -> clear the screen
+  q      -> quit/exit/^C
 """
 
-prompt = "\n\r[0x00000000]>> "
+prompt = "[0x00000000]>> "
 while True:
+	if r2 is not None:
+		off = r2.cmd("s").strip()
+		prompt = "[" + off + "]>> "
 	if interpreter.active_block is not None:
 		#interpreter.active_block.update_from_message("")
 		interpreter.active_block.end()
-	usertext = input(prompt)
+	try:
+		usertext = input(prompt).strip()
+	except:
+		break
 	if len(usertext) < 1:
-		print() # do nothing
+		builtins.print() # do nothing
 	elif usertext[0] == "?":
-		print(help_message)
+		builtins.print(help_message)
 	elif usertext == "clear":
-		print("\x1b[2J\x1b[0;0H\r")
+		builtins.print("\x1b[2J\x1b[0;0H\r")
 	elif usertext == "reset":
-		print("Forgot")
+		builtins.print("Forgot")
 		interpreter.reset()
+	elif usertext[0] == "q" or usertext == "exit":
+		break
+	elif usertext[0] == "%":
+		if len(usertext) == 1:
+			print(interpreter.env)
+		else:
+			line = usertext[1:].split("=")
+			k = line[0]
+			if len(line) > 1:
+				v = line[1]
+				interpreter.env[k] = v
+			else:
+				try:
+					print(interpreter.env[k])
+				except:
+					pass
 	elif usertext[0] == "$":
 		if len(usertext) > 1:
 			interpreter.system_message = usertext[1:]
@@ -82,19 +109,20 @@ while True:
 			print(interpreter.system_message)
 	elif usertext[0] == ":":
 		res = slurp(usertext[1:])
-		print ("[Query]>> ");
+		builtins.print ("[Query]>> ");
 		que = input()
-		interpreter.chat("Q: " + que + ":\n[INPUT]\n"+ res+"\n[/INPUT]\n") # , return_messages=True)
+		# interpreter.chat("Q: " + que + ":\n[INPUT]\n"+ res+"\n[/INPUT]\n") # , return_messages=True)
+		interpreter.chat("Q: " + que + ":\n[CODE]\n"+ res+"\n[/CODE]\n")
 	elif usertext[0] == "!":
 		if r2 is None:
-			print("r2 is not available")
+			builtins.print("r2 is not available")
 		elif usertext[1] == "!":
 			res = r2.cmd(usertext[2:])
-			print ("[Query]>> ");
+			builtins.print ("[Query]>> ");
 			que = input()
 			interpreter.chat("Q: " + que + ":\n[INPUT]\n"+ res+"\n[/INPUT]\n") # , return_messages=True)
 		else:
-			print(r2.cmd(usertext[1:]))
+			builtins.print(r2.cmd(usertext[1:]))
 	else:
 		interpreter.chat(usertext)
 # interpreter.load(res)

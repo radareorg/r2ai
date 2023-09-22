@@ -98,6 +98,7 @@ class Interpreter:
     self.auto_run = False
     self.local = True
     self.model = "gpt-4"
+    self.env = {}
     self.debug_mode = False
     self.api_base = None # Will set it to whatever OpenAI wants
 # self.context_window = 16096 # For local models only BURNS!
@@ -298,8 +299,7 @@ class Interpreter:
     user_input = user_input[1:].strip()  # Capture the part after the `%`
     command = user_input.split(" ")[0]
     arguments = user_input[len(command):].strip()
-    action = switch.get(command,
-                        self.default_handle)  # Get the function from the dictionary, or default_handle if not found
+    action = switch.get(command, self.default_handle)  # Get the function from the dictionary, or default_handle if not found
     action(arguments)  # Execute the function
 
   def chat(self, message=None, return_messages=False):
@@ -563,6 +563,15 @@ class Interpreter:
       self.active_block.end()
       self.active_block = None
 
+  def environment(self):
+    kvs = ""
+    for k in self.env.keys():
+        kvs += k + ": " + self.env[k] + "\n"
+    if len(kvs) == 0:
+        return ""
+    # info += f"[User Info]\nName: {username}\nCWD: {current_working_directory}\nOS: {operating_system}"
+    return "[User Info]\n" + kvs
+
   def respond(self):
     # Add relevant info to system_message
     # (e.g. current working directory, username, os, etc.)
@@ -575,6 +584,7 @@ class Interpreter:
       # self.system_message += "\nOnly do what the user asks you to do, then ask what they'd like to do next."
 
     system_message = self.system_message + "\n\n" + info
+    system_message += self.environment()
 
     if self.local:
       messages = tt.trim(self.messages, max_tokens=(self.context_window-self.max_tokens-25), system_message=system_message)
@@ -633,12 +643,12 @@ class Interpreter:
 
       prompt = messages_to_prompt(messages)
       # Lmao i can't believe this works (it does need this btw)
-      if messages[-1]["role"] != "function":
-        prompt += "Let's explore this. By the way, I can run code on your machine by writing the code in a markdown code block. This works for shell, javascript, python, R, and applescript. I'm going to try to do this for your task. Anyway, "
-      elif messages[-1]["role"] == "function" and messages[-1]["content"] != "No output":
-        prompt += "Given the output of the code I just ran, "
-      elif messages[-1]["role"] == "function" and messages[-1]["content"] == "No output":
-        prompt += "Given the fact that the code I just ran produced no output, "
+#      if messages[-1]["role"] != "function":
+#        prompt += "Let's explore this. By the way, I can run code on your machine by writing the code in a markdown code block. This works for shell, javascript, python, R, and applescript. I'm going to try to do this for your task. Anyway, "
+#      elif messages[-1]["role"] == "function" and messages[-1]["content"] != "No output":
+#        prompt += "Given the output of the code I just ran, "
+#      elif messages[-1]["role"] == "function" and messages[-1]["content"] == "No output":
+#        prompt += "Given the fact that the code I just ran produced no output, "
 
 
       if self.debug_mode:
