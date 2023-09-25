@@ -4,7 +4,7 @@ PWD=$(shell pwd)
 all: $(MODEL)
 
 run:
-	python main.py
+	python3 main.py
 
 $(MODEL): deps
 	git clone https://github.com/radareorg/r2ai-models
@@ -12,4 +12,4 @@ $(MODEL): deps
 	ln -fs $(PWD)/r2ai-models/$(MODEL) $(PWD)/$(MODEL)
 
 deps:
-	pip install rich inquirer python-dotenv openai litellm tokentrim
+	pip3 install rich inquirer python-dotenv openai litellm tokentrim
