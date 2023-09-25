@@ -22,7 +22,7 @@ interpreter.system_message = "" #
 
 interpreter.model = "llama-2-7b-chat-codeCherryPop.ggmlv3.q4_K_M.gguf"
 # interpreter.model = "TheBloke/CodeLlama-34B-Instruct-GGUF"
-# interpreter.model = "models/models/codellama-34b-instruct.Q2_K.gguf"
+#interpreter.model = "models/models/codellama-34b-instruct.Q2_K.gguf"
 
 def slurp(f):
 	fd = open(f)
@@ -70,7 +70,6 @@ Examples:
   clear  -> clear the screen
   q      -> quit/exit/^C
 """
-
 
 def runline(usertext):
 	if len(usertext) < 1:
@@ -124,13 +123,13 @@ def runline(usertext):
 # interpreter.load(res)
 # print(res)
 
-prompt = "[0x00000000]>> "
+prompt = "[r2ai:0x00000000]> "
 while True:
 	if r2 is not None:
 		off = r2.cmd("s").strip()
 		if off == "":
 			off = r2.cmd("s").strip()
-		prompt = "[" + off + "]>> "
+		prompt = "[r2ai:" + off + "]>> "
 	if interpreter.active_block is not None:
 		#interpreter.active_block.update_from_message("")
 		interpreter.active_block.end()

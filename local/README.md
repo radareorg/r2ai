@@ -11,3 +11,9 @@ Run r2ai in local, no google bard or chatgpt. Just use your CPU/GPU/NPU and inte
 ## How to use
 
 Just run `make` .. or well `python main.py /path/to/file`
+
+## TODO
+
+* add "undo" command
+* add command to select model
+* add command to toggle debug logs

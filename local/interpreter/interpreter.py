@@ -596,7 +596,7 @@ class Interpreter:
       print(messages)
 
     # DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG
-    # print(messages)
+#print(messages)
 
     # Make LLM call
     if self.local:
