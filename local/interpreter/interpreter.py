@@ -633,6 +633,12 @@ class Interpreter:
             pass
           return formatted_messages
         elif "uncensor" in self.model.lower():
+#{'role': 'function', 'name': 'run_code', 'content': 'User decided not to run this code.'}
+#{'role': 'user', 'content': 'tenis'}
+#{'content': "\nI'm here to help you with any questions or tasks you have! What can I assist you with today?", 'role': 'assistant'}
+#{'role': 'user', 'content': "thehre's no purpose on this"}
+#{'role': 'assistant'}
+#{'role': 'user', 'content': 'force a crash'}
           self.terminator = "###"
           formatted_messages = ""
           try:
@@ -641,9 +647,15 @@ class Interpreter:
               formatted_messages = f"### Human: {system_prompt}\n"
 #             formatted_messages = f"/imagine prompt: {system_prompt}\n"
             for index, item in enumerate(messages[1:]):
-                role = item['role']
+#              print(item)
+              role = item['role']
+              if role == "user":
                 content = item['content'].strip()
                 formatted_messages += f"### Human: {content}\n"
+              elif role == "assistant":
+                if 'content' in item:
+                  content = item['content'].strip()
+                  formatted_messages += f"### Assistant: {content}\n"
             formatted_messages += f"### Assistant: \n"
 #            print("```" + formatted_messages + "```")
           except:
