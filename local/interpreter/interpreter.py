@@ -94,6 +94,7 @@ class Interpreter:
   def __init__(self):
     self.messages = []
     self.temperature = 0.002
+    self.terminator = "</s>"
     self.api_key = None
     self.auto_run = False
     self.local = True
@@ -102,8 +103,9 @@ class Interpreter:
     self.debug_mode = False
     self.api_base = None # Will set it to whatever OpenAI wants
 # self.context_window = 16096 # For local models only BURNS!
-    self.context_window = 4096 # For local models only
-    self.max_tokens = 750 # For local models only
+    self.context_window = 4096 # For local models only // input max length
+    # self.max_tokens = 750 # For local models only
+    self.max_tokens = 1750 # For local models only
     # Azure OpenAI
     self.use_azure = False
     self.azure_api_base = None
@@ -600,6 +602,7 @@ class Interpreter:
 
     # Make LLM call
     if self.local:
+      self.terminator = "</s>"
       # Code-Llama
       # Convert messages to prompt
       # (This only works if the first message is the only system message)
@@ -609,9 +612,45 @@ class Interpreter:
           if "role" not in message:
             message["role"] = "assistant"
 
-        # Falcon prompt template
-        if "falcon" in self.model.lower():
-
+        if "q4_0" in self.model.lower():
+          self.terminator = "<|im_end|>"
+          formatted_messages = ""
+          try:
+            system_prompt = messages[0]['content'].strip()
+            if system_prompt != "":
+              formatted_messages += "\{\"text\":\"{"+system_prompt+"}\"\}"
+#             formatted_messages = f"[STDIN] {system_prompt} [/STDIN]\n"
+#             formatted_messages = f"/imagine prompt: {system_prompt}\n"
+            for index, item in enumerate(messages[1:]):
+                role = item['role']
+                content = item['content'].strip()
+#               formatted_messages += f"<|im_start|>{content}<|im_end|>"
+                formatted_messages += "\{\"text\":\"{"+content+"}\"\}"
+            formatted_messages += f"<|im_start|>\n"
+#            print("```" + formatted_messages + "```")
+          except:
+            traceback.print_exc()
+            pass
+          return formatted_messages
+        elif "uncensor" in self.model.lower():
+          self.terminator = "###"
+          formatted_messages = ""
+          try:
+            system_prompt = messages[0]['content'].strip()
+            if system_prompt != "":
+              formatted_messages = f"### Human: {system_prompt}\n"
+#             formatted_messages = f"/imagine prompt: {system_prompt}\n"
+            for index, item in enumerate(messages[1:]):
+                role = item['role']
+                content = item['content'].strip()
+                formatted_messages += f"### Human: {content}\n"
+            formatted_messages += f"### Assistant: \n"
+#            print("```" + formatted_messages + "```")
+          except:
+            traceback.print_exc()
+            pass
+          return formatted_messages
+        elif "falcon" in self.model.lower():
           formatted_messages = ""
           for message in messages:
             formatted_messages += f"{message['role'].capitalize()}: {message['content']}\n"
@@ -662,8 +701,8 @@ class Interpreter:
         prompt,
         stream=True,
         temperature=self.temperature,
-        stop=["</s>"],
-        max_tokens=750 # context window is set to 1800, messages are trimmed to 1000... 700 seems nice
+        stop=[self.terminator],
+        max_tokens=1750 # context window is set to 1800, messages are trimmed to 1000... 700 seems nice
       )
 
     # Initialize message, function call trackers, and active block

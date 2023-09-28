@@ -14,15 +14,20 @@ interpreter.local = True
 # interpreter.model = "TheBloke/CodeLlama-7B-Instruct-GGUF"
 # interpreter.model = "TheBloke/codellama-34b-instruct.Q4_K_M.gguf"
 interpreter.model = "TheBloke/CodeLlama-34B-Instruct-GGUF"
+interpreter.model = "TheBloke/Wizard-Vicuna-7B-Uncensored-GPTQ"
 # interpreter.model = "YokaiKoibito/falcon-40b-GGUF" ## fails
 # interpreter.model = "ItelAi/Chatbot"
 # pwd = os.getcwd()
 # interpreter.model = pwd + "codellama-13b-python.ggmlv3.Q4_1.gguf"
 interpreter.system_message = "" #
 
-interpreter.model = "llama-2-7b-chat-codeCherryPop.ggmlv3.q4_K_M.gguf"
+# interpreter.model = "llama-2-7b-chat-codeCherryPop.ggmlv3.q4_K_M.gguf"
+# interpreter.model = "/tmp/model.safetensors"
 # interpreter.model = "TheBloke/CodeLlama-34B-Instruct-GGUF"
 #interpreter.model = "models/models/codellama-34b-instruct.Q2_K.gguf"
+#interpreter.model = "models/models/wizardlm-1.0-uncensored-llama2-13b.Q2_K.gguf"
+#interpreter.model = "models/models/guanaco-7b-uncensored.Q2_K.gguf" 
+#interpreter.model = "models/models/ggml-model-q4_0.gguf" # tinysmall -- very bad results
 
 def slurp(f):
 	fd = open(f)
@@ -48,8 +53,8 @@ try:
 	else:
 		file = sys.argv[1] if len(sys.argv) > 1 else "/bin/ls"
 		r2 = r2pipe.open(file)
-except Exception(e):
-	print(e)
+except:
+	print("error")
 
 #parameter_choices = ["jeje"]
 # readline.add_history(user_input)
@@ -104,8 +109,7 @@ def runline(usertext):
 			print(interpreter.system_message)
 	elif usertext[0] == ":":
 		res = slurp(usertext[1:])
-		builtins.print ("[Query]>> ");
-		que = input()
+		que = input("[Query]>> ")
 		# interpreter.chat("Q: " + que + ":\n[INPUT]\n"+ res+"\n[/INPUT]\n") # , return_messages=True)
 		interpreter.chat("Q: " + que + ":\n[CODE]\n"+ res+"\n[/CODE]\n")
 	elif usertext[0] == "!":
@@ -113,8 +117,7 @@ def runline(usertext):
 			builtins.print("r2 is not available")
 		elif usertext[1] == "!":
 			res = r2.cmd(usertext[2:])
-			builtins.print ("[Query]>> ");
-			que = input()
+			que = input("[Query]>> ")
 			interpreter.chat("Q: " + que + ":\n[INPUT]\n"+ res+"\n[/INPUT]\n") # , return_messages=True)
 		else:
 			builtins.print(r2.cmd(usertext[1:]))
