@@ -21,13 +21,16 @@ interpreter.model = "TheBloke/Wizard-Vicuna-7B-Uncensored-GPTQ"
 # interpreter.model = pwd + "codellama-13b-python.ggmlv3.Q4_1.gguf"
 interpreter.system_message = "" #
 
-# interpreter.model = "llama-2-7b-chat-codeCherryPop.ggmlv3.q4_K_M.gguf"
+interpreter.model = "llama-2-7b-chat-codeCherryPop.ggmlv3.q4_K_M.gguf"
 # interpreter.model = "/tmp/model.safetensors"
 # interpreter.model = "TheBloke/CodeLlama-34B-Instruct-GGUF"
 #interpreter.model = "models/models/codellama-34b-instruct.Q2_K.gguf"
-interpreter.model = "models/models/wizardlm-1.0-uncensored-llama2-13b.Q2_K.gguf"
+#interpreter.model = "models/models/wizardlm-1.0-uncensored-llama2-13b.Q2_K.gguf"
 #interpreter.model = "models/models/guanaco-7b-uncensored.Q2_K.gguf" 
 #interpreter.model = "models/models/ggml-model-q4_0.gguf" # tinysmall -- very bad results
+
+dir_path = os.path.dirname(os.path.realpath(__file__))
+interpreter.model = dir_path + "/" + interpreter.model
 
 def slurp(f):
 	fd = open(f)
