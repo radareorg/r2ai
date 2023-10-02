@@ -18,6 +18,7 @@ Especially if you have ideas and **EXCITEMENT** about the future of this project
 - killian
 """
 
+import builtins
 from .cli import cli
 from .utils import merge_deltas, parse_partial_json
 from .message_block import MessageBlock
@@ -305,12 +306,6 @@ class Interpreter:
     action(arguments)  # Execute the function
 
   def chat(self, message=None, return_messages=False):
-
-    # Connect to an LLM (an large language model)
-    if not self.local:
-      # gpt-4
-      self.verify_api_key()
-
     # ^ verify_api_key may set self.local to True, so we run this as an 'if', not 'elif':
     if self.local:
 
@@ -319,28 +314,14 @@ class Interpreter:
 
         # Find or install Code-Llama
         try:
-          # self.llama_instance = get_hf_llm(self.model, self.debug_mode, self.context_window)
+          #self.llama_instance = get_hf_llm(self.model, self.debug_mode, self.context_window)
           self.llama_instance = new_get_hf_llm(self.model, self.debug_mode, self.context_window)
           if self.llama_instance == None:
             # They cancelled.
+            print("Cannot find the model")
             return
         except:
           traceback.print_exc()
-          # If it didn't work, apologize and switch to GPT-4
-
-          print(Markdown("".join([
-            f"> Failed to install `{self.model}`.",
-            f"\n\n**Common Fixes:** You can follow our simple setup docs at the link below to resolve common errors.\n\n```\nhttps://github.com/KillianLucas/open-interpreter/tree/main/docs\n```",
-            f"\n\n**If you've tried that and you're still getting an error, we have likely not built the proper `{self.model}` support for your system.**",
-            "\n\n*( Running language models locally is a difficult task!* If you have insight into the best way to implement this across platforms/architectures, please join the Open Interpreter community Discord and consider contributing the project's development. )",
-            "\n\nPress enter to switch to `GPT-4` (recommended)."
-          ])))
-          input()
-
-          # Switch to GPT-4
-          self.local = False
-          self.model = "gpt-4"
-          self.verify_api_key()
 
     # Display welcome message
     welcome_message = ""
@@ -418,147 +399,6 @@ class Interpreter:
 
     if return_messages:
         return self.messages
-
-  def verify_api_key(self):
-    """
-    Makes sure we have an AZURE_API_KEY or OPENAI_API_KEY.
-    """
-    if self.use_azure:
-      all_env_available = (
-        ('AZURE_API_KEY' in os.environ or 'OPENAI_API_KEY' in os.environ) and
-        'AZURE_API_BASE' in os.environ and
-        'AZURE_API_VERSION' in os.environ and
-        'AZURE_DEPLOYMENT_NAME' in os.environ)
-      if all_env_available:
-        self.api_key = os.environ.get('AZURE_API_KEY') or os.environ['OPENAI_API_KEY']
-        self.azure_api_base = os.environ['AZURE_API_BASE']
-        self.azure_api_version = os.environ['AZURE_API_VERSION']
-        self.azure_deployment_name = os.environ['AZURE_DEPLOYMENT_NAME']
-        self.azure_api_type = os.environ.get('AZURE_API_TYPE', 'azure')
-      else:
-        # This is probably their first time here!
-        self._print_welcome_message()
-        time.sleep(1)
-
-        print(Rule(style="white"))
-
-        print(Markdown(missing_azure_info_message), '', Rule(style="white"), '')
-        response = input("Azure OpenAI API key: ")
-
-        if response == "":
-          # User pressed `enter`, requesting Code-Llama
-
-          print(Markdown(
-            "> Switching to `Code-Llama`...\n\n**Tip:** Run `interpreter --local` to automatically use `Code-Llama`."),
-                '')
-          time.sleep(2)
-          print(Rule(style="white"))
-
-
-
-          # Temporarily, for backwards (behavioral) compatability, we've moved this part of llama_2.py here.
-          # AND BELOW.
-          # This way, when folks hit interpreter --local, they get the same experience as before.
-          import inquirer
-
-          print('', Markdown("**Open Interpreter** will use `Code Llama` for local execution. Use your arrow keys to set up the model."), '')
-
-          models = {
-              '7B': 'TheBloke/CodeLlama-7B-Instruct-GGUF',
-              '13B': 'TheBloke/CodeLlama-13B-Instruct-GGUF',
-              '34B': 'TheBloke/CodeLlama-34B-Instruct-GGUF'
-          }
-
-          parameter_choices = list(models.keys())
-          questions = [inquirer.List('param', message="Parameter count (smaller is faster, larger is more capable)", choices=parameter_choices)]
-          answers = inquirer.prompt(questions)
-          chosen_param = answers['param']
-
-          # THIS is more in line with the future. You just say the model you want by name:
-          self.model = models[chosen_param]
-          self.local = True
-
-
-
-
-          return
-
-        else:
-          self.api_key = response
-          self.azure_api_base = input("Azure OpenAI API base: ")
-          self.azure_deployment_name = input("Azure OpenAI deployment name of GPT: ")
-          self.azure_api_version = input("Azure OpenAI API version: ")
-          print('', Markdown(
-            "**Tip:** To save this key for later, run `export AZURE_API_KEY=your_api_key AZURE_API_BASE=your_api_base AZURE_API_VERSION=your_api_version AZURE_DEPLOYMENT_NAME=your_gpt_deployment_name` on Mac/Linux or `setx AZURE_API_KEY your_api_key AZURE_API_BASE your_api_base AZURE_API_VERSION your_api_version AZURE_DEPLOYMENT_NAME your_gpt_deployment_name` on Windows."),
-                '')
-          time.sleep(2)
-          print(Rule(style="white"))
-
-      litellm.api_type = self.azure_api_type
-      litellm.api_base = self.azure_api_base
-      litellm.api_version = self.azure_api_version
-      litellm.api_key = self.api_key
-    else:
-      if self.api_key == None:
-        if 'OPENAI_API_KEY' in os.environ:
-          self.api_key = os.environ['OPENAI_API_KEY']
-        else:
-          # This is probably their first time here!
-          self._print_welcome_message()
-          time.sleep(1)
-
-          print(Rule(style="white"))
-
-          print(Markdown(missing_api_key_message), '', Rule(style="white"), '')
-          response = input("OpenAI API key: ")
-
-          if response == "":
-              # User pressed `enter`, requesting Code-Llama
-
-              print(Markdown(
-                "> Switching to `Code-Llama`...\n\n**Tip:** Run `interpreter --local` to automatically use `Code-Llama`."),
-                    '')
-              time.sleep(2)
-              print(Rule(style="white"))
-
-
-
-              # Temporarily, for backwards (behavioral) compatability, we've moved this part of llama_2.py here.
-              # AND ABOVE.
-              # This way, when folks hit interpreter --local, they get the same experience as before.
-              import inquirer
-
-              print('', Markdown("**Open Interpreter** will use `Code Llama` for local execution. Use your arrow keys to set up the model."), '')
-
-              models = {
-                  '7B': 'TheBloke/CodeLlama-7B-Instruct-GGUF',
-                  '13B': 'TheBloke/CodeLlama-13B-Instruct-GGUF',
-                  '34B': 'TheBloke/CodeLlama-34B-Instruct-GGUF'
-              }
-
-              parameter_choices = list(models.keys())
-              questions = [inquirer.List('param', message="Parameter count (smaller is faster, larger is more capable)", choices=parameter_choices)]
-              answers = inquirer.prompt(questions)
-              chosen_param = answers['param']
-
-              # THIS is more in line with the future. You just say the model you want by name:
-              self.model = models[chosen_param]
-              self.local = True
-
-
-
-
-              return
-
-          else:
-              self.api_key = response
-              print('', Markdown("**Tip:** To save this key for later, run `export OPENAI_API_KEY=your_api_key` on Mac/Linux or `setx OPENAI_API_KEY your_api_key` on Windows."), '')
-              time.sleep(2)
-              print(Rule(style="white"))
-
-      litellm.api_key = self.api_key
-      if self.api_base:
-        litellm.api_base = self.api_base
 
   def end_active_block(self):
     if self.active_block:
@@ -673,23 +513,24 @@ class Interpreter:
 
           # Extracting the system prompt and initializing the formatted string with it.
           system_prompt = messages[0]['content']
-          formatted_messages = f"<s>[INST] <<SYS>>\n{system_prompt}\n<</SYS>>\n"
+          formatted_messages = f"<s>[INST]<<SYS>>\n{system_prompt}\n<</SYS>>\n"
           # Loop starting from the first user message
           for index, item in enumerate(messages[1:]):
               role = item['role']
               content = item['content']
 
               if role == 'user':
-                  formatted_messages += f"{content} [/INST] "
+                  formatted_messages += f"{content}[/INST] "
               elif role == 'function':
-                  formatted_messages += f"Output: {content} [/INST] "
+                  formatted_messages += f"Output: {content}[/INST] "
               elif role == 'assistant':
                   formatted_messages += f"{content} </s><s>[INST] "
-
           # Remove the trailing '<s>[INST] ' from the final output
-          if formatted_messages.endswith("<s>[INST] "):
+          if formatted_messages.endswith("<s>[INST]"):
               formatted_messages = formatted_messages[:-10]
 
+# DEBUG DEBUG DEBUG AGAIN AGAIN AGAIN
+# builtins.print(formatted_messages)
         return formatted_messages
 
       prompt = messages_to_prompt(messages)
@@ -704,7 +545,6 @@ class Interpreter:
 
       if self.debug_mode:
         # we have to use builtins bizarrely! because rich.print interprets "[INST]" as something meaningful
-        import builtins
         builtins.print("TEXT PROMPT SEND TO LLM:\n", prompt)
 
       # Run Code-Llama

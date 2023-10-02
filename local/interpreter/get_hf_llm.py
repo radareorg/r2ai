@@ -32,21 +32,16 @@ from huggingface_hub import list_files_info, hf_hub_download
 
 
 def get_hf_llm(repo_id, debug_mode, context_window):
-
-    if "TheBloke/CodeLlama-" not in repo_id:
-      # ^ This means it was prob through the old --local, so we have already displayed this message.
-      # Hacky. Not happy with this
-      print('', Markdown(f"**Open Interpreter** will use `{repo_id}` for local execution. Use your arrow keys to set up the model."), '')
-
+    print("Getting the model from hugging face")
     raw_models = list_gguf_files(repo_id)
-    
     if not raw_models:
         print(f"Failed. Are you sure there are GGUF files in `{repo_id}`?")
         return None
-
+#    print(raw_models)
     combined_models = group_and_combine_splits(raw_models)
+#    print (combined_models)
 
-    selected_model = "Medium"
+    selected_model = None #"Medium"
 
     # First we give them a simple small medium large option. If they want to see more, they can.
 
@@ -59,9 +54,9 @@ def get_hf_llm(repo_id, debug_mode, context_window):
             format_quality_choice(combined_models[-1], "Large"),
             "See More"
         ]
-#        questions = [inquirer.List('selected_model', message="Quality (smaller is faster, larger is more capable)", choices=choices)]
-# answers = inquirer.prompt(questions)
-        answers = {"selected_model": "Small"}
+        questions = [inquirer.List('selected_model', message="Quality (smaller is faster)", choices=choices)]
+        answers = inquirer.prompt(questions)
+        #answers = {"selected_model": "Small"}
         if answers["selected_model"].startswith("Small"):
             selected_model = combined_models[0]["filename"]
         elif answers["selected_model"].startswith("Medium"):
@@ -69,13 +64,13 @@ def get_hf_llm(repo_id, debug_mode, context_window):
         elif answers["selected_model"].startswith("Large"):
             selected_model = combined_models[-1]["filename"]
     
-    if selected_model == None:
+    if selected_model != None:
         # This means they either selected See More,
         # Or the model only had 1 or 2 options
 
         # Display to user
         choices = [format_quality_choice(model) for model in combined_models]
-        questions = [inquirer.List('selected_model', message="Quality (smaller is faster, larger is more capable)", choices=choices)]
+        questions = [inquirer.List('selected_model', message="Quality (smaller is faster)", choices=choices)]
         answers = inquirer.prompt(questions)
         for model in combined_models:
             if format_quality_choice(model) == answers["selected_model"]:
@@ -381,7 +376,8 @@ def new_get_hf_llm(repo_id, debug_mode, context_window):
     if not os.path.exists(repo_id):
         return get_hf_llm(repo_id, debug_mode, context_window)
     print("LOADING FILE: " + repo_id)
-    n_gpu_layers = -1
+    n_gpu_layers = -1 # = 0 to use cpu
+    n_gpu_layers = 0
     # Third stage: GPU confirm
 #if confirm_action("Use GPU? (Large models might crash on GPU, but will run more quickly)"):
 ##      n_gpu_layers = -1

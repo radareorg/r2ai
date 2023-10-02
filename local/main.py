@@ -29,24 +29,21 @@ interpreter.model = "llama-2-7b-chat-codeCherryPop.ggmlv3.q4_K_M.gguf"
 #interpreter.model = "models/models/guanaco-7b-uncensored.Q2_K.gguf" 
 #interpreter.model = "models/models/ggml-model-q4_0.gguf" # tinysmall -- very bad results
 
+#interpreter.model = "models/models/mistral-7b-v0.1.Q4_K_M.gguf"
+#interpreter.model = "models/models/mistral-7b-instruct-v0.1.Q2_K.gguf"
+#interpreter.model = "TheBloke/Mistral-7B-Instruct-v0.1-GGUF"
+builtins.print("TheBloke/Mistral-7B-Instruct-v0.1-GGUF")
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
-interpreter.model = dir_path + "/" + interpreter.model
+model_path = dir_path + "/" + interpreter.model
+if os.path.exists(model_path):
+	interpreter.model = model_path
 
 def slurp(f):
 	fd = open(f)
 	res = fd.read()
 	fd.close()
 	return "" + res
-
-# script = slurp("/tmp/util.c")
-# usertext = "Describe the purpose of this C function in a single sentence and add it as a comment on top: [CODE]" + script + "[/CODE]"
-# usertext = "Add comments in the following code to make it easier to understand: [CODE]" + script + "[/CODE]"
-# usertext = "Tell me what's the use case for this function and when it should not be used: [CODE]" + script + "[/CODE]"
-# usertext = "Digues en Català i en una sola frase si aquesta funció modifica els continguts dels arguments que reb: [CODE]" + script + "[/CODE]"
-# usertext = "Tell me what's not obvious or wrong in this function: [CODE]" + script + "[/CODE]"
-# usertext = "How to bind this function from Python? [CODE]" + script + "[/CODE]"
-# interpreter.chat(usertext)
-# exit()
 
 r2 = None
 try:
@@ -64,6 +61,8 @@ except:
 #questions = [inquirer.List('param', message="Parameter count (smaller is faster, larger is more capable)", choices=parameter_choices)]
 #inquirer.prompt(questions)
 
+# TheBloke/Mistral-7B-Instruct-v0.1-GGUF
+
 help_message = """
 Usage: [!r2command] | [chat-query] | [command]
 Examples:
@@ -75,6 +74,7 @@ Examples:
   $system prompt -> define the role of the conversation
   which instruction corresponds to this description? -> the query for the chat model
   reset  -> reset the chat (same as pressing enter with an empty line)
+  model [file/repo] -> select model from huggingface repository or local file
   clear  -> clear the screen
   q      -> quit/exit/^C
 """
@@ -86,6 +86,12 @@ def runline(usertext):
 		builtins.print(help_message)
 	elif usertext == "clear":
 		builtins.print("\x1b[2J\x1b[0;0H\r")
+	elif usertext.startswith("model"):
+		words = usertext.split(" ")
+		if len(words) > 1:
+			interpreter.model = words[1]
+		else:
+			builtins.print(interpreter.model)
 	elif usertext == "reset":
 		builtins.print("Forgot")
 		interpreter.reset()
