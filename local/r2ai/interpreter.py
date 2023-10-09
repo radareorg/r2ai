@@ -76,22 +76,110 @@ function_schema = {
   },
 }
 
-# Message for when users don't have an OpenAI API key.
-missing_api_key_message = """> OpenAI API key not found
+def messages_to_prompt(self,messages):
+  for message in messages:
+    # Happens if it immediatly writes code
+    if "role" not in message:
+      message["role"] = "assistant"
 
-To use `GPT-4` (recommended) please provide an OpenAI API key.
+  if "q4_0" in self.model.lower():
+    formatted_messages = template_q4im(self,messages)
+  elif "uncensor" in self.model.lower():
+    formatted_messages = template_uncensored(self,messages)
+  elif "falcon" in self.model.lower():
+    formatted_messages = template_falcon(self,messages)
+  else:
+    formatted_messages = template_llama(self,messages)
 
-To use `Code-Llama` (free but less capable) press `enter`.
-"""
+  if "DEBUG" in self.env:
+    builtins.print(formatted_messages)
+  return formatted_messages
 
-# Message for when users don't have an OpenAI API key.
-missing_azure_info_message = """> Azure OpenAI Service API info not found
 
-To use `GPT-4` (recommended) please provide an Azure OpenAI API key, a API base, a deployment name and a API version.
+def template_q4im(self,messages):
+  self.terminator = "<|im_end|>"
+  formatted_messages = ""
+  try:
+    system_prompt = messages[0]['content'].strip()
+    if system_prompt != "":
+      formatted_messages += "\{\"text\":\"{"+system_prompt+"}\"\}"
+      # formatted_messages = f"[STDIN] {system_prompt} [/STDIN]\n"
+      # formatted_messages = f"/imagine prompt: {system_prompt}\n"
+    for index, item in enumerate(messages[1:]):
+        role = item['role']
+        content = item['content'].strip()
+        formatted_messages += f"<|im_start|>{content}<|im_end|>"
+        formatted_messages += "\{\"text\":\"{"+content+"}\"\}"
+    formatted_messages += f"<|im_start|>\n"
+    print("```" + formatted_messages + "```")
+  except:
+    traceback.print_exc()
+    pass
+  return formatted_messages
 
-To use `Code-Llama` (free but less capable) press `enter`.
-"""
+def template_uncensored(self,messages):
+#{'role': 'function', 'name': 'run_code', 'content': 'User decided not to run this code.'}
+#{'role': 'user', 'content': 'tenis'}
+#{'content': "\nI'm here to help you with any questions or tasks you have! What can I assist you with today?", 'role': 'assistant'}
+#{'role': 'user', 'content': "thehre's no purpose on this"}
+#{'role': 'assistant'}
+#{'role': 'user', 'content': 'force a crash'}
+  self.terminator = "###"
+#self.terminator = "\n"
+#  self.terminator = "</s>"
+  formatted_messages = ""
+  try:
+    system_prompt = messages[0]['content'].strip()
+    if system_prompt != "":
+      formatted_messages = f"{system_prompt}\n"
+      # formatted_messages = f"/imagine prompt: {system_prompt}\n"
+    for index, item in enumerate(messages[1:]):
+      # print(item)
+      role = item['role']
+      if role == "user":
+        content = item['content'].strip()
+        formatted_messages += f"### Human: {content}\n"
+      elif role == "assistant":
+        if 'content' in item:
+          content = item['content'].strip()
+          formatted_messages += f"### Assistant: {content}\n"
+    formatted_messages += f"### Human:"
+    # print("```" + formatted_messages + "```")
+  except:
+    traceback.print_exc()
+    pass
+  return formatted_messages
 
+def template_falcon(self,messages):
+  self.terminator = "}";
+  formatted_messages = ""
+  for message in messages:
+    formatted_messages += f"{message['role'].capitalize()}: {message['content']}"
+  return formatted_messages.strip()
+
+def template_llama(self,messages):
+  # Llama prompt template
+  # Extracting the system prompt and initializing the formatted string with it.
+  self.terminator = "</s>"
+  system_prompt = messages[0]['content'].strip()
+  if system_prompt != "":
+      formatted_messages = f"<s>[INST]<<SYS>>\n{system_prompt}\n<</SYS>>"
+  else:
+      formatted_messages = f"<s>[INST]"
+  # Loop starting from the first user message
+  for index, item in enumerate(messages[1:]):
+      role = item['role']
+      content = item['content']
+      if role == 'user':
+          formatted_messages += f"{content}[/INST] "
+      elif role == 'function':
+          formatted_messages += f"Output: {content}[/INST] "
+      elif role == 'assistant':
+          formatted_messages += f"{content} </s><s>[INST] "
+  # Remove the trailing '<s>[INST] ' from the final output
+  if formatted_messages.endswith("<s>[INST]"):
+      formatted_messages = formatted_messages[:-10]
+  return formatted_messages
 
 class Interpreter:
 
@@ -102,7 +190,7 @@ class Interpreter:
     self.api_key = None
     self.auto_run = False
     self.local = True
-    self.model = "gpt-4"
+    self.model = "TheBloke/CodeLlama-34B-Instruct-GGUF"
     self.live_mode = not have_rlang
     self.env = {}
     self.api_base = None # Will set it to whatever OpenAI wants
@@ -380,115 +468,24 @@ class Interpreter:
       print(messages)
 
     # Make LLM call
-    if self.local:
-      self.terminator = "</s>"
-      # Code-Llama
-      # Convert messages to prompt
-      # (This only works if the first message is the only system message)
-      def messages_to_prompt(messages):
-        for message in messages:
-          # Happens if it immediatly writes code
-          if "role" not in message:
-            message["role"] = "assistant"
+    self.terminator = "</s>"
+    # Code-Llama
+    # Convert messages to prompt
+    # (This only works if the first message is the only system message)
+    prompt = messages_to_prompt(self,messages)
 
-        if "q4_0" in self.model.lower():
-          self.terminator = "<|im_end|>"
-          formatted_messages = ""
-          try:
-            system_prompt = messages[0]['content'].strip()
-            if system_prompt != "":
-              formatted_messages += "\{\"text\":\"{"+system_prompt+"}\"\}"
-#             formatted_messages = f"[STDIN] {system_prompt} [/STDIN]\n"
-#             formatted_messages = f"/imagine prompt: {system_prompt}\n"
-            for index, item in enumerate(messages[1:]):
-                role = item['role']
-                content = item['content'].strip()
-#               formatted_messages += f"<|im_start|>{content}<|im_end|>"
-                formatted_messages += "\{\"text\":\"{"+content+"}\"\}"
-            formatted_messages += f"<|im_start|>\n"
-#            print("```" + formatted_messages + "```")
-          except:
-            traceback.print_exc()
-            pass
-          return formatted_messages
-        elif "uncensor" in self.model.lower():
-#{'role': 'function', 'name': 'run_code', 'content': 'User decided not to run this code.'}
-#{'role': 'user', 'content': 'tenis'}
-#{'content': "\nI'm here to help you with any questions or tasks you have! What can I assist you with today?", 'role': 'assistant'}
-#{'role': 'user', 'content': "thehre's no purpose on this"}
-#{'role': 'assistant'}
-#{'role': 'user', 'content': 'force a crash'}
-          self.terminator = "###"
-          formatted_messages = ""
-          try:
-            system_prompt = messages[0]['content'].strip()
-            if system_prompt != "":
-              formatted_messages = f"### Human: {system_prompt}\n"
-#             formatted_messages = f"/imagine prompt: {system_prompt}\n"
-            for index, item in enumerate(messages[1:]):
-#              print(item)
-              role = item['role']
-              if role == "user":
-                content = item['content'].strip()
-                formatted_messages += f"### Human: {content}\n"
-              elif role == "assistant":
-                if 'content' in item:
-                  content = item['content'].strip()
-                  formatted_messages += f"### Assistant: {content}\n"
-            formatted_messages += f"### Assistant: \n"
-#            print("```" + formatted_messages + "```")
-          except:
-            traceback.print_exc()
-            pass
-          return formatted_messages
-        elif "falcon" in self.model.lower():
-          formatted_messages = ""
-          for message in messages:
-            formatted_messages += f"{message['role'].capitalize()}: {message['content']}\n"
-          formatted_messages = formatted_messages.strip()
+    if "DEBUG" in self.env:
+      # we have to use builtins bizarrely! because rich.print interprets "[INST]" as something meaningful
+      builtins.print("TEXT PROMPT SEND TO LLM:\n", prompt)
 
-        else:
-          # Llama prompt template
-          # Extracting the system prompt and initializing the formatted string with it.
-          system_prompt = messages[0]['content']
-          if system_prompt.strip() != "":
-              formatted_messages = f"<s>[INST]<<SYS>>\n{system_prompt}\n<</SYS>>\n"
-          else:
-              formatted_messages = f"<s>[INST]"
-          # Loop starting from the first user message
-          for index, item in enumerate(messages[1:]):
-              role = item['role']
-              content = item['content']
-
-              if role == 'user':
-                  formatted_messages += f"{content}[/INST] "
-              elif role == 'function':
-                  formatted_messages += f"Output: {content}[/INST] "
-              elif role == 'assistant':
-                  formatted_messages += f"{content} </s><s>[INST] "
-          # Remove the trailing '<s>[INST] ' from the final output
-          if formatted_messages.endswith("<s>[INST]"):
-              formatted_messages = formatted_messages[:-10]
-
-# DEBUG DEBUG DEBUG AGAIN AGAIN AGAIN
-# builtins.print(formatted_messages)
-        return formatted_messages
-
-      prompt = messages_to_prompt(messages)
-
-      if "DEBUG" in self.env:
-        # we have to use builtins bizarrely! because rich.print interprets "[INST]" as something meaningful
-        builtins.print("TEXT PROMPT SEND TO LLM:\n", prompt)
-
-      # Run Code-Llama
-
-      response = self.llama_instance(
-        prompt,
-        stream=True,
-        temperature=self.temperature,
-        stop=[self.terminator],
-        max_tokens=1750 # context window is set to 1800, messages are trimmed to 1000... 700 seems nice
-      )
+    # Run Code-Llama
+    response = self.llama_instance(
+      prompt,
+      stream=True,
+      temperature=self.temperature,
+      stop=[self.terminator],
+      max_tokens=1750 # context window is set to 1800, messages are trimmed to 1000... 700 seems nice
+    )
 
     # Initialize message, function call trackers, and active block
     self.messages.append({})
@@ -548,11 +545,8 @@ class Interpreter:
           if "```" in content:
             # Split by "```" to get the last open code block
             blocks = content.split("```")
-
             current_code_block = blocks[-1]
-
             lines = current_code_block.split("\n")
-
             if content.strip() == "```": # Hasn't outputted a language yet
               language = None
             else:
@@ -582,29 +576,22 @@ class Interpreter:
 
       else:
         # We are not in a function call.
-
         # Check if we just left a function call
         if in_function_call == True:
-
-          if self.local:
-            # This is the same as when gpt-4 gives finish_reason as function_call.
-            # We have just finished a code block, so now we should run it.
-            llama_function_call_finished = True
-
+          llama_function_call_finished = True
         # Remember we're not in a function_call
         in_function_call = False
-
         # If there's no active block,
         if self.active_block == None:
-
           # Create a message block
           self.active_block = MessageBlock()
-
-      # Update active_block
       if self.live_mode:
         self.active_block.update_from_message(self.messages[-1])
       continue # end of for loop
 
     if not self.live_mode:
-      output_text = self.messages[-1]["content"].strip()
-      r2lang.print(output_text)
+      try:
+        output_text = self.messages[-1]["content"].strip()
+        r2lang.print(output_text)
+      except:
+        print(str(self.messages))

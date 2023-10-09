@@ -98,7 +98,7 @@ if have_r2pipe:
 
 help_message = """
 Usage: r2ai [-option] ([query])
- r2ai !aa               analyze the binary, run this r2 command without modifying the query buffer
+ r2ai !aa               run a r2 command
  r2ai -k                clear the screen
  r2ai -c [cmd] [query]  run the given r2 command with the given query
  r2ai -e [k[=v]]        set environment variable
