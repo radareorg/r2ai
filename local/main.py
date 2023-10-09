@@ -30,11 +30,18 @@ except:
 	except:
 		pass
 def r2_cmd(x):
+	res = x
 	if have_rlang:
-		return r2lang.cmd(x)
-	if r2 is not None:
-		return r2.cmd(x)
-	return x
+		oc = r2lang.cmd('e scr.color')
+		r2lang.cmd('e scr.color=0')
+		res = r2lang.cmd(x)
+		r2lang.cmd('e scr.color=' + oc)
+	elif r2 is not None:
+		oc = r2.cmd('e scr.color')
+		r2.cmd('e scr.color=0')
+		res = r2.cmd(x)
+		r2.cmd('e scr.color=' + oc)
+	return res 
 
 r2ai.local = True
 # interpreter.model = "codellama-13b-instruct.Q4_K_M.gguf"
@@ -52,11 +59,11 @@ r2ai.model = "llama-2-7b-chat-codeCherryPop.ggmlv3.q4_K_M.gguf"
 # interpreter.model = "/tmp/model.safetensors"
 # interpreter.model = "TheBloke/CodeLlama-34B-Instruct-GGUF"
 #interpreter.model = "models/models/codellama-34b-instruct.Q2_K.gguf"
-# interpreter.model = "models/models/wizardlm-1.0-uncensored-llama2-13b.Q2_K.gguf"
-# interpreter.model = "models/models/guanaco-7b-uncensored.Q2_K.gguf" 
+#r2ai.model = "models/models/wizardlm-1.0-uncensored-llama2-13b.Q2_K.gguf"
+# r2ai.model = "models/models/guanaco-7b-uncensored.Q2_K.gguf" 
 #interpreter.model = "models/models/ggml-model-q4_0.gguf" # tinysmall -- very bad results
 
-#interpreter.model = "models/models/mistral-7b-v0.1.Q4_K_M.gguf"
+# r2ai.model = "models/models/mistral-7b-v0.1.Q4_K_M.gguf"
 #interpreter.model = "models/models/mistral-7b-instruct-v0.1.Q2_K.gguf"
 #interpreter.model = "TheBloke/Mistral-7B-Instruct-v0.1-GGUF"
 # builtins.print("TheBloke/Mistral-7B-Instruct-v0.1-GGUF")
@@ -156,7 +163,8 @@ def runline(usertext):
 		else:
 			que = input("[Query]>> ")
 		tag = "CODE" # INPUT , TEXT, ..
-		r2ai.chat("Q: " + que + ":\n["+tag+"]\n"+ res+"\n[/"+tag+"]\n")
+#r2ai.chat("Q: " + que + ":\n["+tag+"]\n"+ res+"\n[/"+tag+"]\n")
+		r2ai.chat("Human: " + que + ":\n["+tag+"]\n"+ res+"\n[/"+tag+"]\n")
 	elif usertext.startswith("-v"):
 		print(r2ai.VERSION)
 	elif usertext.startswith("-c"):
@@ -166,8 +174,8 @@ def runline(usertext):
 			que = words[1]
 		else:
 			que = input("[Query]>> ")
-		tag = "INPUT" # CODE, TEXT, ..
-		r2ai.chat("Q: " + que + ":\n[" + tag + "]\n" + res + "\n[/" + tag + "]\n")
+		tag = "CODE" # CODE, TEXT, ..
+		r2ai.chat("Human: " + que + ":\n[" + tag + "]\n" + res + "\n[/" + tag + "]\n")
 	elif usertext[0] == "!": # Deprecate. we have -c now
 		if r2 is None:
 			builtins.print("r2 is not available")
