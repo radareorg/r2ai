@@ -1,21 +1,11 @@
 """
-Right off the bat, to any contributors (a message from Killian):
 
-First of all, THANK YOU. Open Interpreter is ALIVE, ALL OVER THE WORLD because of YOU.
+This code is based on OpenInterpreter. I want to thanks all the contributors to this project as they made it possible to build r2ai taking their code as source for this.
 
-While this project is rapidly growing, I've decided it's best for us to allow some technical debt.
+Kudos to Killian and all the contributors. You may want to chat with them in Discord https://discord.gg/6p3fD6rBVm
 
-The code here has duplication. It has imports in weird places. It has been spaghettified to add features more quickly.
+--pancake
 
-In my opinion **this is critical** to keep up with the pace of demand for this project.
-
-At the same time, I plan on pushing a significant re-factor of `interpreter.py` and `code_interpreter.py` ~ September 16th.
-
-After the re-factor, Open Interpreter's source code will be much simpler, and much more fun to dive into.
-
-Especially if you have ideas and **EXCITEMENT** about the future of this project, chat with me on discord: https://discord.gg/6p3fD6rBVm
-
-- killian
 """
 
 import builtins
@@ -33,6 +23,13 @@ import platform
 import openai
 import litellm
 import pkg_resources
+
+have_rlang = False
+try:
+  import r2lang
+  have_rlang = True
+except:
+  pass
 
 import getpass
 import requests
@@ -106,8 +103,8 @@ class Interpreter:
     self.auto_run = False
     self.local = True
     self.model = "gpt-4"
+    self.live_mode = not have_rlang
     self.env = {}
-    self.debug_mode = False
     self.api_base = None # Will set it to whatever OpenAI wants
 # self.context_window = 16096 # For local models only BURNS!
     self.context_window = 4096 # For local models only // input max length
@@ -246,18 +243,6 @@ class Interpreter:
 
     print(Markdown("".join(full_message)))
 
-
-  def handle_debug(self, arguments=None):
-    if arguments == "" or arguments == "true":
-        print(Markdown("> Entered debug mode"))
-        print(self.messages)
-        self.debug_mode = True
-    elif arguments == "false":
-        print(Markdown("> Exited debug mode"))
-        self.debug_mode = False
-    else:
-        print(Markdown("> Unknown argument to debug command."))
-
   def handle_reset(self, arguments):
     self.reset()
     print(Markdown("> Reset Done"))
@@ -290,7 +275,6 @@ class Interpreter:
     # split the command into the command and the arguments, by the first whitespace
     switch = {
       "help": self.handle_help,
-      "debug": self.handle_debug,
       "reset": self.handle_reset,
       "save_message": self.handle_save_message,
       "load_message": self.handle_load_message,
@@ -304,54 +288,18 @@ class Interpreter:
     action(arguments)  # Execute the function
 
   def chat(self, message=None, return_messages=False):
-    # ^ verify_api_key may set self.local to True, so we run this as an 'if', not 'elif':
-    if self.local:
+    # Code-Llama
+    if self.llama_instance == None:
+      # Find or install Code-Llama
+      try:
+        debug_mode = "DEBUG" in self.env
+        self.llama_instance = new_get_hf_llm(self.model, debug_mode, self.context_window)
+        if self.llama_instance == None:
+          print("Cannot find the model")
+          return
+      except:
+        traceback.print_exc()
 
-      # Code-Llama
-      if self.llama_instance == None:
-
-        # Find or install Code-Llama
-        try:
-          #self.llama_instance = get_hf_llm(self.model, self.debug_mode, self.context_window)
-          self.llama_instance = new_get_hf_llm(self.model, self.debug_mode, self.context_window)
-          if self.llama_instance == None:
-            # They cancelled.
-            print("Cannot find the model")
-            return
-        except:
-          traceback.print_exc()
-
-    # Display welcome message
-    welcome_message = ""
-
-    if self.debug_mode:
-      welcome_message += "> Entered debug mode"
-
-    # If self.local, we actually don't use self.model
-    # (self.auto_run is like advanced usage, we display no messages)
-    if not self.local and not self.auto_run:
-
-      if self.use_azure:
-        notice_model = f"{self.azure_deployment_name} (Azure)"
-      else:
-        notice_model = f"{self.model.upper()}"
-      welcome_message += f"\n> Model set to `{notice_model}`\n\n**Tip:** To run locally, use `interpreter --local`"
-      
-    if self.local:
-      welcome_message += f"\n> Model set to `{self.model}`"
-
-    welcome_message = welcome_message.strip()
-
-    # Print welcome message with newlines on either side (aesthetic choice)
-    # unless we're starting with a blockquote (aesthetic choice)
-    if False and welcome_message != "":
-      if welcome_message.startswith(">"):
-        print(Markdown(welcome_message), '')
-      else:
-        print('', Markdown(welcome_message), '')
-
-    ts = os.get_terminal_size()
-#print("\n\x033[" + str(ts.lines - 1) + ";0HLETS GO\n")
     # Check if `message` was passed in by user
     if message:
       # If it was, we respond non-interactivley
@@ -366,7 +314,6 @@ class Interpreter:
         except EOFError:
           break
         except KeyboardInterrupt:
-          print()  # Aesthetic choice
           break
 
         # Use `readline` to let users up-arrow to previous user messages,
@@ -427,10 +374,6 @@ class Interpreter:
       messages = tt.trim(self.messages, max_tokens=(self.context_window-self.max_tokens-25), system_message=system_message)
     else:
       messages = tt.trim(self.messages, self.model, system_message=system_message)
-
-    if self.debug_mode:
-      print("\n", "Sending `messages` to LLM:", "\n")
-      print(messages)
 
     # DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG
     if "DEBUG" in self.env:
@@ -529,16 +472,8 @@ class Interpreter:
         return formatted_messages
 
       prompt = messages_to_prompt(messages)
-      # Lmao i can't believe this works (it does need this btw)
-#      if messages[-1]["role"] != "function":
-#        prompt += "Let's explore this. By the way, I can run code on your machine by writing the code in a markdown code block. This works for shell, javascript, python, R, and applescript. I'm going to try to do this for your task. Anyway, "
-#      elif messages[-1]["role"] == "function" and messages[-1]["content"] != "No output":
-#        prompt += "Given the output of the code I just ran, "
-#      elif messages[-1]["role"] == "function" and messages[-1]["content"] == "No output":
-#        prompt += "Given the fact that the code I just ran produced no output, "
 
-
-      if self.debug_mode:
+      if "DEBUG" in self.env:
         # we have to use builtins bizarrely! because rich.print interprets "[INST]" as something meaningful
         builtins.print("TEXT PROMPT SEND TO LLM:\n", prompt)
 
@@ -559,34 +494,26 @@ class Interpreter:
     self.active_block = None
 
     for chunk in response:
-      if self.use_azure and ('choices' not in chunk or len(chunk['choices']) == 0):
-        # Azure OpenAI Service may return empty chunk
-        continue
-
-      if self.local:
-        if "content" not in messages[-1]:
-          # This is the first chunk. We'll need to capitalize it, because our prompt ends in a ", "
-          chunk["choices"][0]["text"] = chunk["choices"][0]["text"].capitalize()
-          # We'll also need to add "role: assistant", CodeLlama will not generate this
-          messages[-1]["role"] = "assistant"
-        delta = {"content": chunk["choices"][0]["text"]}
-      else:
-        delta = chunk["choices"][0]["delta"]
+      if "content" not in messages[-1]:
+        # This is the first chunk. We'll need to capitalize it, because our prompt ends in a ", "
+        chunk["choices"][0]["text"] = chunk["choices"][0]["text"].capitalize()
+        # We'll also need to add "role: assistant", CodeLlama will not generate this
+        messages[-1]["role"] = "assistant"
+      delta = {"content": chunk["choices"][0]["text"]}
 
       # Accumulate deltas into the last message in messages
       self.messages[-1] = merge_deltas(self.messages[-1], delta)
+      if not self.live_mode:
+        continue
 
       # Check if we're in a function call
-      if not self.local:
-        condition = "function_call" in self.messages[-1]
-      elif self.local:
-        # Since Code-Llama can't call functions, we just check if we're in a code block.
-        # This simply returns true if the number of "```" in the message is odd.
-        if "content" in self.messages[-1]:
-          condition = self.messages[-1]["content"].count("```") % 2 == 1
-        else:
-          # If it hasn't made "content" yet, we're certainly not in a function call.
-          condition = False
+      # Since Code-Llama can't call functions, we just check if we're in a code block.
+      # This simply returns true if the number of "```" in the message is odd.
+      if "content" in self.messages[-1]:
+        condition = self.messages[-1]["content"].count("```") % 2 == 1
+      else:
+        # If it hasn't made "content" yet, we're certainly not in a function call.
+        condition = False
 
       if condition:
         # We are in a function call.
@@ -600,8 +527,6 @@ class Interpreter:
           # Print newline if it was just a code block or user message
           # (this just looks nice)
           last_role = self.messages[-2]["role"]
-          if last_role == "user" or last_role == "function":
-            print()
 
           # then create a new code block
           self.active_block = CodeBlock()
@@ -611,58 +536,46 @@ class Interpreter:
 
         # Now let's parse the function's arguments:
 
-        if not self.local:
-          # gpt-4
-          # Parse arguments and save to parsed_arguments, under function_call
-          if "arguments" in self.messages[-1]["function_call"]:
-            arguments = self.messages[-1]["function_call"]["arguments"]
-            new_parsed_arguments = parse_partial_json(arguments)
-            if new_parsed_arguments:
-              # Only overwrite what we have if it's not None (which means it failed to parse)
-              self.messages[-1]["function_call"][
-                "parsed_arguments"] = new_parsed_arguments
+        # Code-Llama
+        # Parse current code block and save to parsed_arguments, under function_call
+        if "content" in self.messages[-1]:
 
-        elif self.local:
-          # Code-Llama
-          # Parse current code block and save to parsed_arguments, under function_call
-          if "content" in self.messages[-1]:
+          content = self.messages[-1]["content"]
 
-            content = self.messages[-1]["content"]
+          if "```" in content:
+            # Split by "```" to get the last open code block
+            blocks = content.split("```")
 
-            if "```" in content:
-              # Split by "```" to get the last open code block
-              blocks = content.split("```")
+            current_code_block = blocks[-1]
 
-              current_code_block = blocks[-1]
+            lines = current_code_block.split("\n")
 
-              lines = current_code_block.split("\n")
-
-              if content.strip() == "```": # Hasn't outputted a language yet
-                language = None
+            if content.strip() == "```": # Hasn't outputted a language yet
+              language = None
+            else:
+              if lines[0] != "":
+                language = lines[0].strip()
               else:
-                if lines[0] != "":
-                  language = lines[0].strip()
-                else:
-                  language = "python"
-                  # In anticipation of its dumbassery let's check if "pip" is in there
-                  if len(lines) > 1:
-                    if lines[1].startswith("pip"):
-                      language = "shell"
+                language = "python"
+                # In anticipation of its dumbassery let's check if "pip" is in there
+                if len(lines) > 1:
+                  if lines[1].startswith("pip"):
+                    language = "shell"
 
-              # Join all lines except for the language line
-              code = '\n'.join(lines[1:]).strip("` \n")
+            # Join all lines except for the language line
+            code = '\n'.join(lines[1:]).strip("` \n")
 
-              arguments = {"code": code}
-              if language: # We only add this if we have it-- the second we have it, an interpreter gets fired up (I think? maybe I'm wrong)
-                if language == "bash":
-                  language = "shell"
-                arguments["language"] = language
+            arguments = {"code": code}
+            if language: # We only add this if we have it-- the second we have it, an interpreter gets fired up (I think? maybe I'm wrong)
+              if language == "bash":
+                language = "shell"
+              arguments["language"] = language
 
-            # Code-Llama won't make a "function_call" property for us to store this under, so:
-            if "function_call" not in self.messages[-1]:
-              self.messages[-1]["function_call"] = {}
+          # Code-Llama won't make a "function_call" property for us to store this under, so:
+          if "function_call" not in self.messages[-1]:
+            self.messages[-1]["function_call"] = {}
 
-            self.messages[-1]["function_call"]["parsed_arguments"] = arguments
+          self.messages[-1]["function_call"]["parsed_arguments"] = arguments
 
       else:
         # We are not in a function call.
@@ -685,106 +598,10 @@ class Interpreter:
           self.active_block = MessageBlock()
 
       # Update active_block
-      self.active_block.update_from_message(self.messages[-1])
+      if self.live_mode:
+        self.active_block.update_from_message(self.messages[-1])
+      continue # end of for loop
 
-      # Check if we're finished
-      if chunk["choices"][0]["finish_reason"] or llama_function_call_finished:
-        if chunk["choices"][0]["finish_reason"] == "function_call" or llama_function_call_finished:
-          # Time to call the function!
-          # (Because this is Open Interpreter, we only have one function.)
-
-          if self.debug_mode:
-            print("Running function:")
-            print(self.messages[-1])
-            print("---")
-
-          # Ask for user confirmation to run code
-          if self.auto_run == False:
-
-            # End the active block so you can run input() below it
-            # Save language and code so we can create a new block in a moment
-            self.active_block.end()
-            language = self.active_block.language
-            code = self.active_block.code
-#return
-            # Prompt user
-# response = input("  Would you like to run this code? (y/n)\n\n  ")
-
-            if False and response.strip().lower() == "y":
-              # Create a new, identical block where the code will actually be run
-              self.active_block = CodeBlock()
-              self.active_block.language = language
-              self.active_block.code = code
-
-            else:
-              # User declined to run code.
-              self.active_block.end()
-              self.messages.append({
-                "role":
-                "function",
-                "name":
-                "run_code",
-                "content":
-                "User decided not to run this code."
-              })
-              return
-
-          # If we couldn't parse its arguments, we need to try again.
-          if not self.local and "parsed_arguments" not in self.messages[-1]["function_call"]:
-
-            # After collecting some data via the below instruction to users,
-            # This is the most common failure pattern: https://github.com/KillianLucas/open-interpreter/issues/41
-
-            # print("> Function call could not be parsed.\n\nPlease open an issue on Github (openinterpreter.com, click Github) and paste the following:")
-            # print("\n", self.messages[-1]["function_call"], "\n")
-            # time.sleep(2)
-            # print("Informing the language model and continuing...")
-
-            # Since it can't really be fixed without something complex,
-            # let's just berate the LLM then go around again.
-
-            self.messages.append({
-              "role": "function",
-              "name": "run_code",
-              "content": """Your function call could not be parsed. Please use ONLY the `run_code` function, which takes two parameters: `code` and `language`. Your response should be formatted as a JSON."""
-            })
-
-            self.respond()
-            return
-
-          # Create or retrieve a Code Interpreter for this language
-          language = self.messages[-1]["function_call"]["parsed_arguments"]["language"]
-          if language not in self.code_interpreters:
-            self.code_interpreters[language] = CodeInterpreter(language, self.debug_mode)
-          code_interpreter = self.code_interpreters[language]
-
-          # Let this Code Interpreter control the active_block
-          code_interpreter.active_block = self.active_block
-          code_interpreter.run()
-
-          # End the active_block
-          self.active_block.end()
-
-          # Append the output to messages
-          # Explicitly tell it if there was no output (sometimes "" = hallucinates output)
-          self.messages.append({
-            "role": "function",
-            "name": "run_code",
-            "content": self.active_block.output if self.active_block.output else "No output"
-          })
-
-          # Go around again
-          self.respond()
-
-        if chunk["choices"][0]["finish_reason"] != "function_call":
-          # Done!
-
-          # Code Llama likes to output "###" at the end of every message for some reason
-          if self.local and "content" in self.messages[-1]:
-            self.messages[-1]["content"] = self.messages[-1]["content"].strip().rstrip("#")
-            self.active_block.update_from_message(self.messages[-1])
-            time.sleep(0.1)
-
-          print("\n")
-          self.active_block.end()
-          return
+    if not self.live_mode:
+      output_text = self.messages[-1]["content"].strip()
+      r2lang.print(output_text)

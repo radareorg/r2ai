@@ -24,15 +24,11 @@ class CodeBlock:
     self.live.start()
 
   def update_from_message(self, message):
-    if "function_call" in message and "parsed_arguments" in message[
-        "function_call"]:
-
+    if "function_call" in message and "parsed_arguments" in message["function_call"]:
       parsed_arguments = message["function_call"]["parsed_arguments"]
-
-      if parsed_arguments != None:
+      if parsed_arguments is not None:
         self.language = parsed_arguments.get("language")
         self.code = parsed_arguments.get("code")
-
         if self.code and self.language:
           self.refresh()
 
@@ -40,9 +36,9 @@ class CodeBlock:
     self.refresh(cursor=False)
     # Destroys live display
     self.live.stop()
-#self.output = ""
-#    self.code = ""
-#    self.active_line = None
+    self.output = ""
+    self.code = ""
+    self.active_line = None
 
   def refresh(self, cursor=True):
     # Get code, return if there is none
@@ -81,15 +77,10 @@ class CodeBlock:
     if self.output == "" or self.output == "None":
       output_panel = ""
     else:
-      output_panel = Panel(self.output,
-                           box=MINIMAL,
-                           style="#FFFFFF on #3b3b37")
+      output_panel = Panel(self.output, box=MINIMAL, style="#FFFFFF on #3b3b37")
 
     # Create a group with the code table and output panel
-    group = Group(
-      code_panel,
-      output_panel,
-    )
+    group = Group(code_panel, output_panel)
 
     # Update the live display
     self.live.update(group)

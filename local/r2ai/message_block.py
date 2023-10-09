@@ -1,10 +1,12 @@
 from rich.console import Console
 from rich.live import Live
 from rich.panel import Panel
-from rich.markdown import Markdown
+#from rich.markdown import Markdown
 from rich.box import MINIMAL
 import re
 
+def Markdown(x):
+  return x
 
 class MessageBlock:
 
@@ -37,7 +39,6 @@ class MessageBlock:
     panel = Panel(markdown, box=MINIMAL)
     self.live.update(panel)
     self.live.refresh()
-
 
 def textify_markdown_code_blocks(text):
   """

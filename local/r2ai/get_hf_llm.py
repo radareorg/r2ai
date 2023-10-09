@@ -25,11 +25,13 @@ import traceback
 import inquirer
 import subprocess
 # from rich import print
-from rich.markdown import Markdown
+# from rich.markdown import Markdown
 import os
 import shutil
 from huggingface_hub import list_files_info, hf_hub_download
 
+def Markdown(x):
+  return x
 
 def get_hf_llm(repo_id, debug_mode, context_window):
     print("Getting the model from hugging face")
@@ -257,10 +259,6 @@ def confirm_action(message):
     return answers['confirm']
 
 
-
-
-
-
 import os
 import inquirer
 from huggingface_hub import list_files_info, hf_hub_download, login
@@ -478,7 +476,6 @@ def new_get_hf_llm(repo_id, debug_mode, context_window):
             return None
 
     # Initialize and return Code-Llama
-    assert os.path.isfile(model_path)
-    llama_2 = Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
-      
-    return llama_2
+    if not os.path.isfile(model_path):
+        print("Model is not a file")
+    return Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)

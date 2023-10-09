@@ -58,11 +58,6 @@ try:
 except:
 	print("error")
 
-#parameter_choices = ["jeje"]
-# readline.add_history(user_input)
-#questions = [inquirer.List('param', message="Parameter count (smaller is faster, larger is more capable)", choices=parameter_choices)]
-#inquirer.prompt(questions)
-
 help_message = """
 Usage: r2ai [-option] ([query])
  r2ai !aa               analyze the binary, run this r2 command without modifying the query buffer
@@ -73,6 +68,7 @@ Usage: r2ai [-option] ([query])
  r2ai -i [a.js] [query] load the contents of the given file into the query buffer
  r2ai -m [file/repo]    select model from huggingface repository or local file
  r2ai -q                quit/exit/^C
+ r2ai -l                toggle the live mode
  r2ai -r [sysprompt]    define the role of the conversation
  r2ai -R                reset the chat conversation context
  r2ai -v                show r2ai version
@@ -123,6 +119,10 @@ def runline(usertext):
 			r2ai.system_message = usertext[1:]
 		else:
 			print(r2ai.system_message)
+	elif usertext.startswith("-l"):
+		r2ai.live_mode = not r2ai.live_mode
+		lms = "enabled" if r2ai.live_mode else "disabled"
+		print("live mode is " + lms)
 	elif usertext.startswith("-i"):
 		res = slurp(usertext[2:])
 		words = usertext.split(" ", 1)
@@ -142,7 +142,6 @@ def runline(usertext):
 	elif usertext.startswith("-c"):
 		words = usertext[2:].strip().split(" ", 1)
 		res = r2.cmd(words[0])
-		print(words)
 		if len(words) > 1:
 			que = words[1]
 		else:
@@ -166,6 +165,8 @@ def runline(usertext):
 # print(res)
 
 def r2ai_repl():
+	olivemode = r2ai.live_mode
+	r2ai.live_mode = True
 	prompt = "[r2ai:0x00000000]> "
 	while True:
 		if r2 is not None:
@@ -175,11 +176,10 @@ def r2ai_repl():
 			prompt = "[r2ai:" + off + "]>> "
 		if r2ai.active_block is not None:
 			#r2ai.active_block.update_from_message("")
-			r2ai.active_block.end()
+			r2ai.end_active_block()
 		try:
 			usertext = input(prompt).strip()
 		except:
-			break
 			break
 		try:
 			if runline(usertext) == "q":
@@ -188,6 +188,7 @@ def r2ai_repl():
 		except:
 			traceback.print_exc()
 			continue
+	r2ai.live_mode = olivemode
 
 ### MAIN ###
 try:
