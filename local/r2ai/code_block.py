@@ -19,7 +19,8 @@ class CodeBlock:
     self.code = ""
     self.active_line = None
 
-    self.live = Live(auto_refresh=False, console=Console(), vertical_overflow="hidden")
+#self.live = Live(auto_refresh=False, console=Console(), vertical_overflow="hidden")
+    self.live = Live(auto_refresh=False, console=Console())
     self.live.start()
 
   def update_from_message(self, message):

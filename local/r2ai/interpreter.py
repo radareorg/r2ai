@@ -24,8 +24,7 @@ from .utils import merge_deltas, parse_partial_json
 from .message_block import MessageBlock
 from .code_block import CodeBlock
 from .code_interpreter import CodeInterpreter
-from .get_hf_llm import get_hf_llm
-from .get_hf_llm import new_get_hf_llm
+from .get_hf_llm import get_hf_llm, new_get_hf_llm
 
 import os
 import time
@@ -40,9 +39,23 @@ import getpass
 import requests
 import readline
 import tokentrim as tt
-from rich import print
-from rich.markdown import Markdown
+# from rich import print
+# from rich.markdown import Markdown
 from rich.rule import Rule
+
+import signal
+import sys
+
+def signal_handler(sig, frame):
+    print('You pressed Ctrl+C!')
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+# print('Press Ctrl+C')
+# signal.pause()
+
+def Markdown(x):
+  return x
 
 # Function schema for gpt-4
 function_schema = {
@@ -83,12 +96,6 @@ To use `GPT-4` (recommended) please provide an Azure OpenAI API key, a API base,
 To use `Code-Llama` (free but less capable) press `enter`.
 """
 
-confirm_mode_message = """
-**Open Interpreter** will require approval before running code. Use `interpreter -y` to bypass this.
-
-Press `CTRL-C` to exit.
-"""
-
 
 class Interpreter:
 
@@ -109,10 +116,7 @@ class Interpreter:
     self.max_tokens = 1750 # For local models only
     # Azure OpenAI
     self.use_azure = False
-    self.azure_api_base = None
-    self.azure_api_version = None
     self.azure_deployment_name = None
-    self.azure_api_type = "azure"
 
     # Get default system message
     here = os.path.abspath(os.path.dirname(__file__))
@@ -342,11 +346,6 @@ class Interpreter:
     if self.local:
       welcome_message += f"\n> Model set to `{self.model}`"
 
-    # If not auto_run, tell the user we'll ask permission to run code
-    # We also tell them here how to exit Open Interpreter
-    if not self.auto_run:
-      welcome_message += "\n\n" + confirm_mode_message
-
     welcome_message = welcome_message.strip()
 
     # Print welcome message with newlines on either side (aesthetic choice)
@@ -397,6 +396,7 @@ class Interpreter:
           # Always end the active block. Multiple Live displays = issues
           self.end_active_block()
 
+    self.end_active_block()
     if return_messages:
         return self.messages
 
@@ -408,7 +408,8 @@ class Interpreter:
   def environment(self):
     kvs = ""
     for k in self.env.keys():
-        kvs += k + ": " + self.env[k] + "\n"
+        if k != "DEBUG":
+            kvs += k + ": " + self.env[k] + "\n"
     if len(kvs) == 0:
         return ""
     # info += f"[User Info]\nName: {username}\nCWD: {current_working_directory}\nOS: {operating_system}"
@@ -438,7 +439,8 @@ class Interpreter:
       print(messages)
 
     # DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG
-#print(messages)
+    if "DEBUG" in self.env:
+      print(messages)
 
     # Make LLM call
     if self.local:
@@ -510,7 +512,6 @@ class Interpreter:
 
         else:
           # Llama prompt template
-
           # Extracting the system prompt and initializing the formatted string with it.
           system_prompt = messages[0]['content']
           formatted_messages = f"<s>[INST]<<SYS>>\n{system_prompt}\n<</SYS>>\n"
@@ -794,6 +795,3 @@ class Interpreter:
           print("\n")
           self.active_block.end()
           return
-
-  def _print_welcome_message(self):
-    print("", Markdown("●"), "", Markdown(f"\nWelcome to **Open Interpreter**.\n"), "")

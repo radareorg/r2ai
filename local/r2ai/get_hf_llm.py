@@ -24,7 +24,7 @@ import appdirs
 import traceback
 import inquirer
 import subprocess
-from rich import print
+# from rich import print
 from rich.markdown import Markdown
 import os
 import shutil
@@ -375,9 +375,9 @@ def enough_disk_space(size, path) -> bool:
 def new_get_hf_llm(repo_id, debug_mode, context_window):
     if not os.path.exists(repo_id):
         return get_hf_llm(repo_id, debug_mode, context_window)
-    print("LOADING FILE: " + repo_id)
+    # print("LOADING FILE: " + repo_id)
     n_gpu_layers = -1 # = 0 to use cpu
-    n_gpu_layers = 0
+#    n_gpu_layers = 0
     # Third stage: GPU confirm
 #if confirm_action("Use GPU? (Large models might crash on GPU, but will run more quickly)"):
 ##      n_gpu_layers = -1
