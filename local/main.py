@@ -29,7 +29,13 @@ except:
 		have_r2pipe = True
 	except:
 		pass
+
+ais = {}
+ai = r2ai.Interpreter()
+ais[0] = ai
+
 def r2_cmd(x):
+	global ai
 	res = x
 	if have_rlang:
 		oc = r2lang.cmd('e scr.color')
@@ -43,35 +49,36 @@ def r2_cmd(x):
 		r2.cmd('e scr.color=' + oc)
 	return res 
 
-r2ai.local = True
+ai.local = True
 # interpreter.model = "codellama-13b-instruct.Q4_K_M.gguf"
-# interpreter.model = "TheBloke/CodeLlama-7B-Instruct-GGUF"
+# ai.model = "TheBloke/CodeLlama-7B-Instruct-GGUF"
 # interpreter.model = "TheBloke/codellama-34b-instruct.Q4_K_M.gguf"
-r2ai.model = "TheBloke/CodeLlama-34B-Instruct-GGUF"
-r2ai.model = "TheBloke/Wizard-Vicuna-7B-Uncensored-GPTQ"
+ai.model = "TheBloke/CodeLlama-34B-Instruct-GGUF"
+ai.model = "TheBloke/Wizard-Vicuna-7B-Uncensored-GPTQ"
 # interpreter.model = "YokaiKoibito/falcon-40b-GGUF" ## fails
 # interpreter.model = "ItelAi/Chatbot"
 # pwd = os.getcwd()
-# interpreter.model = pwd + "codellama-13b-python.ggmlv3.Q4_1.gguf"
-r2ai.system_message = "" #
+ai.model = "models/models/codellama-7b-instruct.Q4_K_M.gguf"
+ai.system_message = "" #
 
-r2ai.model = "llama-2-7b-chat-codeCherryPop.ggmlv3.q4_K_M.gguf"
+ai.model = "llama-2-7b-chat-codeCherryPop.ggmlv3.q4_K_M.gguf"
 # interpreter.model = "/tmp/model.safetensors"
 # interpreter.model = "TheBloke/CodeLlama-34B-Instruct-GGUF"
 #interpreter.model = "models/models/codellama-34b-instruct.Q2_K.gguf"
-#r2ai.model = "models/models/wizardlm-1.0-uncensored-llama2-13b.Q2_K.gguf"
-# r2ai.model = "models/models/guanaco-7b-uncensored.Q2_K.gguf" 
+#ai.model = "models/models/wizardlm-1.0-uncensored-llama2-13b.Q2_K.gguf"
+# ai.model = "models/models/guanaco-7b-uncensored.Q2_K.gguf" 
 #interpreter.model = "models/models/ggml-model-q4_0.gguf" # tinysmall -- very bad results
 
-# r2ai.model = "models/models/mistral-7b-v0.1.Q4_K_M.gguf"
+# ai.model = "models/models/mistral-7b-v0.1.Q4_K_M.gguf"
+# ai.model = "models/models/mistral-7b-v0.1.Q4_K_M.gguf"
 #interpreter.model = "models/models/mistral-7b-instruct-v0.1.Q2_K.gguf"
 #interpreter.model = "TheBloke/Mistral-7B-Instruct-v0.1-GGUF"
 # builtins.print("TheBloke/Mistral-7B-Instruct-v0.1-GGUF")
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
-model_path = dir_path + "/" + r2ai.model
+model_path = dir_path + "/" + ai.model
 if os.path.exists(model_path):
-	r2ai.model = model_path
+	ai.model = model_path
 
 def slurp(f):
 	fd = open(f)
@@ -98,6 +105,7 @@ Usage: r2ai [-option] ([query])
  r2ai -h | ?            show this help
  r2ai -i [a.js] [query] load the contents of the given file into the query buffer
  r2ai -m [file/repo]    select model from huggingface repository or local file
+ r2ai -n [num]          select the nth language model
  r2ai -q                quit/exit/^C
  r2ai -l                toggle the live mode
  r2ai -r [sysprompt]    define the role of the conversation
@@ -106,6 +114,7 @@ Usage: r2ai [-option] ([query])
 """
 
 def runline(usertext):
+	global ai
 	usertext = usertext.strip()
 	if usertext == "" or usertext.startswith("?") or usertext.startswith("-h"):
 		builtins.print(help_message)
@@ -114,45 +123,49 @@ def runline(usertext):
 	elif usertext.startswith("-m"):
 		words = usertext.split(" ")
 		if len(words) > 1:
-			r2ai.model = words[1]
+			ai.model = words[1]
 		else:
-			builtins.print(r2ai.model)
+			builtins.print(ai.model)
 	elif usertext == "reset" or usertext.startswith("-R"):
-		r2ai.reset()
+		ai.reset()
 	elif usertext == "-q" or usertext == "exit":
 		return "q"
 	elif usertext.startswith("-e"):
 		if len(usertext) == 2:
-			print(r2ai.env)
+			print(ai.env)
 		else:
 			line = usertext[2:].strip().split("=")
 			k = line[0]
 			if len(line) > 1:
 				v = line[1]
 				if v == "":
-					del r2ai.env[k]
+					del ai.env[k]
 				else:
-					r2ai.env[k] = v
+					ai.env[k] = v
 			else:
 				try:
-					print(r2ai.env[k])
+					print(ai.env[k])
 				except:
 					pass
 	elif usertext.startswith("-s"):
 		r2ai_repl()
 	elif usertext.startswith("-r"):
 		if len(usertext) > 2:
-			r2ai.system_message = usertext[2:].strip()
+			ai.system_message = usertext[2:].strip()
 		else:
-			print(r2ai.system_message)
+			print(ai.system_message)
 	elif usertext[0] == "$": # Deprecate
 		if len(usertext) > 1:
-			r2ai.system_message = usertext[1:]
+			ai.system_message = usertext[1:]
 		else:
-			print(r2ai.system_message)
+			print(ai.system_message)
+	elif usertext.startswith("-m"):
+		ai.live_mode = not ai.live_mode
+		lms = "enabled" if ai.live_mode else "disabled"
+		print("live mode is " + lms)
 	elif usertext.startswith("-l"):
-		r2ai.live_mode = not r2ai.live_mode
-		lms = "enabled" if r2ai.live_mode else "disabled"
+		ai.live_mode = not ai.live_mode
+		lms = "enabled" if ai.live_mode else "disabled"
 		print("live mode is " + lms)
 	elif usertext.startswith("-i"):
 		text = usertext[2:].strip()
@@ -164,7 +177,18 @@ def runline(usertext):
 			que = input("[Query]>> ")
 		tag = "CODE" # INPUT , TEXT, ..
 #r2ai.chat("Q: " + que + ":\n["+tag+"]\n"+ res+"\n[/"+tag+"]\n")
-		r2ai.chat("Human: " + que + ":\n["+tag+"]\n"+ res+"\n[/"+tag+"]\n")
+		ai.chat("Human: " + que + ":\n["+tag+"]\n"+ res+"\n[/"+tag+"]\n")
+	elif usertext.startswith("-n"):
+		if usertext == "-n":
+			for a in ais.keys():
+				model = ais[a].model
+				print(f"{a}  - {model}")
+		else:
+			index = int(usertext[2:])
+			if index not in ais:
+				ais[index] = r2ai.Interpreter()
+				ais[index].model = ai.model
+			ai = ais[index]
 	elif usertext.startswith("-v"):
 		print(r2ai.VERSION)
 	elif usertext.startswith("-c"):
@@ -175,26 +199,26 @@ def runline(usertext):
 		else:
 			que = input("[Query]>> ")
 		tag = "CODE" # CODE, TEXT, ..
-		r2ai.chat("Human: " + que + ":\n[" + tag + "]\n" + res + "\n[/" + tag + "]\n")
+		ai.chat("Human: " + que + ":\n[" + tag + "]\n" + res + "\n[/" + tag + "]\n")
 	elif usertext[0] == "!": # Deprecate. we have -c now
 		if r2 is None:
 			builtins.print("r2 is not available")
 		elif usertext[1] == "!":
 			res = r2_cmd(usertext[2:])
 			que = input("[Query]>> ")
-			r2ai.chat("Q: " + que + ":\n[INPUT]\n"+ res+"\n[/INPUT]\n") # , return_messages=True)
+			ai.chat("Q: " + que + ":\n[INPUT]\n"+ res+"\n[/INPUT]\n") # , return_messages=True)
 		else:
 			builtins.print(r2_cmd(usertext[1:]))
 	elif usertext.startswith("-"):
 		builtins.print("Unknown flag. See 'r2ai -h' for help")
 	else:
-		r2ai.chat(usertext)
+		ai.chat(usertext)
 # r2ai.load(res)
 # print(res)
 
 def r2ai_repl():
-	olivemode = r2ai.live_mode
-	r2ai.live_mode = True
+	olivemode = ai.live_mode
+	ai.live_mode = True
 	prompt = "[r2ai:0x00000000]> "
 	while True:
 		if r2 is not None:
@@ -202,9 +226,9 @@ def r2ai_repl():
 			if off == "":
 				off = r2_cmd("s").strip()
 			prompt = "[r2ai:" + off + "]>> "
-		if r2ai.active_block is not None:
+		if ai.active_block is not None:
 			#r2ai.active_block.update_from_message("")
-			r2ai.end_active_block()
+			ai.end_active_block()
 		try:
 			usertext = input(prompt).strip()
 		except:
@@ -216,12 +240,10 @@ def r2ai_repl():
 		except:
 			traceback.print_exc()
 			continue
-	r2ai.live_mode = olivemode
+	ai.live_mode = olivemode
 
 ### MAIN ###
-try:
-	import r2lang
-
+if have_rlang:
 	def r2ai_rlang_plugin(a):
 		def _call(s):
 			if s.startswith("r2ai"):
@@ -240,7 +262,7 @@ try:
 			"desc": "run llama language models in local inside r2",
 			"call": _call,
 		}
-
 	r2lang.plugin("core", r2ai_rlang_plugin)
-except:
+
+if not have_rlang:
 	r2ai_repl()
