@@ -19,7 +19,6 @@ Especially if you have ideas and **EXCITEMENT** about the future of this project
 """
 
 import builtins
-from .cli import cli
 from .utils import merge_deltas, parse_partial_json
 from .message_block import MessageBlock
 from .code_block import CodeBlock
@@ -134,11 +133,6 @@ class Interpreter:
     # gpt-4 is faster, smarter, can call functions, and is all-around easier to use.
     # This makes gpt-4 better aligned with Open Interpreters priority to be easy to use.
     self.llama_instance = None
-
-  def cli(self):
-    # The cli takes the current instance of Interpreter,
-    # modifies it according to command line flags, then runs chat.
-    cli(self)
 
   def get_info_for_system_message(self):
     """
@@ -715,7 +709,6 @@ class Interpreter:
 #return
             # Prompt user
 # response = input("  Would you like to run this code? (y/n)\n\n  ")
-            print("")  # <- Aesthetic choice
 
             if False and response.strip().lower() == "y":
               # Create a new, identical block where the code will actually be run
