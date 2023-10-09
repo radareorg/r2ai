@@ -3,8 +3,11 @@
 import os
 import sys
 
-r2aihome = os.path.dirname(os.readlink(__file__))
-sys.path.append(r2aihome)
+try:
+	r2aihome = os.path.dirname(os.readlink(__file__))
+	sys.path.append(r2aihome)
+except:
+	pass
 
 import time
 import builtins
