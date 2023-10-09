@@ -4,8 +4,6 @@ import os
 import sys
 
 r2aihome = os.path.dirname(os.readlink(__file__))
-#print("Using " + r2aihome)
-#print(sys.path)
 sys.path.append(r2aihome)
 
 import time
@@ -147,19 +145,15 @@ def runline(usertext):
 		lms = "enabled" if r2ai.live_mode else "disabled"
 		print("live mode is " + lms)
 	elif usertext.startswith("-i"):
-		res = slurp(usertext[2:])
-		words = usertext.split(" ", 1)
+		text = usertext[2:].strip()
+		words = text.split(" ", 1)
+		res = slurp(words[0])
 		if len(words) > 1:
 			que = words[1]
 		else:
 			que = input("[Query]>> ")
 		tag = "CODE" # INPUT , TEXT, ..
 		r2ai.chat("Q: " + que + ":\n["+tag+"]\n"+ res+"\n[/"+tag+"]\n")
-	elif usertext[0] == ":": # deprecate
-		res = slurp(usertext[1:])
-		que = input("[Query]>> ")
-		# r2ai.chat("Q: " + que + ":\n[INPUT]\n"+ res+"\n[/INPUT]\n") # , return_messages=True)
-		r2ai.chat("Q: " + que + ":\n[CODE]\n"+ res+"\n[/CODE]\n")
 	elif usertext.startswith("-v"):
 		print(r2ai.VERSION)
 	elif usertext.startswith("-c"):
