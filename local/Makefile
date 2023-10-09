@@ -1,4 +1,5 @@
 MODEL=llama-2-7b-chat-codeCherryPop.ggmlv3.q4_K_M.gguf
+R2_USER_PLUGINS=$(shell r2 -H R2_USER_PLUGINS)
 PWD=$(shell pwd)
 
 all: $(MODEL)
@@ -13,3 +14,6 @@ $(MODEL): deps
 
 deps:
 	pip3 install rich inquirer python-dotenv openai litellm tokentrim
+
+user-install:
+	ln -fs $(PWD)/main.py $(R2_USER_PLUGINS)/r2ai.py

@@ -1,15 +1,32 @@
 #!/usr/bin/env python3
 
-import time
+import os
 import sys
+
+r2aihome = os.path.dirname(os.readlink(__file__))
+#print("Using " + r2aihome)
+#print(sys.path)
+sys.path.append(r2aihome)
+
+import time
 import builtins
 # from rich import print
 import traceback
 import inquirer
 import readline
 import r2ai
-import os
 
+have_rlang = False
+have_r2pipe = False
+try:
+	import r2lang
+	have_rlang = True
+except:
+	try:
+		import r2pipe
+		have_r2pipe = True
+	except:
+		pass
 
 r2ai.local = True
 # interpreter.model = "codellama-13b-instruct.Q4_K_M.gguf"
@@ -48,15 +65,15 @@ def slurp(f):
 	return "" + res
 
 r2 = None
-try:
-	import r2pipe
-	if "R2PIPE_IN" in os.environ.keys():
-		r2 = r2pipe.open()
-	else:
-		file = sys.argv[1] if len(sys.argv) > 1 else "/bin/ls"
-		r2 = r2pipe.open(file)
-except:
-	print("error")
+if have_r2pipe:
+	try:
+		if "R2PIPE_IN" in os.environ.keys():
+			r2 = r2pipe.open()
+		else:
+			file = sys.argv[1] if len(sys.argv) > 1 else "/bin/ls"
+			r2 = r2pipe.open(file)
+	except:
+		print("error")
 
 help_message = """
 Usage: r2ai [-option] ([query])
