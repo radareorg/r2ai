@@ -15,5 +15,8 @@ $(MODEL): deps
 deps:
 	pip3 install rich inquirer python-dotenv openai litellm tokentrim
 
-user-install:
+install user-install:
 	ln -fs $(PWD)/main.py $(R2_USER_PLUGINS)/r2ai.py
+
+uninstall user-uninstall:
+	rm -f $(R2_USER_PLUGINS)/r2ai.py
