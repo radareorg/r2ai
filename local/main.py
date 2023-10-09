@@ -16,6 +16,7 @@ import inquirer
 import readline
 import r2ai
 
+r2 = None
 have_rlang = False
 have_r2pipe = False
 try:
@@ -27,6 +28,12 @@ except:
 		have_r2pipe = True
 	except:
 		pass
+def r2_cmd(x):
+	if have_rlang:
+		return r2lang.cmd(x)
+	if r2 is not None:
+		return r2.cmd(x)
+	return x
 
 r2ai.local = True
 # interpreter.model = "codellama-13b-instruct.Q4_K_M.gguf"
@@ -64,7 +71,6 @@ def slurp(f):
 	fd.close()
 	return "" + res
 
-r2 = None
 if have_r2pipe:
 	try:
 		if "R2PIPE_IN" in os.environ.keys():
@@ -158,7 +164,7 @@ def runline(usertext):
 		print(r2ai.VERSION)
 	elif usertext.startswith("-c"):
 		words = usertext[2:].strip().split(" ", 1)
-		res = r2.cmd(words[0])
+		res = r2_cmd(words[0])
 		if len(words) > 1:
 			que = words[1]
 		else:
@@ -169,11 +175,11 @@ def runline(usertext):
 		if r2 is None:
 			builtins.print("r2 is not available")
 		elif usertext[1] == "!":
-			res = r2.cmd(usertext[2:])
+			res = r2_cmd(usertext[2:])
 			que = input("[Query]>> ")
 			r2ai.chat("Q: " + que + ":\n[INPUT]\n"+ res+"\n[/INPUT]\n") # , return_messages=True)
 		else:
-			builtins.print(r2.cmd(usertext[1:]))
+			builtins.print(r2_cmd(usertext[1:]))
 	elif usertext.startswith("-"):
 		builtins.print("Unknown flag. See 'r2ai -h' for help")
 	else:
@@ -187,9 +193,9 @@ def r2ai_repl():
 	prompt = "[r2ai:0x00000000]> "
 	while True:
 		if r2 is not None:
-			off = r2.cmd("s").strip()
+			off = r2_cmd("s").strip()
 			if off == "":
-				off = r2.cmd("s").strip()
+				off = r2_cmd("s").strip()
 			prompt = "[r2ai:" + off + "]>> "
 		if r2ai.active_block is not None:
 			#r2ai.active_block.update_from_message("")
