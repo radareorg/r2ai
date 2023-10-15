@@ -12,7 +12,6 @@ import builtins
 from .utils import merge_deltas, parse_partial_json
 from .message_block import MessageBlock
 from .code_block import CodeBlock
-from .code_interpreter import CodeInterpreter
 from .get_hf_llm import get_hf_llm, new_get_hf_llm
 
 import os
@@ -207,9 +206,6 @@ class Interpreter:
     with open(os.path.join(here, 'system_message.txt'), 'r') as f:
       self.system_message = f.read().strip()
 
-    # Store Code Interpreter instances for each language
-    self.code_interpreters = {}
-
     # No active block to start
     # (blocks are visual representation of messages on the terminal)
     self.active_block = None
@@ -271,7 +267,6 @@ class Interpreter:
     Resets the interpreter.
     """
     self.messages = []
-    self.code_interpreters = {}
 
   def load(self, messages):
     self.messages = messages

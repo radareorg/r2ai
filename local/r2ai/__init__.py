@@ -8,4 +8,4 @@ import sys
 
 #sys.modules["r2ai"] = Interpreter()
 #sys.modules["r2ai"].VERSION = "0.2.1"
-VERSION = "0.2.1"
+VERSION = "0.2.2"
