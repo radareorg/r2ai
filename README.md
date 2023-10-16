@@ -1,4 +1,12 @@
-# r2ai-local
+```
+.______  .______ .______  .___ 
+: __   \ \____  |:      \ : __|
+|  \____|/  ____||   .   || : |
+|   :  \ \      ||   :   ||   |
+|   |___\ \__:__||___|   ||   |
+|___|        :       |___||___|
+             •                 
+```
 
 Run r2ai in local, no google bard or chatgpt. Just use your CPU/GPU/NPU and interact with r2 using natural language.
 

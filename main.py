@@ -11,11 +11,11 @@ except:
 
 import time
 import builtins
-# from rich import print
 import traceback
 import inquirer
 import readline
 import r2ai
+import sys
 
 r2 = None
 have_rlang = False
@@ -85,16 +85,6 @@ def slurp(f):
 	res = fd.read()
 	fd.close()
 	return "" + res
-
-if have_r2pipe:
-	try:
-		if "R2PIPE_IN" in os.environ.keys():
-			r2 = r2pipe.open()
-		else:
-			file = sys.argv[1] if len(sys.argv) > 1 else "/bin/ls"
-			r2 = r2pipe.open(file)
-	except:
-		print("error")
 
 help_message = """
 Usage: r2ai [-option] ([query])
@@ -243,6 +233,21 @@ def r2ai_repl():
 	ai.live_mode = olivemode
 
 ### MAIN ###
+if len(sys.argv) > 0:
+#	ai.live_mode = False
+	for arg in sys.argv[1:]:
+		runline(arg)
+	sys.exit(0)
+elif have_r2pipe:
+	try:
+		if "R2PIPE_IN" in os.environ.keys():
+			r2 = r2pipe.open()
+		else:
+			file = sys.argv[1] if len(sys.argv) > 1 else "/bin/ls"
+			r2 = r2pipe.open(file)
+	except:
+		print("error")
+
 if have_rlang:
 	def r2ai_rlang_plugin(a):
 		def _call(s):
