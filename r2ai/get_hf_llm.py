@@ -33,11 +33,31 @@ import os
 import shutil
 from huggingface_hub import list_files_info, hf_hub_download
 
+r2ai_default_model = os.environ["HOME"] + "/.r2ai.model"
+
 def Markdown(x):
   return x
 
 def get_hf_llm(repo_id, debug_mode, context_window):
-    print("Getting the model from hugging face")
+    n_gpu_layers = -1
+    try:
+        model_path = slurp(r2ai_default_model)
+        llama_2 = llama_cpp.Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
+        print("[r2ai] Using ~/.r2ai.model: " + model_path)
+        return llama_2
+    except:
+        pass
+    builtins.print("Conversational Coding:")
+    builtins.print("-m TheBloke/CodeLlama-34B-Instruct-GGUF")
+    builtins.print("-m TheBloke/CodeLlama-7B-Instruct-GGUF")
+    builtins.print("-m TheBloke/CodeLlama-34B-Instruct-GGUF")
+    builtins.print("-m TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF")
+    builtins.print("-m TheBloke/Mistral-7B-Instruct-v0.1-GGUF")
+    builtins.print("Uncensored:")
+    builtins.print("-m TheBloke/Guanaco-3B-Uncensored-v2-GGUF")
+    builtins.print("-m TheBloke/Wizard-Vicuna-7B-Uncensored-GGUF")
+    builtins.print("-m TheBloke/Luna-AI-Llama2-Uncensored-GGUF")
+    print("Getting the model from hugging face. Use -m to select another one")
     raw_models = list_gguf_files(repo_id)
     if not raw_models:
         print(f"Failed. Are you sure there are GGUF files in `{repo_id}`?")
@@ -46,11 +66,12 @@ def get_hf_llm(repo_id, debug_mode, context_window):
     combined_models = group_and_combine_splits(raw_models)
 #    print (combined_models)
 
+#    selected_model = "Small"
     selected_model = None #"Medium"
 
     # First we give them a simple small medium large option. If they want to see more, they can.
 
-    if len(combined_models) > 3:
+    if selected_model is None and len(combined_models) > 3:
 
         # Display Small Medium Large options to user
         choices = [
@@ -81,8 +102,7 @@ def get_hf_llm(repo_id, debug_mode, context_window):
             if format_quality_choice(model) == answers["selected_model"]:
                 selected_model = model["filename"]
                 break
-
-    n_gpu_layers = -1
+    answers = inquirer.prompt([inquirer.List("default", message="Use this model by default? ~/.r2ai.model", choices=["Yes", "No"])])
     # Third stage: GPU confirm
 #if confirm_action("Use GPU? (Large models might crash on GPU, but will run more quickly)"):
 ##      n_gpu_layers = -1
@@ -247,8 +267,11 @@ def get_hf_llm(repo_id, debug_mode, context_window):
 
     # Initialize and return Code-Llama
     assert os.path.isfile(model_path)
+    if answers["default"] == "Yes":
+        dump (r2ai_default_model, model_path)
+        print("Saving this")
     llama_2 = Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
-      
+    print("[r2ai] Using model: " + model_path)
     return llama_2
 
 def confirm_action(message):
