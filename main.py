@@ -16,6 +16,7 @@ import inquirer
 import readline
 import r2ai
 import sys
+from r2ai.utils import slurp
 
 r2 = None
 have_rlang = False
@@ -73,18 +74,12 @@ ai.model = "llama-2-7b-chat-codeCherryPop.ggmlv3.q4_K_M.gguf"
 # ai.model = "models/models/mistral-7b-v0.1.Q4_K_M.gguf"
 #interpreter.model = "models/models/mistral-7b-instruct-v0.1.Q2_K.gguf"
 #interpreter.model = "TheBloke/Mistral-7B-Instruct-v0.1-GGUF"
-# builtins.print("TheBloke/Mistral-7B-Instruct-v0.1-GGUF")
+#builtins.print("TheBloke/Mistral-7B-Instruct-v0.1-GGUF")
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 model_path = dir_path + "/" + ai.model
 if os.path.exists(model_path):
 	ai.model = model_path
-
-def slurp(f):
-	fd = open(f)
-	res = fd.read()
-	fd.close()
-	return "" + res
 
 help_message = """
 Usage: r2ai [-option] ([query])
@@ -233,7 +228,7 @@ def r2ai_repl():
 	ai.live_mode = olivemode
 
 ### MAIN ###
-if len(sys.argv) > 0:
+if len(sys.argv) > 1:
 #	ai.live_mode = False
 	for arg in sys.argv[1:]:
 		runline(arg)
@@ -268,6 +263,5 @@ if have_rlang:
 			"call": _call,
 		}
 	r2lang.plugin("core", r2ai_rlang_plugin)
-
-if not have_rlang:
+else:
 	r2ai_repl()

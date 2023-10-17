@@ -19,7 +19,10 @@ Especially if you have ideas and **EXCITEMENT** about the future of this project
 """
 
 import os
+import builtins
+from .utils import slurp, dump
 import sys
+import llama_cpp
 import appdirs
 import traceback
 import inquirer

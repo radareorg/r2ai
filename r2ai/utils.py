@@ -77,3 +77,14 @@ def parse_partial_json(s):
     except json.JSONDecodeError:
         # If we still can't parse the string as JSON, return None to indicate failure.
         return None
+
+def slurp(f):
+	fd = open(f)
+	data = fd.read()
+	fd.close()
+	return str(data)
+
+def dump(f, x):
+	fd = open(f, "w")
+	fd.write(x)
+	fd.close()
