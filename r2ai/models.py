@@ -114,7 +114,7 @@ def get_hf_llm(repo_id, debug_mode, context_window):
 #      n_gpu_layers = 0
 
     # Get user data directory
-    user_data_dir = appdirs.user_data_dir("Open Interpreter")
+    user_data_dir = appdirs.user_data_dir("r2ai")
     default_path = os.path.join(user_data_dir, "models")
 
     # Ensure the directory exists
