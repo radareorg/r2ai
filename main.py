@@ -88,6 +88,7 @@ Usage: r2ai [-option] ([query])
  r2ai -k                clear the screen
  r2ai -c [cmd] [query]  run the given r2 command with the given query
  r2ai -e [k[=v]]        set environment variable
+ r2ai -f [file]         load file and paste the output
  r2ai -h | ?            show this help
  r2ai -i [file] [query] load the file contents and prompt it with the given query
  r2ai -m [file/repo]    select model from huggingface repository or local file
@@ -156,6 +157,14 @@ def runline(usertext):
 		ai.live_mode = not ai.live_mode
 		lms = "enabled" if ai.live_mode else "disabled"
 		print("live mode is " + lms)
+	elif usertext.startswith("-f"):
+		text = usertext[2:].strip()
+		try:
+			res = slurp(text)
+			ai.chat(res)
+		except:
+			print("Cannot load file", file=sys.stderr)
+			pass
 	elif usertext.startswith("-i"):
 		text = usertext[2:].strip()
 		words = text.split(" ", 1)
