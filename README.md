@@ -24,6 +24,20 @@ Just run `make` .. or well `python main.py /path/to/file`
 
 You can also install it via `r2pm -i r2ai`
 
+It's also possible to install it with `conda`, which is the recommended way on Macs.
+
+* https://developer.apple.com/metal/pytorch/
+
+```sh
+curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-arm64.sh
+sh Miniconda3-latest-MacOSX-arm64.sh
+```
+
+```sh
+conda install pytorch torchvision torchaudio -c pytorch-nightly
+conda run pip install inquirer rich appdirs huggingface_hub litellm
+```
+
 ## Features
 
 * Prompt the language model without internet requirements
