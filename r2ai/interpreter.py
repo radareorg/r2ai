@@ -82,17 +82,21 @@ def messages_to_prompt(self,messages):
       message["role"] = "assistant"
 
   if "q4_0" in self.model.lower():
-    formatted_messages = template_q4im(self,messages)
+    formatted_messages = template_q4im(self, messages)
   elif "uncensor" in self.model.lower():
-    formatted_messages = template_uncensored(self,messages)
+    formatted_messages = template_uncensored(self, messages)
   elif "falcon" in self.model.lower():
-    formatted_messages = template_falcon(self,messages)
+    formatted_messages = template_falcon(self, messages)
+  elif "python" in self.model.lower():
+    # broken
+    print("codellama-python model is not working well yet")
+    formatted_messages = template_llamapython(self, messages)
   elif "tinyllama" in self.model.lower():
-    formatted_messages = template_tinyllama(self,messages)
+    formatted_messages = template_tinyllama(self, messages)
   elif "TinyLlama" in self.model.lower():
-    formatted_messages = template_tinyllama(self,messages)
+    formatted_messages = template_tinyllama(self, messages)
   else:
-    formatted_messages = template_llama(self,messages)
+    formatted_messages = template_llama(self, messages)
 
   if "DEBUG" in self.env:
     builtins.print(formatted_messages)
@@ -502,6 +506,9 @@ class Interpreter:
       # we have to use builtins bizarrely! because rich.print interprets "[INST]" as something meaningful
       builtins.print("TEXT PROMPT SEND TO LLM:\n", prompt)
 
+    if self.llama_instance == None:
+      print("Cannot find the model")
+      return
     # Run Code-Llama
     response = self.llama_instance(
       prompt,

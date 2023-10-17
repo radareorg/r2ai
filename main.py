@@ -63,6 +63,7 @@ ai.model = "models/models/codellama-7b-instruct.Q4_K_M.gguf"
 ai.system_message = "" #
 
 ai.model = "llama-2-7b-chat-codeCherryPop.ggmlv3.q4_K_M.gguf"
+ai.model = "TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF"
 # interpreter.model = "/tmp/model.safetensors"
 # interpreter.model = "TheBloke/CodeLlama-34B-Instruct-GGUF"
 #interpreter.model = "models/models/codellama-34b-instruct.Q2_K.gguf"

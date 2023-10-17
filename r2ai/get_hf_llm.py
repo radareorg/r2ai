@@ -309,8 +309,8 @@ def list_gguf_files(repo_id: str) -> List[Dict[str, Union[str, float]]]:
         files_info = list_files_info(repo_id=repo_id)
   
     gguf_files = [file for file in files_info if "gguf" in file.rfilename]
-
-    gguf_files = sorted(gguf_files, key=lambda x: x.size)
+    if len(gguf_files) == 0:
+      print("[r2ai] No ggml or gguf files for " + repo_id)
 
     # Prepare the result
     result = []
