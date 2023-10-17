@@ -1,4 +1,5 @@
 from .interpreter import Interpreter
+from .models import models
 import sys
 
 # This is done so when users `import interpreter`,
@@ -8,4 +9,5 @@ import sys
 
 #sys.modules["r2ai"] = Interpreter()
 #sys.modules["r2ai"].VERSION = "0.2.1"
+sys.modules["r2ai"].models = models
 VERSION = "0.2.2"

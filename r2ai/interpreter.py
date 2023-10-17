@@ -12,7 +12,7 @@ import builtins
 from .utils import merge_deltas, parse_partial_json
 from .message_block import MessageBlock
 from .code_block import CodeBlock
-from .get_hf_llm import get_hf_llm, new_get_hf_llm
+from .models import get_hf_llm, new_get_hf_llm
 
 import os
 import time

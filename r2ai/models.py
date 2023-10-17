@@ -38,15 +38,7 @@ r2ai_default_model = os.environ["HOME"] + "/.r2ai.model"
 def Markdown(x):
   return x
 
-def get_hf_llm(repo_id, debug_mode, context_window):
-    n_gpu_layers = -1
-    try:
-        model_path = slurp(r2ai_default_model)
-        llama_2 = llama_cpp.Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
-        print("[r2ai] Using ~/.r2ai.model: " + model_path)
-        return llama_2
-    except:
-        pass
+def models():
     builtins.print("Conversational Coding:")
     builtins.print("-m TheBloke/CodeLlama-34B-Instruct-GGUF")
     builtins.print("-m TheBloke/CodeLlama-7B-Instruct-GGUF")
@@ -57,6 +49,17 @@ def get_hf_llm(repo_id, debug_mode, context_window):
     builtins.print("-m TheBloke/Guanaco-3B-Uncensored-v2-GGUF")
     builtins.print("-m TheBloke/Wizard-Vicuna-7B-Uncensored-GGUF")
     builtins.print("-m TheBloke/Luna-AI-Llama2-Uncensored-GGUF")
+
+def get_hf_llm(repo_id, debug_mode, context_window):
+    n_gpu_layers = -1
+    try:
+        model_path = slurp(r2ai_default_model)
+        llama_2 = llama_cpp.Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
+        print("[r2ai] Using ~/.r2ai.model: " + model_path)
+        return llama_2
+    except:
+        pass
+    models()
     print("Getting the model from hugging face. Use -m to select another one")
     raw_models = list_gguf_files(repo_id)
     if not raw_models:
@@ -83,11 +86,12 @@ def get_hf_llm(repo_id, debug_mode, context_window):
         questions = [inquirer.List('selected_model', message="Quality (smaller is faster)", choices=choices)]
         answers = inquirer.prompt(questions)
         #answers = {"selected_model": "Small"}
-        if answers["selected_model"].startswith("Small"):
+        am = answers["selected_model"]
+        if am.startswith("Small"):
             selected_model = combined_models[0]["filename"]
-        elif answers["selected_model"].startswith("Medium"):
+        elif am.startswith("Medium"):
             selected_model = combined_models[len(combined_models) // 2]["filename"]
-        elif answers["selected_model"].startswith("Large"):
+        elif am.startswith("Large"):
             selected_model = combined_models[-1]["filename"]
     
     if selected_model != None:

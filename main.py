@@ -89,8 +89,9 @@ Usage: r2ai [-option] ([query])
  r2ai -c [cmd] [query]  run the given r2 command with the given query
  r2ai -e [k[=v]]        set environment variable
  r2ai -h | ?            show this help
- r2ai -i [a.js] [query] load the contents of the given file into the query buffer
+ r2ai -i [file] [query] load the file contents and prompt it with the given query
  r2ai -m [file/repo]    select model from huggingface repository or local file
+ r2ai -M                list supported and most common models from hf
  r2ai -n [num]          select the nth language model
  r2ai -q                quit/exit/^C
  r2ai -l                toggle the live mode
@@ -106,6 +107,8 @@ def runline(usertext):
 		builtins.print(help_message)
 	elif usertext.startswith("clear") or usertext.startswith("-k"):
 		builtins.print("\x1b[2J\x1b[0;0H\r")
+	elif usertext.startswith("-M"):
+		r2ai.models()
 	elif usertext.startswith("-m"):
 		words = usertext.split(" ")
 		if len(words) > 1:
