@@ -19,7 +19,6 @@ import time
 import traceback
 import json
 import platform
-import openai
 import litellm
 import pkg_resources
 
