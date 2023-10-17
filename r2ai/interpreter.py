@@ -188,13 +188,29 @@ def template_tinyllama(self,messages):
   formatted_messages += f"<|im_end|>"
   return formatted_messages
 
+def template_llamapython(self, messages):
+  self.terminator = "[/INST]"
+  system_prompt = messages[0]['content'].strip()
+  if system_prompt != "":
+      formatted_messages = "Comment: " + {system_prompt} + ".\n[INST]\n"
+  else:
+      formatted_messages = "[INST]\n"
+  # Loop starting from the first user message
+  for index, item in enumerate(messages[1:]):
+      role = item['role']
+      content = item['content']
+      if role == 'user':
+          formatted_messages += f"{content}\n[/INST]"
+  formatted_messages += "\n[INST]Answer: "
+  return formatted_messages
+
 def template_llama(self,messages):
   # Llama prompt template
   # Extracting the system prompt and initializing the formatted string with it.
   self.terminator = "</s>"
   system_prompt = messages[0]['content'].strip()
   if system_prompt != "":
-      formatted_messages = f"<s>[INST]<<SYS>>\n{system_prompt}\n<</SYS>>"
+      formatted_messages = f"<s>[INST]<<SYS>>{system_prompt}<</SYS>>"
   else:
       formatted_messages = f"<s>[INST]"
   # Loop starting from the first user message
