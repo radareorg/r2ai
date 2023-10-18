@@ -104,7 +104,9 @@ Usage: r2ai [-option] ([query])
 def runline(usertext):
 	global ai
 	usertext = usertext.strip()
-	if usertext == "" or usertext.startswith("?") or usertext.startswith("-h"):
+	if usertext == "":
+		return
+	if usertext.startswith("?") or usertext.startswith("-h"):
 		builtins.print(help_message)
 	elif usertext.startswith("clear") or usertext.startswith("-k"):
 		builtins.print("\x1b[2J\x1b[0;0H\r")
@@ -142,11 +144,6 @@ def runline(usertext):
 	elif usertext.startswith("-r"):
 		if len(usertext) > 2:
 			ai.system_message = usertext[2:].strip()
-		else:
-			print(ai.system_message)
-	elif usertext[0] == "$": # Deprecate
-		if len(usertext) > 1:
-			ai.system_message = usertext[1:]
 		else:
 			print(ai.system_message)
 	elif usertext.startswith("-m"):
@@ -241,12 +238,7 @@ def r2ai_repl():
 	ai.live_mode = olivemode
 
 ### MAIN ###
-if len(sys.argv) > 1:
-#	ai.live_mode = False
-	for arg in sys.argv[1:]:
-		runline(arg)
-	sys.exit(0)
-elif have_r2pipe:
+if have_r2pipe:
 	try:
 		if "R2PIPE_IN" in os.environ.keys():
 			r2 = r2pipe.open()
@@ -276,5 +268,10 @@ if have_rlang:
 			"call": _call,
 		}
 	r2lang.plugin("core", r2ai_rlang_plugin)
+elif len(sys.argv) > 1:
+#	ai.live_mode = False
+	for arg in sys.argv[1:]:
+		runline(arg)
+	r2ai_repl()
 else:
 	r2ai_repl()
