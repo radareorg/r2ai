@@ -35,7 +35,7 @@ sh Miniconda3-latest-MacOSX-arm64.sh
 
 ```sh
 conda install pytorch torchvision torchaudio -c pytorch-nightly
-conda run pip install inquirer rich appdirs huggingface_hub litellm tokentrim llama-cpp-python
+conda run pip install inquirer rich appdirs huggingface_hub tokentrim llama-cpp-python
 ```
 
 ## Features

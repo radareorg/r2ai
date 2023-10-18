@@ -15,11 +15,9 @@ from .code_block import CodeBlock
 from .models import get_hf_llm, new_get_hf_llm
 
 import os
-import time
 import traceback
 import json
 import platform
-import litellm
 import pkg_resources
 
 have_rlang = False

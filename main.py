@@ -9,13 +9,9 @@ try:
 except:
 	pass
 
-import time
 import builtins
 import traceback
-import inquirer
-import readline
 import r2ai
-import sys
 from r2ai.utils import slurp
 
 r2 = None
