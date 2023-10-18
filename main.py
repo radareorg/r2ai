@@ -273,5 +273,5 @@ elif len(sys.argv) > 1:
 	for arg in sys.argv[1:]:
 		runline(arg)
 	r2ai_repl()
-else:
+elif not have_r2pipe and "R2PIPE_IN" not in os.environ:
 	r2ai_repl()
