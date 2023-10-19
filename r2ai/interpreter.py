@@ -243,9 +243,6 @@ class Interpreter:
     self.context_window = 4096 # For local models only // input max length
     # self.max_tokens = 750 # For local models only
     self.max_tokens = 1750 # For local models only
-    # Azure OpenAI
-    self.use_azure = False
-    self.azure_deployment_name = None
 
     # Get default system message
     here = os.path.abspath(os.path.dirname(__file__))
@@ -272,39 +269,7 @@ class Interpreter:
     username = getpass.getuser()
     current_working_directory = os.getcwd()
     operating_system = platform.system()
-
 #   info += f"[User Info]\nName: {username}\nCWD: {current_working_directory}\nOS: {operating_system}"
-
-    if not self.local:
-
-      # Open Procedures is an open-source database of tiny, structured coding tutorials.
-      # We can query it semantically and append relevant tutorials/procedures to our system message:
-
-      # Use the last two messages' content or function call to semantically search
-      query = []
-      for message in self.messages[-2:]:
-        message_for_semantic_search = {"role": message["role"]}
-        if "content" in message:
-          message_for_semantic_search["content"] = message["content"]
-        if "function_call" in message and "parsed_arguments" in message["function_call"]:
-          message_for_semantic_search["function_call"] = message["function_call"]["parsed_arguments"]
-        query.append(message_for_semantic_search)
-
-      # Use them to query Open Procedures
-      url = "https://open-procedures.replit.app/search/"
-
-      try:
-        relevant_procedures = requests.get(url, data=json.dumps(query)).json()["procedures"]
-        info += "\n\n# Recommended Procedures\n" + "\n---\n".join(relevant_procedures) + "\nIn your plan, include steps and, if present, **EXACT CODE SNIPPETS** (especially for depracation notices, **WRITE THEM INTO YOUR PLAN -- underneath each numbered step** as they will VANISH once you execute your first line of code, so WRITE THEM DOWN NOW if you need them) from the above procedures if they are relevant to the task. Again, include **VERBATIM CODE SNIPPETS** from the procedures above if they are relevent to the task **directly in your plan.**"
-      except:
-        # For someone, this failed for a super secure SSL reason.
-        # Since it's not stricly necessary, let's worry about that another day. Should probably log this somehow though.
-        pass
-
-    elif self.local:
-      # Tell Code-Llama how to run code.
-      info += "" # \n\nTo run code, write a fenced code block (i.e ```python, R or ```shell) in markdown. When you close it with ```, it will be run. You'll then be given its output."
-      # We make references in system_message.txt to the "function" it can call, "run_code".
 
     return info
 
@@ -317,6 +282,8 @@ class Interpreter:
   def load(self, messages):
     self.messages = messages
 
+  def save(self, f):
+    json.dump(self.messages, f, indent=2)
 
   def handle_undo(self, arguments):
     # Removes all messages after the most recent user entry (and the entry itself).
@@ -345,78 +312,10 @@ class Interpreter:
       elif 'function_call' in message:
         print(Markdown(f"**Removed codeblock**")) # TODO: Could add preview of code removed here.
 
-  def handle_help(self, arguments):
-    commands_description = {
-      "%debug [true/false]": "Toggle debug mode. Without arguments or with 'true', it enters debug mode. With 'false', it exits debug mode.",
-      "%reset": "Resets the current session.",
-      "%undo": "Remove previous messages and its response from the message history.",
-      "%save_message [path]": "Saves messages to a specified JSON path. If no path is provided, it defaults to 'messages.json'.",
-      "%load_message [path]": "Loads messages from a specified JSON path. If no path is provided, it defaults to 'messages.json'.",
-      "%help": "Show this help message.",
-    }
-
-    base_message = [
-      "> **Available Commands:**\n\n"
-    ]
-
-    # Add each command and its description to the message
-    for cmd, desc in commands_description.items():
-      base_message.append(f"- `{cmd}`: {desc}\n")
-
-    additional_info = [
-      "\n\nFor further assistance, please join our community Discord or consider contributing to the project's development."
-    ]
-
-    # Combine the base message with the additional info
-    full_message = base_message + additional_info
-
-    print(Markdown("".join(full_message)))
-
-  def handle_reset(self, arguments):
-    self.reset()
-    print(Markdown("> Reset Done"))
-
-  def default_handle(self, arguments):
-    print(Markdown("> Unknown command"))
-    self.handle_help(arguments)
-
-  def handle_save_message(self, json_path):
-    if json_path == "":
-      json_path = "messages.json"
-    if not json_path.endswith(".json"):
-      json_path += ".json"
-    with open(json_path, 'w') as f:
-      json.dump(self.messages, f, indent=2)
-
-    print(Markdown(f"> messages json export to {os.path.abspath(json_path)}"))
-
-  def handle_load_message(self, json_path):
-    if json_path == "":
-      json_path = "messages.json"
-    if not json_path.endswith(".json"):
-      json_path += ".json"
-    with open(json_path, 'r') as f:
-      self.load(json.load(f))
-
-    print(Markdown(f"> messages json loaded from {os.path.abspath(json_path)}"))
-
-  def handle_command(self, user_input):
-    # split the command into the command and the arguments, by the first whitespace
-    switch = {
-      "help": self.handle_help,
-      "reset": self.handle_reset,
-      "save_message": self.handle_save_message,
-      "load_message": self.handle_load_message,
-      "undo": self.handle_undo,
-    }
-
-    user_input = user_input[1:].strip()  # Capture the part after the `%`
-    command = user_input.split(" ")[0]
-    arguments = user_input[len(command):].strip()
-    action = switch.get(command, self.default_handle)  # Get the function from the dictionary, or default_handle if not found
-    action(arguments)  # Execute the function
-
   def chat(self, message=None, return_messages=False):
+    if not message:
+      print("Missing message")
+      return
     # Code-Llama
     if self.llama_instance == None:
       # Find or install Code-Llama
@@ -429,42 +328,9 @@ class Interpreter:
       except:
         traceback.print_exc()
 
-    # Check if `message` was passed in by user
-    if message:
-      # If it was, we respond non-interactivley
-      self.messages.append({"role": "user", "content": message})
-      self.respond()
-
-    else:
-      # If it wasn't, we start an interactive chat
-      while True:
-        try:
-          user_input = input("> ").strip()
-        except EOFError:
-          break
-        except KeyboardInterrupt:
-          break
-
-        # Use `readline` to let users up-arrow to previous user messages,
-        # which is a common behavior in terminals.
-        readline.add_history(user_input)
-
-        # If the user input starts with a `%` or `/`, it's a command
-        if user_input.startswith("%") or user_input.startswith("/"):
-          self.handle_command(user_input)
-          continue
-
-        # Add the user message to self.messages
-        self.messages.append({"role": "user", "content": user_input})
-
-        # Respond, but gracefully handle CTRL-C / KeyboardInterrupt
-        try:
-          self.respond()
-        except KeyboardInterrupt:
-          pass
-        finally:
-          # Always end the active block. Multiple Live displays = issues
-          self.end_active_block()
+    # If it was, we respond non-interactivley
+    self.messages.append({"role": "user", "content": message})
+    self.respond()
 
     self.end_active_block()
     if return_messages:

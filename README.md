@@ -1,27 +1,41 @@
 ```
-.______  .______ .______  .___ 
+,______  .______ .______  ,___
 : __   \ \____  |:      \ : __|
-|  \____|/  ____||   .   || : |
-|   :  \ \      ||   :   ||   |
+|  \____|/  ____||  _,_  || : |
+|   :  \ \   .  ||   :   ||   |
 |   |___\ \__:__||___|   ||   |
 |___|        :       |___||___|
-             •                 
+             *
 ```
 
-Run r2ai in local, without internet or leaking any data. Use your CPU/GPU/NPU and interact with r2 using natural language.
-
-The current implementation is based on `llama-cpp` and the default model is `CodeLlama-CherryPop`
+Run r2ai in local, without internet or leaking any data. Use your CPU/GPU/NPU and interact with r2 using natural language. The current implementation is based on llama and the default model is `CodeLlama-CherryPop`
 
 --pancake
 
+## Features
+
+* Prompt the language model without internet requirements
+* Slurp file contents and make actions on that
+* Embed the output of an r2 command and ask the LLM to resolve questions
+* Define different system-level assistant role
+* Set environment variables to provide context to the language model
+* Live with repl and batch mode from cli or r2 prompt
+* Accessible as an r2lang-python plugin, keeps session state inside radare2
+* Scriptable from bash, r2pipe, and javascript (r2papi)
+* Use different models, dynamically adjust query template
+  * Load multiple models and make them talk between them
+
 ## Installation
 
+The easiest way to run and install r2ai is by installing the latest r2 from git and run these lines:
+
 ```
+r2pm -i rlang-python # optional
 pip3 install rich inquirer llama-cpp tokentrim
 r2pm -i r2ai
 ```
 
-## Execution
+## Usage
 
 There are 4 different ways to run `r2ai`:
 
@@ -30,13 +44,13 @@ There are 4 different ways to run `r2ai`:
 * From radare2 (requires `r2pm -ci rlang-python`): `r2 -c 'r2ai -h'`
 * Using r2pipe: `#!pipe python main.py`
 
-## Scripting
+## Examples
 
 You can interact with r2ai from standalone python, from r2pipe via r2 keeping a global state or using the javascript intrepreter embedded inside `radare2`.
 
 * [examples/conversation.r2.js](conversation.r2.js) - load two models and make them talk to each other
 
-## Development/Testing
+### Development/Testing
 
 Just run `make` .. or well `python main.py /path/to/file`
 
@@ -54,19 +68,8 @@ conda install pytorch torchvision torchaudio -c pytorch-nightly
 conda run pip install inquirer rich appdirs huggingface_hub tokentrim llama-cpp-python
 ```
 
-## Features
+### TODO
 
-* Prompt the language model without internet requirements
-* Slurp file contents and make actions on that
-* Embed the output of an r2 command and ask the LM to resolve questions
-* Define different system-level assistant role
-* Set environment variables to provide context to the language model
-* Live with repl and batch mode from cli or r2 prompt
-* Accessible as an r2lang-python plugin, keeps session state inside radare2
-* Scriptable from bash, r2pipe, and javascript (r2papi)
-* Use different models, dynamically adjust query template
-  * Load multiple models and make them talk between them
-
-## TODO
-
-* add "undo" command
+* add "undo" command to drop the last message
+* dump / restore conversational states
+* custom prompt templates

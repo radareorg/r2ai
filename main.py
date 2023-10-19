@@ -45,7 +45,7 @@ def r2_cmd(x):
 		r2.cmd('e scr.color=0')
 		res = r2.cmd(x)
 		r2.cmd('e scr.color=' + oc)
-	return res 
+	return res
 
 ai.local = True
 # interpreter.model = "codellama-13b-instruct.Q4_K_M.gguf"
@@ -65,7 +65,7 @@ ai.model = "TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF"
 # interpreter.model = "TheBloke/CodeLlama-34B-Instruct-GGUF"
 #interpreter.model = "models/models/codellama-34b-instruct.Q2_K.gguf"
 #ai.model = "models/models/wizardlm-1.0-uncensored-llama2-13b.Q2_K.gguf"
-# ai.model = "models/models/guanaco-7b-uncensored.Q2_K.gguf" 
+# ai.model = "models/models/guanaco-7b-uncensored.Q2_K.gguf"
 #interpreter.model = "models/models/ggml-model-q4_0.gguf" # tinysmall -- very bad results
 
 # ai.model = "models/models/mistral-7b-v0.1.Q4_K_M.gguf"
