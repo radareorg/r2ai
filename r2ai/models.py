@@ -19,6 +19,7 @@ Especially if you have ideas and **EXCITEMENT** about the future of this project
 """
 
 import os
+import json
 import builtins
 from .utils import slurp, dump
 import sys
@@ -46,18 +47,29 @@ def models():
     builtins.print("-m TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF")
     builtins.print("-m TheBloke/Mistral-7B-Instruct-v0.1-GGUF")
     builtins.print("Uncensored:")
-    builtins.print("-m TheBloke/Guanaco-3B-Uncensored-v2-GGUF")
+    builtins.print("-m TheBloke/Guanaco-7B-Uncensored-GGUF")
     builtins.print("-m TheBloke/Wizard-Vicuna-7B-Uncensored-GGUF")
     builtins.print("-m TheBloke/Luna-AI-Llama2-Uncensored-GGUF")
 
 def get_hf_llm(repo_id, debug_mode, context_window):
     n_gpu_layers = -1
+    usermodels = None
     try:
-        model_path = slurp(r2ai_default_model)
-        llama_2 = llama_cpp.Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
-        print("[r2ai] Using ~/.r2ai.model: " + model_path)
-        return llama_2
+        fd = open(r2ai_default_model)
+        usermodels = json.load(fd)
+        fd.close()
+        model_path = "" # slurp(r2ai_default_model)
+        if not repo_id:
+            if "default" in usermodels: # use a oneliner
+                repo_id = usermodels["default"]
+            else:
+                # default model
+                repo_id = "TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF"
+        model_path = usermodels[repo_id]
+        print("[r2ai] Using " + r2ai_default_model+": " + model_path)
+        return llama_cpp.Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
     except:
+        traceback.print_exc()
         pass
     models()
     print("Getting the model from hugging face. Use -m to select another one")
@@ -272,8 +284,15 @@ def get_hf_llm(repo_id, debug_mode, context_window):
     # Initialize and return Code-Llama
     assert os.path.isfile(model_path)
     if answers["default"] == "Yes":
-        dump (r2ai_default_model, model_path)
-        print("Saving this")
+        if usermodels is None:
+            usermodels = {
+                "default": repo_id,
+            }
+        usermodels[repo_id] = model_path
+        fd = open(r2ai_default_model, "w")
+        json.dump(usermodels, fd)
+        fd.close()
+        print("Saved")
     llama_2 = Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
     print("[r2ai] Using model: " + model_path)
     return llama_2
@@ -287,7 +306,6 @@ def confirm_action(message):
 
     answers = inquirer.prompt(question)
     return answers['confirm']
-
 
 import os
 import inquirer

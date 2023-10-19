@@ -40,7 +40,7 @@ r2pm -i r2ai
 There are 4 different ways to run `r2ai`:
 
 * Standalone and interactive: `r2pm -r r2ai`
-* Batch mode: `r2ai '-r act as a calculator' '3+3=?'
+* Batch mode: `r2ai '-r act as a calculator' '3+3=?'`
 * From radare2 (requires `r2pm -ci rlang-python`): `r2 -c 'r2ai -h'`
 * Using r2pipe: `#!pipe python main.py`
 
@@ -48,7 +48,7 @@ There are 4 different ways to run `r2ai`:
 
 You can interact with r2ai from standalone python, from r2pipe via r2 keeping a global state or using the javascript intrepreter embedded inside `radare2`.
 
-* [examples/conversation.r2.js](conversation.r2.js) - load two models and make them talk to each other
+* [conversation.r2.js](examples/conversation.r2.js) - load two models and make them talk to each other
 
 ### Development/Testing
 

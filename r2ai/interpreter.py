@@ -9,7 +9,7 @@ Kudos to Killian and all the contributors. You may want to chat with them in Dis
 """
 
 import builtins
-from .utils import merge_deltas, parse_partial_json
+from .utils import merge_deltas
 from .message_block import MessageBlock
 from .code_block import CodeBlock
 from .models import get_hf_llm, new_get_hf_llm
@@ -18,7 +18,6 @@ import os
 import traceback
 import json
 import platform
-import pkg_resources
 
 have_rlang = False
 try:
@@ -61,7 +60,7 @@ function_schema = {
         "type": "string",
         "description":
         "The programming language",
-        "enum": ["python", "R", "shell", "applescript", "javascript", "html"]
+        "enum": ["python", "shell", "javascript", "html"]
       },
       "code": {
         "type": "string",
@@ -236,13 +235,14 @@ class Interpreter:
     self.auto_run = False
     self.local = True
     self.model = "TheBloke/CodeLlama-34B-Instruct-GGUF"
+    self.last_model = ""
     self.live_mode = not have_rlang
     self.env = {}
     self.api_base = None # Will set it to whatever OpenAI wants
 # self.context_window = 16096 # For local models only BURNS!
-    self.context_window = 4096 # For local models only // input max length
+    self.context_window = 4096 # For local models only // input max length - TODO. make it configurable
     # self.max_tokens = 750 # For local models only
-    self.max_tokens = 1750 # For local models only
+    self.max_tokens = 1750 # For local models only // make it configurable
 
     # Get default system message
     here = os.path.abspath(os.path.dirname(__file__))
@@ -283,7 +283,7 @@ class Interpreter:
     self.messages = messages
 
   def save(self, f):
-    json.dump(self.messages, f, indent=2)
+    json.dumps(self.messages, f, indent=2)
 
   def handle_undo(self, arguments):
     # Removes all messages after the most recent user entry (and the entry itself).
@@ -313,6 +313,9 @@ class Interpreter:
         print(Markdown(f"**Removed codeblock**")) # TODO: Could add preview of code removed here.
 
   def chat(self, message=None, return_messages=False):
+    if self.last_model != self.model:
+      self.llama_instance = None
+      self.last_model = self.model
     if not message:
       print("Missing message")
       return
