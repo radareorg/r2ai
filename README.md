@@ -14,9 +14,14 @@ Run r2ai in local, no google bard or chatgpt. Just use your CPU/GPU/NPU and inte
 
 ## Installation
 
-Just run `make` .. or well `python main.py /path/to/file`
+```
+pip3 install rich inquirer python-dotenv openai litellm tokentrim
+r2pm -i r2ai
+```
 
-You can also install it via `r2pm -i r2ai`
+## Development/Testing
+
+Just run `make` .. or well `python main.py /path/to/file`
 
 It's also possible to install it with `conda`, which is the recommended way on Macs.
 
