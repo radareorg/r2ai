@@ -9,7 +9,6 @@ try:
 except:
 	pass
 
-import builtins
 import traceback
 import r2ai
 from r2ai.utils import slurp
@@ -17,6 +16,8 @@ from r2ai.utils import slurp
 r2 = None
 have_rlang = False
 have_r2pipe = False
+within_r2 = False
+
 try:
 	import r2lang
 	have_rlang = True
@@ -71,7 +72,7 @@ ai.model = "TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF"
 # ai.model = "models/models/mistral-7b-v0.1.Q4_K_M.gguf"
 #interpreter.model = "models/models/mistral-7b-instruct-v0.1.Q2_K.gguf"
 #interpreter.model = "TheBloke/Mistral-7B-Instruct-v0.1-GGUF"
-#builtins.print("TheBloke/Mistral-7B-Instruct-v0.1-GGUF")
+#print("TheBloke/Mistral-7B-Instruct-v0.1-GGUF")
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 model_path = dir_path + "/" + ai.model
@@ -103,9 +104,9 @@ def runline(usertext):
 	if usertext == "":
 		return
 	if usertext.startswith("?") or usertext.startswith("-h"):
-		builtins.print(help_message)
+		print(help_message)
 	elif usertext.startswith("clear") or usertext.startswith("-k"):
-		builtins.print("\x1b[2J\x1b[0;0H\r")
+		print("\x1b[2J\x1b[0;0H\r")
 	elif usertext.startswith("-M"):
 		r2ai.models()
 	elif usertext.startswith("-m"):
@@ -113,7 +114,7 @@ def runline(usertext):
 		if len(words) > 1:
 			ai.model = words[1]
 		else:
-			builtins.print(ai.model)
+			print(ai.model)
 	elif usertext == "reset" or usertext.startswith("-R"):
 		ai.reset()
 	elif usertext == "-q" or usertext == "exit":
@@ -189,19 +190,19 @@ def runline(usertext):
 			que = words[1]
 		else:
 			que = input("[Query]>> ")
-		tag = "CODE" # CODE, TEXT, ..
+		tag = "CODE" # TEXT, ..
 		ai.chat("Human: " + que + ":\n[" + tag + "]\n" + res + "\n[/" + tag + "]\n")
 	elif usertext[0] == "!": # Deprecate. we have -c now
 		if r2 is None:
-			builtins.print("r2 is not available")
+			print("r2 is not available")
 		elif usertext[1] == "!":
 			res = r2_cmd(usertext[2:])
 			que = input("[Query]>> ")
 			ai.chat("Q: " + que + ":\n[INPUT]\n"+ res+"\n[/INPUT]\n") # , return_messages=True)
 		else:
-			builtins.print(r2_cmd(usertext[1:]))
+			print(r2_cmd(usertext[1:]))
 	elif usertext.startswith("-"):
-		builtins.print("Unknown flag. See 'r2ai -h' for help")
+		print("Unknown flag. See 'r2ai -h' for help")
 	else:
 		ai.chat(usertext)
 # r2ai.load(res)
@@ -238,11 +239,12 @@ if have_r2pipe:
 	try:
 		if "R2PIPE_IN" in os.environ.keys():
 			r2 = r2pipe.open()
+			within_r2 = True
 		else:
 			file = sys.argv[1] if len(sys.argv) > 1 else "/bin/ls"
 			r2 = r2pipe.open(file)
 	except:
-		print("error")
+		traceback.print_exc()
 
 if have_rlang:
 	def r2ai_rlang_plugin(a):
@@ -269,5 +271,5 @@ elif len(sys.argv) > 1:
 	for arg in sys.argv[1:]:
 		runline(arg)
 	r2ai_repl()
-elif not have_r2pipe and "R2PIPE_IN" not in os.environ:
+elif not within_r2:
 	r2ai_repl()

@@ -8,16 +8,33 @@
              •                 
 ```
 
-Run r2ai in local, no google bard or chatgpt. Just use your CPU/GPU/NPU and interact with r2 using natural language.
+Run r2ai in local, without internet or leaking any data. Use your CPU/GPU/NPU and interact with r2 using natural language.
+
+The current implementation is based on `llama-cpp` and the default model is `CodeLlama-CherryPop`
 
 --pancake
 
 ## Installation
 
 ```
-pip3 install rich inquirer python-dotenv openai litellm tokentrim
+pip3 install rich inquirer llama-cpp tokentrim
 r2pm -i r2ai
 ```
+
+## Execution
+
+There are 4 different ways to run `r2ai`:
+
+* Standalone and interactive: `r2pm -r r2ai`
+* Batch mode: `r2ai '-r act as a calculator' '3+3=?'
+* From radare2 (requires `r2pm -ci rlang-python`): `r2 -c 'r2ai -h'`
+* Using r2pipe: `#!pipe python main.py`
+
+## Scripting
+
+You can interact with r2ai from standalone python, from r2pipe via r2 keeping a global state or using the javascript intrepreter embedded inside `radare2`.
+
+* [examples/conversation.r2.js](conversation.r2.js) - load two models and make them talk to each other
 
 ## Development/Testing
 
