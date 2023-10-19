@@ -12,12 +12,6 @@ Run r2ai in local, no google bard or chatgpt. Just use your CPU/GPU/NPU and inte
 
 --pancake
 
-## Download the default model
-
-* [https://mega.nz/file/kocgEbRC#3lBMydGuZ6GWvNG0xfdJNa5s9P2M-iDBlP32HnHSw_A](https://mega.nz/file/kocgEbRC#3lBMydGuZ6GWvNG0xfdJNa5s9P2M-iDBlP32HnHSw_A)
-
-But you can use any other language model from HuggingFace.
-
 ## Installation
 
 Just run `make` .. or well `python main.py /path/to/file`
