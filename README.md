@@ -29,10 +29,29 @@ Run r2ai in local, without internet or leaking any data. Use your CPU/GPU/NPU an
 
 The easiest way to run and install r2ai is by installing the latest r2 from git and run these lines:
 
-```
+```bash
 r2pm -i rlang-python # optional
-pip3 install rich inquirer llama-cpp tokentrim
-r2pm -i r2ai
+pip3 install rich inquirer llama-cpp tokentrim hugging_face appdirs
+r2pm -ci r2ai
+```
+
+On recent Debian/Ubuntu systems the `pip` tool is no longer working, because it conflicts with the system packages. The best way to do this is with `venv`:
+
+```bash
+python -m venv r2ai
+. r2ai/bin/activate
+pip install rich inquirer llama-cpp-python tokentrim hugging_face appdirs
+r2pm -r r2ai
+```
+
+On native Windows follow these instructions (no need to install radare2 or use r2pm), note that you need Python 3.8 or higher:
+
+```cmd
+git clone https://github.com/radareorg/r2ai
+cd r2ai
+set PATH=C:\Users\YOURUSERNAME\Local\Programs\Python\Python39\;%PATH%
+python -m pip install rich inquirer llama-cpp-python tokentrim hugging_face appdirs pyreadline3
+python main.py
 ```
 
 ## Usage

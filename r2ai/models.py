@@ -34,7 +34,9 @@ import os
 import shutil
 from huggingface_hub import list_files_info, hf_hub_download
 
-r2ai_default_model = os.environ["HOME"] + "/.r2ai.model"
+r2ai_default_model = "r2ai.model.json" # windows path
+if "HOME" in os.environ:
+	r2ai_default_model = os.environ["HOME"] + "/.r2ai.model"
 
 def Markdown(x):
   return x

@@ -18,15 +18,16 @@ have_rlang = False
 have_r2pipe = False
 within_r2 = False
 
-try:
-	import r2lang
-	have_rlang = True
-except:
+if os.name != "nt":
 	try:
-		import r2pipe
-		have_r2pipe = True
+		import r2lang
+		have_rlang = True
 	except:
-		pass
+		try:
+			import r2pipe
+			have_r2pipe = True
+		except:
+			pass
 
 ais = {}
 ai = r2ai.Interpreter()
