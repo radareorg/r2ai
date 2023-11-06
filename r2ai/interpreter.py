@@ -81,6 +81,8 @@ def messages_to_prompt(self,messages):
     formatted_messages = template_q4im(self, messages)
   elif "uncensor" in self.model.lower():
     formatted_messages = template_uncensored(self, messages)
+  elif "gpt4all" in self.model.lower():
+    formatted_messages = template_gpt4all(self, messages)
   elif "falcon" in self.model.lower():
     formatted_messages = template_falcon(self, messages)
   elif "python" in self.model.lower():
@@ -127,7 +129,7 @@ def template_uncensored(self,messages):
 #{'role': 'user', 'content': "thehre's no purpose on this"}
 #{'role': 'assistant'}
 #{'role': 'user', 'content': 'force a crash'}
-  self.terminator = "###"
+  self.terminator = "\n"
 #self.terminator = "\n"
 #  self.terminator = "</s>"
   formatted_messages = ""
@@ -151,6 +153,9 @@ def template_uncensored(self,messages):
   except:
     traceback.print_exc()
     pass
+  print("###")
+  print(formatted_messages)
+  print("###")
   return formatted_messages
 
 def template_falcon(self,messages):
@@ -199,6 +204,29 @@ def template_llamapython(self, messages):
       if role == 'user':
           formatted_messages += f"{content}\n[/INST]"
   formatted_messages += "\n[INST]Answer: "
+  return formatted_messages
+
+def template_gpt4all(self,messages):
+  # Llama prompt template
+  # Extracting the system prompt and initializing the formatted string with it.
+  self.terminator = "###"
+  system_prompt = messages[0]['content'].strip()
+  if system_prompt != "":
+      formatted_messages = f"### Instruction: {system_prompt}\n"
+  else:
+      formatted_messages = ""
+  # Loop starting from the first user message
+  for index, item in enumerate(messages[1:]):
+      role = item['role']
+      content = item['content']
+      if content is None or content == "":
+          next
+      content = content.strip()
+      if role == 'user':
+          formatted_messages += f"### User: {content}\n"
+      else:
+          formatted_messages += f"### System: {content}\n"
+  formatted_messages += f"### System: "
   return formatted_messages
 
 def template_llama(self,messages):
