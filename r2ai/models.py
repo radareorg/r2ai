@@ -34,9 +34,23 @@ import os
 import shutil
 from huggingface_hub import list_files_info, hf_hub_download
 
-r2ai_default_model = "r2ai.model.json" # windows path
+#DEFAULT_MODEL = "TheBloke/CodeLlama-34B-Instruct-GGUF"
+DEFAULT_MODEL = "TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF"
+r2ai_model_json = "r2ai.model.json" # windows path
 if "HOME" in os.environ:
-	r2ai_default_model = os.environ["HOME"] + "/.r2ai.model"
+	r2ai_model_json = os.environ["HOME"] + "/.r2ai.model"
+
+
+def get_default_model():
+    try:
+        fd = open(r2ai_model_json)
+        usermodels = json.load(fd)
+        fd.close()
+        if "default" in usermodels: # use a oneliner
+            return usermodels["default"]
+    except:
+        pass
+    return DEFAULT_MODEL
 
 def Markdown(x):
   return x
@@ -58,24 +72,23 @@ def get_hf_llm(repo_id, debug_mode, context_window):
     n_gpu_layers = -1
     usermodels = None
     try:
-        fd = open(r2ai_default_model)
-        usermodels = json.load(fd)
-        fd.close()
-        model_path = "" # slurp(r2ai_default_model)
+        try:
+            fd = open(r2ai_model_json)
+            usermodels = json.load(fd)
+            fd.close()
+        except:
+            pass
+        model_path = "" # slurp(r2ai_model_json)
         if not repo_id:
-            if "default" in usermodels: # use a oneliner
-                repo_id = usermodels["default"]
-            else:
-                # default model
-                repo_id = "TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF"
-        if repo_id in usermodels:
+            repo_id = get_default_model()
+        if usermodels is not None and repo_id in usermodels:
             model_path = usermodels[repo_id]
-            print("[r2ai] Using " + r2ai_default_model+": " + model_path)
+            print("[r2ai] Using " + r2ai_model_json+": " + model_path)
             return llama_cpp.Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
     except:
         traceback.print_exc()
         pass
-    print("Getting the model from hugging face. Use -m to select another one")
+    print(f"Select {repo_id} model. See -M and -m flags")
     raw_models = list_gguf_files(repo_id)
     if not raw_models:
         print(f"Failed. Are you sure there are GGUF files in `{repo_id}`?")
@@ -287,12 +300,14 @@ def get_hf_llm(repo_id, debug_mode, context_window):
     # Initialize and return Code-Llama
     assert os.path.isfile(model_path)
     if answers["default"] == "Yes":
-        if usermodels is None:
+        if usermodels is None or len(usermodels) == 0:
             usermodels = {
                 "default": repo_id,
             }
+        else:
+            usermodels["default"] = repo_id
         usermodels[repo_id] = model_path
-        fd = open(r2ai_default_model, "w")
+        fd = open(r2ai_model_json, "w")
         json.dump(usermodels, fd)
         fd.close()
         print("Saved")

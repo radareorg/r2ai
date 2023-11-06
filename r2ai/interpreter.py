@@ -12,7 +12,7 @@ import builtins
 from .utils import merge_deltas
 from .message_block import MessageBlock
 from .code_block import CodeBlock
-from .models import get_hf_llm, new_get_hf_llm
+from .models import get_hf_llm, new_get_hf_llm, get_default_model
 
 import os
 import traceback
@@ -36,9 +36,6 @@ from rich.rule import Rule
 
 import signal
 import sys
-
-DEFAULT_MODEL="TheBloke/CodeLlama-34B-Instruct-GGUF"
-# TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF
 
 def signal_handler(sig, frame):
     print('You pressed Ctrl+C!')
@@ -262,7 +259,7 @@ class Interpreter:
     self.terminator = "</s>"
     self.api_key = None
     self.auto_run = False
-    self.model = DEFAULT_MODEL
+    self.model = get_default_model()
     self.last_model = ""
     self.live_mode = not have_rlang
     self.env = {}
