@@ -37,6 +37,9 @@ from rich.rule import Rule
 import signal
 import sys
 
+DEFAULT_MODEL="TheBloke/CodeLlama-34B-Instruct-GGUF"
+# TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF
+
 def signal_handler(sig, frame):
     print('You pressed Ctrl+C!')
     sys.exit(0)
@@ -80,7 +83,8 @@ def messages_to_prompt(self,messages):
   if "q4_0" in self.model.lower():
     formatted_messages = template_q4im(self, messages)
   elif "uncensor" in self.model.lower():
-    formatted_messages = template_uncensored(self, messages)
+    formatted_messages = template_gpt4all(self, messages)
+#    formatted_messages = template_uncensored(self, messages)
   elif "gpt4all" in self.model.lower():
     formatted_messages = template_gpt4all(self, messages)
   elif "falcon" in self.model.lower():
@@ -153,9 +157,6 @@ def template_uncensored(self,messages):
   except:
     traceback.print_exc()
     pass
-  print("###")
-  print(formatted_messages)
-  print("###")
   return formatted_messages
 
 def template_falcon(self,messages):
@@ -261,8 +262,7 @@ class Interpreter:
     self.terminator = "</s>"
     self.api_key = None
     self.auto_run = False
-    self.local = True
-    self.model = "TheBloke/CodeLlama-34B-Instruct-GGUF"
+    self.model = DEFAULT_MODEL
     self.last_model = ""
     self.live_mode = not have_rlang
     self.env = {}
@@ -389,17 +389,15 @@ class Interpreter:
 
     # This is hacky, as we should have a different (minified) prompt for CodeLLama,
     # but for now, to make the prompt shorter and remove "run_code" references, just get the first 2 lines:
-    if self.local:
-      self.system_message = "\n".join(self.system_message.split("\n")[:2])
+    self.system_message = "\n".join(self.system_message.split("\n")[:2])
       # self.system_message += "\nOnly do what the user asks you to do, then ask what they'd like to do next."
 
     system_message = self.system_message + "\n\n" + info
     system_message += self.environment()
 
-    if self.local:
-      messages = tt.trim(self.messages, max_tokens=(self.context_window-self.max_tokens-25), system_message=system_message)
-    else:
-      messages = tt.trim(self.messages, self.model, system_message=system_message)
+    messages = tt.trim(self.messages,
+        max_tokens=(self.context_window-self.max_tokens-25),
+        system_message=system_message)
 
     # DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG
     if "DEBUG" in self.env:

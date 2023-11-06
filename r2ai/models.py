@@ -68,13 +68,13 @@ def get_hf_llm(repo_id, debug_mode, context_window):
             else:
                 # default model
                 repo_id = "TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF"
-        model_path = usermodels[repo_id]
-        print("[r2ai] Using " + r2ai_default_model+": " + model_path)
-        return llama_cpp.Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
+        if repo_id in usermodels:
+            model_path = usermodels[repo_id]
+            print("[r2ai] Using " + r2ai_default_model+": " + model_path)
+            return llama_cpp.Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
     except:
         traceback.print_exc()
         pass
-    models()
     print("Getting the model from hugging face. Use -m to select another one")
     raw_models = list_gguf_files(repo_id)
     if not raw_models:
