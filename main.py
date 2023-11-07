@@ -35,6 +35,7 @@ if os.name != "nt":
 	try:
 		import r2lang
 		have_rlang = True
+		print = r2lang.print
 	except:
 		try:
 			import r2pipe
@@ -205,7 +206,7 @@ def r2ai_repl():
 			off = r2_cmd("s").strip()
 			if off == "":
 				off = r2_cmd("s").strip()
-			if off != "" and off != "0":
+			if len(off) > 5:
 				oldoff = off
 		if ai.active_block is not None:
 			#r2ai.active_block.update_from_message("")
