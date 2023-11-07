@@ -86,8 +86,11 @@ def messages_to_prompt(self,messages):
 
   if "q4_0" in self.model.lower():
     formatted_messages = template_q4im(self, messages)
+  elif "luna" in self.model.lower():
+    formatted_messages = template_alpaca(self, messages)
   elif "uncensor" in self.model.lower():
 #    formatted_messages = template_gpt4all(self, messages)
+#    formatted_messages = template_alpaca(self, messages)
     formatted_messages = template_uncensored(self, messages)
 #    formatted_messages = template_gpt4all(self, messages)
   elif "gpt4all" in self.model.lower():
