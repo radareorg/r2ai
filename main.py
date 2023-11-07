@@ -30,7 +30,7 @@ r2 = None
 have_rlang = False
 have_r2pipe = False
 within_r2 = False
-
+print = print
 if os.name != "nt":
 	try:
 		import r2lang
@@ -89,6 +89,7 @@ help_message = """Usage: r2ai [-option] ([query])
  r2ai -v                show r2ai version"""
 
 def runline(usertext):
+	global print
 	global ai
 	usertext = usertext.strip()
 	if usertext == "":

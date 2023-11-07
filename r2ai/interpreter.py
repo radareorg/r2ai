@@ -34,6 +34,12 @@ from rich.rule import Rule
 
 import signal
 import sys
+try:
+	import r2lang
+	have_rlang = True
+	print = r2lang.print
+except:
+	pass
 
 Ginterrupted = False
 def signal_handler(sig, frame):
