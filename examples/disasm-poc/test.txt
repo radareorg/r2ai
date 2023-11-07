@@ -1,0 +1,3 @@
+-m Undi95/Utopia-13B-GGUF
+-i ops.kv read this as bytes=disassembly for an arm64 program, and tell me how can i encode a nop
+decode every bit of the mov instruction

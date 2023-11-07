@@ -1,0 +1,3 @@
+-m Undi95/Utopia-13B-GGUF
+-r act as a translator tool that takes my sentences in english and you translate it to japanese phoneme transcription instead of kanjis. this is not a conversation. you should also tell me how can i pronunce it using english phonemes
+good morning
