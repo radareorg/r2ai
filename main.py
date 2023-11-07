@@ -14,6 +14,18 @@ import r2ai
 from r2ai.utils import slurp
 from r2ai.models import set_default_model
 
+have_readline = False
+r2ai_history_file = "r2ai.history.txt" # windows path
+if "HOME" in os.environ:
+	r2ai_history_file = os.environ["HOME"] + "/.r2ai.history"
+try:
+    import readline
+    # load readline history from ~/.r2ai.history
+    readline.read_history_file(r2ai_history_file)
+    have_readline = True
+except:
+    pass #readline not available
+
 r2 = None
 have_rlang = False
 have_r2pipe = False
@@ -209,6 +221,7 @@ def r2ai_repl():
 		except:
 			traceback.print_exc()
 			continue
+		readline.write_history_file(r2ai_history_file)
 	ai.live_mode = olivemode
 
 ### MAIN ###
