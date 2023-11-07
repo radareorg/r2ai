@@ -57,8 +57,7 @@ model_path = dir_path + "/" + ai.model
 if os.path.exists(model_path):
 	ai.model = model_path
 
-help_message = """
-Usage: r2ai [-option] ([query])
+help_message = """Usage: r2ai [-option] ([query])
  r2ai !aa               run a r2 command
  r2ai -k                clear the screen
  r2ai -c [cmd] [query]  run the given r2 command with the given query
@@ -73,8 +72,7 @@ Usage: r2ai [-option] ([query])
  r2ai -l                toggle the live mode
  r2ai -r [sysprompt]    define the role of the conversation
  r2ai -R                reset the chat conversation context
- r2ai -v                show r2ai version
-"""
+ r2ai -v                show r2ai version"""
 
 def runline(usertext):
 	global ai
@@ -143,7 +141,7 @@ def runline(usertext):
 		if len(words) > 1:
 			que = words[1]
 		else:
-			que = input("[Query]>> ")
+			que = input("[Query]> ")
 		tag = "CODE" # INPUT , TEXT, ..
 #r2ai.chat("Q: " + que + ":\n["+tag+"]\n"+ res+"\n[/"+tag+"]\n")
 		ai.chat("Human: " + que + ":\n["+tag+"]\n"+ res+"\n[/"+tag+"]\n")
@@ -166,7 +164,7 @@ def runline(usertext):
 		if len(words) > 1:
 			que = words[1]
 		else:
-			que = input("[Query]>> ")
+			que = input("[Query]> ")
 		tag = "CODE" # TEXT, ..
 		ai.chat("Human: " + que + ":\n[" + tag + "]\n" + res + "\n[/" + tag + "]\n")
 	elif usertext[0] == "!": # Deprecate. we have -c now
@@ -174,7 +172,7 @@ def runline(usertext):
 			print("r2 is not available")
 		elif usertext[1] == "!":
 			res = r2_cmd(usertext[2:])
-			que = input("[Query]>> ")
+			que = input("[Query]> ")
 			ai.chat("Q: " + que + ":\n[INPUT]\n"+ res+"\n[/INPUT]\n") # , return_messages=True)
 		else:
 			print(r2_cmd(usertext[1:]))
@@ -182,19 +180,19 @@ def runline(usertext):
 		print("Unknown flag. See 'r2ai -h' for help")
 	else:
 		ai.chat(usertext)
-# r2ai.load(res)
-# print(res)
 
 def r2ai_repl():
 	olivemode = ai.live_mode
 	ai.live_mode = True
-	prompt = "[r2ai:0x00000000]> "
+	oldoff = "0x00000000"
 	while True:
+		prompt = "[r2ai:" + oldoff + "]> "
 		if r2 is not None:
 			off = r2_cmd("s").strip()
 			if off == "":
 				off = r2_cmd("s").strip()
-			prompt = "[r2ai:" + off + "]>> "
+			if off != "" and off != "0":
+				oldoff = off
 		if ai.active_block is not None:
 			#r2ai.active_block.update_from_message("")
 			ai.end_active_block()
@@ -224,7 +222,7 @@ if have_r2pipe:
 		traceback.print_exc()
 
 if have_rlang:
-	def r2ai_rlang_plugin():
+	def r2ai_rlang_plugin(unused_but_required_argument):
 		def _call(s):
 			if s.startswith("r2ai"):
 				usertext = s[4:].strip()

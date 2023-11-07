@@ -21,10 +21,10 @@ import platform
 
 have_rlang = False
 try:
-  import r2lang
-  have_rlang = True
+	import r2lang
+	have_rlang = True
 except:
-  pass
+	pass
 
 import getpass
 import tokentrim as tt
@@ -35,16 +35,19 @@ from rich.rule import Rule
 import signal
 import sys
 
+Ginterrupted = False
 def signal_handler(sig, frame):
-    print('You pressed Ctrl+C!')
-    sys.exit(0)
+	global Ginterrupted
+	Ginterrupted = True
+	print("^C")
+	sys.exit(0) # throws exception
 
 signal.signal(signal.SIGINT, signal_handler)
 # print('Press Ctrl+C')
 # signal.pause()
 
 def Markdown(x):
-  return x
+	return x
 
 # Function schema for gpt-4
 function_schema = {
@@ -334,10 +337,12 @@ class Interpreter:
         print(Markdown(f"**Removed codeblock**")) # TODO: Could add preview of code removed here.
 
   def chat(self, message=None, return_messages=False):
+    global Ginterrupted
     if self.last_model != self.model:
       self.llama_instance = None
       self.last_model = self.model
     if not message:
+      self.end_active_block()
       print("Missing message")
       return
     # Code-Llama
@@ -352,10 +357,15 @@ class Interpreter:
       except:
         traceback.print_exc()
 
-    # If it was, we respond non-interactivley
+    # If it was, we respond non-interactively
     self.messages.append({"role": "user", "content": message})
-    self.respond()
-
+    try:
+    	self.respond()
+    except:
+        if Ginterrupted:
+            Ginterrupted = False
+        else:
+            traceback.print_exc()
     self.end_active_block()
     if return_messages:
         return self.messages
@@ -376,6 +386,7 @@ class Interpreter:
     return "[User Info]\n" + kvs
 
   def respond(self):
+    global Ginterrupted
     # Add relevant info to system_message
     # (e.g. current working directory, username, os, etc.)
     info = self.get_info_for_system_message()
@@ -411,13 +422,18 @@ class Interpreter:
       print("Cannot find the model")
       return
     # Run Code-Llama
-    response = self.llama_instance(
-      prompt,
-      stream=True,
-      temperature=self.temperature,
-      stop=[self.terminator],
-      max_tokens=1750 # context window is set to 1800, messages are trimmed to 1000... 700 seems nice
-    )
+    try:
+      response = self.llama_instance(
+        prompt,
+        stream=True,
+        temperature=self.temperature,
+        stop=[self.terminator],
+        max_tokens=1750 # context window is set to 1800, messages are trimmed to 1000... 700 seems nice
+      )
+    except:
+      if Ginterrupted:
+        Ginterrupted = False
+        return
 
     # Initialize message, function call trackers, and active block
     self.messages.append({})
@@ -425,6 +441,9 @@ class Interpreter:
     self.active_block = None
 
     for chunk in response:
+      if Ginterrupted:
+        Ginterrupted = False
+        break
       if "content" not in messages[-1]:
         # This is the first chunk. We'll need to capitalize it, because our prompt ends in a ", "
         chunk["choices"][0]["text"] = chunk["choices"][0]["text"].capitalize()
