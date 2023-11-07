@@ -60,6 +60,7 @@ def models():
     builtins.print("-m TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF")
     builtins.print("-m TheBloke/Mistral-7B-Instruct-v0.1-GGUF")
     builtins.print("-m maddes8cht/nomic-ai-gpt4all-falcon-7b-gguf")
+    builtins.print("-m TheBloke/Yarn-Mistral-7B-128k-GGUF")
     builtins.print("Uncensored:")
     builtins.print("-m TheBloke/Guanaco-7B-Uncensored-GGUF")
     builtins.print("-m TheBloke/Wizard-Vicuna-7B-Uncensored-GGUF")
