@@ -27,8 +27,6 @@ except:
   pass
 
 import getpass
-import requests
-import readline
 import tokentrim as tt
 # from rich import print
 # from rich.markdown import Markdown
@@ -112,7 +110,7 @@ def template_q4im(self,messages):
       # formatted_messages = f"[STDIN] {system_prompt} [/STDIN]\n"
       # formatted_messages = f"/imagine prompt: {system_prompt}\n"
     for index, item in enumerate(messages[1:]):
-        role = item['role']
+        item['role']
         content = item['content'].strip()
         formatted_messages += f"<|im_start|>{content}<|im_end|>"
         formatted_messages += "\{\"text\":\"{"+content+"}\"\}"
@@ -120,7 +118,6 @@ def template_q4im(self,messages):
     print("```" + formatted_messages + "```")
   except:
     traceback.print_exc()
-    pass
   return formatted_messages
 
 def template_uncensored(self,messages):
@@ -153,7 +150,6 @@ def template_uncensored(self,messages):
     # print("```" + formatted_messages + "```")
   except:
     traceback.print_exc()
-    pass
   return formatted_messages
 
 def template_falcon(self,messages):
@@ -291,9 +287,9 @@ class Interpreter:
     info = ""
 
     # Add user info
-    username = getpass.getuser()
-    current_working_directory = os.getcwd()
-    operating_system = platform.system()
+    getpass.getuser()
+    os.getcwd()
+    platform.system()
 #   info += f"[User Info]\nName: {username}\nCWD: {current_working_directory}\nOS: {operating_system}"
 
     return info
@@ -426,7 +422,6 @@ class Interpreter:
     # Initialize message, function call trackers, and active block
     self.messages.append({})
     in_function_call = False
-    llama_function_call_finished = False
     self.active_block = None
 
     for chunk in response:
@@ -462,7 +457,7 @@ class Interpreter:
 
           # Print newline if it was just a code block or user message
           # (this just looks nice)
-          last_role = self.messages[-2]["role"]
+          self.messages[-2]["role"]
 
           # then create a new code block
           self.active_block = CodeBlock()
@@ -514,7 +509,7 @@ class Interpreter:
         # We are not in a function call.
         # Check if we just left a function call
         if in_function_call == True:
-          llama_function_call_finished = True
+          pass
         # Remember we're not in a function_call
         in_function_call = False
         # If there's no active block,

@@ -18,28 +18,25 @@ Especially if you have ideas and **EXCITEMENT** about the future of this project
 - killian
 """
 
-import os
-import json
-import builtins
 from .utils import slurp, dump
-import sys
-import llama_cpp
+from huggingface_hub import list_files_info, hf_hub_download, login
+from typing import Dict, List, Union
 import appdirs
-import traceback
+import builtins
 import inquirer
-import subprocess
-# from rich import print
-# from rich.markdown import Markdown
+import json
+import llama_cpp
 import os
 import shutil
-from huggingface_hub import list_files_info, hf_hub_download
+import subprocess
+import sys
+import traceback
 
 #DEFAULT_MODEL = "TheBloke/CodeLlama-34B-Instruct-GGUF"
 DEFAULT_MODEL = "TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF"
 r2ai_model_json = "r2ai.model.json" # windows path
 if "HOME" in os.environ:
 	r2ai_model_json = os.environ["HOME"] + "/.r2ai.model"
-
 
 def get_default_model():
     try:
@@ -87,7 +84,6 @@ def get_hf_llm(repo_id, debug_mode, context_window):
             return llama_cpp.Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
     except:
         traceback.print_exc()
-        pass
     print(f"Select {repo_id} model. See -M and -m flags")
     raw_models = list_gguf_files(repo_id)
     if not raw_models:
@@ -95,15 +91,10 @@ def get_hf_llm(repo_id, debug_mode, context_window):
         return None
 #    print(raw_models)
     combined_models = group_and_combine_splits(raw_models)
-#    print (combined_models)
-
-#    selected_model = "Small"
     selected_model = None #"Medium"
 
     # First we give them a simple small medium large option. If they want to see more, they can.
-
     if selected_model is None and len(combined_models) > 3:
-
         # Display Small Medium Large options to user
         choices = [
             format_quality_choice(combined_models[0], "Small"),
@@ -175,7 +166,7 @@ def get_hf_llm(repo_id, debug_mode, context_window):
 
                     # Check disk space and exit if not enough
                     if not enough_disk_space(selected_model_details['Size'], default_path):
-                        print(f"You do not have enough disk space available to download this model.")
+                        print(f"Not enough disk space available to download this model.")
                         return None
 
             # Check if model was originally split
@@ -211,10 +202,6 @@ def get_hf_llm(repo_id, debug_mode, context_window):
         else:
             print('\n', "Download cancelled. Exiting.", '\n')
             return None
-
-    # This is helpful for folks looking to delete corrupted ones and such
-#print(Markdown(f"Model found at `{model_path}`"))
-  
     try:
         from llama_cpp import Llama
     except:
@@ -241,7 +228,6 @@ def get_hf_llm(repo_id, debug_mode, context_window):
                 env_vars = {
                     "FORCE_CMAKE": "1"
                 }
-                
                 if backend == "cuBLAS":
                     env_vars["CMAKE_ARGS"] = "-DLLAMA_CUBLAS=on"
                 elif backend == "hipBLAS":
@@ -278,21 +264,11 @@ def get_hf_llm(repo_id, debug_mode, context_window):
             from llama_cpp import Llama
             print('', Markdown("Finished downloading `Code-Llama` interface."), '')
 
-            # Tell them if their architecture won't work well
-
             # Check if on macOS
             if platform.system() == "Darwin":
                 # Check if it's Apple Silicon
                 if platform.machine() != "arm64":
-                    print("Warning: You are using Apple Silicon (M1/M2) Mac but your Python is not of 'arm64' architecture.")
-                    print("The llama.ccp x86 version will be 10x slower on Apple Silicon (M1/M2) Mac.")
-                    print("\nTo install the correct version of Python that supports 'arm64' architecture:")
-                    print("1. Download Miniforge for M1/M2:")
-                    print("wget https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-MacOSX-arm64.sh")
-                    print("2. Install it:")
-                    print("bash Miniforge3-MacOSX-arm64.sh")
-                    print("")
-      
+                    print("Warning: Running python-x86 on arm64, which is 10x slower than native m1")
         else:
             print('', "Installation cancelled. Exiting.", '')
             return None
@@ -324,11 +300,6 @@ def confirm_action(message):
 
     answers = inquirer.prompt(question)
     return answers['confirm']
-
-import os
-import inquirer
-from huggingface_hub import list_files_info, hf_hub_download, login
-from typing import Dict, List, Union
 
 def list_gguf_files(repo_id: str) -> List[Dict[str, Union[str, float]]]:
     """
@@ -430,7 +401,6 @@ def enough_disk_space(size, path) -> bool:
 
     # Convert bytes to gigabytes
     free_gb = free / (2**30) 
-
     if free_gb > size:
         return True
 
@@ -454,7 +424,6 @@ def new_get_hf_llm(repo_id, debug_mode, context_window):
 
     # Ensure the directory exists
     os.makedirs(default_path, exist_ok=True)
-    selected_model = repo_id
     model_path = repo_id
     # This is helpful for folks looking to delete corrupted ones and such
 #print(Markdown(f"Model found at `{model_path}`"))

@@ -136,7 +136,6 @@ def runline(usertext):
 			ai.chat(res)
 		except:
 			print("Cannot load file", file=sys.stderr)
-			pass
 	elif usertext.startswith("-i"):
 		text = usertext[2:].strip()
 		words = text.split(" ", 1)
@@ -225,7 +224,7 @@ if have_r2pipe:
 		traceback.print_exc()
 
 if have_rlang:
-	def r2ai_rlang_plugin(a):
+	def r2ai_rlang_plugin():
 		def _call(s):
 			if s.startswith("r2ai"):
 				usertext = s[4:].strip()
