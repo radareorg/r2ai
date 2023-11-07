@@ -239,7 +239,9 @@ if have_r2pipe:
 if have_rlang:
 	def r2ai_rlang_plugin(unused_but_required_argument):
 		def _call(s):
-			if s.startswith("r2ai"):
+			if s == "r2ai":
+				print(help_message)
+			elif s.startswith("r2ai"):
 				usertext = s[4:].strip()
 				try:
 					runline(usertext)
