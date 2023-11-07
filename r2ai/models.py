@@ -273,6 +273,7 @@ def get_hf_llm(repo_id, debug_mode, context_window):
             print('', "Installation cancelled. Exiting.", '')
             return None
 
+    set_default_model(repo_id)
     # Initialize and return Code-Llama
     assert os.path.isfile(model_path)
     if answers["default"] == "Yes":
@@ -288,8 +289,23 @@ def get_hf_llm(repo_id, debug_mode, context_window):
         fd.close()
         print("Saved")
     llama_2 = Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
-    print("[r2ai] Using model: " + model_path)
+#    print("[r2ai] Using model: " + model_path)
     return llama_2
+
+def set_default_model(repo_id):
+    usermodels = {"default": repo_id}
+    try:
+        fd = open(r2ai_model_json)
+        usermodels = json.load(fd)
+        fd.close()
+    except:
+        pass
+    usermodels["default"] = repo_id
+#    usermodels[repo_id] = model_path
+    fd = open(r2ai_model_json, "w")
+    json.dump(usermodels, fd)
+    fd.close()
+    return None
 
 def confirm_action(message):
     question = [

@@ -12,6 +12,7 @@ except:
 import traceback
 import r2ai
 from r2ai.utils import slurp
+from r2ai.models import set_default_model
 
 r2 = None
 have_rlang = False
@@ -89,6 +90,7 @@ def runline(usertext):
 		words = usertext.split(" ")
 		if len(words) > 1:
 			ai.model = words[1]
+			set_default_model(ai.model)
 		else:
 			print(ai.model)
 	elif usertext == "reset" or usertext.startswith("-R"):

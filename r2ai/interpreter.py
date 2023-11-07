@@ -204,8 +204,6 @@ def template_llamapython(self, messages):
   return formatted_messages
 
 def template_gpt4all(self,messages):
-  # Llama prompt template
-  # Extracting the system prompt and initializing the formatted string with it.
   self.terminator = "###"
   system_prompt = messages[0]['content'].strip()
   if system_prompt != "":
