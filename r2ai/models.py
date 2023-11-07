@@ -81,7 +81,7 @@ def get_hf_llm(repo_id, debug_mode, context_window):
             repo_id = get_default_model()
         if usermodels is not None and repo_id in usermodels:
             model_path = usermodels[repo_id]
-            print("[r2ai] Using " + r2ai_model_json+": " + model_path)
+#            print("[r2ai] Using " + r2ai_model_json+": " + model_path)
             return llama_cpp.Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
     except:
         traceback.print_exc()
@@ -159,8 +159,7 @@ def get_hf_llm(repo_id, debug_mode, context_window):
         # If the file was not found, ask for confirmation to download it
         download_path = os.path.join(default_path, selected_model)
       
-        print(f"This language model was not found on your system.\n\nDownload to `{default_path}`?", "")
-        if confirm_action(""):
+        if confirm_action(f"Download to {default_path}?"):
             for model_details in combined_models:
                 if model_details["filename"] == selected_model:
                     selected_model_details = model_details
