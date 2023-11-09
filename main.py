@@ -175,8 +175,8 @@ def runline(usertext):
 		else:
 			que = input("[Query]> ")
 		tag = "CODE" # INPUT , TEXT, ..
-#r2ai.chat("Q: " + que + ":\n["+tag+"]\n"+ res+"\n[/"+tag+"]\n")
-		ai.chat("Human: " + que + ":\n["+tag+"]\n"+ res+"\n[/"+tag+"]\n")
+		#r2ai.chat("Q: " + que + ":\n["+tag+"]\n"+ res+"\n[/"+tag+"]\n")
+		ai.chat(f"{que}:\n[{tag}]\n{res}\n[/{tag}]\n")
 	elif usertext.startswith("-n"):
 		if usertext == "-n":
 			for a in ais.keys():
@@ -197,15 +197,11 @@ def runline(usertext):
 			que = words[1]
 		else:
 			que = input("[Query]> ")
-		tag = "CODE" # TEXT, ..
-		ai.chat("Human: " + que + ":\n[" + tag + "]\n" + res + "\n[/" + tag + "]\n")
-	elif usertext[0] == "!": # Deprecate. we have -c now
+		tag = "CODE" # TEXT, INPUT ..
+		ai.chat(f"{que}:\n[{tag}]\n{res}\n[/{tag}]\n")
+	elif usertext[0] == "!":
 		if r2 is None:
 			print("r2 is not available")
-		elif usertext[1] == "!":
-			res = r2_cmd(usertext[2:])
-			que = input("[Query]> ")
-			ai.chat("Q: " + que + ":\n[INPUT]\n"+ res+"\n[/INPUT]\n") # , return_messages=True)
 		else:
 			print(r2_cmd(usertext[1:]))
 	elif usertext.startswith("-"):

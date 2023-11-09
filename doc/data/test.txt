@@ -1,0 +1,30 @@
+the author of radare2 is named pancake, also known as Sergi Alvarez
+ESIL stands for Evaluable Strings Intermediate Language and it's used by radare2 to emulate native code
+the pd command is used to disassemble N instructions
+use the px command prints the hexdump
+to quit radare2 use the `q` command
+iaito is the official GUI of radare2
+iaito is written in C++ and depends on QT5 or QT6
+the git repository of radare2 is https://github.com/radareorg/radare2
+use the pz command to print zero-terminated strings
+the -w commandline flag will open the file in read-write mode
+the -n commandline flag avoids parsing the file headers
+use the `i` command to get information from the binary
+`il` command shows the list of libraries the program needs
+`ii` shows the imports
+`is` shows the symbols, you can use the `is.` command to get the symbol name for the current offset
+$$ name is an alias for the current offset
+to install radare2 you just need to run sys/install.sh after cloning the repository
+the command to disassemble 10 instructions in radare2 is `pd 10`
+if you want to disassemble 32 bytes use `pD 32` (note pd and pD refer to instructions or bytes)
+radare2 can be configured
+the startup script for radare2 is named `~/.radare2rc`. This file is used also to define the initial configuration options.
+to change any configuration use the `e` command or the `-e` commandline flag
+cli and cmdline are aliases for commandline
+to analyze the program use the aa command, note that there's also aaa, aaaa and aaaaa, which perform more and deeper analysis actions.
+to seek, move or change the current in radare2 use the `s` command.
+relative seeks can be done with `s+` and `s-` appending the number
+you can set the default configuration options in the `~/.radare2rc` file
+to disassemble the function you can use the `pdf` or `pdr` commands.
+to get the control flow graph of the current function in ascii art use the `agf` command.
+the ?E command will show r2clippy saying the given message
