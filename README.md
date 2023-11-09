@@ -92,3 +92,7 @@ conda run pip install inquirer rich appdirs huggingface_hub tokentrim llama-cpp-
 * add "undo" command to drop the last message
 * dump / restore conversational states
 * custom prompt templates
+
+### Kudos
+
+The original code of r2ai is based on OpenInterpreter. I want to thanks all the contributors to this project as they made it possible to build r2ai taking their code as source for this.  Kudos to Killian and all the contributors.

@@ -1,17 +1,9 @@
-MODEL=llama-2-7b-chat-codeCherryPop.ggmlv3.q4_K_M.gguf
 R2_USER_PLUGINS=$(shell r2 -H R2_USER_PLUGINS)
 PWD=$(shell pwd)
 R2PM_BINDIR=$(shell r2pm -H R2PM_BINDIR)
 
-all: $(MODEL)
-
-run:
-	python3 main.py
-
-$(MODEL): deps
-	git clone https://github.com/radareorg/r2ai-models
-	make -C r2ai-models
-	ln -fs $(PWD)/r2ai-models/$(MODEL) $(PWD)/$(MODEL)
+all:
+	python3 main.py || $(MAKE) deps
 
 deps:
 	pip3 install rich inquirer python-dotenv openai litellm tokentrim
