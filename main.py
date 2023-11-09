@@ -65,14 +65,17 @@ def r2_cmd(x):
 		r2.cmd('e scr.color=' + oc)
 	return res
 
+dir_path = os.path.dirname(os.path.realpath(__file__))
 # override defaults for testing
 if use_bubble:
-	ai.system_message = slurp("doc/role/r2clippy.txt")
+	try:
+		ai.system_message = slurp(f"{dir_path}/doc/role/r2clippy.txt")
+	except:
+		pass
 else:
 	ai.system_message = "" #
 #ai.model = "llama-2-7b-chat-codeCherryPop.ggmlv3.q4_K_M.gguf"
 
-dir_path = os.path.dirname(os.path.realpath(__file__))
 model_path = dir_path + "/" + ai.model
 if os.path.exists(model_path):
 	ai.model = model_path
