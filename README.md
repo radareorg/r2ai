@@ -5,12 +5,14 @@
 |   :  \ \   .  ||   :   ||   |
 |   |___\ \__:__||___|   ||   |
 |___|        :       |___||___|
-             *
+             *       --pancake
 ```
 
-Run r2ai in local, without internet or leaking any data. Use your CPU/GPU/NPU and interact with r2 using natural language. The current implementation is based on llama and the default model is `CodeLlama-CherryPop`
+Run a language model in local, without internet, to entertain you or help answering questions about radare2 or reverse engineering in general. Note that models used by r2ai are pulled from external sources which may behave different or respond unrealible information. That's why there's an ongoing effort into improving the post-finetuning using memgpt-like techniques which can't get better without your help!
 
---pancake
+<p align="center">
+  <img src="doc/r2clippy.jpg">
+</p>
 
 ## Features
 
