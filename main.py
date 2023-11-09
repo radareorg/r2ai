@@ -13,6 +13,9 @@ import traceback
 import r2ai
 from r2ai.utils import slurp
 from r2ai.models import set_default_model
+from r2ai import bubble
+
+use_bubble = True
 
 have_readline = False
 r2ai_history_file = "r2ai.history.txt" # windows path
@@ -63,7 +66,10 @@ def r2_cmd(x):
 	return res
 
 # override defaults for testing
-ai.system_message = "" #
+if use_bubble:
+	ai.system_message = slurp("doc/role/r2clippy.txt")
+else:
+	ai.system_message = "" #
 #ai.model = "llama-2-7b-chat-codeCherryPop.ggmlv3.q4_K_M.gguf"
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -227,9 +233,15 @@ def r2ai_repl():
 		except:
 			break
 		try:
-			if runline(usertext) == "q":
-				print("leaving")
-				break
+			if use_bubble:
+				bubble.query(usertext)
+				bubble.response_begin()
+				if runline(usertext) == "q":
+					break
+				bubble.response_end()
+			else:
+				if runline(usertext) == "q":
+					break
 		except:
 			traceback.print_exc()
 			continue

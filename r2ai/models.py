@@ -1,23 +1,3 @@
-"""
-Right off the bat, to any contributors (a message from Killian):
-
-First of all, THANK YOU. Open Interpreter is ALIVE, ALL OVER THE WORLD because of YOU.
-
-While this project is rapidly growing, I've decided it's best for us to allow some technical debt.
-
-The code here has duplication. It has imports in weird places. It has been spaghettified to add features more quickly.
-
-In my opinion **this is critical** to keep up with the pace of demand for this project.
-
-At the same time, I plan on pushing a significant re-factor of `interpreter.py` and `code_interpreter.py` ~ September 16th.
-
-After the re-factor, Open Interpreter's source code will be much simpler, and much more fun to dive into.
-
-Especially if you have ideas and **EXCITEMENT** about the future of this project, chat with me on discord: https://discord.gg/6p3fD6rBVm
-
-- killian
-"""
-
 from .utils import slurp, dump
 from huggingface_hub import list_files_info, hf_hub_download, login
 from typing import Dict, List, Union

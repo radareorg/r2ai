@@ -552,9 +552,7 @@ class Interpreter:
           # Code-Llama won't make a "function_call" property for us to store this under, so:
           if "function_call" not in self.messages[-1]:
             self.messages[-1]["function_call"] = {}
-
           self.messages[-1]["function_call"]["parsed_arguments"] = arguments
-
       else:
         # We are not in a function call.
         # Check if we just left a function call
