@@ -1,0 +1,6 @@
+ESIL stands for Evaluable Strings Intermediate Language. It is a language similar to FORTH used by radare2 for emulating code across many architectures.
+Translating ESIL expressions into human readable form requires reversing the order of operations and taking into account the stack operations, for example `1,B,+,A,=` translated to the human readable form of `A=B+1`.
+The order of the elements in this comma separated list of elements must be reversed when converted into a human readable form.
+ESIL expressions are made by comma separated list of tokens. Each token can be a number, a register or an operation. Those tokens are evaluated in a linear way, this is pushing every element into the esil vm stack and popping them when an operation token is found. The result of the operation is then pushed back into the stack.
+An example expression for ESIL is: `1,rax,+,rcx,:=` which can be translated to `rcx = rax + 1`.
+A more complex esil expression is `rax,3,rcx,+,*,rbx,:=`, which translated to `rbx = (rcx * 3) + rax`. Note that the preference order depends on how the expression is constructed because this defines the order of the internal stack operations.
