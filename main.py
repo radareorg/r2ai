@@ -85,8 +85,10 @@ help_message = """Usage: r2ai [-option] ([query])
  r2ai -q                quit/exit/^C
  r2ai -l                toggle the live mode
  r2ai -r [sysprompt]    define the role of the conversation
+ r2ai -rf [doc/role/.f] load contents of a file to define the role
  r2ai -R                reset the chat conversation context
  r2ai -v                show r2ai version"""
+
 
 def runline(usertext):
 	global print
@@ -130,6 +132,14 @@ def runline(usertext):
 					pass
 	elif usertext.startswith("-s"):
 		r2ai_repl()
+	elif usertext.startswith("-rf"):
+		if len(usertext) > 2:
+			try:
+				ai.system_message = slurp(usertext[3:].strip())
+			except:
+				print("Cannot open file")
+		else:
+			print(ai.system_message)
 	elif usertext.startswith("-r"):
 		if len(usertext) > 2:
 			ai.system_message = usertext[2:].strip()
