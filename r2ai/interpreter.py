@@ -1,17 +1,8 @@
-"""
-
-This code is based on OpenInterpreter. I want to thanks all the contributors to this project as they made it possible to build r2ai taking their code as source for this.
-
-Kudos to Killian and all the contributors. You may want to chat with them in Discord https://discord.gg/6p3fD6rBVm
-
---pancake
-
-"""
-
 import builtins
 from .utils import merge_deltas
 from .message_block import MessageBlock
 from .code_block import CodeBlock
+from .index import main_indexer
 from .models import get_hf_llm, new_get_hf_llm, get_default_model
 
 import os
@@ -285,6 +276,7 @@ class Interpreter:
 
   def __init__(self):
     self.messages = []
+    self.use_indexer = True
     self.temperature = 0.002
     self.terminator = "</s>"
     self.api_key = None
@@ -376,6 +368,16 @@ class Interpreter:
       self.end_active_block()
       print("Missing message")
       return
+    if self.use_indexer:
+      matches = main_indexer(message)
+      if len(matches) > 0:
+        newmsg = "<<SYS>>"
+        for m in matches:
+          newmsg += f"{m}.\n"
+        message = newmsg + "<</SYS>>\n" + message
+    if "DEBUG" in self.env:
+      print(message)
+#    print(message)
     # Code-Llama
     if self.llama_instance == None:
       # Find or install Code-Llama
