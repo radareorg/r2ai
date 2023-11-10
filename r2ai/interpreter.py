@@ -10,26 +10,19 @@ import os
 import traceback
 import json
 import platform
+import getpass
+import tokentrim as tt
+from rich.rule import Rule
+import signal
+import sys
 
+r2clippy = False
 have_rlang = False
 try:
 	import r2lang
 	have_rlang = True
-except:
-	pass
-
-import getpass
-import tokentrim as tt
-# from rich import print
-# from rich.markdown import Markdown
-from rich.rule import Rule
-
-import signal
-import sys
-try:
-	import r2lang
-	have_rlang = True
 	print = r2lang.print
+	r2clippy = True
 except:
 	pass
 
@@ -43,9 +36,6 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGINT, signal_handler)
 # print('Press Ctrl+C')
 # signal.pause()
-
-def Markdown(x):
-	return x
 
 # Function schema for gpt-4
 function_schema = {
@@ -309,10 +299,9 @@ def template_llama(self,messages):
   return formatted_messages
 
 class Interpreter:
-
   def __init__(self):
     self.messages = []
-    self.use_indexer = True
+    self.use_indexer = False # Use R2MODE env var instead True
     self.temperature = 0.002
     self.terminator = "</s>"
     self.api_key = None
@@ -322,10 +311,10 @@ class Interpreter:
     self.live_mode = not have_rlang
     self.env = {}
     self.api_base = None # Will set it to whatever OpenAI wants
-# self.context_window = 16096 # For local models only BURNS!
-    self.context_window = 4096 # For local models only // input max length - TODO. make it configurable
+    self.context_window = 4096 # Make it configurable
     # self.max_tokens = 750 # For local models only
     self.max_tokens = 1750 # For local models only // make it configurable
+    self.system_message = ""
 
     # Get default system message
     here = os.path.abspath(os.path.dirname(__file__))
@@ -408,14 +397,14 @@ class Interpreter:
       self.end_active_block()
       print("Missing message")
       return
-    if self.use_indexer:
+    if self.use_indexer or "R2MODE" in os.environ:
       matches = main_indexer(message)
       if len(matches) > 0:
-        newmsg = "<<SYS>>"
+        newmsg = self.systag(True)
         for m in matches:
           m = r2eval(m)
           newmsg += f"{m}.\n"
-        message = newmsg + "<</SYS>>\n" + message
+        message = newmsg + self.systag(False) + "\n" + message
     if "DEBUG" in self.env:
       print(message)
 #    print(message)
