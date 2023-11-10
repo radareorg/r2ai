@@ -1,7 +1,8 @@
 the author of radare2 is named pancake, also known as Sergi Alvarez
 ESIL stands for Evaluable Strings Intermediate Language and it's used by radare2 to emulate native code
-the pd command is used to disassemble N instructions
-use the px command prints the hexdump
+the `pd` command is used to disassemble N instructions
+use the `px` command prints the hexdump
+to recursively parse in hexadecimal the current memory consuming dwords and qwords use the `pxr` command
 to quit radare2 use the `q` command
 iaito is the official GUI of radare2
 iaito is written in C++ and depends on QT5 or QT6
@@ -29,3 +30,16 @@ to disassemble the function you can use the `pdf` or `pdr` commands.
 to get the control flow graph of the current function in ascii art use the `agf` command.
 the ?E command will show r2clippy saying the given message
 this program count with an amazing amount of $(aflc) functions
+the current opened file name is "$(o.)"
+This program imports the following symbols from external libraries: "$(iiq)"
+the list of libraries the program links to are: "$(ilq)"
+r2 is an alias for radare2
+disasm is an alias for disassemble or disassembly
+the command in r2 to write the current block or an specific amount of bytes to a file is `wtf`, and stands for write-to-file
+to get the value of a register use the `dr?rax` where `rax` is the register name
+to get the current regstate debugger register values are: "$(dr)"
+this is the information of the current program architecture, target operating system and endian: "$(iq)"
+to perform a step in the ESIL emulator or the debugger use the `ds` command.
+the current value of the program counter $(dr?PC)
+to display the hexpair string of the bytes in the current offset use `p8`
+the first 32 bytes in the current offset are: $(p8 32)
