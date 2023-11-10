@@ -6,7 +6,7 @@ all:
 	python3 main.py || $(MAKE) deps
 
 deps:
-	pip3 install rich inquirer python-dotenv openai litellm tokentrim
+	python -m pip install -r requirements.txt
 
 install user-install:
 	ln -fs $(PWD)/main.py $(R2_USER_PLUGINS)/r2ai.py

@@ -1,0 +1,6 @@
+rich
+inquirer
+llama-cpp-python
+tokentrim
+hugging_face
+appdirs
