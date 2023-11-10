@@ -15,7 +15,8 @@ from r2ai.utils import slurp
 from r2ai.models import set_default_model
 from r2ai import bubble
 
-use_bubble = True
+# use_bubble = True
+use_bubble = False
 
 have_readline = False
 r2ai_history_file = "r2ai.history.txt" # windows path
@@ -38,6 +39,7 @@ if os.name != "nt":
 	try:
 		import r2lang
 		have_rlang = True
+		use_bubble = False
 		print = r2lang.print
 	except:
 		try:
@@ -67,22 +69,16 @@ def r2_cmd(x):
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 # override defaults for testing
-if use_bubble:
+if have_rlang or use_bubble:
 	try:
 		ai.system_message = slurp(f"{dir_path}/doc/role/r2clippy.txt")
 	except:
 		pass
-else:
-	ai.system_message = "" #
-#ai.model = "llama-2-7b-chat-codeCherryPop.ggmlv3.q4_K_M.gguf"
-
-model_path = dir_path + "/" + ai.model
-if os.path.exists(model_path):
-	ai.model = model_path
 
 help_message = """Usage: r2ai [-option] ([query])
  r2ai !aa               run a r2 command
  r2ai -k                clear the screen
+ r2ai -b                toggle the bubble chat mode
  r2ai -c [cmd] [query]  run the given r2 command with the given query
  r2ai -e [k[=v]]        set environment variable
  r2ai -f [file]         load file and paste the output
@@ -94,6 +90,7 @@ help_message = """Usage: r2ai [-option] ([query])
  r2ai -q                quit/exit/^C
  r2ai -l                toggle the live mode
  r2ai -r [sysprompt]    define the role of the conversation
+ r2ai -r2               enter the r2clippy assistant mode
  r2ai -rf [doc/role/.f] load contents of a file to define the role
  r2ai -R                reset the chat conversation context
  r2ai -v                show r2ai version"""
@@ -102,6 +99,7 @@ help_message = """Usage: r2ai [-option] ([query])
 def runline(usertext):
 	global print
 	global ai
+	global use_bubble
 	usertext = usertext.strip()
 	if usertext == "":
 		return
@@ -120,8 +118,14 @@ def runline(usertext):
 			print(ai.model)
 	elif usertext == "reset" or usertext.startswith("-R"):
 		ai.reset()
+	elif usertext == "-b":
+		use_bubble = not use_bubble
 	elif usertext == "-q" or usertext == "exit":
 		return "q"
+	elif usertext == "-r2":
+		os.environ["R2MODE"] = "1"
+		use_bubble = True
+		runline(f"-rf {dir_path}/doc/role/r2clippy.txt")
 	elif usertext.startswith("-e"):
 		if len(usertext) == 2:
 			print(ai.env)
@@ -213,6 +217,7 @@ def runline(usertext):
 		ai.chat(usertext)
 
 def r2ai_repl():
+	global use_bubble
 	olivemode = ai.live_mode
 	ai.live_mode = True
 	oldoff = "0x00000000"
