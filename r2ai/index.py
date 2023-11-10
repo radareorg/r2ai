@@ -12,8 +12,11 @@ except:
 SRCDIR = "../doc/data"
 R2AI_DIR = os.path.dirname(__file__)
 MASTODON_KEY = ""
-if "HOME" in os.environ:
-	MASTODON_KEY = slurp(os.environ["HOME"] + "/.r2ai.mastodon-key").strip()
+try:
+	if "HOME" in os.environ:
+		MASTODON_KEY = slurp(os.environ["HOME"] + "/.r2ai.mastodon-key").strip()
+except:
+	pass
 MASTODON_INSTANCE = "mastodont.cat"
 
 def mastodont_search(text):

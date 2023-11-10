@@ -260,7 +260,10 @@ if have_r2pipe:
 			r2 = r2pipe.open()
 			within_r2 = True
 		else:
-			file = sys.argv[1] if len(sys.argv) > 1 else "/bin/ls"
+			file = "/bin/ls"
+			for arg in sys.argv[1:]:
+				if arg.startswith("/"):
+					file = arg
 			r2 = r2pipe.open(file)
 	except:
 		traceback.print_exc()
@@ -290,7 +293,10 @@ if have_rlang:
 elif len(sys.argv) > 1:
 #	ai.live_mode = False
 	for arg in sys.argv[1:]:
-		runline(arg)
+		if not arg.startswith("/"):
+			runline(arg)
+		if arg == "-h" or arg == "-v":
+			sys.exit(0)
 	r2ai_repl()
 elif not within_r2:
 	r2ai_repl()
