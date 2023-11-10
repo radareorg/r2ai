@@ -147,10 +147,11 @@ def runline(usertext):
 		r2ai_repl()
 	elif usertext.startswith("-rf"):
 		if len(usertext) > 2:
+			fname = usertext[3:].strip()
 			try:
-				ai.system_message = slurp(usertext[3:].strip())
+				ai.system_message = slurp(fname)
 			except:
-				print("Cannot open file")
+				print(f"Cannot open file {fname}")
 		else:
 			print(ai.system_message)
 	elif usertext.startswith("-r"):
