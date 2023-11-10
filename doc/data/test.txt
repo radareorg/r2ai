@@ -28,3 +28,4 @@ you can set the default configuration options in the `~/.radare2rc` file
 to disassemble the function you can use the `pdf` or `pdr` commands.
 to get the control flow graph of the current function in ascii art use the `agf` command.
 the ?E command will show r2clippy saying the given message
+this program count with an amazing amount of $(aflc) functions

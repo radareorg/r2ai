@@ -5,6 +5,7 @@ from .code_block import CodeBlock
 from .index import main_indexer
 from .models import get_hf_llm, new_get_hf_llm, get_default_model
 
+import re
 import os
 import traceback
 import json
@@ -68,6 +69,18 @@ function_schema = {
     "required": ["language", "code"]
   },
 }
+
+def r2eval(m):
+  if "$(" in m and have_rlang:
+    def evaluate_expression(match):
+      expression = match.group(1)
+      try:
+        result = r2lang.cmd(expression)
+        return result
+      except Exception as e:
+        return f"Error: {e}"
+    return re.sub(r'\$\((.*?)\)', evaluate_expression, m)
+  return m
 
 def messages_to_prompt(self,messages):
   for message in messages:
@@ -373,6 +386,7 @@ class Interpreter:
       if len(matches) > 0:
         newmsg = "<<SYS>>"
         for m in matches:
+          m = r2eval(m)
           newmsg += f"{m}.\n"
         message = newmsg + "<</SYS>>\n" + message
     if "DEBUG" in self.env:
