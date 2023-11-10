@@ -104,13 +104,12 @@ def messages_to_prompt(self,messages):
   elif "utopia" in self.model.lower():
     formatted_messages = template_alpaca(self, messages)
   elif "mistral" in self.model.lower():
-    formatted_messages = template_uncensored(self, messages)
+    formatted_messages = template_mistral(self, messages)
+#    formatted_messages = template_q4im(self, messages)
   elif "python" in self.model.lower():
     print("codellama-python model is not working well yet")
     formatted_messages = template_llamapython(self, messages)
   elif "tinyllama" in self.model.lower():
-    formatted_messages = template_tinyllama(self, messages)
-  elif "TinyLlama" in self.model.lower():
     formatted_messages = template_tinyllama(self, messages)
   else:
     formatted_messages = template_llama(self, messages)
@@ -126,7 +125,8 @@ def template_q4im(self,messages):
   try:
     system_prompt = messages[0]['content'].strip()
     if system_prompt != "":
-      formatted_messages += "\{\"text\":\"{"+system_prompt+"}\"\}"
+#      formatted_messages += "\{\"text\":\"{"+system_prompt+"}\"\}"
+      formatted_messages += f"<|im_start|>assistant {system_prompt}<|im_end|>"
       # formatted_messages = f"[STDIN] {system_prompt} [/STDIN]\n"
       # formatted_messages = f"/imagine prompt: {system_prompt}\n"
     for index, item in enumerate(messages[1:]):
@@ -139,6 +139,29 @@ def template_q4im(self,messages):
   except:
     traceback.print_exc()
   return formatted_messages
+
+def template_mistral(self, messages):
+  self.terminator = "</s>"
+  msg = "<s>"
+  try:
+    system_prompt = messages[0]['content'].strip()
+    if system_prompt != "":
+      msg += f"[INST]{system_prompt}[/INST]</s><s>"
+    for index, item in enumerate(messages[1:]):
+      # print(item)
+      role = item['role']
+      if role == "user":
+        content = item['content'].strip()
+        msg += f"[INST]{content}[/INST]\n"
+      elif role == "assistant":
+        if 'content' in item:
+          content = item['content'].strip()
+          msg += f"{content}."
+#    msg += f"### Assistant:"
+    # print("```" + msg + "```")
+  except:
+    traceback.print_exc()
+  return msg
 
 def template_uncensored(self, messages):
 #{'role': 'function', 'name': 'run_code', 'content': 'User decided not to run this code.'}
@@ -368,10 +391,14 @@ class Interpreter:
     # Print out a preview of what messages were removed.
     for message in removed_messages:
       if 'content' in message and message['content'] != None:
-        print(Markdown(f"**Removed message:** `\"{message['content'][:30]}...\"`"))
+        print(f"**Removed message:** `\"{message['content'][:30]}...\"`")
       elif 'function_call' in message:
-        print(Markdown(f"**Removed codeblock**")) # TODO: Could add preview of code removed here.
+        print(f"**Removed codeblock**") # TODO: Could add preview of code removed here.
 
+  def systag(self, beg):
+    if "mistral" in self.model.lower():
+      return "[INST]" if beg else "[/INST]\n"
+    return "<<SYS>>" if beg else "<</SYS>>"
   def chat(self, message=None, return_messages=False):
     global Ginterrupted
     if self.last_model != self.model:
