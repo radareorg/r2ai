@@ -36,6 +36,15 @@ python -m venv r2ai
 . r2ai/bin/activate
 ```
 
+if you have this error, install this:
+The virtual environment was not created successfully because ensurepip is not
+available.  On Debian/Ubuntu systems, you need to install the python3-venv
+package using the following command.
+```
+apt install python3.10-venv
+
+```
+
 ```bash
 pip install -r requirements.txt
 r2pm -r r2ai
