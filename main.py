@@ -93,6 +93,7 @@ help_message = """Usage: r2ai [-option] ([query])
  r2ai -r2               enter the r2clippy assistant mode
  r2ai -rf [doc/role/.f] load contents of a file to define the role
  r2ai -R                reset the chat conversation context
+ r2ai -t [temp]         from 0.0001 to 10 your scale to randomness in my replies
  r2ai -v                show r2ai version"""
 
 
@@ -118,6 +119,11 @@ def runline(usertext):
 			print(ai.model)
 	elif usertext == "reset" or usertext.startswith("-R"):
 		ai.reset()
+	elif usertext.startswith("-t"):
+		if usertext == "-t":
+			print(ai.temperature)
+		else:
+			ai.temperature = float (usertext[2:])
 	elif usertext == "-b":
 		use_bubble = not use_bubble
 	elif usertext == "-q" or usertext == "exit":
