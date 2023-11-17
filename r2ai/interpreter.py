@@ -4,6 +4,12 @@ from .message_block import MessageBlock
 from .code_block import CodeBlock
 from .index import main_indexer
 from .models import get_hf_llm, new_get_hf_llm, get_default_model
+try:
+  from openai import OpenAI
+  have_openai = True
+except:
+  have_openai = False
+  pass
 
 import re
 import os
@@ -315,6 +321,7 @@ class Interpreter:
     self.last_model = ""
     self.live_mode = not have_rlang
     self.env = {}
+    self.openai_client = None
     self.api_base = None # Will set it to whatever OpenAI wants
     self.context_window = 4096 # Make it configurable
     # self.max_tokens = 750 # For local models only
@@ -475,33 +482,61 @@ class Interpreter:
     if "DEBUG" in self.env:
       print(messages)
 
-    # Make LLM call
-    self.terminator = "</s>"
     # Code-Llama
     # Convert messages to prompt
     # (This only works if the first message is the only system message)
     prompt = messages_to_prompt(self, messages)
+    # builtins.print(prompt)
 
-    if "DEBUG" in self.env:
-      # we have to use builtins bizarrely! because rich.print interprets "[INST]" as something meaningful
-      builtins.print("TEXT PROMPT SEND TO LLM:\n", prompt)
+    if self.model.startswith("openai:"):
+      # [
+      #  {"role": "system", "content": "You are a poetic assistant, be creative."},
+      #  {"role": "user", "content": "Compose a poem that explains the concept of recursion in programming."}
+      # ]
+      openai_model = self.model[7:]
+      if have_openai:
+        # https://platform.openai.com/docs/assistants/overview
+        if self.openai_client is None:
+          self.openai_client = OpenAI()
+        query = []
+        if self.system_message != "":
+          query.append({"role": "system", "content": self.system_message})
+        query.extend(self.messages)
 
-    if self.llama_instance == None:
-      print("Cannot find the model")
-      return
-    # Run Code-Llama
-    try:
-      response = self.llama_instance(
-        prompt,
-        stream=True,
-        temperature=self.temperature,
-        stop=[self.terminator],
-        max_tokens=1750 # context window is set to 1800, messages are trimmed to 1000... 700 seems nice
-      )
-    except:
-      if Ginterrupted:
-        Ginterrupted = False
+        completion = self.openai_client.chat.completions.create(
+          # TODO: instructions=self.system_message # instead of passing it in the query
+          model=openai_model,
+          max_tokens=self.max_tokens, # 150 :?
+          temperature=self.temperature,
+          messages=query
+        )
+        response = completion.choices[0].message.content
+        if "content" in self.messages[-1]:
+          last_message = self.messages[-1]["content"]
+        self.messages.append({"role": "assistant", "content": response})
+        print(response)
         return
+      else:
+        print("pip install -U openai")
+        print("export OPENAI_API_KEY=...")
+        return
+    else:
+      # non-openai aka local-llama model
+      if self.llama_instance == None:
+        print("Cannot find the model")
+        return
+      try:
+        response = self.llama_instance(
+          prompt,
+          stream=True,
+          temperature=self.temperature,
+          stop=[self.terminator],
+          max_tokens=1750 # context window is set to 1800, messages are trimmed to 1000... 700 seems nice
+        )
+      except:
+        if Ginterrupted:
+          Ginterrupted = False
+          return
 
     # Initialize message, function call trackers, and active block
     self.messages.append({})

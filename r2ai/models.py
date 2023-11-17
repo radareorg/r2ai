@@ -23,7 +23,7 @@ def get_default_model():
         fd = open(r2ai_model_json)
         usermodels = json.load(fd)
         fd.close()
-        if "default" in usermodels: # use a oneliner
+        if "default" in usermodels:
             return usermodels["default"]
     except:
         pass
@@ -33,6 +33,9 @@ def Markdown(x):
   return x
 
 def models():
+    builtins.print("OpenAI:")
+    builtins.print("-m openai:gpt-3.5-turbo");
+    builtins.print("-m openai:gpt-4");
     builtins.print("GPT4:")
     builtins.print("-m TheBloke/goliath-120b-GGUF")
     builtins.print("-m TheBloke/SynthIA-7B-v2.0-GGUF")
@@ -424,6 +427,8 @@ def enough_disk_space(size, path) -> bool:
     return False
 
 def new_get_hf_llm(repo_id, debug_mode, context_window):
+    if repo_id.startswith("openai:"):
+        return repo_id
     if not os.path.exists(repo_id):
         return get_hf_llm(repo_id, debug_mode, context_window)
     # print("LOADING FILE: " + repo_id)
