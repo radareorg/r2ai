@@ -72,7 +72,7 @@ def r2eval(m):
     return re.sub(r'\$\((.*?)\)', evaluate_expression, m)
   return m
 
-def messages_to_prompt(self,messages):
+def messages_to_prompt(self, messages):
   for message in messages:
     # Happens if it immediatly writes code
     if "role" not in message:
@@ -120,7 +120,7 @@ def template_q4im(self,messages):
       # formatted_messages = f"[STDIN] {system_prompt} [/STDIN]\n"
       # formatted_messages = f"/imagine prompt: {system_prompt}\n"
     for index, item in enumerate(messages[1:]):
-        item['role']
+        role = item['role']
         content = item['content'].strip()
         formatted_messages += f"<|im_start|>{content}<|im_end|>"
         formatted_messages += "\{\"text\":\"{"+content+"}\"\}"
@@ -143,7 +143,7 @@ def template_mistral(self, messages):
       if role == "user":
         content = item['content'].strip()
         msg += f"[INST]{content}[/INST]\n"
-      elif role == "assistant":
+      elif role == "assistant" and self.withresponse:
         if 'content' in item:
           content = item['content'].strip()
           msg += f"{content}."
@@ -173,7 +173,7 @@ def template_uncensored(self, messages):
       if role == "user":
         content = item['content'].strip()
         formatted_messages += f"### Human: {content}\n"
-      elif role == "assistant":
+      elif role == "assistant" and self.withresponse:
         if 'content' in item:
           content = item['content'].strip()
 #          formatted_messages += f"### Assistant: {content}\n"
@@ -210,7 +210,7 @@ def template_tinyllama(self,messages):
           formatted_messages += f"user {content} "
       elif role == 'function':
           formatted_messages += f"user {content} "
-      elif role == 'assistant':
+      elif role == 'assistant' and self.withresponse:
           formatted_messages += f"assistant {content} "
   # Remove the trailing '<s>[INST] ' from the final output
   formatted_messages += f"<|im_end|>"
@@ -229,10 +229,12 @@ def template_llamapython(self, messages):
       content = item['content']
       if role == 'user':
           formatted_messages += f"{content}\n[/INST]"
+      elif self.withresponse:
+          formatted_messages += f"[INST]Answer: {content}\n[/INST]"
   formatted_messages += "\n[INST]Answer: "
   return formatted_messages
 
-def template_alpaca(self,messages):
+def template_alpaca(self, messages):
   self.terminator = "###"
   system_prompt = messages[0]['content'].strip()
   if system_prompt != "":
@@ -250,7 +252,7 @@ def template_alpaca(self,messages):
       content = content.strip()
       if role == 'user':
           formatted_messages += f"### Instruction:\n{content}\n"
-      else:
+      elif self.withresponse:
           formatted_messages += f"### Response:\n{content}\n"
   formatted_messages += f"### Response: "
   return formatted_messages
@@ -271,7 +273,7 @@ def template_gpt4all(self,messages):
       content = content.strip()
       if role == 'user':
           formatted_messages += f"### User: {content}\n"
-      else:
+      elif self.withresponse:
           formatted_messages += f"### System: {content}\n"
   formatted_messages += f"### System: "
   return formatted_messages
@@ -293,7 +295,7 @@ def template_llama(self,messages):
           formatted_messages += f"{content}[/INST] "
       elif role == 'function':
           formatted_messages += f"Output: {content}[/INST] "
-      elif role == 'assistant':
+      elif role == 'assistant' and self.withresponse:
           formatted_messages += f"{content}</s><s>[INST]"
   # Remove the trailing '<s>[INST] ' from the final output
   if formatted_messages.endswith("<s>[INST]"):
@@ -302,6 +304,7 @@ def template_llama(self,messages):
 
 class Interpreter:
   def __init__(self):
+    self.withresponse = False
     self.messages = []
     self.use_indexer = False # Use R2MODE env var instead True
     self.temperature = 0.002
@@ -477,7 +480,7 @@ class Interpreter:
     # Code-Llama
     # Convert messages to prompt
     # (This only works if the first message is the only system message)
-    prompt = messages_to_prompt(self,messages)
+    prompt = messages_to_prompt(self, messages)
 
     if "DEBUG" in self.env:
       # we have to use builtins bizarrely! because rich.print interprets "[INST]" as something meaningful

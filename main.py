@@ -94,7 +94,8 @@ help_message = """Usage: r2ai [-option] ([query])
  r2ai -rf [doc/role/.f] load contents of a file to define the role
  r2ai -R                reset the chat conversation context
  r2ai -t [temp]         from 0.0001 to 10 your scale to randomness in my replies
- r2ai -v                show r2ai version"""
+ r2ai -v                show r2ai version
+ r2ai -w                toggle including LLM responses into the query (False is faster)"""
 
 
 def runline(usertext):
@@ -149,6 +150,9 @@ def runline(usertext):
 					print(ai.env[k])
 				except:
 					pass
+	elif usertext.startswith("-w"):
+		ai.withresponse = not ai.withresponse
+		print(ai.withresponse)
 	elif usertext.startswith("-s"):
 		r2ai_repl()
 	elif usertext.startswith("-rf"):
