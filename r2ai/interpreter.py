@@ -4,6 +4,7 @@ from .message_block import MessageBlock
 from .code_block import CodeBlock
 from .index import main_indexer
 from .models import get_hf_llm, new_get_hf_llm, get_default_model
+from .audio import tts
 try:
   from openai import OpenAI
   have_openai = True
@@ -315,6 +316,7 @@ class Interpreter:
     self.use_indexer = False # Use R2MODE env var instead True
     self.temperature = 0.002
     self.terminator = "</s>"
+    self.voice_mode = False
     self.api_key = None
     self.auto_run = False
     self.model = get_default_model()
@@ -400,6 +402,7 @@ class Interpreter:
     if "mistral" in self.model.lower():
       return "[INST]" if beg else "[/INST]\n"
     return "<<SYS>>" if beg else "<</SYS>>"
+
   def chat(self, message=None, return_messages=False):
     global Ginterrupted
     if self.last_model != self.model:
@@ -640,7 +643,10 @@ class Interpreter:
         self.active_block.update_from_message(self.messages[-1])
       continue # end of for loop
 
-    if not self.live_mode:
+    if self.voice_mode:
+      output_text = self.messages[-1]["content"].strip()
+      tts(output_text)
+    elif not self.live_mode:
       try:
         output_text = self.messages[-1]["content"].strip()
         r2lang.print(output_text)

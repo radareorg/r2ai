@@ -14,6 +14,7 @@ import r2ai
 from r2ai.utils import slurp
 from r2ai.models import set_default_model
 from r2ai import bubble
+from r2ai.audio import stt, tts
 
 # use_bubble = True
 use_bubble = False
@@ -29,6 +30,8 @@ try:
     have_readline = True
 except:
     pass #readline not available
+
+
 
 r2 = None
 have_rlang = False
@@ -77,6 +80,8 @@ if have_rlang or use_bubble:
 
 help_message = """Usage: r2ai [-option] ([query])
  r2ai !aa               run a r2 command
+ r2ai -a                query with audio voice
+ r2ai -A                enter the voice chat loop
  r2ai -k                clear the screen
  r2ai -b                toggle the bubble chat mode
  r2ai -c [cmd] [query]  run the given r2 command with the given query
@@ -125,6 +130,25 @@ def runline(usertext):
 			print(ai.temperature)
 		else:
 			ai.temperature = float (usertext[2:])
+	elif usertext == "-A":
+		ai.voice_mode = True
+		old_live = ai.live_mode
+		ai.live_mode = False
+		while True:
+			usertext = stt(4)
+			print(usertext)
+			ai.chat(usertext)
+		ai.live_mode = old_live
+		ai.voice_mode = False
+	elif usertext == "-a":
+		ai.voice_mode = True
+		old_live = ai.live_mode
+		ai.live_mode = False
+		usertext = stt(4)
+		print(usertext)
+		ai.chat(usertext)
+		ai.live_mode = old_live
+		ai.voice_mode = False
 	elif usertext == "-b":
 		use_bubble = not use_bubble
 	elif usertext == "-q" or usertext == "exit":
