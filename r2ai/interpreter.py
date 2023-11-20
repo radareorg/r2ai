@@ -241,6 +241,30 @@ def template_llamapython(self, messages):
   formatted_messages += "\n[INST]Answer: "
   return formatted_messages
 
+def template_tiefighter(self, messages):
+  self.terminator = "</s>"
+  system_prompt = messages[0]['content'].strip()
+  if system_prompt != "":
+      formatted_messages = f"[Instructions]: {system_prompt}\n"
+  else:
+      formatted_messages = ""
+  # Loop starting from the first user message
+  for index, item in enumerate(messages[1:]):
+      role = item['role']
+      if not 'content' in item:
+          next
+      content = item['content']
+      if content is None or content == "":
+          next
+      content = content.strip()
+      if role == 'user':
+          formatted_messages += f"[Instructions] {content} [/Instructions]\n"
+      elif self.withresponse:
+          formatted_messages += f"[Assistant] {content}\n"
+#         formatted_messages += f"### Response:\n{content}\n"
+  formatted_messages += f"[Assistant]"
+  return formatted_messages
+
 def template_alpaca(self, messages):
   self.terminator = "###"
   system_prompt = messages[0]['content'].strip()

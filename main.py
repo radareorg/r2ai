@@ -160,7 +160,9 @@ def runline(usertext):
 		runline(f"-rf {dir_path}/doc/role/r2clippy.txt")
 	elif usertext.startswith("-e"):
 		if len(usertext) == 2:
-			print(ai.env)
+			for k in ai.env.keys():
+				v = ai.env[k]
+				print(f"-e {k}={v}")
 		else:
 			line = usertext[2:].strip().split("=")
 			k = line[0]
