@@ -2,6 +2,7 @@
 import os
 import re
 import requests
+from .const import R2AI_HISTFILE
 from unidecode import unidecode
 import sys
 try:
@@ -10,8 +11,6 @@ except:
 	from utils import slurp
 
 MAXMATCHES = 5
-SRCDIR = "../doc/data"
-R2AI_DIR = os.path.dirname(__file__)
 MASTODON_KEY = ""
 try:
 	if "HOME" in os.environ:
@@ -212,7 +211,11 @@ class compute_rarity():
 		return count
 
 def find_sources(srcdir):
-	files = os.walk(srcdir)
+	files = []
+	try:
+		files = os.walk(srcdir)
+	except:
+		return []
 	res = []
 	for f in files:
 		for f2 in f[2]:
@@ -220,10 +223,13 @@ def find_sources(srcdir):
 				res.append(f"{srcdir}/{f2}")
 	return res
 
-def main_indexer(text):
-	source_files = [] # find_sources(f"{R2AI_DIR}/{SRCDIR}")
-	source_files.append("/Users/pancake/.r2ai.history")
-	raredb = compute_rarity(source_files)
+def main_indexer(text, datadir, hist, use_mastodon):
+	source_files = []
+	if datadir is not None and datadir != "":
+	  source_files.extend(find_sources(datadir))
+	if hist is not None and hist != "":
+	  source_files.append(R2AI_HISTFILE)
+	raredb = compute_rarity(source_files, use_mastodon)
 	res = raredb.find_matches(text)
 #	print(res)
 	return res
@@ -234,4 +240,4 @@ if __name__ == '__main__':
 		for m in matches:
 			print(m)
 	else:
-		print(f"Usage: index.py [query] # takes the data from ${SRCDIR}")
+		print(f"Usage: index.py [query]")

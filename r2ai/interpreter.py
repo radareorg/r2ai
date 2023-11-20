@@ -5,12 +5,14 @@ from .code_block import CodeBlock
 from .index import main_indexer
 from .models import get_hf_llm, new_get_hf_llm, get_default_model
 from .voice import tts
+from .const import R2AI_HOMEDIR
 try:
   from openai import OpenAI
   have_openai = True
 except:
   have_openai = False
   pass
+
 
 import re
 import os
@@ -322,7 +324,6 @@ class Interpreter:
   def __init__(self):
     self.withresponse = False
     self.messages = []
-    self.use_indexer = False # Use R2MODE env var instead True
     self.temperature = 0.002
     self.terminator = "</s>"
     self.voice_mode = False
@@ -344,8 +345,10 @@ class Interpreter:
     self.env["user.arch"] = ""
     self.env["voice.lang"] = "en"
     self.env["voice.model"] = "base"
-    self.env["data.path"] = "doc/data"
+    self.env["data.path"] = f"{R2AI_HOMEDIR}/doc/data"
     self.env["data.use"] = "false"
+    self.env["data.hist"] = "false"
+    self.env["data.mastodon"] = "false"
     self.env["key.mastodon"] = ""
     self.env["key.openai"] = ""
     self.env["chat.temp"] = ""
@@ -434,13 +437,16 @@ class Interpreter:
       self.end_active_block()
       print("Missing message")
       return
-    if self.use_indexer or "R2MODE" in os.environ:
-      matches = main_indexer(message)
+    if self.env["data.use"] == "true":
+      hist = self.env["data.hist"] == "true"
+      use_mastodon = self.env["data.mastodon"] == "true"
+      datadir = self.env["data.path"]
+      matches = main_indexer(message, hist, datadir, use_mastodon)
       if len(matches) > 0:
         newmsg = self.systag(True)
         for m in matches:
           m = r2eval(m)
-          newmsg += f"{m}.\n"
+          newmsg += f"[INFO] {m}.\n"
         message = newmsg + self.systag(False) + "\n" + message
     if self.env["debug"] == "true":
       print(message)

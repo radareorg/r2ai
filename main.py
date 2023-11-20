@@ -14,24 +14,20 @@ import r2ai
 from r2ai.utils import slurp
 from r2ai.models import set_default_model
 from r2ai import bubble
+from r2ai.const import R2AI_HISTFILE, R2AI_HOMEDIR, R2AI_RCFILE
 from r2ai.voice import stt
 
 # use_bubble = True
 use_bubble = False
 
 have_readline = False
-r2ai_history_file = "r2ai.history.txt" # windows path
-if "HOME" in os.environ:
-	r2ai_history_file = os.environ["HOME"] + "/.r2ai.history"
+
 try:
     import readline
-    # load readline history from ~/.r2ai.history
-    readline.read_history_file(r2ai_history_file)
+    readline.read_history_file(R2AI_HISTFILE)
     have_readline = True
 except:
     pass #readline not available
-
-
 
 r2 = None
 have_rlang = False
@@ -70,11 +66,10 @@ def r2_cmd(x):
 		r2.cmd('e scr.color=' + oc)
 	return res
 
-dir_path = os.path.dirname(os.path.realpath(__file__))
 # override defaults for testing
 if have_rlang or use_bubble:
 	try:
-		ai.system_message = slurp(f"{dir_path}/doc/role/r2clippy.txt")
+		ai.system_message = slurp(f"{R2AI_HOMEDIR}/doc/role/r2clippy.txt")
 	except:
 		pass
 
@@ -155,9 +150,12 @@ def runline(usertext):
 	elif usertext == "-q" or usertext == "exit":
 		return "q"
 	elif usertext == "-r2":
+		ai.env["data.use"] = "true"
+		ai.env["data.hist"] = "true"
+		ai.env["data.path"] = f"{R2AI_HOMEDIR}/doc/"
 		os.environ["R2MODE"] = "1"
 		use_bubble = True
-		runline(f"-rf {dir_path}/doc/role/r2clippy.txt")
+		runline(f"-rf {R2AI_HOMEDIR}/doc/role/r2clippy.txt")
 	elif usertext.startswith("-e"):
 		if len(usertext) == 2:
 			for k in ai.env.keys():
