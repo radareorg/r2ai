@@ -247,6 +247,8 @@ def runline(usertext):
 		tag = "CODE" # TEXT, INPUT ..
 		ai.chat(f"{que}:\n[{tag}]\n{res}\n[/{tag}]\n")
 	elif usertext[0] == "!":
+		os.system(usertext[1:])
+	elif usertext[0] == ":":
 		if r2 is None:
 			print("r2 is not available")
 		else:
