@@ -91,7 +91,7 @@ def messages_to_prompt(self, messages):
   else:
     formatted_messages = template_llama(self, messages)
 
-  if "DEBUG" in self.env:
+  if self.env["debug"] == "true":
     builtins.print(formatted_messages)
   return formatted_messages
 
@@ -534,8 +534,7 @@ class Interpreter:
         max_tokens=(self.context_window-self.max_tokens-25),
         system_message=system_message)
 
-    # DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG
-    if "DEBUG" in self.env:
+    if self.env["debug"] == "true":
       print(messages)
 
     # Code-Llama

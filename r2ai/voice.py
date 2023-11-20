@@ -1,9 +1,10 @@
 import subprocess
 import os
+import re
 
 have_whisper = False
 model = None
-voice_model = "base" # base
+voice_model = "large" # base
 LANGUAGE = "ca"
 DEVICE = None
 try:
@@ -42,7 +43,7 @@ def stt(seconds):
 	if device is None:
 		tts("(r2ai)", "cannot find a microphone")
 		return
-	tts("(r2ai) listening for 5s... ", "si?")
+	tts("(r2ai) listening for 5s... ", "digues?")
 	print(f"DEVICE IS {device}")
 	os.system("rm -f .audiomsg.wav")
 	os.system(f"ffmpeg -f avfoundation -t 5 -i '{device}' .audiomsg.wav > /dev/null 2>&1")
@@ -52,7 +53,7 @@ def stt(seconds):
 	else:
 		result = model.transcribe(".audiomsg.wav", language=LANGUAGE)
 	os.system("rm -f .audiomsg.wav")
-	tts("(r2ai)", "ah")
+	tts("(r2ai)", "ok")
 	text = result["text"].strip()
 	if text == "you":
 		return ""
@@ -60,5 +61,7 @@ def stt(seconds):
 	return text
 
 def tts(author, text):
+	clean_text = re.sub(r'https?://\S+', '', text)
+	clean_text = re.sub(r'http?://\S+', '', clean_text)
 	print(f"{author}: {text}")
-	subprocess.run(["say", text])
+	subprocess.run(["say", clean_text])

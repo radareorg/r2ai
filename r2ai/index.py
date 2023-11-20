@@ -10,6 +10,7 @@ try:
 except:
 	from utils import slurp
 
+MAXCHARS = 128
 MAXMATCHES = 5
 MASTODON_KEY = ""
 try:
@@ -96,12 +97,16 @@ def md2txt(text):
 
 def filter_line(line):
 	line = unidecode(line) # remove accents
+	line = re.sub(r'https?://\S+', '', line)
+	line = re.sub(r'http?://\S+', '', line)
 	line = line.replace(":", " ").replace("/", " ").replace("`", " ").replace("?", " ")
 	line = line.replace("\"", " ").replace("'", " ")
 	line = line.replace("<", " ").replace(">", " ").replace("@", " ").replace("#", " ")
-	nline = line.replace("-", " ").replace(".", " ").replace(",", " ").replace("(", " ").replace(")", " ").strip(" ")
+	line = line.replace("-", " ").replace(".", " ").replace(",", " ").replace("(", " ").replace(")", " ").strip(" ")
+	if len(line) > MAXCHARS:
+		line = line[:MAXCHARS]
 	words = []
-	for a in nline.split(" "):
+	for a in line.split(" "):
 		b = a.strip().lower()
 		try:
 			int(b)
