@@ -252,7 +252,7 @@ def template_alpaca(self, messages):
   # Loop starting from the first user message
   for index, item in enumerate(messages[1:]):
       role = item['role']
-      if 'content' not in item:
+      if not 'content' in item:
           next
       content = item['content']
       if content is None or content == "":
@@ -298,8 +298,14 @@ def template_llama(self,messages):
       formatted_messages = f"<s>[INST]"
   # Loop starting from the first user message
   for index, item in enumerate(messages[1:]):
-      role = item['role']
-      content = item['content']
+      if "role" in item:
+          role = item['role']
+      else:
+          role = 'user'
+      if "content" in item:
+          content = item['content']
+      else:
+          continue
       if role == 'user':
           formatted_messages += f"{content}[/INST] "
       elif role == 'function':
@@ -646,8 +652,12 @@ class Interpreter:
       continue # end of for loop
 
     if self.voice_mode:
-      output_text = self.messages[-1]["content"].strip()
-      tts(output_text)
+      if len(self.messages) > 1 and "content" in self.messages[-1]:
+        output_text = self.messages[-1]["content"].strip()
+        tts("(assistant)", output_text)
+      else:
+        output_text = "" #self.messages[-1]["content"].strip()
+        tts("(assistant)", "wtf")
     elif not self.live_mode:
       try:
         output_text = self.messages[-1]["content"].strip()
