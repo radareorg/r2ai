@@ -39,33 +39,8 @@ def signal_handler(sig, frame):
 	Ginterrupted = True
 	print("^C")
 	sys.exit(0) # throws exception
-
+sys.excepthook = signal_handler
 signal.signal(signal.SIGINT, signal_handler)
-# print('Press Ctrl+C')
-# signal.pause()
-
-# Function schema for gpt-4
-function_schema = {
-  "name": "run_code",
-  "description":
-  "Executes code on the user's machine and returns the output",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "language": {
-        "type": "string",
-        "description":
-        "The programming language",
-        "enum": ["python", "shell", "javascript", "html"]
-      },
-      "code": {
-        "type": "string",
-        "description": "The code to execute"
-      }
-    },
-    "required": ["language", "code"]
-  },
-}
 
 def r2eval(m):
   if "$(" in m and have_rlang:
