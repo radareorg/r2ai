@@ -9,6 +9,7 @@ try:
 except:
 	from utils import slurp
 
+MAXMATCHES = 5
 SRCDIR = "../doc/data"
 R2AI_DIR = os.path.dirname(__file__)
 MASTODON_KEY = ""
@@ -128,7 +129,8 @@ class compute_rarity():
 		if self.use_mastodon:
 			self.lines = backup_lines
 			self.words = backup_words
-		return srates[0:5]
+		return srates[0:MAXMATCHES]
+
 	def match_line(self,linewords, swords):
 		count = 0
 		ow = ""
