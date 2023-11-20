@@ -129,8 +129,10 @@ def template_mistral(self, messages):
     for index, item in enumerate(messages[1:]):
       # print(item)
       role = item['role']
+      if "content" not in item:
+        next
+      content = item['content'].strip()
       if role == "user":
-        content = item['content'].strip()
         msg += f"[INST]{content}[/INST]"
       elif role == "hint":
         msg += f"[INST]Knowledge: {content}[/INST]"
