@@ -289,8 +289,17 @@ def r2ai_repl():
 		except:
 			traceback.print_exc()
 			continue
-		readline.write_history_file(r2ai_history_file)
+		readline.write_history_file(R2AI_HISTFILE)
 	ai.live_mode = olivemode
+
+try:
+	lines = slurp(R2AI_RCFILE)
+	for line in lines.split("\n"):
+		if line.strip() != "":
+			runline(line)
+except:
+	pass
+
 
 ### MAIN ###
 if have_r2pipe:
