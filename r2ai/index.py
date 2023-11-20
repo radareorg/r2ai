@@ -231,7 +231,7 @@ def main_indexer(text, datadir, hist, use_mastodon):
 	source_files = []
 	if datadir is not None and datadir != "":
 	  source_files.extend(find_sources(datadir))
-	if hist is not None and hist != "":
+	if hist:
 	  source_files.append(R2AI_HISTFILE)
 	raredb = compute_rarity(source_files, use_mastodon)
 	res = raredb.find_matches(text)
