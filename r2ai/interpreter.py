@@ -337,6 +337,19 @@ class Interpreter:
     # self.max_tokens = 750 # For local models only
     self.max_tokens = 1750 # For local models only // make it configurable
     self.system_message = ""
+    self.env["debug"] = "false"
+    self.env["user.name"] = "" # TODO auto fill?
+    self.env["user.os"] = ""
+    self.env["user.arch"] = ""
+    self.env["voice.lang"] = "en"
+    self.env["voice.model"] = "base"
+    self.env["data.path"] = "doc/data"
+    self.env["data.use"] = "false"
+    self.env["key.mastodon"] = ""
+    self.env["key.openai"] = ""
+    self.env["chat.temp"] = ""
+    self.env["chat.model"] = ""
+    self.env["chat.bubble"] = "false"
 
     # Get default system message
     here = os.path.abspath(os.path.dirname(__file__))
@@ -428,14 +441,14 @@ class Interpreter:
           m = r2eval(m)
           newmsg += f"{m}.\n"
         message = newmsg + self.systag(False) + "\n" + message
-    if "DEBUG" in self.env:
+    if self.env["debug"] == "true":
       print(message)
 #    print(message)
     # Code-Llama
     if self.llama_instance == None:
       # Find or install Code-Llama
       try:
-        debug_mode = "DEBUG" in self.env
+        debug_mode = self.env["debug"] == "true"
         self.llama_instance = new_get_hf_llm(self.model, debug_mode, self.context_window)
         if self.llama_instance == None:
           print("Cannot find the model")
@@ -462,12 +475,16 @@ class Interpreter:
       self.active_block = None
 
   def environment(self):
-    kvs = ""
-    for k in self.env.keys():
-        if k != "DEBUG":
-            kvs += k + ": " + self.env[k] + "\n"
-    if len(kvs) == 0:
-        return ""
+    kvs = "[User Info]\n"
+    kvs += "user.name" + ": " + self.env["user.name"] + "\n"
+    kvs += "user.os" + ": " + self.env["user.os"] + "\n"
+    kvs += "user.arch" + ": " + self.env["user.arch"] + "\n"
+    if self.env["user.name"] != "":
+      kvs += "Name: " + self.env["user.name"] + "\n"
+    if self.env["user.os"] != "":
+      kvs += "OS: " + self.env["user.os"] + "\n"
+    if self.env["user.arch"] != "":
+      kvs += "ARCH: " + self.env["user.arch"] + "\n"
     # info += f"[User Info]\nName: {username}\nCWD: {current_working_directory}\nOS: {operating_system}"
     return "[User Info]\n" + kvs
 
