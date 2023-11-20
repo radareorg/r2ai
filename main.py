@@ -17,9 +17,6 @@ from r2ai import bubble
 from r2ai.const import R2AI_HISTFILE, R2AI_HOMEDIR, R2AI_RCFILE
 from r2ai.voice import stt
 
-# use_bubble = True
-use_bubble = False
-
 have_readline = False
 
 try:
@@ -38,7 +35,6 @@ if os.name != "nt":
 	try:
 		import r2lang
 		have_rlang = True
-		use_bubble = False
 		print = r2lang.print
 	except:
 		try:
@@ -65,13 +61,6 @@ def r2_cmd(x):
 		res = r2.cmd(x)
 		r2.cmd('e scr.color=' + oc)
 	return res
-
-# override defaults for testing
-if have_rlang or use_bubble:
-	try:
-		ai.system_message = slurp(f"{R2AI_HOMEDIR}/doc/role/r2clippy.txt")
-	except:
-		pass
 
 help_message = """Usage: r2ai [-option] ([query])
  r2ai !aa               run a r2 command
@@ -101,7 +90,6 @@ help_message = """Usage: r2ai [-option] ([query])
 def runline(usertext):
 	global print
 	global ai
-	global use_bubble
 	usertext = usertext.strip()
 	if usertext == "" or usertext.startswith("#"):
 		return
@@ -145,15 +133,13 @@ def runline(usertext):
 		ai.chat(usertext)
 		ai.live_mode = old_live
 		ai.voice_mode = False
-	elif usertext == "-b":
-		use_bubble = not use_bubble
 	elif usertext == "-q" or usertext == "exit":
 		return "q"
 	elif usertext == "-r2":
 		ai.env["data.use"] = "true"
 		ai.env["data.hist"] = "true"
 		ai.env["data.path"] = f"{R2AI_HOMEDIR}/doc/"
-		use_bubble = True
+		ai.env["chat.bubble"] = "true"
 		runline(f"-rf {R2AI_HOMEDIR}/doc/role/r2clippy.txt")
 	elif usertext.startswith("-e"):
 		if len(usertext) == 2:
@@ -256,7 +242,6 @@ def runline(usertext):
 		ai.chat(usertext)
 
 def r2ai_repl():
-	global use_bubble
 	olivemode = ai.live_mode
 	ai.live_mode = True
 	oldoff = "0x00000000"
@@ -276,12 +261,16 @@ def r2ai_repl():
 		except:
 			break
 		try:
-			if use_bubble:
-				bubble.query(usertext)
-				bubble.response_begin()
-				if runline(usertext) == "q":
-					break
-				bubble.response_end()
+			if ai.env["chat.bubble"] == "true":
+				if usertext.startswith("-"):
+					if runline(usertext) == "q":
+						break
+				else:
+					bubble.query(usertext)
+					bubble.response_begin()
+					if runline(usertext) == "q":
+						break
+					bubble.response_end()
 			else:
 				if runline(usertext) == "q":
 					break
