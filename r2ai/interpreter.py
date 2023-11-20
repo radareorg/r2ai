@@ -36,9 +36,10 @@ except:
 Ginterrupted = False
 def signal_handler(sig, frame):
 	global Ginterrupted
+	if Ginterrupted:
+		sys.exit(0) # throws exception
 	Ginterrupted = True
 	print("^C")
-	sys.exit(0) # throws exception
 sys.excepthook = signal_handler
 signal.signal(signal.SIGINT, signal_handler)
 
