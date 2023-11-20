@@ -41,6 +41,8 @@ def hist2txt(text):
 		line = line.strip().replace("\\040", " ")
 		if len(line) < 8:
 			next
+		elif "?" in line:
+			next
 		elif line.startswith("-") or line.startswith("_") or line.startswith("!"):
 			next
 		elif line.startswith("-r"):
@@ -48,6 +50,7 @@ def hist2txt(text):
 			next
 		else:
 			newlines.append(line)
+	newlines = sorted(set(newlines))
 	return "\n".join(newlines)
 
 def md2txt(text):
@@ -88,7 +91,7 @@ def md2txt(text):
 			titles = [line[2:]]
 		else:
 			data += line + " "
-	print("\n".join(newlines))
+#	print("\n".join(newlines))
 	return "\n".join(newlines)
 
 def filter_line(line):
@@ -110,6 +113,7 @@ def filter_line(line):
 	return words
 
 def smart_slurp(file):
+#	print(f"slurp: {file}")
 	text = slurp(file)
 	if file.endswith("r2ai.history"):
 		text = hist2txt(text)

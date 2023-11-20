@@ -443,14 +443,14 @@ class Interpreter:
       hist = self.env["data.hist"] == "true"
       use_mastodon = self.env["data.mastodon"] == "true"
       datadir = self.env["data.path"]
-      matches = main_indexer(message, hist, datadir, use_mastodon)
+      matches = main_indexer(message, datadir, hist, use_mastodon)
       if len(matches) > 0:
         newmsg = ""
         for m in matches:
           m = r2eval(m)
           newmsg += f"* {m}.\n"
         if newmsg != "":
-          message = self.systag(True) + "[Context]\n" + newmsg + self.systag(False) + "\n" + message
+          message = self.systag(True) + " " + newmsg + self.systag(False) + "\n" + message
     if self.env["debug"] == "true":
       print(message)
 #    print(message)

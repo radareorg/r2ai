@@ -103,7 +103,7 @@ def runline(usertext):
 	global ai
 	global use_bubble
 	usertext = usertext.strip()
-	if usertext == "":
+	if usertext == "" or usertext.startswith("#"):
 		return
 	if usertext.startswith("?") or usertext.startswith("-h"):
 		print(help_message)
@@ -153,7 +153,6 @@ def runline(usertext):
 		ai.env["data.use"] = "true"
 		ai.env["data.hist"] = "true"
 		ai.env["data.path"] = f"{R2AI_HOMEDIR}/doc/"
-		os.environ["R2MODE"] = "1"
 		use_bubble = True
 		runline(f"-rf {R2AI_HOMEDIR}/doc/role/r2clippy.txt")
 	elif usertext.startswith("-e"):
