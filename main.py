@@ -59,12 +59,12 @@ def r2_cmd(x):
 	global ai
 	res = x
 	if have_rlang:
-		oc = r2lang.cmd('e scr.color')
+		oc = r2lang.cmd('e scr.color').strip()
 		r2lang.cmd('e scr.color=0')
 		res = r2lang.cmd(x)
 		r2lang.cmd('e scr.color=' + oc)
 	elif r2 is not None:
-		oc = r2.cmd('e scr.color')
+		oc = r2.cmd('e scr.color').strip()
 		r2.cmd('e scr.color=0')
 		res = r2.cmd(x)
 		r2.cmd('e scr.color=' + oc)
@@ -269,7 +269,7 @@ def r2ai_repl():
 			off = r2_cmd("s").strip()
 			if off == "":
 				off = r2_cmd("s").strip()
-			if len(off) > 5:
+			if len(off) > 5 and len(off) < 20:
 				oldoff = off
 		if ai.active_block is not None:
 			#r2ai.active_block.update_from_message("")
