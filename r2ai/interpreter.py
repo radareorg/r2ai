@@ -452,20 +452,17 @@ class Interpreter:
       self.end_active_block()
       print("Missing message")
       return
-    omessage = message
     if self.env["data.use"] == "true":
       hist = self.env["data.hist"] == "true"
       use_mastodon = self.env["data.mastodon"] == "true"
+      use_debug = self.env["debug"] == "true"
       datadir = self.env["data.path"]
-      matches = main_indexer(message, datadir, hist, use_mastodon)
+      matches = main_indexer(message, datadir, hist, use_mastodon, use_debug)
       if len(matches) > 0:
-        newmsg = ""
         for m in matches:
-          m = r2eval(m)
-          self.messages.append({"role": "hint", "content": m})
-          newmsg += f"* {m}.\n"
-#        if newmsg != "":
-#          message = self.systag(True) + " " + newmsg + self.systag(False) + "\n" + message
+          if self.env["debug"] == "true":
+            print("HINT: " + m)
+          self.messages.append({"role": "hint", "content": r2eval(m)})
     if self.env["debug"] == "true":
       print(message)
 #    print(message)
@@ -482,7 +479,7 @@ class Interpreter:
         traceback.print_exc()
 
     # If it was, we respond non-interactively
-    self.messages.append({"role": "user", "content": omessage})
+    self.messages.append({"role": "user", "content": message})
     try:
         self.respond()
         self.clear_hints()

@@ -22,7 +22,7 @@ MASTODON_INSTANCE = "mastodont.cat"
 def mastodont_search(text):
 #    print(f"(mastodon) {text}")
     res = []
-    full_url = f"https://{MASTODON_INSTANCE}/api/v2/search?resolve=true&limit=10&type=statuses&q={text}"
+    full_url = f"https://{MASTODON_INSTANCE}/api/v2/search?resolve=true&limit=8&type=statuses&q={text}"
     try:
         headers = {"Authorization": f"Bearer {MASTODON_KEY}"}
         response = requests.get(full_url, headers=headers)
@@ -123,9 +123,10 @@ def smart_slurp(file):
 
 class compute_rarity():
 	use_mastodon = MASTODON_KEY != "" # False
+	use_debug = False
 	words = {}
 	lines = []
-	def __init__(self, source_files, use_mastodon):
+	def __init__(self, source_files, use_mastodon, use_debug):
 		self.use_mastodon = use_mastodon
 		for file in source_files:
 			lines = smart_slurp(file).splitlines()
@@ -140,6 +141,8 @@ class compute_rarity():
 			else:
 				self.words[a] = 1
 	def pull_realtime_lines(self, text, chk):
+		if self.use_debug:
+			print(f"Pulling from mastodon {text}")
 		rtlines = []
 		twords = filter_line(text)
 		for tw in twords:
@@ -164,8 +167,9 @@ class compute_rarity():
 				if len(tw) > 4 and w is not None and w > 0 and w < 40:
 #					print(f"RELEVANT WORD {tw} {w}")
 					rslines.extend(mastodont_search(tw))
-#		for line in rslines:
-#			print(line)
+		if self.use_debug:
+			for line in rslines:
+				print(line)
 		return rslines
 	def find_matches(self, text):
 		if self.use_mastodon:
@@ -231,13 +235,13 @@ def find_sources(srcdir):
 				res.append(f"{srcdir}/{f2}")
 	return res
 
-def main_indexer(text, datadir, hist, use_mastodon):
+def main_indexer(text, datadir, hist, use_mastodon, use_debug):
 	source_files = []
 	if datadir is not None and datadir != "":
 	  source_files.extend(find_sources(datadir))
 	if hist:
 	  source_files.append(R2AI_HISTFILE)
-	raredb = compute_rarity(source_files, use_mastodon)
+	raredb = compute_rarity(source_files, use_mastodon, use_debug)
 	res = raredb.find_matches(text)
 #	print(res)
 	return res
