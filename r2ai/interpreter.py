@@ -326,12 +326,10 @@ class Interpreter:
     self.messages = []
     self.temperature = 0.002
     self.terminator = "</s>"
-    self.voice_mode = False
     self.api_key = None
     self.auto_run = False
     self.model = get_default_model()
     self.last_model = ""
-    self.live_mode = not have_rlang
     self.env = {}
     self.openai_client = None
     self.api_base = None # Will set it to whatever OpenAI wants
@@ -352,8 +350,13 @@ class Interpreter:
     self.env["data.mastodon"] = "false"
     self.env["key.mastodon"] = ""
     self.env["key.openai"] = ""
-    self.env["chat.temp"] = ""
-    self.env["chat.model"] = ""
+#    self.env["chat.temperature"] = "0.002" # TODO
+    if have_rlang:
+      self.env["chat.live"] = "false"
+    else:
+      self.env["chat.live"] = "true"
+#self.env["chat.model"] = "" # TODO
+    self.env["chat.voice"] = "false"
     self.env["chat.bubble"] = "false"
 
     # Get default system message
@@ -595,7 +598,7 @@ class Interpreter:
 
       # Accumulate deltas into the last message in messages
       self.messages[-1] = merge_deltas(self.messages[-1], delta)
-      if not self.live_mode:
+      if self.env["chat.live"] != "true":
         continue
 
       # Check if we're in a function call
@@ -675,18 +678,18 @@ class Interpreter:
         if self.active_block == None:
           # Create a message block
           self.active_block = MessageBlock()
-      if self.live_mode:
+      if self.env["chat.live"] == "true":
         self.active_block.update_from_message(self.messages[-1])
       continue # end of for loop
 
-    if self.voice_mode:
+    if self.env["chat.voice"] == "true":
       if len(self.messages) > 1 and "content" in self.messages[-1]:
         output_text = self.messages[-1]["content"].strip()
         tts("(assistant)", output_text)
       else:
         output_text = "" #self.messages[-1]["content"].strip()
-        tts("(assistant)", "wtf")
-    elif not self.live_mode:
+        tts("(assistant)", "what?")
+    elif self.env["chat.live"] != "true":
       try:
         output_text = self.messages[-1]["content"].strip()
         r2lang.print(output_text)

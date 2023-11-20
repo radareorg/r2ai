@@ -67,7 +67,6 @@ help_message = """Usage: r2ai [-option] ([query])
  r2ai -a                query with audio voice
  r2ai -A                enter the voice chat loop
  r2ai -k                clear the screen
- r2ai -b                toggle the bubble chat mode
  r2ai -c [cmd] [query]  run the given r2 command with the given query
  r2ai -e [k[=v]]        set environment variable
  r2ai -f [file]         load file and paste the output
@@ -77,7 +76,7 @@ help_message = """Usage: r2ai [-option] ([query])
  r2ai -M                list supported and most common models from hf
  r2ai -n [num]          select the nth language model
  r2ai -q                quit/exit/^C
- r2ai -l                toggle the live mode
+ r2ai -L                show chat logs
  r2ai -r [sysprompt]    define the role of the conversation
  r2ai -r2               enter the r2clippy assistant mode
  r2ai -rf [doc/role/.f] load contents of a file to define the role
@@ -114,25 +113,25 @@ def runline(usertext):
 		else:
 			ai.temperature = float (usertext[2:])
 	elif usertext == "-A":
-		ai.voice_mode = True
-		old_live = ai.live_mode
-		ai.live_mode = False
+		ai.env["chat.voice"] = "true"
+		old_live = ai.env["chat.live"]
+		ai.env["chat.live"] = "false"
 		while True:
 			usertext = stt(4)
 			if usertext != "":
 				print(f"User: {usertext}")
 				ai.chat(usertext)
-		ai.live_mode = old_live
-		ai.voice_mode = False
+		ai.env["chat.live"] = old_live
+		ai.env["chat.voice"] = "false"
 	elif usertext == "-a":
-		ai.voice_mode = True
-		old_live = ai.live_mode
-		ai.live_mode = False
+		ai.env["chat.voice"] = "true"
+		old_live = ai.env["chat.live"]
+		ai.env["chat.live"] = "false"
 		usertext = stt(4)
 		print(usertext)
 		ai.chat(usertext)
-		ai.live_mode = old_live
-		ai.voice_mode = False
+		ai.env["chat.live"] = old_live
+		ai.env["chat.voice"] = "false"
 	elif usertext == "-q" or usertext == "exit":
 		return "q"
 	elif usertext == "-r2":
@@ -179,16 +178,8 @@ def runline(usertext):
 			ai.system_message = usertext[2:].strip()
 		else:
 			print(ai.system_message)
-	elif usertext.startswith("-m"):
-		ai.live_mode = not ai.live_mode
-		lms = "enabled" if ai.live_mode else "disabled"
-		print("live mode is " + lms)
 	elif usertext.startswith("-L"):
 		print(ai.messages)
-	elif usertext.startswith("-l"):
-		ai.live_mode = not ai.live_mode
-		lms = "enabled" if ai.live_mode else "disabled"
-		print("live mode is " + lms)
 	elif usertext.startswith("-f"):
 		text = usertext[2:].strip()
 		try:
@@ -242,9 +233,9 @@ def runline(usertext):
 		ai.chat(usertext)
 
 def r2ai_repl():
-	olivemode = ai.live_mode
-	ai.live_mode = True
 	oldoff = "0x00000000"
+	olivemode = ai.env["chat.live"]
+	ai.env["chat.live"] = "true"
 	while True:
 		prompt = "[r2ai:" + oldoff + "]> "
 		if r2 is not None:
@@ -278,7 +269,7 @@ def r2ai_repl():
 			traceback.print_exc()
 			continue
 		readline.write_history_file(R2AI_HISTFILE)
-	ai.live_mode = olivemode
+	ai.env["chat.live"] = olivemode
 
 try:
 	lines = slurp(R2AI_RCFILE)
