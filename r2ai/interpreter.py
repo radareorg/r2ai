@@ -424,9 +424,10 @@ class Interpreter:
         print(f"**Removed codeblock**") # TODO: Could add preview of code removed here.
 
   def systag(self, beg):
-    if "mistral" in self.model.lower():
-      return "[INST]" if beg else "[/INST]\n"
-    return "<<SYS>>" if beg else "<</SYS>>"
+    lowermodel = self.model.lower()
+    if "llama" in lowermodel:
+      return "[INST]<<SYS>>" if beg else "<</SYS>>[/INST]"
+    return "[INST]" if beg else "[/INST]\n"
 
   def chat(self, message=None, return_messages=False):
     global Ginterrupted
