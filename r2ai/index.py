@@ -20,17 +20,15 @@ except:
 MASTODON_INSTANCE = "mastodont.cat"
 
 def mastodont_search(text):
-    base_url = f"https://{MASTODON_INSTANCE}/api/v2/search?resolve=true&limit=10&type=statuses&q="
+#   print(f"(mastodon) {text}")
     res = []
-    full_url = base_url + text
+    full_url = f"https://{MASTODON_INSTANCE}/api/v2/search?resolve=true&limit=10&type=statuses&q={text}"
     try:
         headers = {"Authorization": f"Bearer {MASTODON_KEY}"}
         response = requests.get(full_url, headers=headers)
         response.raise_for_status()  # Raise an HTTPError for bad responses
-#        print(f"==> {text}")
         for msg in response.json()["statuses"]:
             content = re.sub(r'<.*?>', '', msg["content"])
-#            print(f"  - {content}")
             res.append(content)
     except requests.exceptions.RequestException as e:
         print(f"Error making request: {e}")
@@ -49,7 +47,6 @@ def hist2txt(text):
 			# newlines.append(line[2:])
 			next
 		else:
-			print(line)
 			newlines.append(line)
 	return "\n".join(newlines)
 
@@ -124,7 +121,8 @@ class compute_rarity():
 	use_mastodon = MASTODON_KEY != "" # False
 	words = {}
 	lines = []
-	def __init__(self, source_files):
+	def __init__(self, source_files, use_mastodon):
+		self.use_mastodon = use_mastodon
 		for file in source_files:
 			lines = smart_slurp(file).splitlines()
 			for line in lines:
@@ -141,7 +139,8 @@ class compute_rarity():
 		rtlines = []
 		twords = filter_line(text)
 		for tw in twords:
-			rtlines.extend(mastodont_search(tw))
+			if len(tw) > 5:
+				rtlines.extend(mastodont_search(tw))
 		words = {} # local rarity ratings
 		for line in rtlines:
 			fline = filter_line(line)
@@ -153,11 +152,16 @@ class compute_rarity():
 		# find rarity of words in the results + text and 
 		rslines = []
 		swords = sorted(twords, key=lambda x: words.get(x) or 0)
-		for tw in swords:
-			w = words.get(tw)
-			if len(tw) > 4 and w is not None and w > 0 and w < 40:
-#				print(f"RELEVANT WORD {tw} {w}")
-				rslines.extend(mastodont_search(tw))
+		nwords = " ".join(swords[:5])
+		rslines.extend(mastodont_search(nwords))
+		if len(rslines) < 10:
+			for tw in swords:
+				w = words.get(tw)
+				if len(tw) > 4 and w is not None and w > 0 and w < 40:
+#					print(f"RELEVANT WORD {tw} {w}")
+					rslines.extend(mastodont_search(tw))
+#		for line in rslines:
+#			print(line)
 		return rslines
 	def find_matches(self, text):
 		if self.use_mastodon:
