@@ -4,3 +4,4 @@ llama-cpp-python
 tokentrim
 huggingface_hub
 appdirs
+unidecode
