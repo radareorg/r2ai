@@ -20,7 +20,7 @@ except:
 MASTODON_INSTANCE = "mastodont.cat"
 
 def mastodont_search(text):
-#   print(f"(mastodon) {text}")
+#    print(f"(mastodon) {text}")
     res = []
     full_url = f"https://{MASTODON_INSTANCE}/api/v2/search?resolve=true&limit=10&type=statuses&q={text}"
     try:
@@ -143,7 +143,7 @@ class compute_rarity():
 		rtlines = []
 		twords = filter_line(text)
 		for tw in twords:
-			if len(tw) > 5:
+			if len(tw) > 4:
 				rtlines.extend(mastodont_search(tw))
 		words = {} # local rarity ratings
 		for line in rtlines:

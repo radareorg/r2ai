@@ -132,6 +132,8 @@ def template_mistral(self, messages):
       if role == "user":
         content = item['content'].strip()
         msg += f"[INST]{content}[/INST]"
+      elif role == "hint":
+        msg += f"[INST]Knowledge: {content}[/INST]"
       elif role == "assistant" and self.withresponse:
         if 'content' in item:
           content = item['content'].strip()
@@ -160,6 +162,8 @@ def template_uncensored(self, messages):
       if role == "user":
         content = item['content'].strip()
         formatted_messages += f"### Human: {content}\n"
+      elif role == "hint":
+        formatted_messages += f"### Knowledge: {content}\n"
       elif role == "assistant" and self.withresponse:
         if 'content' in item:
           content = item['content'].strip()
@@ -195,6 +199,8 @@ def template_tinyllama(self,messages):
       content = item['content']
       if role == 'user':
           formatted_messages += f"user {content} "
+      elif role == "hint":
+          formatted_messages += f"knowledge: {content}\n"
       elif role == 'function':
           formatted_messages += f"user {content} "
       elif role == 'assistant' and self.withresponse:
@@ -263,6 +269,8 @@ def template_alpaca(self, messages):
       content = content.strip()
       if role == 'user':
           formatted_messages += f"### Instruction:\n{content}\n"
+      elif role == 'hint':
+          formatted_messages += f"### Knowledge:\n{content}\n"
       elif self.withresponse:
           formatted_messages += f"### Assistant:\n{content}\n"
 #         formatted_messages += f"### Response:\n{content}\n"
@@ -309,6 +317,8 @@ def template_llama(self,messages):
           content = item['content']
       else:
           continue
+      if role == 'hint':
+          role = 'assistant'
       if role == 'user':
           formatted_messages += f"{content}[/INST] "
       elif role == 'function':
@@ -433,7 +443,7 @@ class Interpreter:
       return "[INST]<<SYS>>" if beg else "<</SYS>>[/INST]"
     return "[INST]" if beg else "[/INST]\n"
 
-  def chat(self, message=None, return_messages=False):
+  def chat(self, message=None):
     global Ginterrupted
     if self.last_model != self.model:
       self.llama_instance = None
@@ -442,6 +452,7 @@ class Interpreter:
       self.end_active_block()
       print("Missing message")
       return
+    omessage = message
     if self.env["data.use"] == "true":
       hist = self.env["data.hist"] == "true"
       use_mastodon = self.env["data.mastodon"] == "true"
@@ -451,9 +462,10 @@ class Interpreter:
         newmsg = ""
         for m in matches:
           m = r2eval(m)
+          self.messages.append({"role": "hint", "content": m})
           newmsg += f"* {m}.\n"
-        if newmsg != "":
-          message = self.systag(True) + " " + newmsg + self.systag(False) + "\n" + message
+#        if newmsg != "":
+#          message = self.systag(True) + " " + newmsg + self.systag(False) + "\n" + message
     if self.env["debug"] == "true":
       print(message)
 #    print(message)
@@ -470,17 +482,16 @@ class Interpreter:
         traceback.print_exc()
 
     # If it was, we respond non-interactively
-    self.messages.append({"role": "user", "content": message})
+    self.messages.append({"role": "user", "content": omessage})
     try:
-    	self.respond()
+        self.respond()
+        self.clear_hints()
     except:
         if Ginterrupted:
             Ginterrupted = False
         else:
             traceback.print_exc()
     self.end_active_block()
-    if return_messages:
-        return self.messages
 
   def end_active_block(self):
     if self.active_block:
@@ -502,6 +513,12 @@ class Interpreter:
       return "[User Info]\n" + kvs
     return ""
 
+  def clear_hints(self):
+    res = []
+    for msg in self.messages:
+      if "role" in msg and msg["role"] != "hint":
+        res.append(msg)
+    self.messages = res
   def respond(self):
     global Ginterrupted
     # Add relevant info to system_message
