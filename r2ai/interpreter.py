@@ -4,7 +4,7 @@ from .message_block import MessageBlock
 from .code_block import CodeBlock
 from .index import main_indexer
 from .models import get_hf_llm, new_get_hf_llm, get_default_model
-from .audio import tts
+from .voice import tts
 try:
   from openai import OpenAI
   have_openai = True

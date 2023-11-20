@@ -14,7 +14,7 @@ import r2ai
 from r2ai.utils import slurp
 from r2ai.models import set_default_model
 from r2ai import bubble
-from r2ai.audio import stt, tts
+from r2ai.voice import stt
 
 # use_bubble = True
 use_bubble = False
@@ -136,8 +136,9 @@ def runline(usertext):
 		ai.live_mode = False
 		while True:
 			usertext = stt(4)
-			print(usertext)
-			ai.chat(usertext)
+			if usertext != "":
+				print(f"User: {usertext}")
+				ai.chat(usertext)
 		ai.live_mode = old_live
 		ai.voice_mode = False
 	elif usertext == "-a":
