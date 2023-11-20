@@ -198,6 +198,8 @@ def runline(usertext):
 		ai.live_mode = not ai.live_mode
 		lms = "enabled" if ai.live_mode else "disabled"
 		print("live mode is " + lms)
+	elif usertext.startswith("-L"):
+		print(ai.messages)
 	elif usertext.startswith("-l"):
 		ai.live_mode = not ai.live_mode
 		lms = "enabled" if ai.live_mode else "disabled"
