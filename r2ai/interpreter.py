@@ -62,6 +62,8 @@ def messages_to_prompt(self, messages):
 
   if "q4_0" in self.model.lower():
     formatted_messages = template_q4im(self, messages)
+  elif "tief" in self.model.lower():
+    formatted_messages = template_tiefighter(self, messages)
   elif "luna" in self.model.lower():
     formatted_messages = template_alpaca(self, messages)
   elif "uncensor" in self.model.lower():
@@ -113,24 +115,24 @@ def template_q4im(self,messages):
   return formatted_messages
 
 def template_mistral(self, messages):
+  # https://docs.mistral.ai/llm/mistral-instruct-v0.1
   self.terminator = "</s>"
-  msg = "<s>"
+  msg = ""
   try:
     system_prompt = messages[0]['content'].strip()
     if system_prompt != "":
-      msg += f"[INST]{system_prompt}[/INST]</s><s>"
+      msg += f"[INST]{system_prompt}[/INST]"
+    msg += f"<s>"
     for index, item in enumerate(messages[1:]):
       # print(item)
       role = item['role']
       if role == "user":
         content = item['content'].strip()
-        msg += f"[INST]{content}[/INST]\n"
+        msg += f"[INST]{content}[/INST]"
       elif role == "assistant" and self.withresponse:
         if 'content' in item:
           content = item['content'].strip()
           msg += f"{content}."
-#    msg += f"### Assistant:"
-    # print("```" + msg + "```")
   except:
     traceback.print_exc()
   return msg
@@ -259,7 +261,8 @@ def template_alpaca(self, messages):
       if role == 'user':
           formatted_messages += f"### Instruction:\n{content}\n"
       elif self.withresponse:
-          formatted_messages += f"### Response:\n{content}\n"
+          formatted_messages += f"### Assistant:\n{content}\n"
+#         formatted_messages += f"### Response:\n{content}\n"
   formatted_messages += f"### Response: "
   return formatted_messages
 
