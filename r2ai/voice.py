@@ -5,7 +5,6 @@ import re
 have_whisper = False
 model = None
 voice_model = "large" # base
-LANGUAGE = "ca"
 DEVICE = None
 try:
 	import whisper
@@ -23,45 +22,52 @@ def run(models):
 			return ":" + output[0]
 	return None
 
-def get_microphone():
+def get_microphone(lang):
 	global DEVICE
 	print (f"DE {DEVICE}")
 	if DEVICE is not None:
 		return DEVICE
-	tts("(r2ai)", "un moment")
+	tts("(r2ai)", "un moment", lang)
 	DEVICE = run(["AirPods", "MacBook Pro"])
 	return DEVICE
 
-def stt(seconds):
+def stt(seconds, lang):
 	global model
 	global DEVICE
-	global LANGUAGE
 	global voice_model
+	if lang == "":
+		lang = None
 	if model == None:
 		model = whisper.load_model(voice_model)
-	device = get_microphone()
+	device = get_microphone(lang)
 	if device is None:
-		tts("(r2ai)", "cannot find a microphone")
+		tts("(r2ai)", "cannot find a microphone", lang)
 		return
-	tts("(r2ai) listening for 5s... ", "digues?")
+	tts("(r2ai) listening for 5s... ", "digues?", lang)
 	print(f"DEVICE IS {device}")
 	os.system("rm -f .audiomsg.wav")
 	os.system(f"ffmpeg -f avfoundation -t 5 -i '{device}' .audiomsg.wav > /dev/null 2>&1")
 	result = None
-	if LANGUAGE is None:
+	if lang is None:
 		result = model.transcribe(".audiomsg.wav")
 	else:
-		result = model.transcribe(".audiomsg.wav", language=LANGUAGE)
+		result = model.transcribe(".audiomsg.wav", language=lang)
 	os.system("rm -f .audiomsg.wav")
-	tts("(r2ai)", "ok")
+	tts("(r2ai)", "ok", lang)
 	text = result["text"].strip()
 	if text == "you":
 		return ""
 #	print(f"User: {text}")
 	return text
 
-def tts(author, text):
+def tts(author, text, lang):
 	clean_text = re.sub(r'https?://\S+', '', text)
 	clean_text = re.sub(r'http?://\S+', '', clean_text)
 	print(f"{author}: {text}")
-	subprocess.run(["say", clean_text])
+	if lang == "es":
+		VOICE = "Marisol"
+	elif lang == "ca":
+		VOICE = "Montse"
+	else:
+		VOICE = "Moira"
+	subprocess.run(["say", "-v", VOICE, clean_text])

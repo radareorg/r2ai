@@ -117,7 +117,7 @@ def runline(usertext):
 		old_live = ai.env["chat.live"]
 		ai.env["chat.live"] = "false"
 		while True:
-			usertext = stt(4)
+			usertext = stt(4, ai.env["voice.lang"])
 			if usertext != "":
 				print(f"User: {usertext}")
 				ai.chat(usertext)
@@ -126,8 +126,8 @@ def runline(usertext):
 	elif usertext == "-a":
 		ai.env["chat.voice"] = "true"
 		old_live = ai.env["chat.live"]
-		ai.env["chat.live"] = "false"
-		usertext = stt(4)
+		ai.env["chat.live"] = "true"
+		usertext = stt(4, ai.env["voice.lang"])
 		print(usertext)
 		ai.chat(usertext)
 		ai.env["chat.live"] = old_live

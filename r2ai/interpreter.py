@@ -698,10 +698,10 @@ class Interpreter:
     if self.env["chat.voice"] == "true":
       if len(self.messages) > 1 and "content" in self.messages[-1]:
         output_text = self.messages[-1]["content"].strip()
-        tts("(assistant)", output_text)
+        tts("(assistant)", output_text, self.env["voice.lang"])
       else:
         output_text = "" #self.messages[-1]["content"].strip()
-        tts("(assistant)", "what?")
+        tts("(assistant)", "what?", self.env["voice.lang"])
     elif self.env["chat.live"] != "true":
       try:
         output_text = self.messages[-1]["content"].strip()
