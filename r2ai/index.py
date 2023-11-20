@@ -37,6 +37,64 @@ def mastodont_search(text):
         print(f"Error making request: {e}")
     return res
 
+def hist2txt(text):
+	newlines = []
+	lines = text.split("\n")
+	for line in lines:
+		line = line.strip().replace("\\040", " ")
+		if len(line) < 8:
+			next
+		elif line.startswith("-") or line.startswith("_") or line.startswith("!"):
+			next
+		elif line.startswith("-r"):
+			# newlines.append(line[2:])
+			next
+		else:
+			print(line)
+			newlines.append(line)
+	return "\n".join(newlines)
+
+def md2txt(text):
+	# parser markdown and return a txt
+	lines = text.split("\n")
+	newlines = []
+	data = ""
+	titles = []
+	read_block = False
+	for line in lines:
+		line = line.strip()
+		if line == "":
+			next
+		if read_block:
+			data += line + "\\n"
+			if line.startswith("```"):
+				read_block = False
+			next
+		if line.startswith("```"):
+			read_block = True
+		elif line.startswith("* "):
+			if data != "":
+				newlines.append(":".join(titles) +":"+  data + line)
+		elif line.startswith("### "):
+			if data != "":
+				newlines.append(":".join(titles) +":"+  data)
+				data = ""
+			titles = [titles[0], titles[1], line[3:]]
+		elif line.startswith("## "):
+			if data != "":
+				newlines.append(":".join(titles) +":"+ data)
+				data = ""
+			titles = [titles[0], line[3:]]
+		elif line.startswith("# "):
+			if data != "":
+				newlines.append(":".join(titles)+ ":"+data)
+				data = ""
+			titles = [line[2:]]
+		else:
+			data += line + " "
+	print("\n".join(newlines))
+	return "\n".join(newlines)
+
 def filter_line(line):
 	line = unidecode(line) # remove accents
 	line = line.replace(":", " ").replace("/", " ").replace("`", " ").replace("?", " ")
@@ -55,13 +113,21 @@ def filter_line(line):
 			words.append(b)
 	return words
 
+def smart_slurp(file):
+	text = slurp(file)
+	if file.endswith("r2ai.history"):
+		text = hist2txt(text)
+	elif file.endswith(".md"):
+		text = md2txt(text)
+	return text
+
 class compute_rarity():
 	use_mastodon = MASTODON_KEY != "" # False
 	words = {}
 	lines = []
 	def __init__(self, source_files):
 		for file in source_files:
-			lines = slurp(file).splitlines()
+			lines = smart_slurp(file).splitlines()
 			for line in lines:
 				self.lines.append(line)
 				self.compute_rarity_in_line(line)
@@ -150,14 +216,17 @@ def find_sources(srcdir):
 	res = []
 	for f in files:
 		for f2 in f[2]:
-			if f2.endswith(".txt"):
+			if f2.endswith(".txt") or f2.endswith(".md"):
 				res.append(f"{srcdir}/{f2}")
 	return res
 
 def main_indexer(text):
-	source_files = find_sources(f"{R2AI_DIR}/{SRCDIR}")
+	source_files = [] # find_sources(f"{R2AI_DIR}/{SRCDIR}")
+	source_files.append("/Users/pancake/.r2ai.history")
 	raredb = compute_rarity(source_files)
-	return raredb.find_matches(text)
+	res = raredb.find_matches(text)
+#	print(res)
+	return res
 
 if __name__ == '__main__':
 	if len(sys.argv) > 1:

@@ -78,7 +78,7 @@ def parse_partial_json(s):
         return None
 
 def slurp(f):
-	fd = open(f)
+	fd = open(f, errors="ignore")
 	data = fd.read()
 	fd.close()
 	return str(data)
