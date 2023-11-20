@@ -325,5 +325,5 @@ elif len(sys.argv) > 1:
 		if arg == "-h" or arg == "-v":
 			sys.exit(0)
 	r2ai_repl()
-elif not within_r2:
+elif not within_r2 and have_r2pipe:
 	r2ai_repl()
