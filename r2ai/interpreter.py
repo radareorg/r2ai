@@ -119,12 +119,11 @@ def template_q4im(self,messages):
 def template_mistral(self, messages):
   # https://docs.mistral.ai/llm/mistral-instruct-v0.1
   self.terminator = "</s>"
-  msg = ""
+  msg = "<s>"
   try:
     system_prompt = messages[0]['content'].strip()
     if system_prompt != "":
       msg += f"[INST]{system_prompt}[/INST]"
-    msg += f"<s>"
     for index, item in enumerate(messages[1:]):
       # print(item)
       role = item['role']
@@ -134,7 +133,7 @@ def template_mistral(self, messages):
       if role == "user":
         msg += f"[INST]{content}[/INST]"
       elif role == "hint":
-        msg += f"[INST]Knowledge: {content}[/INST]"
+        msg += f"[INST]* {content}[/INST]"
       elif role == "assistant" and self.withresponse:
         if 'content' in item:
           content = item['content'].strip()
