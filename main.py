@@ -17,6 +17,14 @@ from r2ai import bubble
 from r2ai.const import R2AI_HISTFILE, R2AI_HOMEDIR, R2AI_RCFILE
 from r2ai.voice import stt
 
+OPENAI_KEY = ""
+try:
+	if "HOME" in os.environ:
+		os.environ["OPENAI_KEY"] = slurp(os.environ["HOME"] + "/.r2ai.openai-key").strip()
+		print("[R2AI] Loading OpenAI key from ~/.r2ai.openai-key")
+except:
+	pass
+
 have_readline = False
 
 try:
