@@ -354,8 +354,9 @@ class Interpreter:
     self.env["user.cwd"] = ""
     self.env["voice.lang"] = "en"
     self.env["voice.model"] = "base"
-    self.env["data.path"] = f"{R2AI_HOMEDIR}/doc/data"
     self.env["data.use"] = "false"
+    self.env["data.path"] = f"{R2AI_HOMEDIR}/doc/data"
+    self.env["data.local"] = "false"
     self.env["data.hist"] = "false"
     self.env["data.mastodon"] = "false"
     self.env["key.mastodon"] = ""
@@ -456,7 +457,9 @@ class Interpreter:
       hist = self.env["data.hist"] == "true"
       use_mastodon = self.env["data.mastodon"] == "true"
       use_debug = self.env["debug"] == "true"
-      datadir = self.env["data.path"]
+      datadir = None
+      if self.env["data.local"] == "true":
+        datadir = self.env["data.path"]
       matches = main_indexer(message, datadir, hist, use_mastodon, use_debug)
       if len(matches) > 0:
         for m in matches:
@@ -696,7 +699,7 @@ class Interpreter:
       continue # end of for loop
 
     if self.env["chat.voice"] == "true":
-      if len(self.messages) > 1 and "content" in self.messages[-1]:
+      if len(self.messages) > 0 and "content" in self.messages[-1]:
         output_text = self.messages[-1]["content"].strip()
         tts("(assistant)", output_text, self.env["voice.lang"])
       else:
