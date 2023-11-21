@@ -471,7 +471,7 @@ class Interpreter:
       print(message)
 #    print(message)
     # Code-Llama
-    if self.llama_instance == None:
+    if not self.model.startswith("openai:") and self.llama_instance == None:
       # Find or install Code-Llama
       try:
         debug_mode = self.env["debug"] == "true"
@@ -585,7 +585,8 @@ class Interpreter:
         response = completion.choices[0].message.content
         if "content" in self.messages[-1]:
           last_message = self.messages[-1]["content"]
-        self.messages.append({"role": "assistant", "content": response})
+        if self.env["chat.reply"] == "true":
+          self.messages.append({"role": "assistant", "content": response})
         print(response)
         return
       else:
