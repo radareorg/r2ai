@@ -520,6 +520,16 @@ class Interpreter:
       if "role" in msg and msg["role"] != "hint":
         res.append(msg)
     self.messages = res
+
+  def compress_messages(self, messages):
+    msglen = 0
+    for msg in messages:
+      if "content" in msg:
+        msglen += len(msg["content"])
+    if msglen > 8000:
+      print("Query is too large.. you should consider triming old messages")
+    return messages
+
   def respond(self):
     global Ginterrupted
     # Add relevant info to system_message
@@ -542,15 +552,8 @@ class Interpreter:
           max_tokens=(self.context_window-self.max_tokens-25),
           system_message=system_message)
     else:
-      messages = self.messages
+      messages = self.compress_messages(messages)
 
-    msglen = 0
-    for msg in messages:
-      if "content" in msg:
-        msglen += len(msg["content"])
-    if msglen > 1024:
-      print("Query is too large.. you should consider triming old messages")
-    print(f"QueryLen {msglen}")
     if self.env["debug"] == "true":
       print(messages)
 
