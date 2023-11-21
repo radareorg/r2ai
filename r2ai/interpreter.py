@@ -20,7 +20,6 @@ import traceback
 import json
 import platform
 import getpass
-import tokentrim as tt
 from rich.rule import Rule
 import signal
 import sys
@@ -533,10 +532,23 @@ class Interpreter:
     system_message = self.system_message + "\n\n" + info
     system_message += self.environment()
 
-    messages = tt.trim(self.messages,
-        max_tokens=(self.context_window-self.max_tokens-25),
-        system_message=system_message)
+    if self.env["chat.trim"]:
+      ## this stupid function is slow as hell and doesn not provides much goodies
+      ## just ignore it by default
+      import tokentrim
+      messages = tokentrim.trim(self.messages,
+          max_tokens=(self.context_window-self.max_tokens-25),
+          system_message=system_message)
+    else:
+      messages = self.messages
 
+    msglen = 0
+    for msg in messages:
+      if "content" in msg:
+        msglen += len(msg["content"])
+    if msglen > 1024:
+      print("Query is too large.. you should consider triming old messages")
+    print(f"QueryLen {msglen}")
     if self.env["debug"] == "true":
       print(messages)
 
