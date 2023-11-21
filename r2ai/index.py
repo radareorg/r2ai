@@ -248,6 +248,7 @@ def main_indexer(text, datadir, hist, use_mastodon, use_debug):
 	  source_files.append(R2AI_HISTFILE)
 	raredb = compute_rarity(source_files, use_mastodon, use_debug)
 	res = raredb.find_matches(text)
+	res = sorted(set(res))
 #	print(res)
 	return res
 

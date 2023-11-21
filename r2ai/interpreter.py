@@ -82,7 +82,6 @@ def messages_to_prompt(self, messages):
     formatted_messages = template_alpaca(self, messages)
   elif "mistral" in self.model.lower():
     formatted_messages = template_mistral(self, messages)
-#    formatted_messages = template_q4im(self, messages)
   elif "python" in self.model.lower():
     print("codellama-python model is not working well yet")
     formatted_messages = template_llamapython(self, messages)
