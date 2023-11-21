@@ -151,7 +151,8 @@ def runline(usertext):
 			if len(line) > 1:
 				v = line[1]
 				if v == "":
-					del ai.env[k]
+#					del ai.env[k]
+					ai.env[k] = ""
 				else:
 					ai.env[k] = v
 			else:
