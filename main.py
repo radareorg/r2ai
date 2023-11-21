@@ -198,7 +198,8 @@ def runline(usertext):
 			que = input("[Query]> ")
 		tag = "CODE" # INPUT , TEXT, ..
 		#r2ai.chat("Q: " + que + ":\n["+tag+"]\n"+ res+"\n[/"+tag+"]\n")
-		ai.chat(f"{que}:\n[{tag}]\n{res}\n[/{tag}]\n")
+		ai.chat(f"{que}:\n```\n{res}\n```\n")
+#ai.chat(f"{que}:\n[{tag}]\n{res}\n[/{tag}]\n")
 	elif usertext.startswith("-n"):
 		if usertext == "-n":
 			for a in ais.keys():
@@ -219,8 +220,8 @@ def runline(usertext):
 			que = words[1]
 		else:
 			que = input("[Query]> ")
-		tag = "CODE" # TEXT, INPUT ..
-		ai.chat(f"{que}:\n[{tag}]\n{res}\n[/{tag}]\n")
+		tag = "```\n" # TEXT, INPUT ..
+		ai.chat(f"{que}:\n{tag}\n{res}\n{tag}\n")
 	elif usertext[0] == "!":
 		os.system(usertext[1:])
 	elif usertext[0] == ":":

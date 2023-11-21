@@ -366,8 +366,10 @@ class Interpreter:
     else:
       self.env["chat.live"] = "true"
 #self.env["chat.model"] = "" # TODO
+    self.env["chat.trim"] = "false"
     self.env["chat.voice"] = "false"
     self.env["chat.bubble"] = "false"
+    self.env["chat.reply"] = "true"
 
     # Get default system message
     here = os.path.abspath(os.path.dirname(__file__))
@@ -710,16 +712,15 @@ class Interpreter:
         self.active_block.update_from_message(self.messages[-1])
       continue # end of for loop
 
+    output_text = ""
+    if len(self.messages) > 0 and "content" in self.messages[-1]:
+      output_text = self.messages[-1]["content"].strip()
+    if self.env["chat.reply"] == "true":
+      self.messages.append({"role": "assistant", "content": output_text})
     if self.env["chat.voice"] == "true":
-      if len(self.messages) > 0 and "content" in self.messages[-1]:
-        output_text = self.messages[-1]["content"].strip()
-        tts("(assistant)", output_text, self.env["voice.lang"])
-      else:
-        output_text = "" #self.messages[-1]["content"].strip()
-        tts("(assistant)", "what?", self.env["voice.lang"])
+      tts("(assistant)", output_text, self.env["voice.lang"])
     elif self.env["chat.live"] != "true":
       try:
-        output_text = self.messages[-1]["content"].strip()
         r2lang.print(output_text)
       except:
         print(str(self.messages))
