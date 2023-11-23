@@ -2,13 +2,14 @@
 import os
 import re
 import requests
-from .const import R2AI_HISTFILE
 from unidecode import unidecode
 import sys
 try:
 	from .utils import slurp
+	from .const import R2AI_HISTFILE
 except:
 	from utils import slurp
+	R2AI_HISTFILE = "/dev/null"
 
 MAXCHARS = 128
 MAXMATCHES = 5
