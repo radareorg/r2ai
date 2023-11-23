@@ -474,7 +474,7 @@ class Interpreter:
     if not self.model.startswith("openai:") and self.llama_instance == None:
       # Find or install Code-Llama
       try:
-        debug_mode = self.env["debug"] == "true"
+        debug_mode = False # self.env["debug"] == "true"
         self.llama_instance = new_get_hf_llm(self.model, debug_mode, self.context_window)
         if self.llama_instance == None:
           print("Cannot find the model")
