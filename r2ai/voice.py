@@ -1,4 +1,5 @@
 import subprocess
+from subprocess import Popen, PIPE
 import os
 import re
 
@@ -11,6 +12,8 @@ try:
 	have_whisper = True
 except:
 	pass
+
+have_festival = os.path.isfile("/usr/bin/festival")
 
 def run(models):
 	for model in models:
@@ -64,10 +67,21 @@ def tts(author, text, lang):
 	clean_text = re.sub(r'https?://\S+', '', text)
 	clean_text = re.sub(r'http?://\S+', '', clean_text)
 	print(f"{author}: {text}")
-	if lang == "es":
-		VOICE = "Marisol"
-	elif lang == "ca":
-		VOICE = "Montse"
+	if have_festival:
+		festlang = "english"
+		if lang == "ca":
+			festlang = "catalan"
+		elif lang == "es":
+			festlang = "spanish"
+		elif lang == "it":
+			festlang = "italian"
+		p = Popen(['festival', '--tts', '--language', festlang], stdin=PIPE)
+		p.communicate(input=text)
 	else:
-		VOICE = "Moira"
-	subprocess.run(["say", "-v", VOICE, clean_text])
+		if lang == "es":
+			VOICE = "Marisol"
+		elif lang == "ca":
+			VOICE = "Montse"
+		else:
+			VOICE = "Moira"
+		subprocess.run(["say", "-v", VOICE, clean_text])
