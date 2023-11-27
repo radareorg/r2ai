@@ -23,7 +23,7 @@ def get_default_model():
         fd = open(r2ai_model_json)
         usermodels = json.load(fd)
         fd.close()
-        if "default" in usermodels: # use a oneliner
+        if "default" in usermodels:
             return usermodels["default"]
     except:
         pass
@@ -33,10 +33,24 @@ def Markdown(x):
   return x
 
 def models():
+    builtins.print("OpenAI:")
+    builtins.print("-m openai:gpt-3.5-turbo");
+    builtins.print("-m openai:gpt-4");
+    builtins.print("GPT4:")
+    builtins.print("-m TheBloke/goliath-120b-GGUF")
+    builtins.print("-m TheBloke/SynthIA-7B-v2.0-GGUF")
+    builtins.print("-m TheBloke/Chronos-Hermes-13b-v2-GGUF")
+    builtins.print("-m TheBloke/Chronos-70B-v2-GGUF")
+    builtins.print("-m lizpreciatior/lzlv_70b_fp16_hf")
+    builtins.print("-m TheBloke/Nous-Capybara-7B-v1.9-GGUF")
+    builtins.print("-m TheBloke/Nous-Capybara-34B-GGUF")
+    builtins.print("-m TheBloke/Euryale-Inverted-L2-70B-GGUF")
+    builtins.print("-m TheBloke/StellarBright-GGUF")
+    builtins.print("-m TheBloke/GodziLLa2-70B-GGUF")
     builtins.print("Generic:")
     builtins.print("-m TheBloke/Mistral-7B-Instruct-v0.1-GGUF")
     builtins.print("-m TheBloke/Yarn-Mistral-7B-128k-GGUF")
-    builtins.print("-m TheBloke/dolphin-2.1-mistral-7B-GGUF")
+    builtins.print("-m TheBloke/dolphin-2.2.1-mistral-7B-GGUF")
     builtins.print("-m TheBloke/zephyr-7B-alpha-GGUF")
     builtins.print("-m TheBloke/zephyr-7B-beta-GGUF")
     builtins.print("-m maddes8cht/nomic-ai-gpt4all-falcon-7b-gguf")
@@ -48,6 +62,7 @@ def models():
     builtins.print("-m TheBloke/deepseek-coder-6.7B-instruct-GGUF")
     builtins.print("-m TheBloke/CodeLlama-7B-Instruct-GGUF")
     builtins.print("Uncensored:")
+    builtins.print("-m TheBloke/Dawn-v2-70B-GGUF")
     builtins.print("-m TheBloke/Guanaco-7B-Uncensored-GGUF")
     builtins.print("-m TheBloke/Luna-AI-Llama2-Uncensored-GGUF")
     builtins.print("-m TheBloke/Wizard-Vicuna-13B-Uncensored-GGUF")
@@ -412,6 +427,8 @@ def enough_disk_space(size, path) -> bool:
     return False
 
 def new_get_hf_llm(repo_id, debug_mode, context_window):
+    if repo_id.startswith("openai:"):
+        return repo_id
     if not os.path.exists(repo_id):
         return get_hf_llm(repo_id, debug_mode, context_window)
     # print("LOADING FILE: " + repo_id)

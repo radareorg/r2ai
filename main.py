@@ -14,18 +14,22 @@ import r2ai
 from r2ai.utils import slurp
 from r2ai.models import set_default_model
 from r2ai import bubble
+from r2ai.const import R2AI_HISTFILE, R2AI_HOMEDIR, R2AI_RCFILE
+from r2ai.voice import stt
 
-# use_bubble = True
-use_bubble = False
+OPENAI_KEY = ""
+try:
+	if "HOME" in os.environ:
+		os.environ["OPENAI_KEY"] = slurp(os.environ["HOME"] + "/.r2ai.openai-key").strip()
+		print("[R2AI] Loading OpenAI key from ~/.r2ai.openai-key")
+except:
+	pass
 
 have_readline = False
-r2ai_history_file = "r2ai.history.txt" # windows path
-if "HOME" in os.environ:
-	r2ai_history_file = os.environ["HOME"] + "/.r2ai.history"
+
 try:
     import readline
-    # load readline history from ~/.r2ai.history
-    readline.read_history_file(r2ai_history_file)
+    readline.read_history_file(R2AI_HISTFILE)
     have_readline = True
 except:
     pass #readline not available
@@ -39,7 +43,6 @@ if os.name != "nt":
 	try:
 		import r2lang
 		have_rlang = True
-		use_bubble = False
 		print = r2lang.print
 	except:
 		try:
@@ -56,29 +59,22 @@ def r2_cmd(x):
 	global ai
 	res = x
 	if have_rlang:
-		oc = r2lang.cmd('e scr.color')
+		oc = r2lang.cmd('e scr.color').strip()
 		r2lang.cmd('e scr.color=0')
 		res = r2lang.cmd(x)
 		r2lang.cmd('e scr.color=' + oc)
 	elif r2 is not None:
-		oc = r2.cmd('e scr.color')
+		oc = r2.cmd('e scr.color').strip()
 		r2.cmd('e scr.color=0')
 		res = r2.cmd(x)
 		r2.cmd('e scr.color=' + oc)
 	return res
 
-dir_path = os.path.dirname(os.path.realpath(__file__))
-# override defaults for testing
-if have_rlang or use_bubble:
-	try:
-		ai.system_message = slurp(f"{dir_path}/doc/role/r2clippy.txt")
-	except:
-		pass
-
 help_message = """Usage: r2ai [-option] ([query])
  r2ai !aa               run a r2 command
+ r2ai -a                query with audio voice
+ r2ai -A                enter the voice chat loop
  r2ai -k                clear the screen
- r2ai -b                toggle the bubble chat mode
  r2ai -c [cmd] [query]  run the given r2 command with the given query
  r2ai -e [k[=v]]        set environment variable
  r2ai -f [file]         load file and paste the output
@@ -88,20 +84,21 @@ help_message = """Usage: r2ai [-option] ([query])
  r2ai -M                list supported and most common models from hf
  r2ai -n [num]          select the nth language model
  r2ai -q                quit/exit/^C
- r2ai -l                toggle the live mode
+ r2ai -L                show chat logs
  r2ai -r [sysprompt]    define the role of the conversation
  r2ai -r2               enter the r2clippy assistant mode
  r2ai -rf [doc/role/.f] load contents of a file to define the role
  r2ai -R                reset the chat conversation context
- r2ai -v                show r2ai version"""
+ r2ai -t [temp]         from 0.0001 to 10 your scale to randomness in my replies
+ r2ai -v                show r2ai version
+ r2ai -w                toggle including LLM responses into the query (False is faster)"""
 
 
 def runline(usertext):
 	global print
 	global ai
-	global use_bubble
 	usertext = usertext.strip()
-	if usertext == "":
+	if usertext == "" or usertext.startswith("#"):
 		return
 	if usertext.startswith("?") or usertext.startswith("-h"):
 		print(help_message)
@@ -118,24 +115,52 @@ def runline(usertext):
 			print(ai.model)
 	elif usertext == "reset" or usertext.startswith("-R"):
 		ai.reset()
-	elif usertext == "-b":
-		use_bubble = not use_bubble
+	elif usertext.startswith("-t"):
+		if usertext == "-t":
+			print(ai.temperature)
+		else:
+			ai.temperature = float (usertext[2:])
+	elif usertext == "-A":
+		ai.env["chat.voice"] = "true"
+		old_live = ai.env["chat.live"]
+		ai.env["chat.live"] = "false"
+		while True:
+			usertext = stt(4, ai.env["voice.lang"])
+			if usertext != "":
+				print(f"User: {usertext}")
+				ai.chat(usertext)
+		ai.env["chat.live"] = old_live
+		ai.env["chat.voice"] = "false"
+	elif usertext == "-a":
+		ai.env["chat.voice"] = "true"
+		old_live = ai.env["chat.live"]
+		ai.env["chat.live"] = "true"
+		usertext = stt(4, ai.env["voice.lang"])
+		print(usertext)
+		ai.chat(usertext)
+		ai.env["chat.live"] = old_live
+		ai.env["chat.voice"] = "false"
 	elif usertext == "-q" or usertext == "exit":
 		return "q"
 	elif usertext == "-r2":
-		os.environ["R2MODE"] = "1"
-		use_bubble = True
-		runline(f"-rf {dir_path}/doc/role/r2clippy.txt")
+		ai.env["data.use"] = "true"
+		ai.env["data.hist"] = "true"
+		ai.env["data.path"] = f"{R2AI_HOMEDIR}/doc/"
+		ai.env["chat.bubble"] = "true"
+		runline(f"-rf {R2AI_HOMEDIR}/doc/role/r2clippy.txt")
 	elif usertext.startswith("-e"):
 		if len(usertext) == 2:
-			print(ai.env)
+			for k in ai.env.keys():
+				v = ai.env[k]
+				print(f"-e {k}={v}")
 		else:
 			line = usertext[2:].strip().split("=")
 			k = line[0]
 			if len(line) > 1:
 				v = line[1]
 				if v == "":
-					del ai.env[k]
+#					del ai.env[k]
+					ai.env[k] = ""
 				else:
 					ai.env[k] = v
 			else:
@@ -143,6 +168,9 @@ def runline(usertext):
 					print(ai.env[k])
 				except:
 					pass
+	elif usertext.startswith("-w"):
+		ai.withresponse = not ai.withresponse
+		print(ai.withresponse)
 	elif usertext.startswith("-s"):
 		r2ai_repl()
 	elif usertext.startswith("-rf"):
@@ -159,14 +187,8 @@ def runline(usertext):
 			ai.system_message = usertext[2:].strip()
 		else:
 			print(ai.system_message)
-	elif usertext.startswith("-m"):
-		ai.live_mode = not ai.live_mode
-		lms = "enabled" if ai.live_mode else "disabled"
-		print("live mode is " + lms)
-	elif usertext.startswith("-l"):
-		ai.live_mode = not ai.live_mode
-		lms = "enabled" if ai.live_mode else "disabled"
-		print("live mode is " + lms)
+	elif usertext.startswith("-L"):
+		print(ai.messages)
 	elif usertext.startswith("-f"):
 		text = usertext[2:].strip()
 		try:
@@ -184,7 +206,8 @@ def runline(usertext):
 			que = input("[Query]> ")
 		tag = "CODE" # INPUT , TEXT, ..
 		#r2ai.chat("Q: " + que + ":\n["+tag+"]\n"+ res+"\n[/"+tag+"]\n")
-		ai.chat(f"{que}:\n[{tag}]\n{res}\n[/{tag}]\n")
+		ai.chat(f"{que}:\n```\n{res}\n```\n")
+#ai.chat(f"{que}:\n[{tag}]\n{res}\n[/{tag}]\n")
 	elif usertext.startswith("-n"):
 		if usertext == "-n":
 			for a in ais.keys():
@@ -205,9 +228,11 @@ def runline(usertext):
 			que = words[1]
 		else:
 			que = input("[Query]> ")
-		tag = "CODE" # TEXT, INPUT ..
-		ai.chat(f"{que}:\n[{tag}]\n{res}\n[/{tag}]\n")
+		tag = "```\n" # TEXT, INPUT ..
+		ai.chat(f"{que}:\n{tag}\n{res}\n{tag}\n")
 	elif usertext[0] == "!":
+		os.system(usertext[1:])
+	elif usertext[0] == ":":
 		if r2 is None:
 			print("r2 is not available")
 		else:
@@ -218,17 +243,16 @@ def runline(usertext):
 		ai.chat(usertext)
 
 def r2ai_repl():
-	global use_bubble
-	olivemode = ai.live_mode
-	ai.live_mode = True
 	oldoff = "0x00000000"
+	olivemode = ai.env["chat.live"]
+	ai.env["chat.live"] = "true"
 	while True:
 		prompt = "[r2ai:" + oldoff + "]> "
 		if r2 is not None:
 			off = r2_cmd("s").strip()
 			if off == "":
 				off = r2_cmd("s").strip()
-			if len(off) > 5:
+			if len(off) > 5 and len(off) < 20:
 				oldoff = off
 		if ai.active_block is not None:
 			#r2ai.active_block.update_from_message("")
@@ -238,20 +262,33 @@ def r2ai_repl():
 		except:
 			break
 		try:
-			if use_bubble:
-				bubble.query(usertext)
-				bubble.response_begin()
-				if runline(usertext) == "q":
-					break
-				bubble.response_end()
+			if ai.env["chat.bubble"] == "true":
+				if usertext.startswith("-"):
+					if runline(usertext) == "q":
+						break
+				else:
+					bubble.query(usertext)
+					bubble.response_begin()
+					if runline(usertext) == "q":
+						break
+					bubble.response_end()
 			else:
 				if runline(usertext) == "q":
 					break
 		except:
 			traceback.print_exc()
 			continue
-		readline.write_history_file(r2ai_history_file)
-	ai.live_mode = olivemode
+		readline.write_history_file(R2AI_HISTFILE)
+	ai.env["chat.live"] = olivemode
+
+try:
+	lines = slurp(R2AI_RCFILE)
+	for line in lines.split("\n"):
+		if line.strip() != "":
+			runline(line)
+except:
+	pass
+
 
 ### MAIN ###
 if have_r2pipe:
@@ -298,5 +335,5 @@ elif len(sys.argv) > 1:
 		if arg == "-h" or arg == "-v":
 			sys.exit(0)
 	r2ai_repl()
-elif not within_r2:
+elif not within_r2 and have_r2pipe:
 	r2ai_repl()

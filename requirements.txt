@@ -1,6 +1,6 @@
 rich
 inquirer
 llama-cpp-python
-tokentrim
-hugging_face
+huggingface_hub
 appdirs
+unidecode

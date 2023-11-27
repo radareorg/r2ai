@@ -4,6 +4,15 @@ from .message_block import MessageBlock
 from .code_block import CodeBlock
 from .index import main_indexer
 from .models import get_hf_llm, new_get_hf_llm, get_default_model
+from .voice import tts
+from .const import R2AI_HOMEDIR
+try:
+  from openai import OpenAI
+  have_openai = True
+except:
+  have_openai = False
+  pass
+
 
 import re
 import os
@@ -11,7 +20,6 @@ import traceback
 import json
 import platform
 import getpass
-import tokentrim as tt
 from rich.rule import Rule
 import signal
 import sys
@@ -29,36 +37,12 @@ except:
 Ginterrupted = False
 def signal_handler(sig, frame):
 	global Ginterrupted
+	if Ginterrupted:
+		sys.exit(0) # throws exception
 	Ginterrupted = True
 	print("^C")
-	sys.exit(0) # throws exception
-
+sys.excepthook = signal_handler
 signal.signal(signal.SIGINT, signal_handler)
-# print('Press Ctrl+C')
-# signal.pause()
-
-# Function schema for gpt-4
-function_schema = {
-  "name": "run_code",
-  "description":
-  "Executes code on the user's machine and returns the output",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "language": {
-        "type": "string",
-        "description":
-        "The programming language",
-        "enum": ["python", "shell", "javascript", "html"]
-      },
-      "code": {
-        "type": "string",
-        "description": "The code to execute"
-      }
-    },
-    "required": ["language", "code"]
-  },
-}
 
 def r2eval(m):
   if "$(" in m and have_rlang:
@@ -72,7 +56,7 @@ def r2eval(m):
     return re.sub(r'\$\((.*?)\)', evaluate_expression, m)
   return m
 
-def messages_to_prompt(self,messages):
+def messages_to_prompt(self, messages):
   for message in messages:
     # Happens if it immediatly writes code
     if "role" not in message:
@@ -80,6 +64,8 @@ def messages_to_prompt(self,messages):
 
   if "q4_0" in self.model.lower():
     formatted_messages = template_q4im(self, messages)
+  elif "tief" in self.model.lower():
+    formatted_messages = template_tiefighter(self, messages)
   elif "luna" in self.model.lower():
     formatted_messages = template_alpaca(self, messages)
   elif "uncensor" in self.model.lower():
@@ -95,7 +81,6 @@ def messages_to_prompt(self,messages):
     formatted_messages = template_alpaca(self, messages)
   elif "mistral" in self.model.lower():
     formatted_messages = template_mistral(self, messages)
-#    formatted_messages = template_q4im(self, messages)
   elif "python" in self.model.lower():
     print("codellama-python model is not working well yet")
     formatted_messages = template_llamapython(self, messages)
@@ -104,7 +89,7 @@ def messages_to_prompt(self,messages):
   else:
     formatted_messages = template_llama(self, messages)
 
-  if "DEBUG" in self.env:
+  if self.env["debug"] == "true":
     builtins.print(formatted_messages)
   return formatted_messages
 
@@ -120,7 +105,7 @@ def template_q4im(self,messages):
       # formatted_messages = f"[STDIN] {system_prompt} [/STDIN]\n"
       # formatted_messages = f"/imagine prompt: {system_prompt}\n"
     for index, item in enumerate(messages[1:]):
-        item['role']
+        role = item['role']
         content = item['content'].strip()
         formatted_messages += f"<|im_start|>{content}<|im_end|>"
         formatted_messages += "\{\"text\":\"{"+content+"}\"\}"
@@ -131,24 +116,27 @@ def template_q4im(self,messages):
   return formatted_messages
 
 def template_mistral(self, messages):
+  # https://docs.mistral.ai/llm/mistral-instruct-v0.1
   self.terminator = "</s>"
   msg = "<s>"
   try:
     system_prompt = messages[0]['content'].strip()
     if system_prompt != "":
-      msg += f"[INST]{system_prompt}[/INST]</s><s>"
+      msg += f"[INST]{system_prompt}[/INST]"
     for index, item in enumerate(messages[1:]):
       # print(item)
       role = item['role']
+      if "content" not in item:
+        next
+      content = item['content'].strip()
       if role == "user":
-        content = item['content'].strip()
-        msg += f"[INST]{content}[/INST]\n"
-      elif role == "assistant":
+        msg += f"[INST]{content}[/INST]"
+      elif role == "hint":
+        msg += f"[INST]* {content}[/INST]"
+      elif role == "assistant" and self.withresponse:
         if 'content' in item:
           content = item['content'].strip()
           msg += f"{content}."
-#    msg += f"### Assistant:"
-    # print("```" + msg + "```")
   except:
     traceback.print_exc()
   return msg
@@ -173,7 +161,9 @@ def template_uncensored(self, messages):
       if role == "user":
         content = item['content'].strip()
         formatted_messages += f"### Human: {content}\n"
-      elif role == "assistant":
+      elif role == "hint":
+        formatted_messages += f"### Knowledge: {content}\n"
+      elif role == "assistant" and self.withresponse:
         if 'content' in item:
           content = item['content'].strip()
 #          formatted_messages += f"### Assistant: {content}\n"
@@ -208,9 +198,11 @@ def template_tinyllama(self,messages):
       content = item['content']
       if role == 'user':
           formatted_messages += f"user {content} "
+      elif role == "hint":
+          formatted_messages += f"knowledge: {content}\n"
       elif role == 'function':
           formatted_messages += f"user {content} "
-      elif role == 'assistant':
+      elif role == 'assistant' and self.withresponse:
           formatted_messages += f"assistant {content} "
   # Remove the trailing '<s>[INST] ' from the final output
   formatted_messages += f"<|im_end|>"
@@ -229,10 +221,36 @@ def template_llamapython(self, messages):
       content = item['content']
       if role == 'user':
           formatted_messages += f"{content}\n[/INST]"
+      elif self.withresponse:
+          formatted_messages += f"[INST]Answer: {content}\n[/INST]"
   formatted_messages += "\n[INST]Answer: "
   return formatted_messages
 
-def template_alpaca(self,messages):
+def template_tiefighter(self, messages):
+  self.terminator = "</s>"
+  system_prompt = messages[0]['content'].strip()
+  if system_prompt != "":
+      formatted_messages = f"[Instructions]: {system_prompt}\n"
+  else:
+      formatted_messages = ""
+  # Loop starting from the first user message
+  for index, item in enumerate(messages[1:]):
+      role = item['role']
+      if not 'content' in item:
+          next
+      content = item['content']
+      if content is None or content == "":
+          next
+      content = content.strip()
+      if role == 'user':
+          formatted_messages += f"[Instructions] {content} [/Instructions]\n"
+      elif self.withresponse:
+          formatted_messages += f"[Assistant] {content}\n"
+#         formatted_messages += f"### Response:\n{content}\n"
+  formatted_messages += f"[Assistant]"
+  return formatted_messages
+
+def template_alpaca(self, messages):
   self.terminator = "###"
   system_prompt = messages[0]['content'].strip()
   if system_prompt != "":
@@ -242,7 +260,7 @@ def template_alpaca(self,messages):
   # Loop starting from the first user message
   for index, item in enumerate(messages[1:]):
       role = item['role']
-      if 'content' not in item:
+      if not 'content' in item:
           next
       content = item['content']
       if content is None or content == "":
@@ -250,8 +268,11 @@ def template_alpaca(self,messages):
       content = content.strip()
       if role == 'user':
           formatted_messages += f"### Instruction:\n{content}\n"
-      else:
-          formatted_messages += f"### Response:\n{content}\n"
+      elif role == 'hint':
+          formatted_messages += f"### Knowledge:\n{content}\n"
+      elif self.withresponse:
+          formatted_messages += f"### Assistant:\n{content}\n"
+#         formatted_messages += f"### Response:\n{content}\n"
   formatted_messages += f"### Response: "
   return formatted_messages
 
@@ -271,7 +292,7 @@ def template_gpt4all(self,messages):
       content = content.strip()
       if role == 'user':
           formatted_messages += f"### User: {content}\n"
-      else:
+      elif self.withresponse:
           formatted_messages += f"### System: {content}\n"
   formatted_messages += f"### System: "
   return formatted_messages
@@ -287,13 +308,21 @@ def template_llama(self,messages):
       formatted_messages = f"<s>[INST]"
   # Loop starting from the first user message
   for index, item in enumerate(messages[1:]):
-      role = item['role']
-      content = item['content']
+      if "role" in item:
+          role = item['role']
+      else:
+          role = 'user'
+      if "content" in item:
+          content = item['content']
+      else:
+          continue
+      if role == 'hint':
+          role = 'assistant'
       if role == 'user':
           formatted_messages += f"{content}[/INST] "
       elif role == 'function':
           formatted_messages += f"Output: {content}[/INST] "
-      elif role == 'assistant':
+      elif role == 'assistant' and self.withresponse:
           formatted_messages += f"{content}</s><s>[INST]"
   # Remove the trailing '<s>[INST] ' from the final output
   if formatted_messages.endswith("<s>[INST]"):
@@ -302,21 +331,45 @@ def template_llama(self,messages):
 
 class Interpreter:
   def __init__(self):
+    self.withresponse = False
     self.messages = []
-    self.use_indexer = False # Use R2MODE env var instead True
     self.temperature = 0.002
     self.terminator = "</s>"
     self.api_key = None
     self.auto_run = False
     self.model = get_default_model()
     self.last_model = ""
-    self.live_mode = not have_rlang
     self.env = {}
+    self.openai_client = None
     self.api_base = None # Will set it to whatever OpenAI wants
     self.context_window = 4096 # Make it configurable
     # self.max_tokens = 750 # For local models only
     self.max_tokens = 1750 # For local models only // make it configurable
     self.system_message = ""
+    self.env["debug"] = "false"
+    self.env["user.name"] = "" # TODO auto fill?
+    self.env["user.os"] = ""
+    self.env["user.arch"] = ""
+    self.env["user.cwd"] = ""
+    self.env["voice.lang"] = "en"
+    self.env["voice.model"] = "base"
+    self.env["data.use"] = "false"
+    self.env["data.path"] = f"{R2AI_HOMEDIR}/doc/data"
+    self.env["data.local"] = "false"
+    self.env["data.hist"] = "false"
+    self.env["data.mastodon"] = "false"
+    self.env["key.mastodon"] = ""
+    self.env["key.openai"] = ""
+#    self.env["chat.temperature"] = "0.002" # TODO
+    if have_rlang:
+      self.env["chat.live"] = "false"
+    else:
+      self.env["chat.live"] = "true"
+#self.env["chat.model"] = "" # TODO
+    self.env["chat.trim"] = "false"
+    self.env["chat.voice"] = "false"
+    self.env["chat.bubble"] = "false"
+    self.env["chat.reply"] = "true"
 
     # Get default system message
     here = os.path.abspath(os.path.dirname(__file__))
@@ -387,10 +440,12 @@ class Interpreter:
         print(f"**Removed codeblock**") # TODO: Could add preview of code removed here.
 
   def systag(self, beg):
-    if "mistral" in self.model.lower():
-      return "[INST]" if beg else "[/INST]\n"
-    return "<<SYS>>" if beg else "<</SYS>>"
-  def chat(self, message=None, return_messages=False):
+    lowermodel = self.model.lower()
+    if "llama" in lowermodel:
+      return "[INST]<<SYS>>" if beg else "<</SYS>>[/INST]"
+    return "[INST]" if beg else "[/INST]\n"
+
+  def chat(self, message=None):
     global Ginterrupted
     if self.last_model != self.model:
       self.llama_instance = None
@@ -399,22 +454,27 @@ class Interpreter:
       self.end_active_block()
       print("Missing message")
       return
-    if self.use_indexer or "R2MODE" in os.environ:
-      matches = main_indexer(message)
+    if self.env["data.use"] == "true":
+      hist = self.env["data.hist"] == "true"
+      use_mastodon = self.env["data.mastodon"] == "true"
+      use_debug = self.env["debug"] == "true"
+      datadir = None
+      if self.env["data.local"] == "true":
+        datadir = self.env["data.path"]
+      matches = main_indexer(message, datadir, hist, use_mastodon, use_debug)
       if len(matches) > 0:
-        newmsg = self.systag(True)
         for m in matches:
-          m = r2eval(m)
-          newmsg += f"{m}.\n"
-        message = newmsg + self.systag(False) + "\n" + message
-    if "DEBUG" in self.env:
+          if self.env["debug"] == "true":
+            print("HINT: " + m)
+          self.messages.append({"role": "hint", "content": r2eval(m)})
+    if self.env["debug"] == "true":
       print(message)
 #    print(message)
     # Code-Llama
-    if self.llama_instance == None:
+    if not self.model.startswith("openai:") and self.llama_instance == None:
       # Find or install Code-Llama
       try:
-        debug_mode = "DEBUG" in self.env
+        debug_mode = False # self.env["debug"] == "true"
         self.llama_instance = new_get_hf_llm(self.model, debug_mode, self.context_window)
         if self.llama_instance == None:
           print("Cannot find the model")
@@ -425,15 +485,14 @@ class Interpreter:
     # If it was, we respond non-interactively
     self.messages.append({"role": "user", "content": message})
     try:
-    	self.respond()
+        self.respond()
+        self.clear_hints()
     except:
         if Ginterrupted:
             Ginterrupted = False
         else:
             traceback.print_exc()
     self.end_active_block()
-    if return_messages:
-        return self.messages
 
   def end_active_block(self):
     if self.active_block:
@@ -442,13 +501,34 @@ class Interpreter:
 
   def environment(self):
     kvs = ""
-    for k in self.env.keys():
-        if k != "DEBUG":
-            kvs += k + ": " + self.env[k] + "\n"
-    if len(kvs) == 0:
-        return ""
+    if self.env["user.name"] != "":
+      kvs += "Name: " + self.env["user.name"] + "\n"
+    if self.env["user.os"] != "":
+      kvs += "OS: " + self.env["user.os"] + "\n"
+    if self.env["user.cwd"] != "":
+      kvs += "CWD: " + self.env["user.cwd"] + "\n"
+    if self.env["user.arch"] != "":
+      kvs += "ARCH: " + self.env["user.arch"] + "\n"
     # info += f"[User Info]\nName: {username}\nCWD: {current_working_directory}\nOS: {operating_system}"
-    return "[User Info]\n" + kvs
+    if kvs != "":
+      return "[User Info]\n" + kvs
+    return ""
+
+  def clear_hints(self):
+    res = []
+    for msg in self.messages:
+      if "role" in msg and msg["role"] != "hint":
+        res.append(msg)
+    self.messages = res
+
+  def compress_messages(self, messages):
+    msglen = 0
+    for msg in messages:
+      if "content" in msg:
+        msglen += len(msg["content"])
+    if msglen > 8000:
+      print("Query is too large.. you should consider triming old messages")
+    return messages
 
   def respond(self):
     global Ginterrupted
@@ -464,41 +544,75 @@ class Interpreter:
     system_message = self.system_message + "\n\n" + info
     system_message += self.environment()
 
-    messages = tt.trim(self.messages,
-        max_tokens=(self.context_window-self.max_tokens-25),
-        system_message=system_message)
+    if self.env["chat.trim"]:
+      ## this stupid function is slow as hell and doesn not provides much goodies
+      ## just ignore it by default
+      import tokentrim
+      messages = tokentrim.trim(self.messages,
+          max_tokens=(self.context_window-self.max_tokens-25),
+          system_message=system_message)
+    else:
+      messages = self.compress_messages(messages)
 
-    # DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG
-    if "DEBUG" in self.env:
+    if self.env["debug"] == "true":
       print(messages)
 
-    # Make LLM call
-    self.terminator = "</s>"
     # Code-Llama
     # Convert messages to prompt
     # (This only works if the first message is the only system message)
-    prompt = messages_to_prompt(self,messages)
+    prompt = messages_to_prompt(self, messages)
+    # builtins.print(prompt)
 
-    if "DEBUG" in self.env:
-      # we have to use builtins bizarrely! because rich.print interprets "[INST]" as something meaningful
-      builtins.print("TEXT PROMPT SEND TO LLM:\n", prompt)
+    if self.model.startswith("openai:"):
+      # [
+      #  {"role": "system", "content": "You are a poetic assistant, be creative."},
+      #  {"role": "user", "content": "Compose a poem that explains the concept of recursion in programming."}
+      # ]
+      openai_model = self.model[7:]
+      if have_openai:
+        # https://platform.openai.com/docs/assistants/overview
+        if self.openai_client is None:
+          self.openai_client = OpenAI()
+        query = []
+        if self.system_message != "":
+          query.append({"role": "system", "content": self.system_message})
+        query.extend(self.messages)
 
-    if self.llama_instance == None:
-      print("Cannot find the model")
-      return
-    # Run Code-Llama
-    try:
-      response = self.llama_instance(
-        prompt,
-        stream=True,
-        temperature=self.temperature,
-        stop=[self.terminator],
-        max_tokens=1750 # context window is set to 1800, messages are trimmed to 1000... 700 seems nice
-      )
-    except:
-      if Ginterrupted:
-        Ginterrupted = False
+        completion = self.openai_client.chat.completions.create(
+          # TODO: instructions=self.system_message # instead of passing it in the query
+          model=openai_model,
+          max_tokens=self.max_tokens, # 150 :?
+          temperature=self.temperature,
+          messages=query
+        )
+        response = completion.choices[0].message.content
+        if "content" in self.messages[-1]:
+          last_message = self.messages[-1]["content"]
+        if self.env["chat.reply"] == "true":
+          self.messages.append({"role": "assistant", "content": response})
+        print(response)
         return
+      else:
+        print("pip install -U openai")
+        print("export OPENAI_API_KEY=...")
+        return
+    else:
+      # non-openai aka local-llama model
+      if self.llama_instance == None:
+        print("Cannot find the model")
+        return
+      try:
+        response = self.llama_instance(
+          prompt,
+          stream=True,
+          temperature=self.temperature,
+          stop=[self.terminator],
+          max_tokens=1750 # context window is set to 1800, messages are trimmed to 1000... 700 seems nice
+        )
+      except:
+        if Ginterrupted:
+          Ginterrupted = False
+          return
 
     # Initialize message, function call trackers, and active block
     self.messages.append({})
@@ -518,7 +632,7 @@ class Interpreter:
 
       # Accumulate deltas into the last message in messages
       self.messages[-1] = merge_deltas(self.messages[-1], delta)
-      if not self.live_mode:
+      if self.env["chat.live"] != "true":
         continue
 
       # Check if we're in a function call
@@ -598,13 +712,19 @@ class Interpreter:
         if self.active_block == None:
           # Create a message block
           self.active_block = MessageBlock()
-      if self.live_mode:
+      if self.env["chat.live"] == "true":
         self.active_block.update_from_message(self.messages[-1])
       continue # end of for loop
 
-    if not self.live_mode:
+    output_text = ""
+    if len(self.messages) > 0 and "content" in self.messages[-1]:
+      output_text = self.messages[-1]["content"].strip()
+    if self.env["chat.reply"] == "true":
+      self.messages.append({"role": "assistant", "content": output_text})
+    if self.env["chat.voice"] == "true":
+      tts("(assistant)", output_text, self.env["voice.lang"])
+    elif self.env["chat.live"] != "true":
       try:
-        output_text = self.messages[-1]["content"].strip()
         r2lang.print(output_text)
       except:
         print(str(self.messages))

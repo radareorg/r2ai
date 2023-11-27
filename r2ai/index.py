@@ -6,11 +6,13 @@ from unidecode import unidecode
 import sys
 try:
 	from .utils import slurp
+	from .const import R2AI_HISTFILE
 except:
 	from utils import slurp
+	R2AI_HISTFILE = "/dev/null"
 
-SRCDIR = "../doc/data"
-R2AI_DIR = os.path.dirname(__file__)
+MAXCHARS = 128
+MAXMATCHES = 5
 MASTODON_KEY = ""
 try:
 	if "HOME" in os.environ:
@@ -20,30 +22,92 @@ except:
 MASTODON_INSTANCE = "mastodont.cat"
 
 def mastodont_search(text):
-    base_url = f"https://{MASTODON_INSTANCE}/api/v2/search?resolve=true&limit=10&type=statuses&q="
+#    print(f"(mastodon) {text}")
     res = []
-    full_url = base_url + text
+    full_url = f"https://{MASTODON_INSTANCE}/api/v2/search?resolve=true&limit=8&type=statuses&q={text}"
     try:
         headers = {"Authorization": f"Bearer {MASTODON_KEY}"}
         response = requests.get(full_url, headers=headers)
         response.raise_for_status()  # Raise an HTTPError for bad responses
-#        print(f"==> {text}")
         for msg in response.json()["statuses"]:
             content = re.sub(r'<.*?>', '', msg["content"])
-#            print(f"  - {content}")
             res.append(content)
     except requests.exceptions.RequestException as e:
         print(f"Error making request: {e}")
     return res
 
+def hist2txt(text):
+	newlines = []
+	lines = text.split("\n")
+	for line in lines:
+		line = line.strip().replace("\\040", " ")
+		if len(line) < 8:
+			next
+		elif "?" in line:
+			next
+		elif line.startswith("-") or line.startswith("_") or line.startswith("!"):
+			next
+		elif line.startswith("-r"):
+			# newlines.append(line[2:])
+			next
+		else:
+			newlines.append(line)
+	newlines = sorted(set(newlines))
+	return "\n".join(newlines)
+
+def md2txt(text):
+	# parser markdown and return a txt
+	lines = text.split("\n")
+	newlines = []
+	data = ""
+	titles = []
+	read_block = False
+	for line in lines:
+		line = line.strip()
+		if line == "":
+			next
+		if read_block:
+			data += line + "\\n"
+			if line.startswith("```"):
+				read_block = False
+			next
+		if line.startswith("```"):
+			read_block = True
+		elif line.startswith("* "):
+			if data != "":
+				newlines.append(":".join(titles) +":"+  data + line)
+		elif line.startswith("### "):
+			if data != "":
+				newlines.append(":".join(titles) +":"+  data)
+				data = ""
+			titles = [titles[0], titles[1], line[3:]]
+		elif line.startswith("## "):
+			if data != "":
+				newlines.append(":".join(titles) +":"+ data)
+				data = ""
+			titles = [titles[0], line[3:]]
+		elif line.startswith("# "):
+			if data != "":
+				newlines.append(":".join(titles)+ ":"+data)
+				data = ""
+			titles = [line[2:]]
+		else:
+			data += line + " "
+#	print("\n".join(newlines))
+	return "\n".join(newlines)
+
 def filter_line(line):
 	line = unidecode(line) # remove accents
+	line = re.sub(r'https?://\S+', '', line)
+	line = re.sub(r'http?://\S+', '', line)
 	line = line.replace(":", " ").replace("/", " ").replace("`", " ").replace("?", " ")
 	line = line.replace("\"", " ").replace("'", " ")
 	line = line.replace("<", " ").replace(">", " ").replace("@", " ").replace("#", " ")
-	nline = line.replace("-", " ").replace(".", " ").replace(",", " ").replace("(", " ").replace(")", " ").strip(" ")
+	line = line.replace("-", " ").replace(".", " ").replace(",", " ").replace("(", " ").replace(")", " ").strip(" ")
+	if len(line) > MAXCHARS:
+		line = line[:MAXCHARS]
 	words = []
-	for a in nline.split(" "):
+	for a in line.split(" "):
 		b = a.strip().lower()
 		try:
 			int(b)
@@ -54,13 +118,24 @@ def filter_line(line):
 			words.append(b)
 	return words
 
+def smart_slurp(file):
+#	print(f"slurp: {file}")
+	text = slurp(file)
+	if file.endswith("r2ai.history"):
+		text = hist2txt(text)
+	elif file.endswith(".md"):
+		text = md2txt(text)
+	return text
+
 class compute_rarity():
 	use_mastodon = MASTODON_KEY != "" # False
+	use_debug = False
 	words = {}
 	lines = []
-	def __init__(self, source_files):
+	def __init__(self, source_files, use_mastodon, use_debug):
+		self.use_mastodon = use_mastodon
 		for file in source_files:
-			lines = slurp(file).splitlines()
+			lines = smart_slurp(file).splitlines()
 			for line in lines:
 				self.lines.append(line)
 				self.compute_rarity_in_line(line)
@@ -72,10 +147,13 @@ class compute_rarity():
 			else:
 				self.words[a] = 1
 	def pull_realtime_lines(self, text, chk):
+		if self.use_debug:
+			print(f"Pulling from mastodon {text}")
 		rtlines = []
 		twords = filter_line(text)
 		for tw in twords:
-			rtlines.extend(mastodont_search(tw))
+			if len(tw) > 4:
+				rtlines.extend(mastodont_search(tw))
 		words = {} # local rarity ratings
 		for line in rtlines:
 			fline = filter_line(line)
@@ -87,11 +165,17 @@ class compute_rarity():
 		# find rarity of words in the results + text and 
 		rslines = []
 		swords = sorted(twords, key=lambda x: words.get(x) or 0)
-		for tw in swords:
-			w = words.get(tw)
-			if len(tw) > 4 and w is not None and w > 0 and w < 40:
-#				print(f"RELEVANT WORD {tw} {w}")
-				rslines.extend(mastodont_search(tw))
+		nwords = " ".join(swords[:5])
+		rslines.extend(mastodont_search(nwords))
+		if len(rslines) < 10:
+			for tw in swords:
+				w = words.get(tw)
+				if len(tw) > 4 and w is not None and w > 0 and w < 40:
+#					print(f"RELEVANT WORD {tw} {w}")
+					rslines.extend(mastodont_search(tw))
+		if self.use_debug:
+			for line in rslines:
+				print(line)
 		return rslines
 	def find_matches(self, text):
 		if self.use_mastodon:
@@ -128,7 +212,8 @@ class compute_rarity():
 		if self.use_mastodon:
 			self.lines = backup_lines
 			self.words = backup_words
-		return srates[0:5]
+		return srates[0:MAXMATCHES]
+
 	def match_line(self,linewords, swords):
 		count = 0
 		ow = ""
@@ -144,18 +229,29 @@ class compute_rarity():
 		return count
 
 def find_sources(srcdir):
-	files = os.walk(srcdir)
+	files = []
+	try:
+		files = os.walk(srcdir)
+	except:
+		return []
 	res = []
 	for f in files:
 		for f2 in f[2]:
-			if f2.endswith(".txt"):
+			if f2.endswith(".txt") or f2.endswith(".md"):
 				res.append(f"{srcdir}/{f2}")
 	return res
 
-def main_indexer(text):
-	source_files = find_sources(f"{R2AI_DIR}/{SRCDIR}")
-	raredb = compute_rarity(source_files)
-	return raredb.find_matches(text)
+def main_indexer(text, datadir, hist, use_mastodon, use_debug):
+	source_files = []
+	if datadir is not None and datadir != "":
+	  source_files.extend(find_sources(datadir))
+	if hist:
+	  source_files.append(R2AI_HISTFILE)
+	raredb = compute_rarity(source_files, use_mastodon, use_debug)
+	res = raredb.find_matches(text)
+	res = sorted(set(res))
+#	print(res)
+	return res
 
 if __name__ == '__main__':
 	if len(sys.argv) > 1:
@@ -163,4 +259,4 @@ if __name__ == '__main__':
 		for m in matches:
 			print(m)
 	else:
-		print(f"Usage: index.py [query] # takes the data from ${SRCDIR}")
+		print(f"Usage: index.py [query]")
