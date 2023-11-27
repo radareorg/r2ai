@@ -371,11 +371,6 @@ class Interpreter:
     self.env["chat.bubble"] = "false"
     self.env["chat.reply"] = "true"
 
-    # Get default system message
-    here = os.path.abspath(os.path.dirname(__file__))
-    with open(os.path.join(here, 'system_message.txt'), 'r') as f:
-      self.system_message = f.read().strip()
-
     # No active block to start
     # (blocks are visual representation of messages on the terminal)
     self.active_block = None
