@@ -40,9 +40,19 @@ if you have this error, install this:
 The virtual environment was not created successfully because ensurepip is not
 available.  On Debian/Ubuntu systems, you need to install the python3-venv
 package using the following command.
+
+1-
 ```
 apt install python3.10-venv
-
+```
+2-
+```
+pip install -r requirements.txt
+```
+3- If you got error when tokentrim installation:  pip install tokentrim
+attention this command should run on you OS not your virtual environment:
+```
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
 ```bash
