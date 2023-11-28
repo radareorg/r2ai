@@ -133,7 +133,7 @@ def template_mistral(self, messages):
         msg += f"[INST]{content}[/INST]"
       elif role == "hint":
         msg += f"[INST]* {content}[/INST]"
-      elif role == "assistant" and self.withresponse:
+      elif role == "assistant" and self.env["chat.reply"]:
         if 'content' in item:
           content = item['content'].strip()
           msg += f"{content}."
@@ -163,7 +163,7 @@ def template_uncensored(self, messages):
         formatted_messages += f"### Human: {content}\n"
       elif role == "hint":
         formatted_messages += f"### Knowledge: {content}\n"
-      elif role == "assistant" and self.withresponse:
+      elif role == "assistant" and self.env["chat.reply"]:
         if 'content' in item:
           content = item['content'].strip()
 #          formatted_messages += f"### Assistant: {content}\n"
@@ -202,7 +202,7 @@ def template_tinyllama(self,messages):
           formatted_messages += f"knowledge: {content}\n"
       elif role == 'function':
           formatted_messages += f"user {content} "
-      elif role == 'assistant' and self.withresponse:
+      elif role == 'assistant' and self.env["chat.reply"]:
           formatted_messages += f"assistant {content} "
   # Remove the trailing '<s>[INST] ' from the final output
   formatted_messages += f"<|im_end|>"
@@ -221,7 +221,7 @@ def template_llamapython(self, messages):
       content = item['content']
       if role == 'user':
           formatted_messages += f"{content}\n[/INST]"
-      elif self.withresponse:
+      elif self.env["chat.reply"]:
           formatted_messages += f"[INST]Answer: {content}\n[/INST]"
   formatted_messages += "\n[INST]Answer: "
   return formatted_messages
@@ -244,7 +244,7 @@ def template_tiefighter(self, messages):
       content = content.strip()
       if role == 'user':
           formatted_messages += f"[Instructions] {content} [/Instructions]\n"
-      elif self.withresponse:
+      elif self.env["chat.reply"]:
           formatted_messages += f"[Assistant] {content}\n"
 #         formatted_messages += f"### Response:\n{content}\n"
   formatted_messages += f"[Assistant]"
@@ -270,7 +270,7 @@ def template_alpaca(self, messages):
           formatted_messages += f"### Instruction:\n{content}\n"
       elif role == 'hint':
           formatted_messages += f"### Knowledge:\n{content}\n"
-      elif self.withresponse:
+      elif self.env["chat.reply"]:
           formatted_messages += f"### Assistant:\n{content}\n"
 #         formatted_messages += f"### Response:\n{content}\n"
   formatted_messages += f"### Response: "
@@ -292,7 +292,7 @@ def template_gpt4all(self,messages):
       content = content.strip()
       if role == 'user':
           formatted_messages += f"### User: {content}\n"
-      elif self.withresponse:
+      elif self.env["chat.reply"]:
           formatted_messages += f"### System: {content}\n"
   formatted_messages += f"### System: "
   return formatted_messages
@@ -322,7 +322,7 @@ def template_llama(self,messages):
           formatted_messages += f"Hint: {content}[/INST] "
       elif role == 'function':
           formatted_messages += f"Output: {content}[/INST] "
-      elif role == 'assistant' and self.withresponse:
+      elif role == 'assistant' and self.env["data.reply"]:
           formatted_messages += f"{content}</s><s>[INST]"
   # Remove the trailing '<s>[INST] ' from the final output
   if formatted_messages.endswith("<s>[INST]"):
@@ -331,7 +331,6 @@ def template_llama(self,messages):
 
 class Interpreter:
   def __init__(self):
-    self.withresponse = False
     self.messages = []
     self.temperature = 0.002
     self.terminator = "</s>"
