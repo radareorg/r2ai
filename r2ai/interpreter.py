@@ -358,6 +358,7 @@ class Interpreter:
     self.env["data.local"] = "false"
     self.env["data.hist"] = "false"
     self.env["data.mastodon"] = "false"
+    self.env["data.vectordb"] = "false"
     self.env["key.mastodon"] = ""
     self.env["key.openai"] = ""
 #    self.env["chat.temperature"] = "0.002" # TODO
@@ -452,11 +453,12 @@ class Interpreter:
     if self.env["data.use"] == "true":
       hist = self.env["data.hist"] == "true"
       use_mastodon = self.env["data.mastodon"] == "true"
+      use_vectordb = self.env["data.vectordb"] == "true"
       use_debug = self.env["debug"] == "true"
       datadir = None
       if self.env["data.local"] == "true":
         datadir = self.env["data.path"]
-      matches = main_indexer(message, datadir, hist, use_mastodon, use_debug)
+      matches = main_indexer(message, datadir, hist, use_mastodon, use_debug, use_vectordb)
       if len(matches) > 0:
         for m in matches:
           if self.env["debug"] == "true":

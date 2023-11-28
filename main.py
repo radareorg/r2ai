@@ -337,3 +337,5 @@ elif len(sys.argv) > 1:
 	r2ai_repl()
 elif not within_r2 and have_r2pipe:
 	r2ai_repl()
+else:
+	r2ai_repl()

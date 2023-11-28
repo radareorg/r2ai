@@ -11,6 +11,9 @@ except:
 	from utils import slurp
 	R2AI_HISTFILE = "/dev/null"
 
+have_vectordb = None
+vectordb_instance = None
+
 MAXCHARS = 128
 MAXMATCHES = 5
 MASTODON_KEY = ""
@@ -127,6 +130,42 @@ def smart_slurp(file):
 		text = md2txt(text)
 	return text
 
+def vectordb_search2(query_text, use_mastodon):
+	result = []
+	if use_mastodon:
+		print("TODO: mastodon search not supported for indexdb yet")
+	if have_vectordb == True and vectordb_instance is not None:
+		res = vectordb_instance.search(query_text, top_n=3)
+		for r in res:
+			if r['distance'] < 1:
+				result.append(r)
+	return result 
+
+def vectordb_search(query_text, source_files, use_mastodon, use_debug):
+	global have_vectordb, vectordb_instance
+	if have_vectordb == False:
+		return []
+	if have_vectordb == True and vectordb_instance is not None:
+		return vectordb_search2(query_text, use_mastodon)
+	try:
+		import vectordb
+		have_vectordb = True
+	except:
+		have_vectordb = False
+		print("To better data index use:")
+		print("  pip install vectordb2")
+		print("On macOS you'll need to also do this:")
+		print("  python -m pip install spacy")
+		print("  python -m spacy download en_core_web_sm")
+	vectordb_instance = vectordb.Memory()
+	# indexing data
+	for file in source_files:
+		lines = smart_slurp(file).splitlines()
+		for line in lines:
+			vectordb_instance.save(line)
+#			vectordb_instance.save(line, {"title":file, "url": file})
+	return vectordb_search2(query_text, use_mastodon)
+
 class compute_rarity():
 	use_mastodon = MASTODON_KEY != "" # False
 	use_debug = False
@@ -241,12 +280,14 @@ def find_sources(srcdir):
 				res.append(f"{srcdir}/{f2}")
 	return res
 
-def main_indexer(text, datadir, hist, use_mastodon, use_debug):
+def main_indexer(text, datadir, hist, use_mastodon, use_debug, use_vectordb):
 	source_files = []
 	if datadir is not None and datadir != "":
-	  source_files.extend(find_sources(datadir))
+		source_files.extend(find_sources(datadir))
 	if hist:
-	  source_files.append(R2AI_HISTFILE)
+		source_files.append(R2AI_HISTFILE)
+	if use_vectordb:
+		return vectordb_search(text, source_files, use_mastodon, use_debug)
 	raredb = compute_rarity(source_files, use_mastodon, use_debug)
 	res = raredb.find_matches(text)
 	res = sorted(set(res))

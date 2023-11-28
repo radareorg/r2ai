@@ -32,12 +32,28 @@ Run a language model in local, without internet, to entertain you or help answer
 This is optional ans system dependant. but on recent Debian/Ubuntu systems the `pip` tool is no longer working, because it conflicts with the system packages. The best way to do this is with `venv`:
 
 ```bash
-python -m venv r2ai
-. r2ai/bin/activate
+python -m venv venv
+. venv/bin/activate
+pip install -r requirements.txt
 ```
 
+Optionally if you want better indexer for the data install vectordb.
+
 ```bash
-pip install -r requirements.txt
+# on Linux
+pip install vectordb2
+
+# on macOS
+pip install vectordb2 spacy
+python -m spacy download en_core_web_sm
+brew install llvm
+export PATH=/opt/homebrew/Cellar/llvm/17.0.5/bin/:$PATH
+CC=clang CXX=clang++ pip install git+https://github.com/teemupitkanen/mrpt/
+```
+
+And now you should be able to run it like this
+
+```bash
 r2pm -r r2ai
 ```
 
