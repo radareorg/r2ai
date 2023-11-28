@@ -541,7 +541,7 @@ class Interpreter:
     system_message = self.system_message + "\n\n" + info
     system_message += self.environment()
 
-    if self.env["chat.trim"]:
+    if self.env["chat.trim"] == "true":
       ## this stupid function is slow as hell and doesn not provides much goodies
       ## just ignore it by default
       import tokentrim
@@ -549,7 +549,7 @@ class Interpreter:
           max_tokens=(self.context_window-self.max_tokens-25),
           system_message=system_message)
     else:
-      messages = self.compress_messages(messages)
+      messages = self.compress_messages(self.messages)
 
     if self.env["debug"] == "true":
       print(messages)
