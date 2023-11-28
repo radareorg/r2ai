@@ -138,7 +138,9 @@ def vectordb_search2(query_text, use_mastodon):
 		res = vectordb_instance.search(query_text, top_n=3)
 		for r in res:
 			if r['distance'] < 1:
-				result.append(r)
+				result.append(r["chunk"])
+	#		else:
+	#			result.append(r["chunk"])
 	return result 
 
 def vectordb_search(query_text, source_files, use_mastodon, use_debug):

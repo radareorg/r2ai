@@ -316,10 +316,10 @@ def template_llama(self,messages):
           content = item['content']
       else:
           continue
-      if role == 'hint':
-          role = 'assistant'
       if role == 'user':
           formatted_messages += f"{content}[/INST] "
+      elif role == 'hint':
+          formatted_messages += f"Hint: {content}[/INST] "
       elif role == 'function':
           formatted_messages += f"Output: {content}[/INST] "
       elif role == 'assistant' and self.withresponse:
@@ -519,6 +519,8 @@ class Interpreter:
     self.messages = res
 
   def compress_messages(self, messages):
+    # TODO: implement a better logic in here asking the lm to summarize the context
+    return messages
     msglen = 0
     for msg in messages:
       if "content" in msg:
