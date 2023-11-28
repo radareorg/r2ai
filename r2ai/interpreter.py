@@ -252,11 +252,12 @@ def template_tiefighter(self, messages):
 
 def template_alpaca(self, messages):
   self.terminator = "###"
-  system_prompt = messages[0]['content'].strip()
+  system_prompt = self.system_message
   if system_prompt != "":
       formatted_messages = f"### Instruction:\n{system_prompt}\n"
   else:
       formatted_messages = ""
+  formatted_messages += messages[0]['content'].strip()
   # Loop starting from the first user message
   for index, item in enumerate(messages[1:]):
       role = item['role']
