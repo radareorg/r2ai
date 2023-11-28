@@ -63,7 +63,7 @@ def md2txt(text):
 	lines = text.split("\n")
 	newlines = []
 	data = ""
-	titles = []
+	titles = ["", "", ""]
 	read_block = False
 	for line in lines:
 		line = line.strip()
@@ -93,7 +93,7 @@ def md2txt(text):
 			if data != "":
 				newlines.append(":".join(titles)+ ":"+data)
 				data = ""
-			titles = [line[2:]]
+			titles = [line[2:], "", ""]
 		else:
 			data += line + " "
 #	print("\n".join(newlines))
@@ -277,9 +277,11 @@ def find_sources(srcdir):
 		return []
 	res = []
 	for f in files:
-		for f2 in f[2]:
+		directory = f[0]
+		dirfiles = f[2]
+		for f2 in dirfiles:
 			if f2.endswith(".txt") or f2.endswith(".md"):
-				res.append(f"{srcdir}/{f2}")
+				res.append(f"{directory}/{f2}")
 	return res
 
 def main_indexer(text, datadir, hist, use_mastodon, use_debug, use_vectordb):
