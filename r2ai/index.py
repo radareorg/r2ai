@@ -135,12 +135,13 @@ def vectordb_search2(query_text, use_mastodon):
 	if use_mastodon:
 		print("TODO: mastodon search not supported for indexdb yet")
 	if have_vectordb == True and vectordb_instance is not None:
-		res = vectordb_instance.search(query_text, top_n=3)
+		res = vectordb_instance.search(query_text, top_n=MAXMATCHES)
 		for r in res:
 			if r['distance'] < 1:
 				result.append(r["chunk"])
 	#		else:
 	#			result.append(r["chunk"])
+	#print(result)
 	return result 
 
 def vectordb_search(query_text, source_files, use_mastodon, use_debug):
@@ -159,13 +160,15 @@ def vectordb_search(query_text, source_files, use_mastodon, use_debug):
 		print("On macOS you'll need to also do this:")
 		print("  python -m pip install spacy")
 		print("  python -m spacy download en_core_web_sm")
-	vectordb_instance = vectordb.Memory()
+	vectordb_instance = vectordb.Memory(embeddings="best") # normal or fast
 	# indexing data
+	print("[r2ai] Indexing local data with vectordb")
 	for file in source_files:
 		lines = smart_slurp(file).splitlines()
 		for line in lines:
 			vectordb_instance.save(line)
 #			vectordb_instance.save(line, {"title":file, "url": file})
+	print("[r2ai] VectorDB index done")
 	return vectordb_search2(query_text, use_mastodon)
 
 class compute_rarity():
