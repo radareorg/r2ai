@@ -111,6 +111,7 @@ def runline(usertext):
 		words = usertext.split(" ")
 		if len(words) > 1:
 			ai.model = words[1]
+			ai.env["llm.model"] = ai.model
 			set_default_model(ai.model)
 		else:
 			print(ai.model)
@@ -121,6 +122,7 @@ def runline(usertext):
 			print(ai.temperature)
 		else:
 			ai.temperature = float (usertext[2:])
+			ai.env["llm.temperature"] = str(ai.temperature)
 	elif usertext == "-A":
 		ai.env["chat.voice"] = "true"
 		old_live = ai.env["chat.live"]

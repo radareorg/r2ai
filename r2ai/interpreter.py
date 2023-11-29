@@ -333,7 +333,6 @@ def template_llama(self,messages):
 class Interpreter:
   def __init__(self):
     self.messages = []
-    self.temperature = 0.002
     self.terminator = "</s>"
     self.api_key = None
     self.auto_run = False
@@ -342,11 +341,12 @@ class Interpreter:
     self.env = {}
     self.openai_client = None
     self.api_base = None # Will set it to whatever OpenAI wants
-    self.context_window = 4096 # Make it configurable
-    # self.max_tokens = 750 # For local models only
-    self.max_tokens = 1750 # For local models only // make it configurable
     self.system_message = ""
     self.env["debug"] = "false"
+    self.env["llm.model"] = ""
+    self.env["llm.window"] = "4096" # context_window
+    self.env["llm.maxtoken"] = "1750"
+    self.env["llm.temperature"] = "0.002"
     self.env["user.name"] = "" # TODO auto fill?
     self.env["user.os"] = ""
     self.env["user.arch"] = ""
@@ -361,7 +361,6 @@ class Interpreter:
     self.env["data.vectordb"] = "false"
     self.env["key.mastodon"] = ""
     self.env["key.openai"] = ""
-#    self.env["chat.temperature"] = "0.002" # TODO
     if have_rlang:
       self.env["chat.live"] = "false"
     else:
@@ -444,17 +443,11 @@ class Interpreter:
   def aikeywords(self, text):
     # kws = self.aikeywords("who is the author of radare?") => "author,radare2"
     words = []
-    if not self.model.startswith("openai:") and self.llama_instance == None:
-      self.llama_instance = new_get_hf_llm(self.model, False, self.context_window)
     mmname = "TheBloke/Mistral-7B-Instruct-v0.1-GGUF"
-    mm = new_get_hf_llm(mmname, False, self.context_window)
+    ctxwindow = int(self.env["llm.window"])
+    mm = new_get_hf_llm(mmname, False, ctxwindow)
     msg = f"Considering the sentence \"{text}\" as input, Take the KEY words from the string and show ONLY a comma separated list of the most relevant words. DO NOT introduce your response, ONLY show the words"
-    response = mm(msg,
-        stream=False,
-        temperature=0.1,
-        stop=[self.terminator],
-        max_tokens=1750 # context window is set to 1800, messages are trimmed to 1000... 700 seems nice
-      )
+    response = mm(msg, stream=False, temperature=0.1, stop="</s>", max_tokens=1750)
     text0 = response["choices"][0]["text"]
     if text0.startswith("."):
       text0 = text0[1:].strip()
@@ -462,7 +455,8 @@ class Interpreter:
       text0 = text0.split(":")[1].strip()
     except:
       pass
-    print(text0)
+    # print(text0)
+    mm = None
     return text0.split(",")
 
   def chat(self, message=None):
@@ -495,8 +489,9 @@ class Interpreter:
     if not self.model.startswith("openai:") and self.llama_instance == None:
       # Find or install Code-Llama
       try:
-        debug_mode = False # self.env["debug"] == "true"
-        self.llama_instance = new_get_hf_llm(self.model, debug_mode, self.context_window)
+        ctxwindow = int(self.env["llm.window"])
+        debug_mode = False # maybe true when debuglevel=2 ?
+        self.llama_instance = new_get_hf_llm(self.model, debug_mode, ctxwindow)
         if self.llama_instance == None:
           print("Cannot find the model")
           return
@@ -555,6 +550,7 @@ class Interpreter:
 
   def respond(self):
     global Ginterrupted
+    maxtokens = int(self.env["llm.maxtokens"])
     # Add relevant info to system_message
     # (e.g. current working directory, username, os, etc.)
     info = self.get_info_for_system_message()
@@ -571,9 +567,7 @@ class Interpreter:
       ## this stupid function is slow as hell and doesn not provides much goodies
       ## just ignore it by default
       import tokentrim
-      messages = tokentrim.trim(self.messages,
-          max_tokens=(self.context_window-self.max_tokens-25),
-          system_message=system_message)
+      messages = tokentrim.trim(self.messages, max_tokens=maxtokens, system_message=system_message)
     else:
       messages = self.compress_messages(self.messages)
 
@@ -604,8 +598,8 @@ class Interpreter:
         completion = self.openai_client.chat.completions.create(
           # TODO: instructions=self.system_message # instead of passing it in the query
           model=openai_model,
-          max_tokens=self.max_tokens, # 150 :?
-          temperature=self.temperature,
+          max_tokens=maxtokens,
+          temperature=float(self.env["llm.temperature"]),
           messages=query
         )
         response = completion.choices[0].message.content
@@ -628,9 +622,9 @@ class Interpreter:
         response = self.llama_instance(
           prompt,
           stream=True,
-          temperature=self.temperature,
+          temperature=float(self.env["llm.temperature"]),
           stop=[self.terminator],
-          max_tokens=1750 # context window is set to 1800, messages are trimmed to 1000... 700 seems nice
+          max_tokens=maxtokens
         )
       except:
         if Ginterrupted:
