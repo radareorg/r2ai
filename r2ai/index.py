@@ -161,6 +161,8 @@ def vectordb_search(query_text, source_files, use_mastodon, use_debug):
 		print("On macOS you'll need to also do this:")
 		print("  python -m pip install spacy")
 		print("  python -m spacy download en_core_web_sm")
+	if not have_vectordb:
+		return []
 	try:
 		vectordb_instance = vectordb.Memory(embeddings="best") # normal or fast
 	except:

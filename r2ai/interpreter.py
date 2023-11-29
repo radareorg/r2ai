@@ -345,7 +345,7 @@ class Interpreter:
     self.env["debug"] = "false"
     self.env["llm.model"] = ""
     self.env["llm.window"] = "4096" # context_window
-    self.env["llm.maxtoken"] = "1750"
+    self.env["llm.maxtokens"] = "1750"
     self.env["llm.temperature"] = "0.002"
     self.env["user.name"] = "" # TODO auto fill?
     self.env["user.os"] = ""

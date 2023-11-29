@@ -164,12 +164,15 @@ def runline(usertext):
 				if v == "":
 #					del ai.env[k]
 					ai.env[k] = ""
-				else:
+				elif k in ai.env:
 					ai.env[k] = v
+				else:
+					print("Invalid config key")
 			else:
 				try:
 					print(ai.env[k])
 				except:
+					print("Invalid config key")
 					pass
 	elif usertext.startswith("-w"):
 		ai.withresponse = not ai.withresponse
