@@ -78,7 +78,8 @@ help_message = """Usage: r2ai [-option] ([query])
  r2ai -c [cmd] [query]  run the given r2 command with the given query
  r2ai -e [k[=v]]        set environment variable
  r2ai -f [file]         load file and paste the output
- r2ai -h | ?            show this help
+ r2ai -h                show this help
+ r2ai . [file]          interpret r2ai script with access to globals
  r2ai -i [file] [query] load the file contents and prompt it with the given query
  r2ai -m [file/repo]    select model from huggingface repository or local file
  r2ai -M                list supported and most common models from hf
@@ -232,6 +233,13 @@ def runline(usertext):
 		ai.chat(f"{que}:\n{tag}\n{res}\n{tag}\n")
 	elif usertext[0] == "!":
 		os.system(usertext[1:])
+	elif usertext[0] == ".":
+		try:
+			file = slurp(usertext[1:].strip())
+			exec(file, globals())
+		except:
+			traceback.print_exc()
+			pass
 	elif usertext[0] == ":":
 		if r2 is None:
 			print("r2 is not available")
