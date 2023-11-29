@@ -61,30 +61,30 @@ def messages_to_prompt(self, messages):
     # Happens if it immediatly writes code
     if "role" not in message:
       message["role"] = "assistant"
-
-  if "q4_0" in self.model.lower():
+  lowermodel = self.model.lower()
+  if "q4_0" in lowermodel:
     formatted_messages = template_q4im(self, messages)
-  elif "tief" in self.model.lower():
+  elif "tief" in lowermodel:
     formatted_messages = template_tiefighter(self, messages)
-  elif "luna" in self.model.lower():
+  elif "luna" in lowermodel:
     formatted_messages = template_alpaca(self, messages)
-  elif "uncensor" in self.model.lower():
+  elif "uncensor" in lowermodel:
 #    formatted_messages = template_gpt4all(self, messages)
 #    formatted_messages = template_alpaca(self, messages)
     formatted_messages = template_uncensored(self, messages)
 #    formatted_messages = template_gpt4all(self, messages)
-  elif "gpt4all" in self.model.lower():
+  elif "gpt4all" in lowermodel:
     formatted_messages = template_gpt4all(self, messages)
-  elif "falcon" in self.model.lower():
+  elif "falcon" in lowermodel:
     formatted_messages = template_falcon(self, messages)
-  elif "utopia" in self.model.lower():
+  elif "utopia" in lowermodel:
     formatted_messages = template_alpaca(self, messages)
-  elif "mistral" in self.model.lower():
+  elif "mistral" in lowermodel:
     formatted_messages = template_mistral(self, messages)
-  elif "python" in self.model.lower():
+  elif "python" in lowermodel:
     print("codellama-python model is not working well yet")
     formatted_messages = template_llamapython(self, messages)
-  elif "tinyllama" in self.model.lower():
+  elif "tinyllama" in lowermodel:
     formatted_messages = template_tinyllama(self, messages)
   else:
     formatted_messages = template_llama(self, messages)
@@ -299,31 +299,31 @@ def template_gpt4all(self,messages):
   return formatted_messages
 
 def template_llama(self,messages):
+  print("Using llama")
   # Llama prompt template
   # Extracting the system prompt and initializing the formatted string with it.
   self.terminator = "</s>"
-  system_prompt = messages[0]['content'].strip()
+  system_prompt = self.system_message
   if system_prompt != "":
       formatted_messages = f"<s>[INST]<<SYS>>{system_prompt}<</SYS>>"
   else:
       formatted_messages = f"<s>[INST]"
   # Loop starting from the first user message
-  for index, item in enumerate(messages[1:]):
+  for index, item in enumerate(messages):
       if "role" in item:
           role = item['role']
       else:
           role = 'user'
-      if "content" in item:
-          content = item['content']
-      else:
+      if "content" not in item:
           continue
+      content = item['content']
       if role == 'user':
           formatted_messages += f"{content}[/INST] "
       elif role == 'hint':
           formatted_messages += f"Hint: {content}[/INST] "
       elif role == 'function':
           formatted_messages += f"Output: {content}[/INST] "
-      elif role == 'assistant' and self.env["data.reply"]:
+      elif role == 'assistant' and self.env["chat.reply"] == "true":
           formatted_messages += f"{content}</s><s>[INST]"
   # Remove the trailing '<s>[INST] ' from the final output
   if formatted_messages.endswith("<s>[INST]"):
