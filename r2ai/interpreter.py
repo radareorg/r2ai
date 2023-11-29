@@ -343,7 +343,7 @@ class Interpreter:
     self.api_base = None # Will set it to whatever OpenAI wants
     self.system_message = ""
     self.env["debug"] = "false"
-    self.env["llm.model"] = ""
+    self.env["llm.model"] = self.model ## TODO: dup. must get rid of self.model
     self.env["llm.window"] = "4096" # context_window
     self.env["llm.maxtokens"] = "1750"
     self.env["llm.temperature"] = "0.002"
