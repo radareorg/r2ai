@@ -167,12 +167,18 @@ def vectordb_search(query_text, source_files, use_mastodon, use_debug):
 		vectordb_instance = vectordb.Memory() # normal or fast
 	# indexing data
 	print("[r2ai] Indexing local data with vectordb")
+	saved = 0
 	for file in source_files:
 		lines = smart_slurp(file).splitlines()
 		for line in lines:
 #			vectordb_instance.save(line)
 			vectordb_instance.save(line, {"url":file}) #, "url": file})
-	print("[r2ai] VectorDB index done")
+			saved = saved + 1
+	if saved == 0:
+		print("[r2ai] Nothing to index.")
+		vectordb_instance = None
+	else:
+		print("[r2ai] VectorDB index done")
 	return vectordb_search2(query_text, use_mastodon)
 
 class compute_rarity():
