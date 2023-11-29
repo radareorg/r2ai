@@ -441,6 +441,30 @@ class Interpreter:
       return "[INST]<<SYS>>" if beg else "<</SYS>>[/INST]"
     return "[INST]" if beg else "[/INST]\n"
 
+  def aikeywords(self, text):
+    # kws = self.aikeywords("who is the author of radare?") => "author,radare2"
+    words = []
+    if not self.model.startswith("openai:") and self.llama_instance == None:
+      self.llama_instance = new_get_hf_llm(self.model, False, self.context_window)
+    mmname = "TheBloke/Mistral-7B-Instruct-v0.1-GGUF"
+    mm = new_get_hf_llm(mmname, False, self.context_window)
+    msg = f"Considering the sentence \"{text}\" as input, Take the KEY words from the string and show ONLY a comma separated list of the most relevant words. DO NOT introduce your response, ONLY show the words"
+    response = mm(msg,
+        stream=False,
+        temperature=0.1,
+        stop=[self.terminator],
+        max_tokens=1750 # context window is set to 1800, messages are trimmed to 1000... 700 seems nice
+      )
+    text0 = response["choices"][0]["text"]
+    if text0.startswith("."):
+      text0 = text0[1:].strip()
+    try:
+      text0 = text0.split(":")[1].strip()
+    except:
+      pass
+    print(text0)
+    return text0.split(",")
+
   def chat(self, message=None):
     global Ginterrupted
     if self.last_model != self.model:
