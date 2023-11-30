@@ -261,7 +261,7 @@ def template_alpaca(self, messages):
   # Loop starting from the first user message
   for index, item in enumerate(messages[1:]):
       role = item['role']
-      if not 'content' in item:
+      if 'content' not in item:
           next
       content = item['content']
       if content is None or content == "":
@@ -299,16 +299,10 @@ def template_gpt4all(self,messages):
   return formatted_messages
 
 def template_llama(self,messages):
-  print("Using llama")
-  # Llama prompt template
-  # Extracting the system prompt and initializing the formatted string with it.
+  formatted_messages = f"<s>[INST]"
+  if self.system_prompt != "":
+      formatted_messages += f"<<SYS>>{self.system_prompt}<</SYS>>"
   self.terminator = "</s>"
-  system_prompt = self.system_message
-  if system_prompt != "":
-      formatted_messages = f"<s>[INST]<<SYS>>{system_prompt}<</SYS>>"
-  else:
-      formatted_messages = f"<s>[INST]"
-  # Loop starting from the first user message
   for index, item in enumerate(messages):
       if "role" in item:
           role = item['role']
@@ -325,13 +319,11 @@ def template_llama(self,messages):
           formatted_messages += f"Output: {content}[/INST] "
       elif role == 'assistant' and self.env["chat.reply"] == "true":
           formatted_messages += f"{content}</s><s>[INST]"
-  # Remove the trailing '<s>[INST] ' from the final output
-  if formatted_messages.endswith("<s>[INST]"):
-      formatted_messages = formatted_messages[:-9]
   return formatted_messages
 
 class Interpreter:
   def __init__(self):
+    self.mistral = None
     self.messages = []
     self.terminator = "</s>"
     self.api_key = None
@@ -440,8 +432,8 @@ class Interpreter:
       return "[INST]<<SYS>>" if beg else "<</SYS>>[/INST]"
     return "[INST]" if beg else "[/INST]\n"
 
-  def aikeywords(self, text):
-    # kws = self.aikeywords("who is the author of radare?") => "author,radare2"
+  def keywords_ai(self, text):
+    # kws = self.keywords_ai("who is the author of radare?") => "author,radare2"
     words = []
     mmname = "TheBloke/Mistral-7B-Instruct-v0.1-GGUF"
     ctxwindow = int(self.env["llm.window"])
@@ -537,14 +529,86 @@ class Interpreter:
         res.append(msg)
     self.messages = res
 
+  def trimsource(self, msg):
+    msg = msg.replace("public ", "")
+    msg = re.sub(r'import.*\;', "", msg)
+    msg = msg.replace("const ", "")
+    msg = msg.replace("new ", "")
+    msg = msg.replace("undefined", "0")
+    msg = msg.replace("null", "0")
+    msg = msg.replace("false", "0")
+    msg = msg.replace("true", "1")
+    msg = msg.replace("let ", "")
+    msg = msg.replace("var ", "")
+    msg = msg.replace("class ", "")
+    msg = msg.replace("interface ", "")
+    msg = msg.replace("function ", "fn ")
+    msg = msg.replace("substring", "")
+    msg = msg.replace("this.", "")
+    msg = msg.replace("while (", "while(")
+    msg = msg.replace("if (", "if(")
+    msg = msg.replace("!== 0", "")
+    msg = msg.replace("=== true", "")
+    msg = msg.replace(" = ", "=")
+    msg = msg.replace(" === ", "==")
+    msg = msg.replace("\t", " ")
+    msg = msg.replace("\n", "")
+    msg = re.sub(r"/\*.*?\*/", '', msg, flags=re.DOTALL)
+    # msg = re.sub(r"\n+", "\n", msg)
+    msg = re.sub(r"\t+", ' ', msg)
+    msg = re.sub(r"\s+", " ", msg)
+    # msg = msg.replace(";", "")
+    return msg.strip()
+
+  def trimsource_ai(self, msg):
+    words = []
+    if self.mistral == None:
+      mmname = "TheBloke/Mistral-7B-Instruct-v0.1-GGUF"
+      ctxwindow = int(self.env["llm.window"])
+      self.mistral = new_get_hf_llm(mmname, False, ctxwindow)
+    q = f"Rewrite this code into shorter pseudocode (less than 500 tokens). keep the comments and essential logic:\n```\n{msg}\n```\n"
+    response = self.mistral(q, stream=False, temperature=0.1, stop="</s>", max_tokens=4096)
+    text0 = response["choices"][0]["text"]
+    if "```" in text0:
+      return text0.split("```")[1].strip()
+    return text0.strip().replace("```", "")
+
+  def compress_code_ai(self, code):
+    piecesize = 4096
+    codelen = len(code)
+    pieces = int(codelen / piecesize)
+    plen = int(codelen / pieces)
+    off = 0
+    res = []
+    for i in range(pieces):
+      print(f"Processing {i} / {pieces} ...")
+      if i + 1 == pieces:
+        r = self.trimsource_ai(code[off:])
+      else:
+        r = self.trimsource_ai(code[off:off+plen])
+      res.append(r)
+      off += plen
+    return "\n".join(res)
+
   def compress_messages(self, messages):
     # TODO: implement a better logic in here asking the lm to summarize the context
-    return messages
+    olen = 0
     msglen = 0
     for msg in messages:
       if "content" in msg:
+        amsg = msg["content"]
+        olen += len(amsg)
+        if len(amsg) > 4000:
+          if "while" in amsg and "```" in amsg:
+            que = re.search(r"^(.*?)```", amsg, re.DOTALL).group(0).replace("```", "")
+            cod = re.search(r"```(.*?)$", amsg, re.DOTALL).group(0).replace("```", "")
+            shortcode = self.compress_code_ai(cod)
+            msg["content"] = f"{que}\n```\n{shortcode}\n```\n"
+          else:
+            print(f"total length {msglen} (original length was {olen})")
         msglen += len(msg["content"])
-    if msglen > 8000:
+    # print(f"total length {msglen} (original length was {olen})")
+    if msglen > 4096:
       print("Query is too large.. you should consider triming old messages")
     return messages
 
