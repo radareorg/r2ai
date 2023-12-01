@@ -300,8 +300,8 @@ def template_gpt4all(self,messages):
 
 def template_llama(self,messages):
   formatted_messages = f"<s>[INST]"
-  if self.system_prompt != "":
-      formatted_messages += f"<<SYS>>{self.system_prompt}<</SYS>>"
+  if self.system_message != "":
+      formatted_messages += f"<<SYS>>{self.system_message}<</SYS>>"
   self.terminator = "</s>"
   for index, item in enumerate(messages):
       if "role" in item:
