@@ -17,13 +17,14 @@ Run a language model in local, without internet, to entertain you or help answer
 ## Features
 
 * Prompt the language model without internet requirements
+* Index large codebases or markdown books using a vector database
 * Slurp file contents and make actions on that
-* Embed the output of an r2 command and ask the LLM to resolve questions
+* Embed the output of an r2 command and resolve questions on the given data
 * Define different system-level assistant role
 * Set environment variables to provide context to the language model
 * Live with repl and batch mode from cli or r2 prompt
 * Accessible as an r2lang-python plugin, keeps session state inside radare2
-* Scriptable from bash, r2pipe, and javascript (r2papi)
+* Scriptable from python, bash, r2pipe, and javascript (r2papi)
 * Use different models, dynamically adjust query template
   * Load multiple models and make them talk between them
 
@@ -92,27 +93,12 @@ You can interact with r2ai from standalone python, from r2pipe via r2 keeping a 
 
 ### Development/Testing
 
-Just run `make` .. or well `python main.py /path/to/file`
-
-It's also possible to install it with `conda`, which is the recommended way on Macs.
-
-* https://developer.apple.com/metal/pytorch/
-
-```sh
-curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-arm64.sh
-sh Miniconda3-latest-MacOSX-arm64.sh
-```
-
-```sh
-conda install pytorch torchvision torchaudio -c pytorch-nightly
-conda run pip install inquirer rich appdirs huggingface_hub tokentrim llama-cpp-python
-```
+Just run `make` .. or well `python main.py`
 
 ### TODO
 
 * add "undo" command to drop the last message
-* dump / restore conversational states
-* custom prompt templates
+* dump / restore conversational states (see -L command)
 
 ### Kudos
 

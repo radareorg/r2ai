@@ -566,7 +566,8 @@ class Interpreter:
       mmname = "TheBloke/Mistral-7B-Instruct-v0.1-GGUF"
       ctxwindow = int(self.env["llm.window"])
       self.mistral = new_get_hf_llm(mmname, False, ctxwindow)
-    q = f"Rewrite this code into shorter pseudocode (less than 500 tokens). keep the comments and essential logic:\n```\n{msg}\n```\n"
+    # q = f"Rewrite this code into shorter pseudocode (less than 500 tokens). keep the comments and essential logic:\n```\n{msg}\n```\n"
+    q = f"Rewrite this code into shorter pseudocode (less than 200 tokens). keep the relevant comments and essential logic:\n```\n{msg}\n```\n"
     response = self.mistral(q, stream=False, temperature=0.1, stop="</s>", max_tokens=4096)
     text0 = response["choices"][0]["text"]
     if "```" in text0:
@@ -602,7 +603,12 @@ class Interpreter:
           if "while" in amsg and "```" in amsg:
             que = re.search(r"^(.*?)```", amsg, re.DOTALL).group(0).replace("```", "")
             cod = re.search(r"```(.*?)$", amsg, re.DOTALL).group(0).replace("```", "")
-            shortcode = self.compress_code_ai(cod)
+            shortcode = cod
+            while len(shortcode) > 4000:
+              olen = len(shortcode)
+              shortcode = self.compress_code_ai(shortcode)
+              nlen = len(shortcode)
+              print(f"Went from {olen} to {nlen}")
             msg["content"] = f"{que}\n```\n{shortcode}\n```\n"
           else:
             print(f"total length {msglen} (original length was {olen})")
