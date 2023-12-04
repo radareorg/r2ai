@@ -39,6 +39,8 @@ have_rlang = False
 have_r2pipe = False
 within_r2 = False
 print = print
+if "R2CORE" in os.environ:
+	within_r2 = True
 if os.name != "nt":
 	try:
 		import r2lang
@@ -347,7 +349,7 @@ elif len(sys.argv) > 1:
 		if arg == "-h" or arg == "-v":
 			sys.exit(0)
 	r2ai_repl()
-elif not within_r2 and have_r2pipe:
+elif not within_r2:
 	r2ai_repl()
 else:
-	r2ai_repl()
+	print("r2ai plugin not initialized, you need to install rlang-python")
