@@ -49,6 +49,7 @@ def models():
     builtins.print("-m TheBloke/GodziLLa2-70B-GGUF")
     builtins.print("Generic:")
     builtins.print("-m TheBloke/Mistral-7B-Instruct-v0.1-GGUF")
+#    builtins.print("-m aisensiy/Qwen-72B-Chat-GGUF")
     builtins.print("-m TheBloke/Yarn-Mistral-7B-128k-GGUF")
     builtins.print("-m TheBloke/dolphin-2.2.1-mistral-7B-GGUF")
     builtins.print("-m TheBloke/zephyr-7B-alpha-GGUF")
@@ -59,6 +60,7 @@ def models():
     builtins.print("-m TheBloke/CodeBooga-34B-v0.1-GGUF")
     builtins.print("-m TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF")
     builtins.print("-m TheBloke/deepseek-coder-6.7B-instruct-GGUF")
+    builtins.print("-m TheBloke/deepseek-coder-33B-instruct-GGUF")
     builtins.print("-m TheBloke/CodeLlama-7B-Instruct-GGUF")
     builtins.print("-m TheBloke/CodeLlama-34B-Instruct-GGUF")
     builtins.print("Uncensored:")
@@ -130,6 +132,9 @@ def get_hf_llm(repo_id, debug_mode, context_window):
             if format_quality_choice(model) == answers["selected_model"]:
                 selected_model = model["filename"]
                 break
+    if selected_model == None:
+      print("No model selected")
+      return
     answers = inquirer.prompt([inquirer.List("default", message="Use this model by default? ~/.r2ai.model", choices=["Yes", "No"])])
     # Third stage: GPU confirm
 #if confirm_action("Use GPU? (Large models might crash on GPU, but will run more quickly)"):
