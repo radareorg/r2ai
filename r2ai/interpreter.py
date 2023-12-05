@@ -68,6 +68,8 @@ def messages_to_prompt(self, messages):
     formatted_messages = template_tiefighter(self, messages)
   elif "luna" in lowermodel:
     formatted_messages = template_alpaca(self, messages)
+  elif "deepseek" in lowermodel:
+    formatted_messages = template_alpaca(self, messages)
   elif "uncensor" in lowermodel:
 #    formatted_messages = template_gpt4all(self, messages)
 #    formatted_messages = template_alpaca(self, messages)
@@ -614,8 +616,8 @@ class Interpreter:
             print(f"total length {msglen} (original length was {olen})")
         msglen += len(msg["content"])
     # print(f"total length {msglen} (original length was {olen})")
-    if msglen > 4096:
-      print("Query is too large.. you should consider triming old messages")
+    # if msglen > 4096:
+    #   ¡print("Query is too large.. you should consider triming old messages")
     return messages
 
   def respond(self):
