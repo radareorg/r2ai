@@ -263,7 +263,7 @@ def template_alpaca(self, messages):
   # Loop starting from the first user message
   for index, item in enumerate(messages[1:]):
       role = item['role']
-      if 'content' not in item:
+      if not 'content' in item:
           next
       content = item['content']
       if content is None or content == "":

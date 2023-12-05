@@ -121,9 +121,8 @@ def runline(usertext):
 		ai.reset()
 	elif usertext.startswith("-t"):
 		if usertext == "-t":
-			print(ai.temperature)
+			print(ai.env["llm.temperature"])
 		else:
-			ai.temperature = float (usertext[2:])
 			ai.env["llm.temperature"] = str(ai.temperature)
 	elif usertext == "-A":
 		ai.env["chat.voice"] = "true"
