@@ -71,6 +71,8 @@ def messages_to_prompt(self, messages):
     formatted_messages = template_tiefighter(self, messages)
   elif "luna" in lowermodel:
     formatted_messages = template_alpaca(self, messages)
+  elif "coder" in lowermodel:
+    formatted_messages = template_alpaca(self, messages)
   elif "deepseek" in lowermodel:
     formatted_messages = template_alpaca(self, messages)
   elif "uncensor" in lowermodel:
@@ -276,7 +278,7 @@ def template_alpaca(self, messages):
           formatted_messages += f"### Instruction:\n{content}\n"
       elif role == 'hint':
           formatted_messages += f"### Knowledge:\n{content}\n"
-      elif self.env["chat.reply"]:
+      elif self.env["chat.reply"] == "true":
           formatted_messages += f"### Assistant:\n{content}\n"
 #         formatted_messages += f"### Response:\n{content}\n"
   formatted_messages += f"### Response: "
@@ -366,7 +368,7 @@ class Interpreter:
     self.env["chat.trim"] = "false"
     self.env["chat.voice"] = "false"
     self.env["chat.bubble"] = "false"
-    self.env["chat.reply"] = "true"
+    self.env["chat.reply"] = "false"
 
     # No active block to start
     # (blocks are visual representation of messages on the terminal)
@@ -466,14 +468,14 @@ class Interpreter:
       print("Missing message")
       return
     if self.env["data.use"] == "true":
-      hist = self.env["data.hist"] == "true"
+      use_hist = self.env["data.hist"] == "true"
       use_mastodon = self.env["data.mastodon"] == "true"
       use_vectordb = self.env["data.vectordb"] == "true"
       use_debug = self.env["debug"] == "true"
       datadir = None
       if self.env["data.local"] == "true":
         datadir = self.env["data.path"]
-      matches = main_indexer(message, datadir, hist, use_mastodon, use_debug, use_vectordb)
+      matches = index.match(message, datadir, use_hist, use_mastodon, use_debug, use_vectordb)
       if len(matches) > 0:
         for m in matches:
           if self.env["debug"] == "true":
