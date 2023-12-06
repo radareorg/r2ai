@@ -123,7 +123,7 @@ def runline(usertext):
 		if usertext == "-t":
 			print(ai.env["llm.temperature"])
 		else:
-			ai.env["llm.temperature"] = str(ai.temperature)
+			ai.env["llm.temperature"] = usertext[2:].strip() #words[1] #str(ai.temperature)
 	elif usertext == "-A":
 		ai.env["chat.voice"] = "true"
 		old_live = ai.env["chat.live"]
