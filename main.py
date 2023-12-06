@@ -3,6 +3,8 @@
 import os
 import sys
 
+os.environ["TOKENIZERS_PARALLELISM"]="false"
+
 try:
 	r2aihome = os.path.dirname(os.readlink(__file__))
 	sys.path.append(r2aihome)
@@ -52,6 +54,9 @@ if os.name != "nt":
 			have_r2pipe = True
 		except:
 			pass
+if not have_rlang and sys.argv[0] != 'main.py' and os.path.exists("venv/bin/python"):
+	os.system("venv/bin/python main.py")
+	sys.exit(0)
 
 ais = {}
 ai = r2ai.Interpreter()
@@ -323,6 +328,7 @@ if have_rlang:
 		def _call(s):
 			if s == "r2ai":
 				print(help_message)
+				return True
 			elif s.startswith("r2ai"):
 				usertext = s[4:].strip()
 				try:
@@ -330,7 +336,7 @@ if have_rlang:
 				except Exception as e:
 					print(e)
 					traceback.print_exc()
-				return True;
+				return True
 			return False
 
 		return {
