@@ -109,11 +109,27 @@ def json2md(text):
 		if isinstance(obj, list):
 			for a in obj:
 				res += jsonwalk(a)
+		elif isinstance(obj, dict):
+			if "file" in obj:
+				pass
+#			elif "impactType" in obj and obj["impactType"] == "pass":
+#				pass
+			elif "ts" in obj:
+				pass
+			else:
+				for k in obj.keys():
+					res += "## " + k + "\n"
+					lst = json.dumps(obj[k]).replace("{","").replace("}", "\n").replace("\"", "").replace(",", "*").split("\n")
+					res += "\n".join(list(filter(lambda k: 'crc64' not in k and 'file' not in k and 'from_text' not in k and 'backtrace' not in k, lst)))
+					res += "\n\n"
 		else:
-			res += jsonwalk(a)
+			res += str(obj) # jsonwalk(obj)
 		return res
 	doc = json.loads(text)
 	res = jsonwalk(doc)
+#	print("==========")
+#	print(res)
+#	print("==========")
 	return res
 
 def md2txt(text):
@@ -182,10 +198,13 @@ def filter_line(line):
 	return words
 
 def smart_slurp(file):
+	print("smart" + file)
 #	print(f"slurp: {file}")
 	text = slurp(file)
 	if file.endswith("r2ai.history"):
 		text = hist2txt(text)
+	elif file.endswith(".json"):
+		text = md2txt(json2md(text))
 	elif file.endswith(".md"):
 		text = md2txt(text)
 	return text
@@ -246,7 +265,7 @@ def vectordb_init():
 
 def vectordb_search(text, keywords, source_files, use_mastodon, use_debug):
 	global have_vectordb, vectordb_instance
-	if not have_vectordb:
+	if have_vectordb == False:
 		return []
 	if have_vectordb == True and vectordb_instance is not None:
 		return vectordb_search2(text, keywords, use_mastodon)
