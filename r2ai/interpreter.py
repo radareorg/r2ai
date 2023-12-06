@@ -2,7 +2,7 @@ import builtins
 from .utils import merge_deltas
 from .message_block import MessageBlock
 from .code_block import CodeBlock
-from .index import main_indexer
+
 from .models import get_hf_llm, new_get_hf_llm, get_default_model
 from .voice import tts
 from .const import R2AI_HOMEDIR
@@ -13,7 +13,6 @@ except:
   have_openai = False
   pass
 
-
 import re
 import os
 import traceback
@@ -23,6 +22,10 @@ import getpass
 from rich.rule import Rule
 import signal
 import sys
+
+file_dir = os.path.dirname(__file__)
+sys.path.append(file_dir)
+import index
 
 r2clippy = False
 have_rlang = False
@@ -350,9 +353,9 @@ class Interpreter:
     self.env["data.use"] = "false"
     self.env["data.path"] = f"{R2AI_HOMEDIR}/doc/data"
     self.env["data.local"] = "false"
-    self.env["data.hist"] = "false"
     self.env["data.mastodon"] = "false"
     self.env["data.vectordb"] = "false"
+    self.env["data.hist"] = "false"
     self.env["key.mastodon"] = ""
     self.env["key.openai"] = ""
     if have_rlang:
