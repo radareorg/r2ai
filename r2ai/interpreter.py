@@ -260,26 +260,27 @@ def template_tiefighter(self, messages):
 def template_alpaca(self, messages):
   self.terminator = "###"
   system_prompt = self.system_message
-  if system_prompt != "":
-      formatted_messages = f"### Instruction:\n{system_prompt}\n"
+  if len(system_prompt) > 1:
+      formatted_messages = f"### Instruction: {system_prompt}\n"
   else:
       formatted_messages = ""
   formatted_messages += messages[0]['content'].strip()
   # Loop starting from the first user message
   for index, item in enumerate(messages[1:]):
-      role = item['role']
-      if not 'content' in item:
+      if "content" in item and "role" in item:
+          content = item['content']
+      else:
           next
-      content = item['content']
+      role = item['role']
       if content is None or content == "":
           next
       content = content.strip()
       if role == 'user':
-          formatted_messages += f"### Instruction:\n{content}\n"
+          formatted_messages += f"### Instruction: {content}\n"
       elif role == 'hint':
-          formatted_messages += f"### Knowledge:\n{content}\n"
+          formatted_messages += f"### Knowledge: {content}\n"
       elif self.env["chat.reply"] == "true":
-          formatted_messages += f"### Assistant:\n{content}\n"
+          formatted_messages += f"### Assistant: {content}\n"
 #         formatted_messages += f"### Response:\n{content}\n"
   formatted_messages += f"### Response: "
   return formatted_messages
@@ -287,7 +288,7 @@ def template_alpaca(self, messages):
 def template_gpt4all(self,messages):
   self.terminator = "###"
   system_prompt = messages[0]['content'].strip()
-  if system_prompt != "":
+  if len(system_prompt) > 1:
       formatted_messages = f"### Instruction: {system_prompt}\n"
   else:
       formatted_messages = ""
@@ -445,9 +446,12 @@ class Interpreter:
     mmname = "TheBloke/Mistral-7B-Instruct-v0.1-GGUF"
     ctxwindow = int(self.env["llm.window"])
     mm = new_get_hf_llm(mmname, False, ctxwindow)
-    msg = f"Considering the sentence \"{text}\" as input, Take the KEY words from the string and show ONLY a comma separated list of the most relevant words. DO NOT introduce your response, ONLY show the words"
+    msg = f"Considering the sentence \"{text}\" as input, Take the KEYWORDS or combination of TWO words from the given text and respond ONLY a comma separated list of the most relevant words. DO NOT introduce your response, ONLY show the words"
+    msg = f"Take \"{text}\" as input, and extract the keywords and combination of keywords to make a search online, the output must be a comma separated list" #Take the KEYWORDS or combination of TWO words from the given text and respond ONLY a comma separated list of the most relevant words. DO NOT introduce your response, ONLY show the words"
     response = mm(msg, stream=False, temperature=0.1, stop="</s>", max_tokens=1750)
+    print("RESPONSE", response)
     text0 = response["choices"][0]["text"]
+    text0 = text0.replace('"', ",")
     if text0.startswith("."):
       text0 = text0[1:].strip()
     try:
@@ -456,7 +460,7 @@ class Interpreter:
       pass
     # print(text0)
     mm = None
-    return text0.split(",")
+    return [word.strip() for word in text0.split(',')]
 
   def chat(self, message=None):
     global Ginterrupted
@@ -473,9 +477,13 @@ class Interpreter:
       use_vectordb = self.env["data.vectordb"] == "true"
       use_debug = self.env["debug"] == "true"
       datadir = None
+      keywords = None
+      if use_mastodon:
+        keywords = self.keywords_ai(message)
+        print("KW", keywords)
       if self.env["data.local"] == "true":
         datadir = self.env["data.path"]
-      matches = index.match(message, datadir, use_hist, use_mastodon, use_debug, use_vectordb)
+      matches = index.match(message, keywords, datadir, use_hist, use_mastodon, use_debug, use_vectordb)
       if len(matches) > 0:
         for m in matches:
           if self.env["debug"] == "true":

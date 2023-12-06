@@ -2,6 +2,7 @@
 import os
 import re
 import requests
+import json
 from unidecode import unidecode
 import sys
 try:
@@ -27,6 +28,7 @@ if "MASTODON_INSTANCE" in os.environ:
 	MASTODON_INSTANCE = os.environ["MASTODON_INSTANCE"]
 
 def mastodon_search(text):
+	print("mastodon", text)
 	global MASTODON_INSTANCE
 #    print(f"(mastodon) {text}")
 	res = []
@@ -42,16 +44,19 @@ def mastodon_search(text):
 		print(f"Error making request: {e}")
 	return res
 
-def mastodon_lines(text, use_vectordb):
+def mastodon_lines(text, keywords, use_vectordb):
+	twords = []
 	rtlines = []
-	twords = filter_line(text)
-	print("TWORDS", twords)
-	for tw in twords:
-		if len(tw) > 2: # arbitrary
-			rtlines.extend(mastodon_search(tw))
+	if keywords is None:
+		twords = filter_line(text)
+		for tw in twords:
+			if len(tw) > 2: # arbitrary
+				rtlines.extend(mastodon_search(tw))
+	else:
+		twords = keywords
 	
-	print("MASTODON_LINES...", text)
-	print("MASTODON_RTLINES...", rtlines)
+#	print("MASTODON_LINES...", text)
+#	print("MASTODON_RTLINES...", rtlines)
 	if use_vectordb:
 		return rtlines
 	words = {} # local rarity ratings
@@ -62,11 +67,12 @@ def mastodon_lines(text, use_vectordb):
 				words[a] += 1
 			else:
 				words[a] = 1
+	rtlines = sorted(set(rtlines))
 	rslines = []
 	swords = sorted(twords, key=lambda x: words.get(x) or 0)
 	nwords = " ".join(swords[:5])
 	# find rarity of words in the results + text and 
-	print("NWORDS", nwords)
+#	print("NWORDS", nwords)
 	rslines.extend(mastodon_search(nwords))
 	if len(rslines) < 10:
 		for tw in swords:
@@ -94,6 +100,19 @@ def hist2txt(text):
 			newlines.append(line)
 	newlines = sorted(set(newlines))
 	return "\n".join(newlines)
+
+def json2md(text):
+	def jsonwalk(obj):
+		res = ""
+		if isinstance(obj, list):
+			for a in obj:
+				res += jsonwalk(a)
+		else:
+			res += jsonwalk(a)
+		return res
+	doc = json.loads(text)
+	res = jsonwalk(doc)
+	return res
 
 def md2txt(text):
 	# parser markdown and return a txt
@@ -142,8 +161,10 @@ def filter_line(line):
 	line = re.sub(r'http?://\S+', '', line)
 	line = line.replace(":", " ").replace("/", " ").replace("`", " ").replace("?", " ")
 	line = line.replace("\"", " ").replace("'", " ")
-	line = line.replace("<", " ").replace(">", " ").replace("@", " ").replace("#", " ")
-	line = line.replace("-", " ").replace(".", " ").replace(",", " ").replace("(", " ").replace(")", " ").strip(" ")
+	line = line.replace("<", " ").replace(">", " ").replace("@", " ").replace("#", "")
+#line = line.replace("-", " ").replace(".", " ").replace(",", " ").replace("(", " ").replace(")", " ").strip(" ")
+	line = line.replace(".", " ").replace(",", " ").replace("(", " ").replace(")", " ").strip(" ")
+	line = re.sub(r"\s+", " ", line)
 	if len(line) > MAXCHARS:
 		line = line[:MAXCHARS]
 	words = []
@@ -167,15 +188,15 @@ def smart_slurp(file):
 		text = md2txt(text)
 	return text
 
-def vectordb_search2(text, use_mastodon):
+def vectordb_search2(text, keywords, use_mastodon):
 	global have_vectordb, vectordb_instance
 	result = []
 	if use_mastodon:
-		print ("MASTODON", text)
-		lines = mastodon_lines(text, True)
-		print("LINES", lines)
+		print ("[r2ai] Searching in Mastodon", text)
+		lines = mastodon_lines(text, keywords, True)
+#		print("LINES", lines)
 		for line in lines:
-			print("SAVE", line)
+#			print("SAVE", line)
 			vectordb_instance.save(line, {"url":text})
 	if have_vectordb == True and vectordb_instance is not None:
 		res = vectordb_instance.search(text, top_n=MAXMATCHES)
@@ -188,12 +209,12 @@ def vectordb_search2(text, use_mastodon):
 	#print(result)
 	return result 
 
-def vectordb_search(text, source_files, use_mastodon, use_debug):
+def vectordb_search(text, keywords, source_files, use_mastodon, use_debug):
 	global have_vectordb, vectordb_instance
 	if have_vectordb == False:
 		return []
 	if have_vectordb == True and vectordb_instance is not None:
-		return vectordb_search2(text, use_mastodon)
+		return vectordb_search2(text, keywords, use_mastodon)
 	try:
 		import vectordb
 		have_vectordb = True
@@ -221,11 +242,8 @@ def vectordb_search(text, source_files, use_mastodon, use_debug):
 			vectordb_instance.save(line, {"url":file}) #, "url": file})
 			saved = saved + 1
 	if use_mastodon:
-		print ("MASTODON", text)
-		lines = mastodon_lines(text, True)
-		print("LINES", lines)
+		lines = mastodon_lines(text, None, True)
 		for line in lines:
-			print(line)
 			saved = saved + 1
 			vectordb_instance.save(line, {"url":text})
 	if saved == 0:
@@ -234,7 +252,7 @@ def vectordb_search(text, source_files, use_mastodon, use_debug):
 # vectordb_instance = None
 	else:
 		print("[r2ai] VectorDB index done")
-	return vectordb_search2(text, use_mastodon)
+	return vectordb_search2(text, keywords, use_mastodon)
 
 class compute_rarity():
 	use_mastodon = MASTODON_KEY != "" # False
@@ -255,21 +273,17 @@ class compute_rarity():
 				self.words[a] += 1
 			else:
 				self.words[a] = 1
-	def pull_realtime_lines(self, text, use_vectordb):
-		if True or self.use_debug:
+	def pull_realtime_lines(self, text, keywords, use_vectordb):
+		if self.env["debug"] == "true":
 			print(f"Pulling from mastodon {text}")
-		#rslines = mastodon_search(text)
-		rslines = mastodon_lines(text, use_vectordb)
-		if True or self.use_debug:
-			for line in rslines:
-				print(line)
-		return rslines
-	def find_matches(self, text):
+		return mastodon_lines(text, keywords, use_vectordb)
+
+	def find_matches(self, text, keywords):
 		if self.use_mastodon:
 			# pull from mastodon 
 			backup_lines = self.lines
 			backup_words = self.words
-			realtime_lines = self.pull_realtime_lines(text, False)
+			realtime_lines = self.pull_realtime_lines(text, keywords, False)
 			for line in realtime_lines:
 				self.compute_rarity_in_line(line)
 			self.lines.extend(realtime_lines)
@@ -349,12 +363,12 @@ def reset():
 	global vectordb_instance
 	vectordb_instance = None
 
-def match(text, datadir, use_hist, use_mastodon, use_debug, use_vectordb):
+def match(text, keywords, datadir, use_hist, use_mastodon, use_debug, use_vectordb):
 	files = source_files(datadir, use_hist)
 	if use_vectordb:
-		return vectordb_search(text, files, use_mastodon, use_debug)
+		return vectordb_search(text, keywords, files, use_mastodon, use_debug)
 	raredb = compute_rarity(files, use_mastodon, use_debug)
-	return raredb.find_matches(text)
+	return raredb.find_matches(text, keywords)
 
 if __name__ == '__main__':
 	if len(sys.argv) > 1:
