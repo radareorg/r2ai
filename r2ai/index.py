@@ -3,6 +3,8 @@ import os
 import re
 import requests
 import json
+import traceback
+from utils import syscmdstr
 from unidecode import unidecode
 import sys
 try:
@@ -28,7 +30,7 @@ if "MASTODON_INSTANCE" in os.environ:
 	MASTODON_INSTANCE = os.environ["MASTODON_INSTANCE"]
 
 def mastodon_search(text):
-	print("mastodon", text)
+#	print("mastodon", text)
 	global MASTODON_INSTANCE
 #    print(f"(mastodon) {text}")
 	res = []
@@ -190,6 +192,7 @@ def smart_slurp(file):
 
 def vectordb_search2(text, keywords, use_mastodon):
 	global have_vectordb, vectordb_instance
+	vectordb_init()
 	result = []
 	if use_mastodon:
 		print ("[r2ai] Searching in Mastodon", text)
@@ -199,22 +202,30 @@ def vectordb_search2(text, keywords, use_mastodon):
 #			print("SAVE", line)
 			vectordb_instance.save(line, {"url":text})
 	if have_vectordb == True and vectordb_instance is not None:
-		res = vectordb_instance.search(text, top_n=MAXMATCHES)
+		res = []
+		try:
+			res = vectordb_instance.search(text, top_n=MAXMATCHES)
+		except:
+			traceback.print_exc()
+			pass
 		for r in res:
-			if "distance" in r and r['distance'] < 1:
-				result.append(r["chunk"])
+			if "distance" in r:
+				print("distance", r["distance"])
+				if r['distance'] < 1:
+					result.append(r["chunk"])
 			else:
 				# when mprt is not available we cant find the distance
 				result.append(r["chunk"])
 	#print(result)
-	return result 
+	return sorted(set(result))
 
-def vectordb_search(text, keywords, source_files, use_mastodon, use_debug):
+def vectordb_init():
 	global have_vectordb, vectordb_instance
 	if have_vectordb == False:
-		return []
-	if have_vectordb == True and vectordb_instance is not None:
-		return vectordb_search2(text, keywords, use_mastodon)
+		print("LEAVING")
+		return
+	if vectordb_instance is not None:
+		return
 	try:
 		import vectordb
 		have_vectordb = True
@@ -225,15 +236,26 @@ def vectordb_search(text, keywords, source_files, use_mastodon, use_debug):
 		print("On macOS you'll need to also do this:")
 		print("  python -m pip install spacy")
 		print("  python -m spacy download en_core_web_sm")
-	if not have_vectordb:
-		return []
+		return
 	try:
 		vectordb_instance = vectordb.Memory(embeddings="best") # normal or fast
 	except:
 		vectordb_instance = vectordb.Memory() # normal or fast
+	if vectordb_instance is not None:
+		vectordb_instance.save("radare2 is a free reverse engineering tool written by pancake, aka Sergi Alvarez i Capilla. The project started in 2006 as a tool for domestic computer forensics in order to recover some deleted files and it continued the development adding new features like debugging, disassembler, decompiler, code analysis, advanced filesystem capabilities and integration with tons of tools like Frida, Radius, Ghidra, etc", {"url":"."}) # dummy entry
+
+def vectordb_search(text, keywords, source_files, use_mastodon, use_debug):
+	global have_vectordb, vectordb_instance
+	if not have_vectordb:
+		return []
+	if have_vectordb == True and vectordb_instance is not None:
+		return vectordb_search2(text, keywords, use_mastodon)
+	vectordb_init()
+	if vectordb_instance is None:
+		print("vdb not initialized")
+		return
 	# indexing data
 	print("[r2ai] Indexing local data with vectordb")
-	vectordb_instance.save("hello world", {"url":""}) # dummy entry
 	saved = 0
 	for file in source_files:
 		lines = smart_slurp(file).splitlines()
@@ -359,15 +381,42 @@ def source_files(datadir, use_hist):
 		files.append(R2AI_HISTFILE)
 	return files
 
+def find_wikit(text, keywords):
+	print("wikit")
+	global have_vectordb, vectordb_instance
+	vectordb_init()
+	if vectordb_instance is None:
+		print("vdb not initialized")
+		return
+	if keywords is not None:
+		for kw in keywords:
+			print("wikit " + kw)
+			res = syscmdstr("wikit -a " + kw)
+			if len(res) > 20:
+				vectordb_instance.save(res, {"url":kw})
+	words = filter_line(text)
+	for kw in words:
+		print("wikit " + kw)
+		res = syscmdstr("wikit -a " + kw)
+		if len(res) > 20:
+			vectordb_instance.save(res, {"keyword":kw})
+	res = syscmdstr("wikit -a '" + " ".join(words) + "'")
+	if len(res) > 20:
+		vectordb_instance.save(res, {"keyword":kw})
 def reset():
 	global vectordb_instance
 	vectordb_instance = None
 
-def match(text, keywords, datadir, use_hist, use_mastodon, use_debug, use_vectordb):
+def match(text, keywords, datadir, use_hist, use_mastodon, use_debug, use_wikit, use_vectordb):
 	files = source_files(datadir, use_hist)
 	if use_vectordb:
+		if use_wikit:
+			find_wikit(text, keywords)
 		return vectordb_search(text, keywords, files, use_mastodon, use_debug)
 	raredb = compute_rarity(files, use_mastodon, use_debug)
+	if use_wikit:
+		print("[r2ai] Warning: data.wikit only works with vectordb")
+		
 	return raredb.find_matches(text, keywords)
 
 if __name__ == '__main__':

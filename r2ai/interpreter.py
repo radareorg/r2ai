@@ -265,6 +265,7 @@ def template_alpaca(self, messages):
   else:
       formatted_messages = ""
   formatted_messages += messages[0]['content'].strip()
+  formatted_messages += "\n"
   # Loop starting from the first user message
   for index, item in enumerate(messages[1:]):
       if "content" in item and "role" in item:
@@ -356,6 +357,7 @@ class Interpreter:
     self.env["data.use"] = "false"
     self.env["data.path"] = f"{R2AI_HOMEDIR}/doc/data"
     self.env["data.local"] = "false"
+    self.env["data.wikit"] = "false"
     self.env["data.mastodon"] = "false"
     self.env["data.vectordb"] = "false"
     self.env["data.hist"] = "false"
@@ -449,7 +451,8 @@ class Interpreter:
     msg = f"Considering the sentence \"{text}\" as input, Take the KEYWORDS or combination of TWO words from the given text and respond ONLY a comma separated list of the most relevant words. DO NOT introduce your response, ONLY show the words"
     msg = f"Take \"{text}\" as input, and extract the keywords and combination of keywords to make a search online, the output must be a comma separated list" #Take the KEYWORDS or combination of TWO words from the given text and respond ONLY a comma separated list of the most relevant words. DO NOT introduce your response, ONLY show the words"
     response = mm(msg, stream=False, temperature=0.1, stop="</s>", max_tokens=1750)
-    print("RESPONSE", response)
+    if self.env["debug"] == "true":
+      print("KWSPLITRESPONSE", response)
     text0 = response["choices"][0]["text"]
     text0 = text0.replace('"', ",")
     if text0.startswith("."):
@@ -473,6 +476,7 @@ class Interpreter:
       return
     if self.env["data.use"] == "true":
       use_hist = self.env["data.hist"] == "true"
+      use_wikit = self.env["data.wikit"] == "true"
       use_mastodon = self.env["data.mastodon"] == "true"
       use_vectordb = self.env["data.vectordb"] == "true"
       use_debug = self.env["debug"] == "true"
@@ -480,10 +484,9 @@ class Interpreter:
       keywords = None
       if use_mastodon:
         keywords = self.keywords_ai(message)
-        print("KW", keywords)
       if self.env["data.local"] == "true":
         datadir = self.env["data.path"]
-      matches = index.match(message, keywords, datadir, use_hist, use_mastodon, use_debug, use_vectordb)
+      matches = index.match(message, keywords, datadir, use_hist, use_mastodon, use_debug, use_wikit, use_vectordb)
       if len(matches) > 0:
         for m in matches:
           if self.env["debug"] == "true":

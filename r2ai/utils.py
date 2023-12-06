@@ -1,4 +1,5 @@
 import json
+import subprocess
 
 def merge_deltas(original, delta):
     """
@@ -87,3 +88,8 @@ def dump(f, x):
 	fd = open(f, "w")
 	fd.write(x)
 	fd.close()
+
+def syscmdstr(cmd):
+	process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+	output, error = process.communicate()
+	return output.decode().strip()
