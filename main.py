@@ -336,14 +336,18 @@ if have_rlang:
 		return {
 			"name": "r2ai",
 			"license": "MIT",
-			"desc": "run llama language models in local inside r2",
+			"desc": "run llama language models inside r2",
 			"call": _call,
 		}
 	r2lang.plugin("core", r2ai_rlang_plugin)
 elif len(sys.argv) > 1:
 #	ai.live_mode = False
 	for arg in sys.argv[1:]:
-		if not arg.startswith("/"):
+		if arg.endswith(".py"):
+			exec(slurp(arg), globals())
+			sys.stderr.close()
+			sys.exit(0)
+		elif not arg.startswith("/"):
 			runline(arg)
 		if arg == "-h" or arg == "-v":
 			sys.exit(0)
