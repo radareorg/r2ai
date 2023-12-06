@@ -54,7 +54,7 @@ if os.name != "nt":
 			have_r2pipe = True
 		except:
 			pass
-if not have_rlang and sys.argv[0] != 'main.py' and os.path.exists("venv/bin/python"):
+if not have_rlang and not have_r2pipe and sys.argv[0] != 'main.py' and os.path.exists("venv/bin/python"):
 	os.system("venv/bin/python main.py")
 	sys.exit(0)
 
@@ -77,8 +77,10 @@ def r2_cmd(x):
 		r2.cmd('e scr.color=' + oc)
 	return res
 
-help_message = """Usage: r2ai [-option] ([query])
- r2ai !aa               run a r2 command
+help_message = """Usage: r2ai [-option] ([query] | [script.py])
+ r2ai . [file]          interpret r2ai script with access to globals
+ r2ai :aa               run a r2 command
+ r2ai !ls               run a system command
  r2ai -a                query with audio voice
  r2ai -A                enter the voice chat loop
  r2ai -k                clear the screen
@@ -86,7 +88,6 @@ help_message = """Usage: r2ai [-option] ([query])
  r2ai -e [k[=v]]        set environment variable
  r2ai -f [file]         load file and paste the output
  r2ai -h                show this help
- r2ai . [file]          interpret r2ai script with access to globals
  r2ai -i [file] [query] load the file contents and prompt it with the given query
  r2ai -m [file/repo]    select model from huggingface repository or local file
  r2ai -M                list supported and most common models from hf
@@ -360,5 +361,10 @@ elif len(sys.argv) > 1:
 	r2ai_repl()
 elif not within_r2:
 	r2ai_repl()
+elif have_r2pipe:
+	print("Lets do it through r2pipe")
+	print(sys.argv)
+	r2ai_repl()
 else:
 	print("r2ai plugin not initialized, you need to install rlang-python")
+sys.stderr.close()

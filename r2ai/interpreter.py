@@ -20,7 +20,7 @@ import json
 import platform
 import getpass
 from rich.rule import Rule
-import signal
+from signal import signal, SIGINT
 import sys
 
 file_dir = os.path.dirname(__file__)
@@ -45,7 +45,7 @@ def signal_handler(sig, frame):
 	Ginterrupted = True
 	print("^C")
 sys.excepthook = signal_handler
-signal.signal(signal.SIGINT, signal_handler)
+signal(SIGINT, signal_handler)
 
 def r2eval(m):
   if "$(" in m and have_rlang:
@@ -487,6 +487,8 @@ class Interpreter:
       if self.env["data.local"] == "true":
         datadir = self.env["data.path"]
       matches = index.match(message, keywords, datadir, use_hist, use_mastodon, use_debug, use_wikit, use_vectordb)
+      if matches == None:
+        matches = []
       if len(matches) > 0:
         for m in matches:
           if self.env["debug"] == "true":
