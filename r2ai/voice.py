@@ -1,4 +1,5 @@
 import subprocess
+from .utils import syscmdstr
 from subprocess import Popen, PIPE
 import os
 import re
@@ -30,6 +31,7 @@ def get_microphone(lang):
 		return DEVICE
 	tts("(r2ai)", "un moment", lang)
 	DEVICE = run(["AirPods", "MacBook Pro"])
+	print(f"DEVICE: {DEVICE}")
 	return DEVICE
 
 def stt(seconds, lang):
@@ -47,7 +49,10 @@ def stt(seconds, lang):
 	tts("(r2ai) listening for 5s... ", "digues?", lang)
 	print(f"DEVICE IS {device}")
 	os.system("rm -f .audiomsg.wav")
-	os.system(f"ffmpeg -f avfoundation -t 5 -i '{device}' .audiomsg.wav > /dev/null 2>&1")
+	rc = os.system(f"ffmpeg -f avfoundation -t 5 -i '{device}' .audiomsg.wav > /dev/null 2>&1")
+	if rc != 0:
+		tts("(r2ai)", "cannot record from microphone. missing permissions in terminal?", lang)
+		return
 	result = None
 	if lang is None:
 		result = model.transcribe(".audiomsg.wav")

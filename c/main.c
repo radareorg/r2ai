@@ -22,7 +22,7 @@ int main() {
 	lparams.seed = -1;
 
 	const char *model_path = MODEL_PATH "/" MODEL_NAME;
-	struct llama_model_params mparams = {0};
+	struct llama_model_params mparams = llama_model_default_params ();
 	struct llama_model *model = llama_load_model_from_file (model_path, mparams);
 	struct llama_context *ctx = llama_new_context_with_model (model, lparams);
 
