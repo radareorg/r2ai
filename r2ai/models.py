@@ -49,6 +49,7 @@ def models():
     builtins.print("-m TheBloke/GodziLLa2-70B-GGUF")
     builtins.print("Generic:")
     builtins.print("-m TheBloke/Mistral-7B-Instruct-v0.1-GGUF")
+    builtins.print("-m TheBloke/Mistral-7B-Instruct-v0.2-GGUF")
 #    builtins.print("-m aisensiy/Qwen-72B-Chat-GGUF")
     builtins.print("-m TheBloke/Yarn-Mistral-7B-128k-GGUF")
     builtins.print("-m TheBloke/dolphin-2.2.1-mistral-7B-GGUF")
