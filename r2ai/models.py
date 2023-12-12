@@ -33,45 +33,47 @@ def Markdown(x):
   return x
 
 def models():
-    builtins.print("OpenAI:")
-    builtins.print("-m openai:gpt-3.5-turbo");
-    builtins.print("-m openai:gpt-4");
-    builtins.print("GPT4:")
-    builtins.print("-m TheBloke/goliath-120b-GGUF")
-    builtins.print("-m TheBloke/SynthIA-7B-v2.0-GGUF")
-    builtins.print("-m TheBloke/Chronos-Hermes-13b-v2-GGUF")
-    builtins.print("-m TheBloke/Chronos-70B-v2-GGUF")
-    builtins.print("-m lizpreciatior/lzlv_70b_fp16_hf")
-    builtins.print("-m TheBloke/Nous-Capybara-7B-v1.9-GGUF")
-    builtins.print("-m TheBloke/Nous-Capybara-34B-GGUF")
-    builtins.print("-m TheBloke/Euryale-Inverted-L2-70B-GGUF")
-    builtins.print("-m TheBloke/StellarBright-GGUF")
-    builtins.print("-m TheBloke/GodziLLa2-70B-GGUF")
-    builtins.print("Generic:")
-    builtins.print("-m TheBloke/Mistral-7B-Instruct-v0.1-GGUF")
-    builtins.print("-m TheBloke/Mistral-7B-Instruct-v0.2-GGUF")
-#    builtins.print("-m aisensiy/Qwen-72B-Chat-GGUF")
-    builtins.print("-m TheBloke/Yarn-Mistral-7B-128k-GGUF")
-    builtins.print("-m TheBloke/dolphin-2.2.1-mistral-7B-GGUF")
-    builtins.print("-m TheBloke/zephyr-7B-alpha-GGUF")
-    builtins.print("-m TheBloke/zephyr-7B-beta-GGUF")
-    builtins.print("-m maddes8cht/nomic-ai-gpt4all-falcon-7b-gguf")
-    builtins.print("-m KoboldAI/LLaMA2-13B-Tiefighter-GGUF")
-    builtins.print("Coding:")
-    builtins.print("-m TheBloke/CodeBooga-34B-v0.1-GGUF")
-    builtins.print("-m TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF")
-    builtins.print("-m TheBloke/deepseek-coder-6.7B-instruct-GGUF")
-    builtins.print("-m TheBloke/deepseek-coder-33B-instruct-GGUF")
-    builtins.print("-m TheBloke/CodeLlama-7B-Instruct-GGUF")
-    builtins.print("-m TheBloke/CodeLlama-34B-Instruct-GGUF")
-    builtins.print("Uncensored:")
-    builtins.print("-m TheBloke/Dawn-v2-70B-GGUF")
-    builtins.print("-m TheBloke/Guanaco-7B-Uncensored-GGUF")
-    builtins.print("-m TheBloke/Luna-AI-Llama2-Uncensored-GGUF")
-    builtins.print("-m TheBloke/Wizard-Vicuna-13B-Uncensored-GGUF")
-    builtins.print("-m TheBloke/Wizard-Vicuna-7B-Uncensored-GGUF")
-    builtins.print("-m TheBloke/llama2_70b_chat_uncensored-GGUF")
-    builtins.print("-m Undi95/Utopia-13B-GGUF")
+    res = """
+OpenAI:
+-m openai:gpt-3.5-turbo"
+-m openai:gpt-4"
+GPT4:
+-m TheBloke/goliath-120b-GGUF
+-m TheBloke/SynthIA-7B-v2.0-GGUF
+-m TheBloke/Chronos-Hermes-13b-v2-GGUF
+-m TheBloke/Chronos-70B-v2-GGUF
+-m lizpreciatior/lzlv_70b_fp16_hf
+-m TheBloke/Nous-Capybara-7B-v1.9-GGUF
+-m TheBloke/Nous-Capybara-34B-GGUF
+-m TheBloke/Euryale-Inverted-L2-70B-GGUF
+-m TheBloke/StellarBright-GGUF
+-m TheBloke/GodziLLa2-70B-GGUF
+Generic:
+-m TheBloke/Mistral-7B-Instruct-v0.1-GGUF
+-m TheBloke/Mistral-7B-Instruct-v0.2-GGUF
+-m aisensiy/Qwen-72B-Chat-GGUF
+-m TheBloke/Yarn-Mistral-7B-128k-GGUF
+-m TheBloke/dolphin-2.2.1-mistral-7B-GGUF
+-m TheBloke/zephyr-7B-alpha-GGUF
+-m TheBloke/zephyr-7B-beta-GGUF
+-m maddes8cht/nomic-ai-gpt4all-falcon-7b-gguf
+-m KoboldAI/LLaMA2-13B-Tiefighter-GGUF
+Coding:
+-m TheBloke/CodeBooga-34B-v0.1-GGUF
+-m TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF
+-m TheBloke/deepseek-coder-6.7B-instruct-GGUF
+-m TheBloke/deepseek-coder-33B-instruct-GGUF
+-m TheBloke/CodeLlama-7B-Instruct-GGUF
+-m TheBloke/CodeLlama-34B-Instruct-GGUF
+Uncensored:
+-m TheBloke/Dawn-v2-70B-GGUF
+-m TheBloke/Guanaco-7B-Uncensored-GGUF
+-m TheBloke/Luna-AI-Llama2-Uncensored-GGUF
+-m TheBloke/Wizard-Vicuna-13B-Uncensored-GGUF
+-m TheBloke/Wizard-Vicuna-7B-Uncensored-GGUF
+-m TheBloke/llama2_70b_chat_uncensored-GGUF
+-m Undi95/Utopia-13B-GGUF
+"""
 
 def get_hf_llm(repo_id, debug_mode, context_window):
     n_gpu_layers = -1

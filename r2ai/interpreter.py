@@ -334,8 +334,9 @@ class Interpreter:
   def __init__(self):
     self.mistral = None
     self.messages = []
-    self.terminator = "</s>"
-    self.api_key = None
+    self.terminator = "</s>" ## taken from the model using the llama api
+    self.api_key = None # openai?
+    self.print = None
     self.auto_run = False
     self.model = get_default_model()
     self.last_model = ""
@@ -466,7 +467,10 @@ class Interpreter:
     return [word.strip() for word in text0.split(',')]
 
   def chat(self, message=None):
+    global print
     global Ginterrupted
+    if self.print != None:
+      print = self.print
     if self.last_model != self.model:
       self.llama_instance = None
       self.last_model = self.model
@@ -834,4 +838,5 @@ class Interpreter:
       try:
         r2lang.print(output_text)
       except:
-        print(str(self.messages))
+        print(output_text)
+#        print(str(self.messages))

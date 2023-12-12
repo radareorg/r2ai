@@ -102,8 +102,65 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai -v                show r2ai version
  r2ai -w                toggle including LLM responses into the query (False is faster)"""
 
+# TODO : move into r2ai/http.py
+def start_http_server():
+	import http.server
+	import socketserver
+
+	PORT = 8000
+	BASEPATH = ""
+
+	Handler = http.server.SimpleHTTPRequestHandler
+
+	class SimpleHTTPRequestHandler(Handler):
+		def do_GET(self):
+			self.send_response(404)
+			self.end_headers()
+			self.wfile.write(bytes(f'Invalid request. Use POST and /{BASEPATH}', 'utf-8'))
+		def do_POST(self):
+			if self.path.startswith(BASEPATH):
+				content_length = int(self.headers['Content-Length'])
+				msg = self.rfile.read(content_length).decode('utf-8')
+				self.send_response(200)
+				self.end_headers()
+				res = runline2(msg)
+				self.wfile.write(bytes(f'{res}','utf-8'))
+			else:
+				self.send_response(404)
+				self.end_headers()
+				self.wfile.write(bytes(f'Invalid request. Use {BASEPATH}'))
+
+	Handler.protocol_version = "HTTP/1.0"
+	server = socketserver.TCPServer(("", PORT), SimpleHTTPRequestHandler)
+	server.allow_reuse_address = True
+	server.allow_reuse_port = True
+	print("Serving at port", PORT)
+	server.serve_forever()
+
+
+import builtins
+print_buffer = ""
+def myprint(msg):
+	global print_buffer
+	builtins.print(msg)
+	print_buffer += msg
+
+def runline2(usertext):
+	global ai
+	global print
+	global print_buffer
+	ai.print = myprint
+	chat_live = ai.env["chat.live"]
+	ai.env["chat.live"] = "false"
+	print = myprint
+	runline(usertext)
+	ai.env["chat.live"] = chat_live
+	res = print_buffer
+	print_buffer = ""
+	return f"{res}\n"
 
 def runline(usertext):
+	builtins.print(f"runline {usertext}")
 	global print
 	global ai
 	usertext = usertext.strip()
@@ -114,7 +171,7 @@ def runline(usertext):
 	elif usertext.startswith("clear") or usertext.startswith("-k"):
 		print("\x1b[2J\x1b[0;0H\r")
 	elif usertext.startswith("-M"):
-		r2ai.models()
+		print(r2ai.models())
 	elif usertext.startswith("-m"):
 		words = usertext.split(" ")
 		if len(words) > 1:
@@ -181,8 +238,7 @@ def runline(usertext):
 					print("Invalid config key")
 					pass
 	elif usertext.startswith("-w"):
-		ai.withresponse = not ai.withresponse
-		print(ai.withresponse)
+		start_http_server()
 	elif usertext.startswith("-s"):
 		r2ai_repl()
 	elif usertext.startswith("-rf"):
