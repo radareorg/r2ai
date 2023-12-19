@@ -119,9 +119,9 @@ RCorePlugin r_core_plugin_hello = {
 		.author = (char *)"pancake",
 		.license = (char *)"MIT",
 	},
-	.init = r_cmd_r2ai_init,
-	.fini = r_cmd_r2ai_fini,
 	.call = r_cmd_r2ai_native,
+	.init = r_cmd_r2ai_init,
+	.fini = r_cmd_r2ai_fini
 };
 
 #ifndef R2_PLUGIN_INCORE

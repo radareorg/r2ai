@@ -1,5 +1,14 @@
+R2PM_LLAMA_A=$(shell r2pm -H R2PM_LIBDIR)/libllama.a
+S=$
+
+ifeq ($(shell test -e ${S}R2PM_LLAMA_A && printf yes),yes)
+CFLAGS+=-I$(shell r2pm -H R2PM_PREFIX)/include
+LDFLAGS+=$(R2PM_LLAMA_A)
+# $(shell r2pm -H R2PM_LIBDIR)/libllama.a
+else
 CFLAGS+=-I/usr/local/include
 LDFLAGS+=/usr/local/lib/libllama.a
+endif
 
 ifeq ($(shell uname),Darwin)
 LDFLAGS+=-DGGML_USE_METAL
@@ -12,10 +21,10 @@ SOEXT=$(shell r2 -H R2_LIBEXT)
 R2_USER_PLUGINS=$(shell r2 -H R2_USER_PLUGINS)
 
 all:
-	g++ -o r2ai.$(SOEXT) -std=c++11 $(CFLAGS) $(LDFLAGS) $(R2FLAGS) -DR2AI=1 -fPIC -shared r2ai.cpp main.cpp
+	g++ -o r2ai.$(SOEXT) -std=c++11 $(CFLAGS) $(R2FLAGS) -DR2AI=1 -fPIC -shared r2ai.cpp main.cpp $(LDFLAGS)
 	mkdir -p $(R2_USER_PLUGINS)
-	cp -f r2ai.$(SOEXT) $(R2_USER_PLUGINS)
-	g++ -std=c++11 $(CFLAGS) $(LDFLAGS) main.cpp
+	-cp -f r2ai.$(SOEXT) $(R2_USER_PLUGINS)
+	-g++ -pie -std=c++11 main.cpp $(CFLAGS) $(LDFLAGS)
 
 run:
 	./a.out -n -1 --color -r "User:" --in-prefix " " -i -p \
