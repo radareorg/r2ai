@@ -33,7 +33,7 @@ def Markdown(x):
   return x
 
 def models():
-    res = """
+    return """
 OpenAI:
 -m openai:gpt-3.5-turbo"
 -m openai:gpt-4"
