@@ -1,6 +1,6 @@
 /* radare - Copyright 2023 - pancake */
 
-#define R_LOG_ORIGIN "core.hello"
+#define R_LOG_ORIGIN "r2ai"
 
 #include <r_core.h>
 #include "common.h"
@@ -47,11 +47,50 @@ static void r2ai_parseflag(RCore *core, const char *input) {
 }
 
 static void r2ai_init(RCore *core) {
-	// instantiate global llama
 }
 
+extern int main_r2ai_message(const char *message);
+extern bool main_r2ai_init(const char *model_path);
+
 static void r2ai_message(RCore *core, const char *input) {
+	const char *model_path = r_config_get (core->config, "r2ai.model");
+	main_r2ai_init (model_path);
+	const char *prompt = "Act as a radare2 assistant named r2ai";
+	const char *prompt_reply = "Sure!";
+	char *s = r_str_newf ("<s>[INST]%s[/INST]%s</s>%s", prompt, prompt_reply, input);
+	main_r2ai_message (input);
+	free (s);
 	r2ai_init (core);
+}
+
+static int r_cmd_r2ai_init(void *user, const char *input) {
+	RCmd *rcmd = (RCmd*)user;
+	RCore *core = (RCore *) rcmd->data;
+	if (core) {
+		RConfig *cfg = core->config;
+		r_config_lock (cfg, false);
+		r_config_set (cfg, "r2ai.model", "/tmp/mistral-7b-v0.1.Q2_K.gguf");
+		r_config_set (cfg, "r2ai.temp", "0.02");
+		r_config_lock (cfg, true);
+	} else {
+		R_LOG_INFO ("Can't init");
+	}
+	return true;
+}
+
+static int r_cmd_r2ai_fini(void *user, const char *input) {
+	RCmd *rcmd = (RCmd*)user;
+	RCore *core = (RCore *) rcmd->data;
+	if (core) {
+		RConfig *cfg = core->config;
+		r_config_lock (cfg, false);
+		r_config_rm (cfg, "r2ai.model");
+		r_config_rm (cfg, "r2ai.temp");
+		r_config_lock (cfg, true);
+	} else {
+		R_LOG_INFO ("Can't init");
+	}
+	return true;
 }
 
 static int r_cmd_r2ai_native(void *user, const char *input) {
@@ -80,6 +119,8 @@ RCorePlugin r_core_plugin_hello = {
 		.author = (char *)"pancake",
 		.license = (char *)"MIT",
 	},
+	.init = r_cmd_r2ai_init,
+	.fini = r_cmd_r2ai_fini,
 	.call = r_cmd_r2ai_native,
 };
 

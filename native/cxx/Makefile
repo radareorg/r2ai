@@ -12,7 +12,7 @@ SOEXT=$(shell r2 -H R2_LIBEXT)
 R2_USER_PLUGINS=$(shell r2 -H R2_USER_PLUGINS)
 
 all:
-	g++ -o r2ai.$(SOEXT) -std=c++11 $(CFLAGS) $(LDFLAGS) $(R2FLAGS) -fPIC -shared r2ai.cpp
+	g++ -o r2ai.$(SOEXT) -std=c++11 $(CFLAGS) $(LDFLAGS) $(R2FLAGS) -DR2AI=1 -fPIC -shared r2ai.cpp main.cpp
 	mkdir -p $(R2_USER_PLUGINS)
 	cp -f r2ai.$(SOEXT) $(R2_USER_PLUGINS)
 	g++ -std=c++11 $(CFLAGS) $(LDFLAGS) main.cpp

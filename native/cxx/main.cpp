@@ -34,7 +34,9 @@
 #pragma warning(disable: 4244 4267) // possible loss of data
 #endif
 
+#define R2AI_MODEL_PATH "/tmp/mistral-7b-v0.1.Q2_K.gguf"
 // Abuse globals to make things easier to refactor this shitty code
+static gpt_params params; // SHOULDNT BE A GLOBAL
 static std::string path_session;
 static llama_sampling_params *sparams;
 static std::vector<llama_token> session_tokens;
@@ -46,19 +48,20 @@ static std::vector<llama_token> inp_pfx;
 static std::vector<llama_token> inp_sfx;
 static std::vector<llama_token> cml_pfx;
 static std::vector<llama_token> cml_sfx;
-static llama_context           ** g_ctx;
-static llama_context * ctx_guidance = NULL;
+static llama_context ** g_ctx;
+static llama_context *ctx_guidance = NULL;
 static llama_model * model;
 static llama_model ** g_model;
 static gpt_params * g_params;
 static std::vector<llama_token> * g_input_tokens;
-static std::ostringstream       * g_output_ss;
+static std::ostringstream * g_output_ss;
 size_t n_matching_session_tokens = 0;
-static std::vector<llama_token> * g_output_tokens;
+static std::vector<llama_token> *g_output_tokens;
 static llama_context * ctx;
 static bool is_interacting = false;
 static int n_ctx_train;
 static int n_ctx;
+static struct llama_sampling_context *ctx_sampling;
 static bool stdin_borken = false;
 
 
@@ -69,8 +72,8 @@ static void sigint_handler(int signo) {
 			is_interacting = true;
 		} else {
 			// console::cleanup();
-			printf("\n");
-			llama_print_timings(*g_ctx);
+			printf ("\n");
+			// llama_print_timings (*g_ctx);
 			_exit(130);
 		}
 	}
@@ -121,7 +124,32 @@ static bool cxxreadline(std::string & line, bool multiline_input) {
 	return multiline_input;
 }
 
-bool r2ai_llama_init(void) {
+bool main_r2ai_init(const char *model_path) {
+	params.input_prefix = "<s>[INST]";
+	params.input_suffix = "[/INST]";
+
+	params.antiprompt.push_back("[INST]");
+	params.interactive = true;
+	params.model = model_path; // 
+	// params.prompt = "<s>"; // Act as a helpful assistant for radare2, your name is r2ai.";
+	/// params.prompt = "<s>[INST][/INST]"; // <s>[INST]Act as a helpful assistant for radare2, your name is r2ai[/INST]Sure!";
+	// params.model = "/tmp/phi-2_Q4_K_M.gguf";
+	params.n_predict = -1;
+	if (params.n_ctx != 0 && params.n_ctx < 8) {
+		LOG_TEE("%s: warning: minimum context size is 8, using minimum size.\n", __func__);
+		params.n_ctx = 8;
+	}
+#if R2
+	params.seed = r_config_get_i (core->config, "r2ai.seed");
+	if (params.seed == 0) {
+		params.seed = LLAMA_DEFAULT_SEED;
+	}
+#else
+	if (params.seed == LLAMA_DEFAULT_SEED) {
+		params.seed = time(NULL);
+	}
+#endif
+	g_params = &params;
 	llama_log_set(null_log, nullptr);
 	// log_set_target(log_filename_generator("main", "log"));
 	// log_dump_cmdline (argc, argv);
@@ -224,7 +252,7 @@ bool r2ai_llama_init(void) {
 	// Should not run without any tokens
 	if (embd_inp.empty()) {
 		embd_inp.push_back(llama_token_bos(model));
-	//	printf ("embd_inp was considered empty and bos was added: %s\n", LOG_TOKENS_TOSTR_PRETTY(ctx, embd_inp).c_str());
+		printf ("embd_inp was considered empty and bos was added: %s\n", LOG_TOKENS_TOSTR_PRETTY(ctx, embd_inp).c_str());
 	}
 
 	// Tokenize negative prompt
@@ -331,10 +359,10 @@ bool r2ai_llama_init(void) {
 		sigint_action.sa_handler = sigint_handler;
 		sigemptyset (&sigint_action.sa_mask);
 		sigint_action.sa_flags = 0;
-		sigaction(SIGINT, &sigint_action, NULL);
+		sigaction (SIGINT, &sigint_action, NULL);
 #elif defined (_WIN32)
 		auto console_ctrl_handler = +[](DWORD ctrl_type) -> BOOL {
-			return (ctrl_type == CTRL_C_EVENT) ? (sigint_handler(SIGINT), true) : false;
+			return (ctrl_type == CTRL_C_EVENT) ? (sigint_handler (SIGINT), true) : false;
 		};
 		SetConsoleCtrlHandler(reinterpret_cast<PHANDLER_ROUTINE>(console_ctrl_handler), true);
 #endif
@@ -386,47 +414,26 @@ bool r2ai_llama_init(void) {
 	return true;
 }
 
-int main(int argc, char ** argv) {
-	gpt_params params;
-	if (!gpt_params_parse(argc, argv, params)) {
-		return 1;
+static void main_r2ai_fini(void) {
+	if (ctx_guidance) {
+		llama_free (ctx_guidance);
 	}
+	llama_free (ctx);
+	llama_free_model (model);
 
-	params.antiprompt.push_back("[INST]");
-	params.input_prefix = "<s>[INST]";
-	params.input_suffix = "[/INST]";
-	params.interactive = true;
-	params.model = "/tmp/mistral-7b-v0.1.Q2_K.gguf";
-	// params.model = "/tmp/phi-2_Q4_K_M.gguf";
-	params.n_predict = -1; // std::stoi(argv[i]);
-	if (params.n_ctx != 0 && params.n_ctx < 8) {
-		LOG_TEE("%s: warning: minimum context size is 8, using minimum size.\n", __func__);
-		params.n_ctx = 8;
-	}
-#if R2
-	params.seed = r_config_get_i (core->config, "r2ai.seed");
-	if (params.seed == 0) {
-		params.seed = LLAMA_DEFAULT_SEED;
-	}
-#else
-	if (params.seed == LLAMA_DEFAULT_SEED) {
-		params.seed = time(NULL);
-	}
-#endif
+	llama_sampling_free (ctx_sampling);
+	llama_backend_free ();
+}
 
-	g_params = &params;
+int main_r2ai_message(const char *message) {
+	bool is_antiprompt = false;
+	bool input_echo = false;
 
-	r2ai_llama_init ();
-
-	bool is_antiprompt        = false;
-	bool input_echo           = true;
-	bool need_to_save_session = !path_session.empty() && n_matching_session_tokens < embd_inp.size();
-
-	int n_past             = 0;
-	int n_remain           = params.n_predict;
-	int n_consumed         = 0;
+	int n_past = 0;
+	int n_remain = params.n_predict;
+	int n_consumed = 0;
 	int n_session_consumed = 0;
-	int n_past_guidance    = 0;
+	int n_past_guidance = 0;
 
 	std::vector<int>   input_tokens;  g_input_tokens  = &input_tokens;
 	std::vector<int>   output_tokens; g_output_tokens = &output_tokens;
@@ -438,9 +445,10 @@ int main(int argc, char ** argv) {
 	std::vector<llama_token> embd;
 	std::vector<llama_token> embd_guidance;
 
-	struct llama_sampling_context * ctx_sampling = llama_sampling_init(*sparams);
+	ctx_sampling = llama_sampling_init (*sparams);
+	bool breakloop = false;
 
-	while ((n_remain != 0 && !is_antiprompt) || params.interactive) {
+	while (!breakloop && ( (n_remain != 0 && !is_antiprompt) || params.interactive)) {
 		// predict
 		if (!embd.empty()) {
 			// Note: n_ctx - 4 here is to match the logic for commandline prompt handling via
@@ -464,11 +472,11 @@ int main(int argc, char ** argv) {
 			// - take half of the last (n_ctx - n_keep) tokens and recompute the logits in batches
 			if (n_past + (int) embd.size() + std::max<int>(0, guidance_offset) > n_ctx) {
 				if (params.n_predict == -2) {
-					LOG_TEE("\n\n%s: context full and n_predict == -%d => stopping\n", __func__, params.n_predict);
+					LOG_TEE ("\n\n%s: context full and n_predict == -%d => stopping\n", __func__, params.n_predict);
 					break;
 				}
 
-				const int n_left    = n_past - params.n_keep - 1;
+				const int n_left = n_past - params.n_keep - 1;
 				const int n_discard = n_left/2;
 
 				printf ("context full, swapping: n_past = %d, n_left = %d, n_ctx = %d, n_keep = %d, n_discard = %d\n",
@@ -482,12 +490,11 @@ int main(int argc, char ** argv) {
 				if (ctx_guidance) {
 					n_past_guidance -= n_discard;
 				}
-
+#if 0
 				printf ("after swap: n_past = %d, n_past_guidance = %d\n", n_past, n_past_guidance);
-
 				printf ("embd: %s\n", LOG_TOKENS_TOSTR_PRETTY(ctx, embd).c_str());
-
 				printf ("clear session path\n");
+#endif
 				path_session.clear();
 			}
 
@@ -504,12 +511,12 @@ int main(int argc, char ** argv) {
 					n_session_consumed++;
 
 					if (n_session_consumed >= (int) session_tokens.size()) {
-						++i;
+						i++;
 						break;
 					}
 				}
 				if (i > 0) {
-					embd.erase(embd.begin(), embd.begin() + i);
+					embd.erase (embd.begin(), embd.begin() + i);
 				}
 			}
 
@@ -518,7 +525,6 @@ int main(int argc, char ** argv) {
 			if (ctx_guidance) {
 				int input_size = 0;
 				llama_token * input_buf = NULL;
-
 				if (n_past_guidance < (int) guidance_inp.size()) {
 					// Guidance context should have the same data with these modifications:
 					//
@@ -569,10 +575,8 @@ int main(int argc, char ** argv) {
 				}
 
 				n_past += n_eval;
-
 				// printf ("n_past = %d\n", n_past);
 			}
-
 			if (!embd.empty() && !path_session.empty()) {
 				session_tokens.insert(session_tokens.end(), embd.begin(), embd.end());
 				n_session_consumed = session_tokens.size();
@@ -583,15 +587,10 @@ int main(int argc, char ** argv) {
 		embd_guidance.clear();
 
 		if ((int) embd_inp.size() <= n_consumed && !is_interacting) {
-			const llama_token id = llama_sampling_sample(ctx_sampling, ctx, ctx_guidance);
-
-			llama_sampling_accept(ctx_sampling, ctx, id, true);
-
+			const llama_token id = llama_sampling_sample (ctx_sampling, ctx, ctx_guidance);
+			llama_sampling_accept (ctx_sampling, ctx, id, true);
 			// printf ("last: %s\n", LOG_TOKENS_TOSTR_PRETTY(ctx, ctx_sampling->prev).c_str());
-
-			embd.push_back(id);
-			// printf ("PUSH iBACK %d\n", id);
-
+			embd.push_back (id);
 			// echo this to console
 			input_echo = true;
 
@@ -683,7 +682,8 @@ int main(int argc, char ** argv) {
 				}
 			}
 
-			if (n_past > 0 && is_interacting) {
+			if (message != nullptr || (n_past > 0 && is_interacting)) {
+				printf ("message is not nul\n");
 				if (params.instruct || params.chatml) {
 					printf ("\n> ");
 				}
@@ -703,12 +703,20 @@ int main(int argc, char ** argv) {
 
 				std::string line;
 				bool another_line = true;
-				do {
-					another_line = cxxreadline(line, params.multiline_input);
-					buffer += line;
-				} while (another_line);
-				if (stdin_borken) {
-					break;
+				if (message == nullptr || message == NULL) {
+					// initial prompt
+					do {
+						another_line = cxxreadline(line, params.multiline_input);
+						buffer += line;
+					} while (another_line);
+					if (stdin_borken) {
+						break;
+					}
+				} else {
+					printf ("kkkkk\n");
+					buffer += message;
+					// message = nullptr;
+					breakloop = true;
 				}
 
 				// done taking input, reset color
@@ -792,15 +800,17 @@ int main(int argc, char ** argv) {
 			is_interacting = true;
 		}
 	}
-
-	if (ctx_guidance) {
-		llama_free (ctx_guidance);
-	}
-	llama_free (ctx);
-	llama_free_model (model);
-
-	llama_sampling_free (ctx_sampling);
-	llama_backend_free ();
-
 	return 0;
 }
+
+#if !R2AI
+int main(int argc, char **argv) {
+	if (!gpt_params_parse (argc, argv, params)) {
+		return 1;
+	}
+	main_r2ai_init (R2AI_MODEL_PATH);
+	main_r2ai_message (NULL); // if null just get into the repl
+	main_r2ai_fini ();
+	return 0;
+}
+#endif
