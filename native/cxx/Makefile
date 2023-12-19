@@ -22,9 +22,15 @@ R2_USER_PLUGINS=$(shell r2 -H R2_USER_PLUGINS)
 
 all:
 	g++ -o r2ai.$(SOEXT) -std=c++11 $(CFLAGS) $(R2FLAGS) -DR2AI=1 -fPIC -shared r2ai.cpp main.cpp $(LDFLAGS)
+	$(MAKE) user-install
+	-g++ -pie -std=c++11 main.cpp $(CFLAGS) $(LDFLAGS)
+
+install user-install:
 	mkdir -p $(R2_USER_PLUGINS)
 	-cp -f r2ai.$(SOEXT) $(R2_USER_PLUGINS)
-	-g++ -pie -std=c++11 main.cpp $(CFLAGS) $(LDFLAGS)
+
+uninstall user-uninstall:
+	rm -f $(R2_USER_PLUGINS)/r2ai.$(SOEXT)
 
 run:
 	./a.out -n -1 --color -r "User:" --in-prefix " " -i -p \
