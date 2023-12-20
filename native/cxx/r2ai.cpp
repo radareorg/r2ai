@@ -33,6 +33,9 @@
 
 static void r2ai_parseflag(RCore *core, const char *input) {
 	switch (*input) {
+	case 'e':
+		r_core_cmd0 (core, "-e r2ai.");
+		break;
 	case 'v':
 		r_cons_printf ("r2ai-native-v0.1\n");
 #if 0
@@ -46,11 +49,9 @@ static void r2ai_parseflag(RCore *core, const char *input) {
 	}
 }
 
-static void r2ai_init(RCore *core) {
-}
-
 extern int main_r2ai_message(const char *message);
 extern bool main_r2ai_init(const char *model_path);
+extern bool main_r2ai_preinit(int argc, char **argv);
 
 static void r2ai_message(RCore *core, const char *input) {
 	const char *model_path = r_config_get (core->config, "r2ai.model");
@@ -60,7 +61,6 @@ static void r2ai_message(RCore *core, const char *input) {
 	char *s = r_str_newf ("<s>[INST]%s[/INST]%s</s>%s", prompt, prompt_reply, input);
 	main_r2ai_message (input);
 	free (s);
-	r2ai_init (core);
 }
 
 static int r_cmd_r2ai_init(void *user, const char *input) {
@@ -75,6 +75,7 @@ static int r_cmd_r2ai_init(void *user, const char *input) {
 	} else {
 		R_LOG_INFO ("Can't init");
 	}
+	main_r2ai_preinit (0, NULL);
 	return true;
 }
 
