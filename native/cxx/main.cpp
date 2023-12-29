@@ -51,8 +51,8 @@ static std::vector<llama_token> cml_pfx;
 static std::vector<llama_token> cml_sfx;
 static llama_context ** g_ctx;
 static llama_context *ctx_guidance = NULL;
-static llama_model * model;
-static llama_model ** g_model;
+static llama_model * model = NULL;
+static llama_model ** g_model = NULL;
 static gpt_params * g_params;
 static std::vector<llama_token> * g_input_tokens;
 static std::ostringstream * g_output_ss;
@@ -210,14 +210,14 @@ bool main_r2ai_init(const char *model_path) {
 	// load the model and apply lora adapter, if any
 	LOG ("%s: load the model and apply lora adapter, if any\n", __func__);
 	std::tie(model, ctx) = llama_init_from_gpt_params (*g_params);
-	if (sparams->cfg_scale > 1.f) {
-		struct llama_context_params lparams = llama_context_params_from_gpt_params (*g_params);
-		ctx_guidance = llama_new_context_with_model (model, lparams);
-	}
 
 	if (model == NULL) {
 		LOG_TEE("%s: error: unable to load model\n", __func__);
 		return 1;
+	}
+	if (sparams->cfg_scale > 1.f) {
+		struct llama_context_params lparams = llama_context_params_from_gpt_params (*g_params);
+		ctx_guidance = llama_new_context_with_model (model, lparams);
 	}
 
 	n_ctx_train = llama_n_ctx_train (model);
@@ -428,6 +428,10 @@ static void main_r2ai_fini(void) {
 }
 
 int main_r2ai_message(const char *message) {
+	if (model == NULL) {
+		printf ("Model not loaded\n");
+		return 0;
+	}
 	bool is_antiprompt = false;
 	bool input_echo = false;
 	int n_past = 0;
