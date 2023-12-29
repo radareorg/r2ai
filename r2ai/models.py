@@ -340,13 +340,7 @@ def list_gguf_files(repo_id: str) -> List[Dict[str, Union[str, float]]]:
     try:
       files_info = list_files_info(repo_id=repo_id)
     except Exception as e:
-      if "authentication" in str(e).lower():
-        print("You likely need to be logged in to HuggingFace to access this language model.")
-        print(f"Visit this URL to log in and apply for access to this language model: https://huggingface.co/{repo_id}")
-        print("Then, log in here:")
-        login()
-        files_info = list_files_info(repo_id=repo_id)
-  
+      return []
     gguf_files = [file for file in files_info if "gguf" in file.rfilename]
     if len(gguf_files) == 0:
       print("[r2ai] No ggml or gguf files for " + repo_id)

@@ -160,7 +160,7 @@ def runline2(usertext):
 	return f"{res}\n"
 
 def runline(usertext):
-	builtins.print(f"runline {usertext}")
+#	builtins.print(f"runline {usertext}")
 	global print
 	global ai
 	usertext = usertext.strip()
@@ -171,7 +171,7 @@ def runline(usertext):
 	elif usertext.startswith("clear") or usertext.startswith("-k"):
 		print("\x1b[2J\x1b[0;0H\r")
 	elif usertext.startswith("-M"):
-		print(r2ai.models())
+		print(r2ai.models().strip())
 	elif usertext.startswith("-m"):
 		words = usertext.split(" ")
 		if len(words) > 1:
@@ -186,7 +186,7 @@ def runline(usertext):
 		if usertext == "-t":
 			print(ai.env["llm.temperature"])
 		else:
-			ai.env["llm.temperature"] = usertext[2:].strip() #words[1] #str(ai.temperature)
+			ai.env["llm.temperature"] = usertext[2:].strip()
 	elif usertext == "-A":
 		ai.env["chat.voice"] = "true"
 		old_live = ai.env["chat.live"]
@@ -275,7 +275,7 @@ def runline(usertext):
 		tag = "CODE" # INPUT , TEXT, ..
 		#r2ai.chat("Q: " + que + ":\n["+tag+"]\n"+ res+"\n[/"+tag+"]\n")
 		ai.chat(f"{que}:\n```\n{res}\n```\n")
-#ai.chat(f"{que}:\n[{tag}]\n{res}\n[/{tag}]\n")
+		#ai.chat(f"{que}:\n[{tag}]\n{res}\n[/{tag}]\n")
 	elif usertext.startswith("-n"):
 		if usertext == "-n":
 			for a in ais.keys():
