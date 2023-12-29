@@ -95,7 +95,7 @@ def get_hf_llm(repo_id, debug_mode, context_window):
             repo_id = get_default_model()
         if usermodels is not None and repo_id in usermodels:
             model_path = usermodels[repo_id]
-#            print("[r2ai] Using " + r2ai_model_json+": " + model_path)
+#            print(f"[r2ai] Using {r2ai_model_json} {model_path}")
             return llama_cpp.Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
     except:
         traceback.print_exc()
@@ -278,7 +278,6 @@ def get_hf_llm(repo_id, debug_mode, context_window):
             else:
                 install_llama("OpenBLAS")
           
-            from llama_cpp import Llama
             print('', Markdown("Finished downloading `Code-Llama` interface."), '')
 
             # Check if on macOS
@@ -305,9 +304,7 @@ def get_hf_llm(repo_id, debug_mode, context_window):
         json.dump(usermodels, fd)
         fd.close()
         print("Saved")
-    llama_2 = Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
-#    print("[r2ai] Using model: " + model_path)
-    return llama_2
+    return llama_cpp.Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
 
 def set_default_model(repo_id):
     usermodels = {"default": repo_id}
@@ -438,24 +435,14 @@ def new_get_hf_llm(repo_id, debug_mode, context_window):
         return repo_id
     if not os.path.exists(repo_id):
         return get_hf_llm(repo_id, debug_mode, context_window)
-    # print("LOADING FILE: " + repo_id)
+    # print(f"LOADING FILE: {repo_id}")
     n_gpu_layers = -1 # = 0 to use cpu
-#    n_gpu_layers = 0
-    # Third stage: GPU confirm
-#if confirm_action("Use GPU? (Large models might crash on GPU, but will run more quickly)"):
-##      n_gpu_layers = -1
-#    else:
-#      n_gpu_layers = 0
-
-    # Get user data directory
     user_data_dir = appdirs.user_data_dir("Open Interpreter")
     default_path = os.path.join(user_data_dir, "models")
 
     # Ensure the directory exists
     os.makedirs(default_path, exist_ok=True)
     model_path = repo_id
-    # This is helpful for folks looking to delete corrupted ones and such
-#print(Markdown(f"Model found at `{model_path}`"))
   
     try:
         from llama_cpp import Llama
@@ -517,7 +504,6 @@ def new_get_hf_llm(repo_id, debug_mode, context_window):
             else:
                 install_llama("OpenBLAS")
           
-            from llama_cpp import Llama
             print('', Markdown("Finished downloading `Code-Llama` interface."), '')
 
             # Tell them if their architecture won't work well
@@ -542,4 +528,4 @@ def new_get_hf_llm(repo_id, debug_mode, context_window):
     # Initialize and return Code-Llama
     if not os.path.isfile(model_path):
         print("Model is not a file")
-    return Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
+    return llama_cpp.Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)

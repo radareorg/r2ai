@@ -383,16 +383,16 @@ if have_r2pipe:
 if have_rlang:
 	def r2ai_rlang_plugin(unused_but_required_argument):
 		def _call(s):
-			if s == "r2ai":
-				print(help_message)
-				return True
-			elif s.startswith("r2ai"):
-				usertext = s[4:].strip()
-				try:
-					runline(usertext)
-				except Exception as e:
-					print(e)
-					traceback.print_exc()
+			if s.startswith("r2ai"):
+				if len(s) == 4:
+					builtins.print(help_message)
+				else:
+					usertext = s[4:].strip()
+					try:
+						runline(usertext)
+					except Exception as e:
+						builtins.print(e)
+						traceback.print_exc()
 				return True
 			return False
 
@@ -423,4 +423,4 @@ elif have_r2pipe:
 	r2ai_repl()
 else:
 	print("r2ai plugin not initialized, you need to install rlang-python")
-sys.stderr.close()
+# sys.stderr.close()

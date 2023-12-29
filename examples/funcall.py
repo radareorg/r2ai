@@ -94,6 +94,7 @@ leprompt += r'''
 
 #model_name = "llama-2-7b-chat-codeCherryPop.Q5_K_M.gguf"
 model_name = "mistral-7b-instruct-v0.1.Q2_K.gguf"
+# model_name = "dolphin-2_6-phi-2.Q5_K_M.gguf"
 # model_name = "codellama-7b-instruct.Q4_K_M.gguf"
 # model_name = "codellama-34b-instruct.Q4_K_M.gguf"
 # model_name = "Wizard-Vicuna-7B-Uncensored.Q2_K.gguf"

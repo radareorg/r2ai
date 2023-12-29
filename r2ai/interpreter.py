@@ -562,7 +562,7 @@ class Interpreter:
         debug_mode = False # maybe true when debuglevel=2 ?
         self.llama_instance = new_get_hf_llm(self.model, debug_mode, ctxwindow)
         if self.llama_instance == None:
-          print("Cannot find the model")
+          builtins.print("Cannot find the model")
           return
       except:
         traceback.print_exc()
