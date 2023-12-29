@@ -49,6 +49,7 @@ GPT4:
 -m TheBloke/StellarBright-GGUF
 -m TheBloke/GodziLLa2-70B-GGUF
 Generic:
+-m TheBloke/Ferret_7B-GGUF
 -m TheBloke/Mistral-7B-Instruct-v0.1-GGUF
 -m TheBloke/Mistral-7B-Instruct-v0.2-GGUF
 -m aisensiy/Qwen-72B-Chat-GGUF

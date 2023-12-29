@@ -67,6 +67,8 @@ def messages_to_prompt(self, messages):
   lowermodel = self.model.lower()
   if "q4_0" in lowermodel:
     formatted_messages = template_q4im(self, messages)
+  elif "ferret" in lowermodel:
+    formatted_messages = template_ferret(self, messages)
   elif "tief" in lowermodel:
     formatted_messages = template_tiefighter(self, messages)
   elif "luna" in lowermodel:
@@ -187,6 +189,27 @@ def template_falcon(self,messages):
   for message in messages:
     formatted_messages += f"{message['role'].capitalize()}: {message['content']}"
   return formatted_messages.strip()
+
+def template_ferret(self,messages):
+  self.terminator = "<|im_end|>"
+  system_prompt = messages[0]['content'].strip()
+  if system_prompt != "":
+      formatted_messages = f"<|im_start|>system\n{system_prompt}\n<|im_end|>\n"
+  else:
+      formatted_messages = f"<|im_start|>"
+  for index, item in enumerate(messages[1:]):
+      role = item['role']
+      content = item['content']
+      if role == 'user':
+          formatted_messages += f"<|im_start|>user\n{content}<|im_end|>"
+      elif role == "hint":
+          formatted_messages += f"knowledge: {content}\n"
+      elif role == 'function':
+          formatted_messages += f"user {content} "
+      elif role == 'assistant' and self.env["chat.reply"]:
+          formatted_messages += f"<|im_start|>assistant\n{content}\n<|im_end|>\n"
+  formatted_messages += f"<|im_start|>assistant\n"
+  return formatted_messages
 
 def template_tinyllama(self,messages):
   # Llama prompt template
