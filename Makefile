@@ -15,6 +15,7 @@ deps:
 install user-install:
 	ln -fs $(PWD)/main.py $(R2_USER_PLUGINS)/r2ai.py
 	ln -fs $(PWD)/main.py $(R2PM_BINDIR)/r2ai
+	$(MAKE) -C native/cxx user-uninstall
 
 uninstall user-uninstall:
 	rm -f $(R2_USER_PLUGINS)/r2ai.py

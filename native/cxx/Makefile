@@ -28,6 +28,7 @@ all:
 install user-install:
 	mkdir -p $(R2_USER_PLUGINS)
 	-cp -f r2ai.$(SOEXT) $(R2_USER_PLUGINS)
+	$(MAKE) -C ../.. user-uninstall
 
 uninstall user-uninstall:
 	rm -f $(R2_USER_PLUGINS)/r2ai.$(SOEXT)
