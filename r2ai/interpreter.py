@@ -73,6 +73,8 @@ def messages_to_prompt(self, messages):
     formatted_messages = template_tiefighter(self, messages)
   elif "luna" in lowermodel:
     formatted_messages = template_alpaca(self, messages)
+  elif "zephyr" in lowermodel:
+    formatted_messages = template_zephyr(self, messages)
   elif "dolphin" in lowermodel:
     formatted_messages = template_ferret(self, messages)
   elif "coder" in lowermodel:
@@ -192,26 +194,52 @@ def template_falcon(self,messages):
     formatted_messages += f"{message['role'].capitalize()}: {message['content']}"
   return formatted_messages.strip()
 
-def template_ferret(self,messages):
-  self.terminator = "<|im_end|>"
-  system_prompt = messages[0]['content'].strip()
+def template_zephyr(self,messages):
+#<|system|>
+#{system_message}</s>
+#<|user|>
+#{prompt}</s>
+#<|assistant|>
+  self.terminator = "</s>"
+  system_prompt = self.system_message # messages[0]['content'].strip()
   if system_prompt != "":
-      formatted_messages = f"<|im_start|>system\n{system_prompt}\n<|im_end|>\n"
+      q = f"<|system|>\n{system_prompt}</s>\n"
   else:
-      formatted_messages = f"<|im_start|>"
-  for index, item in enumerate(messages[1:]):
+      q = f""
+  for index, item in enumerate(messages):
       role = item['role']
       content = item['content']
       if role == 'user':
-          formatted_messages += f"<|im_start|>user\n{content}<|im_end|>"
+          q += f"<|user|>\n{content}<|im_end|>"
       elif role == "hint":
-          formatted_messages += f"knowledge: {content}\n"
+          q += f"knowledge: {content}\n"
       elif role == 'function':
-          formatted_messages += f"user {content} "
-      elif role == 'assistant' and self.env["chat.reply"]:
-          formatted_messages += f"<|im_start|>assistant\n{content}\n<|im_end|>\n"
-  formatted_messages += f"<|im_start|>assistant\n"
-  return formatted_messages
+          q += f"user {content} "
+      elif role == 'assistant' and self.env["chat.reply"] == "true":
+          q += f"<|assistant|>\n{content}\n</s>\n"
+  q += f"<|assistant|>\n"
+  return q
+
+def template_ferret(self,messages):
+  self.terminator = "<|im_end|>"
+  system_prompt = self.system_message # messages[0]['content'].strip()
+  if system_prompt != "":
+      q = f"<|im_start|>system\n{system_prompt}\n<|im_end|>\n"
+  else:
+      q = f""
+  for index, item in enumerate(messages):
+      role = item['role']
+      content = item['content']
+      if role == 'user':
+          q += f"<|im_start|>user\n{content}<|im_end|>"
+      elif role == "hint":
+          q += f"knowledge: {content}\n"
+      elif role == 'function':
+          q += f"user {content} "
+      elif role == 'assistant' and self.env["chat.reply"] == "true":
+          q += f"<|im_start|>assistant\n{content}\n<|im_end|>\n"
+  q += f"<|im_start|>assistant\n"
+  return q
 
 def template_tinyllama(self,messages):
   # Llama prompt template

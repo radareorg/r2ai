@@ -56,8 +56,8 @@ Generic:
 -m aisensiy/Qwen-72B-Chat-GGUF
 -m TheBloke/Yarn-Mistral-7B-128k-GGUF
 -m TheBloke/dolphin-2.2.1-mistral-7B-GGUF
--m TheBloke/dolphin-2_6-phi-2-GGUF
 -m TheBloke/zephyr-7B-alpha-GGUF
+-m TheBloke/OpenOrca-Zephyr-7B-GGUF
 -m TheBloke/zephyr-7B-beta-GGUF
 -m maddes8cht/nomic-ai-gpt4all-falcon-7b-gguf
 -m KoboldAI/LLaMA2-13B-Tiefighter-GGUF
@@ -75,6 +75,7 @@ Uncensored:
 -m TheBloke/Wizard-Vicuna-13B-Uncensored-GGUF
 -m TheBloke/Wizard-Vicuna-7B-Uncensored-GGUF
 -m TheBloke/llama2_70b_chat_uncensored-GGUF
+-m TheBloke/dolphin-2_6-phi-2-GGUF
 -m Undi95/Utopia-13B-GGUF
 -m Undi95/UtopiaXL-13B-GGUF
 """
