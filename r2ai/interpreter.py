@@ -73,6 +73,8 @@ def messages_to_prompt(self, messages):
     formatted_messages = template_tiefighter(self, messages)
   elif "luna" in lowermodel:
     formatted_messages = template_alpaca(self, messages)
+  elif "dolphin" in lowermodel:
+    formatted_messages = template_ferret(self, messages)
   elif "coder" in lowermodel:
     formatted_messages = template_alpaca(self, messages)
   elif "deepseek" in lowermodel:

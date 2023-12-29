@@ -43,6 +43,7 @@ GPT4:
 -m TheBloke/Chronos-Hermes-13b-v2-GGUF
 -m TheBloke/Chronos-70B-v2-GGUF
 -m lizpreciatior/lzlv_70b_fp16_hf
+-m TheBloke/dolphin-2.6-mixtral-8x7b-GGUF
 -m TheBloke/Nous-Capybara-7B-v1.9-GGUF
 -m TheBloke/Nous-Capybara-34B-GGUF
 -m TheBloke/Euryale-Inverted-L2-70B-GGUF
@@ -55,6 +56,7 @@ Generic:
 -m aisensiy/Qwen-72B-Chat-GGUF
 -m TheBloke/Yarn-Mistral-7B-128k-GGUF
 -m TheBloke/dolphin-2.2.1-mistral-7B-GGUF
+-m TheBloke/dolphin-2_6-phi-2-GGUF
 -m TheBloke/zephyr-7B-alpha-GGUF
 -m TheBloke/zephyr-7B-beta-GGUF
 -m maddes8cht/nomic-ai-gpt4all-falcon-7b-gguf
@@ -74,6 +76,7 @@ Uncensored:
 -m TheBloke/Wizard-Vicuna-7B-Uncensored-GGUF
 -m TheBloke/llama2_70b_chat_uncensored-GGUF
 -m Undi95/Utopia-13B-GGUF
+-m Undi95/UtopiaXL-13B-GGUF
 """
 
 def get_hf_llm(repo_id, debug_mode, context_window):
