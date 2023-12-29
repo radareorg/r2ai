@@ -35,6 +35,7 @@ def Markdown(x):
 def models():
     return """
 OpenAI:
+-m openai:gpt-4-1106-preview
 -m openai:gpt-3.5-turbo"
 -m openai:gpt-4"
 GPT4:
