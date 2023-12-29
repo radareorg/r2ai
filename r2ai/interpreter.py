@@ -401,6 +401,7 @@ class Interpreter:
     self.env["llm.model"] = self.model ## TODO: dup. must get rid of self.model
     self.env["llm.window"] = "4096" # context_window
     self.env["llm.maxtokens"] = "1750"
+    self.env["llm.maxmsglen"] = "1750"
     self.env["llm.temperature"] = "0.002"
     self.env["user.name"] = "" # TODO auto fill?
     self.env["user.os"] = ""
@@ -676,7 +677,7 @@ class Interpreter:
       if "content" in msg:
         amsg = msg["content"]
         olen += len(amsg)
-        if len(amsg) > 4000:
+        if len(amsg) > int(self.env["llm.maxmsglen"]):
           if "while" in amsg and "```" in amsg:
             que = re.search(r"^(.*?)```", amsg, re.DOTALL).group(0).replace("```", "")
             cod = re.search(r"```(.*?)$", amsg, re.DOTALL).group(0).replace("```", "")
