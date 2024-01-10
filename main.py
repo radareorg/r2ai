@@ -93,7 +93,7 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai -M                list supported and most common models from hf
  r2ai -n [num]          select the nth language model
  r2ai -q                quit/exit/^C
- r2ai -L                show chat logs
+ r2ai -L                show chat logs (See -Lj for json)
  r2ai -r [sysprompt]    define the role of the conversation
  r2ai -r2               enter the r2clippy assistant mode
  r2ai -rf [doc/role/.f] load contents of a file to define the role
@@ -255,8 +255,12 @@ def runline(usertext):
 			ai.system_message = usertext[2:].strip()
 		else:
 			print(ai.system_message)
-	elif usertext.startswith("-L"):
+	elif usertext.startswith("-Lj"):
 		print(ai.messages)
+	elif usertext.startswith("-L"):
+		for msg in ai.messages:
+			#print(f"<{msg['role']}> {msg['content']}")
+			print(f"\x1b[33m<{msg['role']}>\x1b[0m {msg['content']}")
 	elif usertext.startswith("-f"):
 		text = usertext[2:].strip()
 		try:
