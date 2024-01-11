@@ -7,11 +7,11 @@ from .models import get_hf_llm, new_get_hf_llm, get_default_model
 from .voice import tts
 from .const import R2AI_HOMEDIR
 try:
-  from openai import OpenAI
-  have_openai = True
+	from openai import OpenAI
+	have_openai = True
 except:
-  have_openai = False
-  pass
+	have_openai = False
+	pass
 
 import re
 import os
