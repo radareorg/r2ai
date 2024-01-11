@@ -74,13 +74,13 @@ def mastodon_lines(text, keywords, use_vectordb):
 	swords = sorted(twords, key=lambda x: words.get(x) or 0)
 	nwords = " ".join(swords[:5])
 	# find rarity of words in the results + text and 
-#	print("NWORDS", nwords)
+	# print("NWORDS", nwords)
 	rslines.extend(mastodon_search(nwords))
 	if len(rslines) < 10:
 		for tw in swords:
 			w = words.get(tw)
 			if len(tw) > 4 and w is not None and w > 0 and w < 40:
-#					print(f"RELEVANT WORD {tw} {w}")
+				# print(f"RELEVANT WORD {tw} {w}")
 				rslines.extend(mastodon_search(tw))
 	return rslines
 
@@ -223,13 +223,16 @@ def vectordb_search2(text, keywords, use_mastodon):
 	if have_vectordb == True and vectordb_instance is not None:
 		res = []
 		try:
-			res = vectordb_instance.search(text, top_n=MAXMATCHES)
+			res = vectordb_instance.search(text, top_n=MAXMATCHES, unique=True, batch_results="diverse")
 		except:
-			traceback.print_exc()
-			pass
+			try:
+				res = vectordb_instance.search(text, top_n=MAXMATCHES)
+			except:
+				traceback.print_exc()
+				pass
 		for r in res:
 			if "distance" in r:
-				print("distance", r["distance"])
+				# print("distance", r["distance"])
 				if r['distance'] < 1:
 					result.append(r["chunk"])
 			else:

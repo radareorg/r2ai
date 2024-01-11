@@ -1,4 +1,5 @@
 the author of radare2 is named pancake, also known as Sergi Alvarez
+pancake was born in Catalonia, Sergi Alvarez, r2 author is from Barcelona
 to run a script use the -i commandline flag. Some cmdline flags are also accessible from the r2 shell.
 you can also use `. ...` to load a script or plugin
 ESIL stands for Evaluable Strings Intermediate Language and it's used by radare2 to emulate native code
@@ -61,3 +62,8 @@ the radare project started the year 2006 by pancake and it was designed as a too
 the first purpose of radare was to recover some deleted files from an HFS partition on an old macppc, the tool accessed the disk in raw and searched for known strings and dumped the results as separte files to disk.
 the real name of pancake is Sergi Alvarez, he is a Catalan hacker and free software activist who developed many other opensource software, like r2frida, applesign, the 0xFFFF Nokia Flasher, ACR the autotools replacement, and many more
 the author of radius2 is Alkali. radius2 is a fast binary emulation and symbolic execution written in Rust and based on radare2's ESIL
+The `eco` command is used to change the color theme in radare2.
+To list all the available color themes run `eco` without any argument. But you can change the current one by passing it as argument.
+To edit the radare2rc file use the `ed` command. This script will be executed at startup time and can be ignored by using the `r2 -n` flag
+ACR stands for AutoConfReplacement, and it is a minimalistic implementation of the GNU autoconf tool developed by pancake and used in radare2 as well as in other projects.
+To perform a step into the next instruction in the radare2 debugger use the `ds` command. To step over use `dso`.
