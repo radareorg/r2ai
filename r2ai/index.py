@@ -90,14 +90,14 @@ def hist2txt(text):
 	for line in lines:
 		line = line.strip().replace("\\040", " ")
 		if len(line) < 8:
-			next
+			continue
 		elif "?" in line:
-			next
+			continue
 		elif line.startswith("-") or line.startswith("_") or line.startswith("!"):
-			next
+			continue
 		elif line.startswith("-r"):
 			# newlines.append(line[2:])
-			next
+			continue
 		else:
 			newlines.append(line)
 	newlines = sorted(set(newlines))
@@ -142,12 +142,12 @@ def md2txt(text):
 	for line in lines:
 		line = line.strip()
 		if line == "":
-			next
+			continue
 		if read_block:
 			data += line + "\\n"
 			if line.startswith("```"):
 				read_block = False
-			next
+			continue
 		if line.startswith("```"):
 			read_block = True
 		elif line.startswith("* "):
@@ -298,7 +298,6 @@ def vectordb_search(text, keywords, source_files, use_mastodon, use_debug):
 	if saved == 0:
 		print("[r2ai] Nothing indexed")
 		vectordb_instance.save("", {})
-# vectordb_instance = None
 	else:
 		print("[r2ai] VectorDB index done")
 	return vectordb_search2(text, keywords, use_mastodon)

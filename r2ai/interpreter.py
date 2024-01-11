@@ -140,7 +140,7 @@ def template_mistral(self, messages):
       # print(item)
       role = item['role']
       if "content" not in item:
-        next
+        continue
       content = item['content'].strip()
       if role == "user":
         msg += f"[INST]{content}[/INST]"
@@ -300,10 +300,10 @@ def template_tiefighter(self, messages):
   for index, item in enumerate(messages[1:]):
       role = item['role']
       if not 'content' in item:
-          next
+          continue
       content = item['content']
       if content is None or content == "":
-          next
+          continue
       content = content.strip()
       if role == 'user':
           formatted_messages += f"[Instructions] {content} [/Instructions]\n"
@@ -327,10 +327,10 @@ def template_alpaca(self, messages):
       if "content" in item and "role" in item:
           content = item['content']
       else:
-          next
+          continue
       role = item['role']
       if content is None or content == "":
-          next
+          continue
       content = content.strip()
       if role == 'user':
           formatted_messages += f"### Instruction: {content}\n"
@@ -354,7 +354,7 @@ def template_gpt4all(self,messages):
       role = item['role']
       content = item['content']
       if content is None or content == "":
-          next
+          continue
       content = content.strip()
       if role == 'user':
           formatted_messages += f"### User: {content}\n"
