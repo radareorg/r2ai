@@ -677,6 +677,9 @@ class Interpreter:
     olen = 0
     msglen = 0
     for msg in messages:
+      if self.env["chat.reply"] == "false":
+        if msg["role"] != "user":
+          continue
       if "content" in msg:
         amsg = msg["content"]
         olen += len(amsg)
