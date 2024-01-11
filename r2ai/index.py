@@ -198,7 +198,9 @@ def filter_line(line):
 	return words
 
 def smart_slurp(file):
-	print("smart" + file)
+	if ignored_file(file):
+		return ""
+#	print("smart" + file)
 #	print(f"slurp: {file}")
 	text = slurp(file)
 	if file.endswith("r2ai.history"):
@@ -285,6 +287,8 @@ def vectordb_search(text, keywords, source_files, use_mastodon, use_debug):
 	print("[r2ai] Indexing local data with vectordb")
 	saved = 0
 	for file in source_files:
+		if ignored_file(file):
+			continue
 		lines = smart_slurp(file).splitlines()
 		for line in lines:
 #			vectordb_instance.save(line)
@@ -310,6 +314,8 @@ class compute_rarity():
 	def __init__(self, source_files, use_mastodon, use_debug):
 		self.use_mastodon = use_mastodon
 		for file in source_files:
+			if ignored_file(file):
+				continue
 			lines = smart_slurp(file).splitlines()
 			for line in lines:
 				self.lines.append(line)
@@ -379,6 +385,15 @@ class compute_rarity():
 			ow = w
 		return count
 
+def ignored_file(fn):
+	if fn.endswith("package.json"):
+		return True
+	if fn.endswith("package-lock.json"):
+		return True
+	if "/." in fn:
+		return True
+	return False
+
 def find_sources(srcdir):
 	files = []
 	try:
@@ -390,9 +405,11 @@ def find_sources(srcdir):
 		directory = f[0]
 		dirfiles = f[2]
 		for f2 in dirfiles:
+			if ignored_file(f2):
+				continue
 			if f2.endswith(".txt") or f2.endswith(".md"):
 				res.append(f"{directory}/{f2}")
-			if f2.endswith(".json"):
+			elif f2.endswith(".json"):
 				res.append(f"{directory}/{f2}")
 	return res
 
