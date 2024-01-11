@@ -456,6 +456,7 @@ class Interpreter:
     self.env["chat.voice"] = "false"
     self.env["chat.bubble"] = "false"
     self.env["chat.reply"] = "false"
+    self.env["chat.code"] = "true"
 
     # No active block to start
     # (blocks are visual representation of messages on the terminal)
@@ -557,7 +558,7 @@ class Interpreter:
     if self.last_model != self.model:
       self.llama_instance = None
       self.last_model = self.model
-    if not message:
+    if not message and self["chat.code"] == "true":
       self.end_active_block()
       print("Missing message")
       return
@@ -610,6 +611,8 @@ class Interpreter:
     self.end_active_block()
 
   def end_active_block(self):
+    if self.env["chat.code"] == "false":
+      return
     if self.active_block:
       self.active_block.end()
       self.active_block = None
@@ -840,10 +843,11 @@ class Interpreter:
       else:
         # If it hasn't made "content" yet, we're certainly not in a function call.
         condition = False
+      if self.env["chat.code"] == "false":
+        continue
 
       if condition:
         # We are in a function call.
-
         # Check if we just entered a function call
         if in_function_call == False:
 
@@ -855,7 +859,8 @@ class Interpreter:
           self.messages[-2]["role"]
 
           # then create a new code block
-          self.active_block = CodeBlock()
+          if self.env["chat.code"] == "true":
+            self.active_block = CodeBlock()
 
         # Remember we're in a function_call
         in_function_call = True
@@ -865,9 +870,7 @@ class Interpreter:
         # Code-Llama
         # Parse current code block and save to parsed_arguments, under function_call
         if "content" in self.messages[-1]:
-
           content = self.messages[-1]["content"]
-
           if "```" in content:
             # Split by "```" to get the last open code block
             blocks = content.split("```")
@@ -905,21 +908,25 @@ class Interpreter:
           pass
         # Remember we're not in a function_call
         in_function_call = False
-        # If there's no active block,
-        if self.active_block == None:
-          # Create a message block
+        # If there's no active block, create a message block
+        if self.active_block == None and self.env["chat.code"] == "true":
           self.active_block = MessageBlock()
-      if self.env["chat.live"] == "true":
+      if self.env["chat.live"] == "true" and self.env["chat.code"] == "true":
         self.active_block.update_from_message(self.messages[-1])
+      else:
+        print(self.messages[-1])
       continue # end of for loop
 
     output_text = ""
     if len(self.messages) > 0 and "content" in self.messages[-1]:
       output_text = self.messages[-1]["content"].strip()
+
     if self.env["chat.reply"] == "true":
       self.messages.append({"role": "assistant", "content": output_text})
     if self.env["chat.voice"] == "true":
       tts("(assistant)", output_text, self.env["voice.lang"])
+    elif self.env["chat.code"] == "false":
+      print(output_text)
     elif self.env["chat.live"] != "true":
       try:
         r2lang.print(output_text)
