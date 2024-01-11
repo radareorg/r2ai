@@ -12,6 +12,10 @@ all:
 deps:
 	python -m pip install -r requirements.txt
 
+vectordb:
+	git clone https://github.com/kagisearch/vectordb
+	cd vectordb && python setup.py build
+
 install user-install:
 	ln -fs $(PWD)/main.py $(R2_USER_PLUGINS)/r2ai.py
 	ln -fs $(PWD)/main.py $(R2PM_BINDIR)/r2ai

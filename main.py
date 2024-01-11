@@ -8,8 +8,13 @@ os.environ["TOKENIZERS_PARALLELISM"]="false"
 try:
 	r2aihome = os.path.dirname(os.readlink(__file__))
 	sys.path.append(r2aihome)
+	# if available
+	sys.path.append(f"{r2aihome}/../vectordb")
 except:
 	pass
+
+# run `make vectordb` because pip install vectordb2 is too old
+sys.path.append(f"vectordb")
 
 import traceback
 import r2ai

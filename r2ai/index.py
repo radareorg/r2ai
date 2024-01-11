@@ -248,14 +248,19 @@ def vectordb_init():
 	try:
 		import vectordb
 		have_vectordb = True
-	except:
-		have_vectordb = False
-		print("To better data index use:")
-		print("  pip install vectordb2")
-		print("On macOS you'll need to also do this:")
-		print("  python -m pip install spacy")
-		print("  python -m spacy download en_core_web_sm")
-		return
+	except Exception as e:
+		os.system("python -m spacy download en_core_web_sm")
+		try:
+			import vectordb
+			have_vectordb = True
+		except:
+			have_vectordb = False
+			print("To better data index use:")
+			print("  pip install vectordb2")
+			print("On macOS you'll need to also do this:")
+			print("  python -m pip install spacy")
+			print("  python -m spacy download en_core_web_sm")
+			return
 	try:
 		vectordb_instance = vectordb.Memory(embeddings="best") # normal or fast
 	except:
