@@ -67,6 +67,8 @@ def messages_to_prompt(self, messages):
   lowermodel = self.model.lower()
   if "q4_0" in lowermodel:
     formatted_messages = template_q4im(self, messages)
+  elif "openchat" in lowermodel:
+    formatted_messages = template_openchat(self, messages)
   elif "ferret" in lowermodel:
     formatted_messages = template_ferret(self, messages)
   elif "tief" in lowermodel:
@@ -218,6 +220,30 @@ def template_zephyr(self,messages):
       elif role == 'assistant' and self.env["chat.reply"] == "true":
           q += f"<|assistant|>\n{content}\n</s>\n"
   q += f"<|assistant|>\n"
+  return q
+
+def template_openchat(self,messages):
+  self.terminator = "<|end_of_turn|>"
+  system_prompt = self.system_message # messages[0]['content'].strip()
+  if system_prompt != "":
+      #q = f"<|im_start|>\n{system_prompt}\n<|im_end|>"
+      q = f"{system_prompt}<|end_of_turn|>"
+  else:
+      q = f""
+  for index, item in enumerate(messages):
+      role = item['role']
+      content = item['content']
+      if role == 'user':
+          q += f"Human: {content}<|end_of_turn|>"
+      elif role == "hint":
+# q += f"knowledge: {content}\n"
+          q += f"{content}<|end_of_turn|>"
+      elif role == 'function':
+          q += f"{content} "
+      elif role == 'assistant' and self.env["chat.reply"] == "true":
+          q += f"Assistant: {content}<|end_of_turn|>"
+  q += f"Assistant: "
+  # print(q)
   return q
 
 def template_ferret(self,messages):

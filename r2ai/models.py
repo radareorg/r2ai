@@ -71,6 +71,7 @@ Coding:
 -m TheBloke/CodeLlama-7B-Instruct-GGUF
 -m TheBloke/CodeLlama-34B-Instruct-GGUF
 Uncensored:
+-m TheBloke/openchat-3.5-1210-GGUF
 -m TheBloke/Dawn-v2-70B-GGUF
 -m TheBloke/Guanaco-7B-Uncensored-GGUF
 -m TheBloke/Luna-AI-Llama2-Uncensored-GGUF
