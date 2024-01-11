@@ -234,12 +234,14 @@ def template_ferret(self,messages):
       if role == 'user':
           q += f"<|im_start|>user\n{content}<|im_end|>"
       elif role == "hint":
-          q += f"knowledge: {content}\n"
+# q += f"knowledge: {content}\n"
+          q += f"<|im_start|>hint\n{content}<|im_end|>"
       elif role == 'function':
           q += f"user {content} "
       elif role == 'assistant' and self.env["chat.reply"] == "true":
           q += f"<|im_start|>assistant\n{content}\n<|im_end|>\n"
   q += f"<|im_start|>assistant\n"
+  # print(q)
   return q
 
 def template_tinyllama(self,messages):
