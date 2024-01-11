@@ -13,7 +13,8 @@ import sys
 import traceback
 
 #DEFAULT_MODEL = "TheBloke/CodeLlama-34B-Instruct-GGUF"
-DEFAULT_MODEL = "TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF"
+# DEFAULT_MODEL = "TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF"
+DEFAULT_MODEL = "-m TheBloke/dolphin-2_6-phi-2-GGUF"
 r2ai_model_json = "r2ai.model.json" # windows path
 if "HOME" in os.environ:
 	r2ai_model_json = os.environ["HOME"] + "/.r2ai.model"
