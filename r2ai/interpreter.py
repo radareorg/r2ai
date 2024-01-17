@@ -123,7 +123,7 @@ def template_q4im(self,messages):
         role = item['role']
         content = item['content'].strip()
         formatted_messages += f"<|im_start|>{content}<|im_end|>"
-        formatted_messages += "\{\"text\":\"{"+content+"}\"\}"
+        # formatted_messages += "{\"text\":\"{"+content+"}\"}"
     formatted_messages += f"<|im_start|>\n"
     print("```" + formatted_messages + "```")
   except:
