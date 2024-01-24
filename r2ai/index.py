@@ -1,6 +1,7 @@
 # index all the lines
 import os
 import re
+import builtins
 import requests
 import json
 import traceback
@@ -276,15 +277,16 @@ def vectordb_init():
 def vectordb_search(text, keywords, source_files, use_mastodon, use_debug):
 	global have_vectordb, vectordb_instance
 	if have_vectordb == False:
+		builtins.print("no vdb found")
 		return []
 	if have_vectordb == True and vectordb_instance is not None:
 		return vectordb_search2(text, keywords, use_mastodon)
 	vectordb_init()
 	if vectordb_instance is None:
-		print("vdb not initialized")
+		builtins.print("vdb not initialized")
 		return
 	# indexing data
-	print("[r2ai] Indexing local data with vectordb")
+	builtins.print("[r2ai] Indexing local data with vectordb")
 	saved = 0
 	for file in source_files:
 		if ignored_file(file):
