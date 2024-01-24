@@ -267,8 +267,13 @@ def runline(ai, usertext):
 		os.system(usertext[1:])
 	elif usertext[0] == ".":
 		try:
-			file = slurp(usertext[1:].strip())
-			exec(file, globals())
+			filename = usertext[1:].strip()
+			file = slurp(filename)
+			if filename.endswith(".py"):
+				exec(file, globals())
+			else:
+				for line in file.split("\n"):
+					runline(ai, line)
 		except:
 			traceback.print_exc()
 			pass
