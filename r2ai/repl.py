@@ -16,11 +16,16 @@ except:
 print_buffer = ""
 r2 = None
 ais = {}
+have_rlang = False
+try:
+	import r2lang
+	have_rlang = True
+except:
+	pass
 
 def r2_cmd(x):
+	have_rlang=True
 	global ai, r2, r2_file
-	if r2 is None and r2_file is not None:
-		r2 = r2pipe.open(file)
 	res = x
 	if have_rlang:
 		oc = r2lang.cmd('e scr.color').strip()
