@@ -67,6 +67,8 @@ def messages_to_prompt(self, messages):
   lowermodel = self.model.lower()
   if "q4_0" in lowermodel:
     formatted_messages = template_q4im(self, messages)
+  elif "gemma" in lowermodel:
+    formatted_messages = template_gemma(self, messages)
   elif "openchat" in lowermodel:
     formatted_messages = template_openchat(self, messages)
   elif "ferret" in lowermodel:
@@ -108,6 +110,28 @@ def messages_to_prompt(self, messages):
     builtins.print(formatted_messages)
   return formatted_messages
 
+def template_gemma(self,messages):
+  self.terminator = "<end_of_turn>"
+#formatted_messages = "<s>"
+  try:
+    system_prompt = messages[0]['content'].strip()
+    if system_prompt != "":
+#      formatted_messages += "\{\"text\":\"{"+system_prompt+"}\"\}"
+      formatted_messages += f"<start_of_turn>user\n{system_prompt}<end_of_turn>"
+ #formatted_messages += f"<|im_start|>system\n{system_prompt}<|im_end|>"
+      # formatted_messages = f"[STDIN] {system_prompt} [/STDIN]\n"
+      # formatted_messages = f"/imagine prompt: {system_prompt}\n"
+    for index, item in enumerate(messages[1:]):
+        role = item['role']
+        content = item['content'].strip()
+        formatted_messages += f"<start_of_turn>{role}\n{content}<end_of_turn>"
+# formatted_messages += f"<|im_start|>{content}<|im_end|>"
+        # formatted_messages += "{\"text\":\"{"+content+"}\"}"
+    formatted_messages += f"<start_of_turn>model\n"
+    print("```" + formatted_messages + "```")
+  except:
+    traceback.print_exc()
+  return formatted_messages
 
 def template_q4im(self,messages):
   self.terminator = "<|im_end|>"
@@ -117,12 +141,14 @@ def template_q4im(self,messages):
     if system_prompt != "":
 #      formatted_messages += "\{\"text\":\"{"+system_prompt+"}\"\}"
       formatted_messages += f"<|im_start|>assistant {system_prompt}<|im_end|>"
+ #formatted_messages += f"<|im_start|>system\n{system_prompt}<|im_end|>"
       # formatted_messages = f"[STDIN] {system_prompt} [/STDIN]\n"
       # formatted_messages = f"/imagine prompt: {system_prompt}\n"
     for index, item in enumerate(messages[1:]):
         role = item['role']
         content = item['content'].strip()
-        formatted_messages += f"<|im_start|>{content}<|im_end|>"
+        formatted_messages += f"<|im_start|>user\n{content}<|im_end|>"
+# formatted_messages += f"<|im_start|>{content}<|im_end|>"
         # formatted_messages += "{\"text\":\"{"+content+"}\"}"
     formatted_messages += f"<|im_start|>\n"
     print("```" + formatted_messages + "```")
