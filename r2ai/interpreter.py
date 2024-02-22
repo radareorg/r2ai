@@ -6,6 +6,7 @@ from .code_block import CodeBlock
 from .models import get_hf_llm, new_get_hf_llm, get_default_model
 from .voice import tts
 from .const import R2AI_HOMEDIR
+from .auto import tools, SYSTEM_PROMPT_AUTO
 try:
 	from openai import OpenAI
 	have_openai = True
@@ -23,12 +24,15 @@ from rich.rule import Rule
 from signal import signal, SIGINT
 import sys
 
+ANSI_REGEX = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
 file_dir = os.path.dirname(__file__)
 sys.path.append(file_dir)
 import index
 
 r2clippy = False
 have_rlang = False
+sysprint = print
 try:
 	import r2lang
 	have_rlang = True
@@ -730,6 +734,71 @@ class Interpreter:
     # if msglen > 4096:
     #   ¡print("Query is too large.. you should consider triming old messages")
     return messages
+  
+  def process_tool_calls(self, tool_calls):
+    self.messages.append({ "tool_calls": tool_calls, "role": "assistant" })
+    for tool_call in tool_calls:
+      res = ''
+      if tool_call["function"]["name"] == "r2cmd":
+        args = json.loads(tool_call["function"]["arguments"])
+        sys.stdout.write('\x1b[1;32mRunning \x1b[4m' + args["command"] + '\x1b[0m\n')
+        # r2lang.cmd('e scr.color=0')
+
+        res = r2lang.cmd(args["command"])
+        sysprint(res)
+      elif tool_call["function"]["name"] == "run_python":
+        args = json.loads(tool_call["function"]["arguments"])
+        # save to file
+        with open('temp.py', 'w') as f:
+          f.write(args["command"])
+        sys.stdout.write('\x1b[1;32mRunning \x1b[4m' + "#!python temp.py" + '\x1b[0m\n')
+        sysprint(args["command"])
+        sysprint("")
+        r2lang.cmd('#!python temp.py > temp_output')
+        with open('temp_output', 'r') as o:
+          res = o.read()
+        sysprint(res)
+      sysprint("")
+
+        # r2lang.cmd('e scr.color=3')
+      self.messages.append({"role": "tool", "content": ANSI_REGEX.sub('', res), "name": tool_call["function"]["name"], "tool_call_id": tool_call["id"]})
+
+
+  def process_streaming_response(self, resp):
+    global messages
+    tool_calls = []
+    msgs = []
+    for chunk in resp:
+      delta = chunk.choices[0].delta
+      if delta.tool_calls:
+        index = delta.tool_calls[0].index
+        fn_delta = delta.tool_calls[0].function
+        tool_call_id = delta.tool_calls[0].id
+        if len(tool_calls) < index + 1:
+          tool_calls.append({ "function": { "arguments": "", "name": fn_delta.name }, "id": tool_call_id, "type": "function" })
+        else:
+          tool_calls[index]["function"]["arguments"] += fn_delta.arguments
+      else:
+        m = delta.content
+        if m is not None:
+          msgs.append(m)
+          sys.stdout.write(m)
+    sysprint("")
+
+    if(len(tool_calls) > 0):
+      self.process_tool_calls(tool_calls)
+      self.process_streaming_response(self.openai_client.chat.completions.create(
+        model=self.model[7:],
+        messages=self.messages,
+        tools=tools,
+        tool_choice="auto",
+        stream=True,
+        temperature=float(self.env["llm.temperature"]),
+      ))
+
+    if len(msgs) > 0:
+      response_message = ''.join(msgs)
+      self.messages.append({"role": "assistant", "content": response_message})
 
   def respond(self):
     global Ginterrupted
@@ -773,24 +842,37 @@ class Interpreter:
         # https://platform.openai.com/docs/assistants/overview
         if self.openai_client is None:
           self.openai_client = OpenAI()
-        query = []
-        if self.system_message != "":
-          query.append({"role": "system", "content": self.system_message})
-        query.extend(self.messages)
 
-        completion = self.openai_client.chat.completions.create(
-          # TODO: instructions=self.system_message # instead of passing it in the query
-          model=openai_model,
-          max_tokens=maxtokens,
-          temperature=float(self.env["llm.temperature"]),
-          messages=query
-        )
-        response = completion.choices[0].message.content
-        if "content" in self.messages[-1]:
-          last_message = self.messages[-1]["content"]
-        if self.env["chat.reply"] == "true":
-          self.messages.append({"role": "assistant", "content": response})
-        print(response)
+        if self.auto_run:
+          if len(self.messages) == 1: 
+            self.messages.insert(0,{"role": "system", "content": SYSTEM_PROMPT_AUTO})
+          response = self.openai_client.chat.completions.create(
+            model=openai_model,
+            max_tokens=maxtokens,
+            tools=tools,
+            messages=self.messages,
+            tool_choice="auto",
+            stream=True,
+            temperature=float(self.env["llm.temperature"]),
+          )
+          self.process_streaming_response(response)
+        else:
+          if self.system_message != "":
+            self.messages.append({"role": "system", "content": self.system_message})
+
+          completion = self.openai_client.chat.completions.create(
+            # TODO: instructions=self.system_message # instead of passing it in the query
+            model=openai_model,
+            max_tokens=maxtokens,
+            temperature=float(self.env["llm.temperature"]),
+            messages=self.messages
+          )
+          response = completion.choices[0].message.content
+          if "content" in self.messages[-1]:
+            last_message = self.messages[-1]["content"]
+          if self.env["chat.reply"] == "true":
+            self.messages.append({"role": "assistant", "content": response})
+          print(response)
         return
       else:
         print("pip install -U openai")

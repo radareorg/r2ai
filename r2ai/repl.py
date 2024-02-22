@@ -5,7 +5,6 @@ import traceback
 have_readline = False
 from .const import R2AI_HISTFILE, R2AI_HOMEDIR, R2AI_RCFILE
 import r2ai
-
 try:
 	import readline
 	readline.read_history_file(R2AI_HISTFILE)
@@ -16,6 +15,7 @@ except:
 print_buffer = ""
 r2 = None
 ais = {}
+autoai = None
 have_rlang = False
 try:
 	import r2lang
@@ -124,6 +124,7 @@ def runline2(usertext):
 def runline(ai, usertext):
 #	builtins.print(f"runline {usertext}")
 	global print
+	global autoai
 	usertext = usertext.strip()
 	if usertext == "" or usertext.startswith("#"):
 		return
@@ -282,6 +283,11 @@ def runline(ai, usertext):
 		except:
 			traceback.print_exc()
 			pass
+	elif usertext.startswith(":auto"):
+		if not autoai:
+			autoai = r2ai.interpreter.Interpreter()
+			autoai.auto_run = True
+		autoai.chat(usertext[5:])
 	elif usertext[0] == ":":
 		if r2 is None:
 			print("r2 is not available")
