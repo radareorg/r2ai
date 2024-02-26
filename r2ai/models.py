@@ -70,6 +70,7 @@ Coding:
 -m TheBloke/deepseek-coder-33B-instruct-GGUF
 -m TheBloke/CodeLlama-7B-Instruct-GGUF
 -m TheBloke/CodeLlama-34B-Instruct-GGUF
+-m mlabonne/gemma-7b-it-GGUF
 Uncensored:
 -m TheBloke/openchat-3.5-0106-GGUF
 -m TheBloke/Dawn-v2-70B-GGUF
@@ -531,4 +532,4 @@ def new_get_hf_llm(repo_id, debug_mode, context_window):
     # Initialize and return Code-Llama
     if not os.path.isfile(model_path):
         print("Model is not a file")
-    return llama_cpp.Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
+    return llama_cpp.Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window, chat_model="gemma")
