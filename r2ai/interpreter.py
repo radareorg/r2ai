@@ -114,24 +114,20 @@ def messages_to_prompt(self, messages):
   return formatted_messages
 
 def template_gemma(self,messages):
-  self.terminator = "<end_of_turn>"
-#formatted_messages = "<s>"
+  self.terminator = ["<end_of_turn>"] #, "SneakyThrows", "\n"]
+  formatted_messages = ""
   try:
-    system_prompt = messages[0]['content'].strip()
+    system_prompt = self.system_message
     if system_prompt != "":
-#      formatted_messages += "\{\"text\":\"{"+system_prompt+"}\"\}"
-      formatted_messages += f"<start_of_turn>user\n{system_prompt}<end_of_turn>"
- #formatted_messages += f"<|im_start|>system\n{system_prompt}<|im_end|>"
-      # formatted_messages = f"[STDIN] {system_prompt} [/STDIN]\n"
-      # formatted_messages = f"/imagine prompt: {system_prompt}\n"
-    for index, item in enumerate(messages[1:]):
-        role = item['role']
-        content = item['content'].strip()
-        formatted_messages += f"<start_of_turn>{role}\n{content}<end_of_turn>"
-# formatted_messages += f"<|im_start|>{content}<|im_end|>"
-        # formatted_messages += "{\"text\":\"{"+content+"}\"}"
+      formatted_messages += f"<start_of_turn>model\n{system_prompt}<end_of_turn>"
+    for index, item in enumerate(messages):
+      role = item['role']
+      if role == "assistant":
+        role = "user"
+      content = item['content'].strip()
+      formatted_messages += f"<start_of_turn>{role}\n{content}<end_of_turn>\n"
     formatted_messages += f"<start_of_turn>model\n"
-    print("```" + formatted_messages + "```")
+    #print("```\n" + formatted_messages + "\n```")
   except:
     traceback.print_exc()
   return formatted_messages
@@ -903,13 +899,19 @@ class Interpreter:
         print("Cannot find the model")
         return
       try:
+        if type(self.terminator).__name__ == "list":
+          terminator = self.terminator
+        else:
+          terminator = [self.terminator]
         response = self.llama_instance(
           prompt,
           stream=True,
           temperature=float(self.env["llm.temperature"]),
-          stop=[self.terminator],
+          stop=terminator,
           max_tokens=maxtokens
         )
+      except Exception as err:
+        print(Exception, err)
       except:
         if Ginterrupted:
           Ginterrupted = False
