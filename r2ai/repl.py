@@ -78,6 +78,7 @@ def start_http_server():
 help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai . [file]          interpret r2ai script with access to globals
  r2ai :aa               run a r2 command
+ r2ai :auto [prompt]    query LLM that can interact with r2 (WIP, OpenAI only atm)
  r2ai !ls               run a system command
  r2ai -a                query with audio voice
  r2ai -A                enter the voice chat loop

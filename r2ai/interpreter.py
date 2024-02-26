@@ -8,11 +8,11 @@ from .voice import tts
 from .const import R2AI_HOMEDIR
 from .auto import tools, SYSTEM_PROMPT_AUTO
 try:
-  from openai import OpenAI
-  have_openai = True
+	from openai import OpenAI
+	have_openai = True
 except:
-  have_openai = False
-  pass
+	have_openai = False
+	pass
 
 import re
 import os
@@ -32,22 +32,21 @@ import index
 
 r2clippy = False
 have_rlang = False
-sysprint = print
 try:
-  import r2lang
-  have_rlang = True
-  print = r2lang.print
-  r2clippy = True
+	import r2lang
+	have_rlang = True
+	print = r2lang.print
+	r2clippy = True
 except:
-  pass
+	pass
 
 Ginterrupted = False
 def signal_handler(sig, frame):
-  global Ginterrupted
-  if Ginterrupted:
-    sys.exit(0) # throws exception
-  Ginterrupted = True
-  print("^C")
+	global Ginterrupted
+	if Ginterrupted:
+		sys.exit(0) # throws exception
+	Ginterrupted = True
+	print("^C")
 sys.excepthook = signal_handler
 signal(SIGINT, signal_handler)
 
@@ -115,20 +114,24 @@ def messages_to_prompt(self, messages):
   return formatted_messages
 
 def template_gemma(self,messages):
-  self.terminator = ["<end_of_turn>"] #, "SneakyThrows", "\n"]
-  formatted_messages = ""
+  self.terminator = "<end_of_turn>"
+#formatted_messages = "<s>"
   try:
-    system_prompt = self.system_message
+    system_prompt = messages[0]['content'].strip()
     if system_prompt != "":
-      formatted_messages += f"<start_of_turn>model\n{system_prompt}<end_of_turn>"
-    for index, item in enumerate(messages):
-      role = item['role']
-      if role == "assistant":
-        role = "user"
-      content = item['content'].strip()
-      formatted_messages += f"<start_of_turn>{role}\n{content}<end_of_turn>\n"
+#      formatted_messages += "\{\"text\":\"{"+system_prompt+"}\"\}"
+      formatted_messages += f"<start_of_turn>user\n{system_prompt}<end_of_turn>"
+ #formatted_messages += f"<|im_start|>system\n{system_prompt}<|im_end|>"
+      # formatted_messages = f"[STDIN] {system_prompt} [/STDIN]\n"
+      # formatted_messages = f"/imagine prompt: {system_prompt}\n"
+    for index, item in enumerate(messages[1:]):
+        role = item['role']
+        content = item['content'].strip()
+        formatted_messages += f"<start_of_turn>{role}\n{content}<end_of_turn>"
+# formatted_messages += f"<|im_start|>{content}<|im_end|>"
+        # formatted_messages += "{\"text\":\"{"+content+"}\"}"
     formatted_messages += f"<start_of_turn>model\n"
-    #print("```\n" + formatted_messages + "\n```")
+    print("```" + formatted_messages + "```")
   except:
     traceback.print_exc()
   return formatted_messages
@@ -763,26 +766,20 @@ class Interpreter:
       res = ''
       if tool_call["function"]["name"] == "r2cmd":
         args = json.loads(tool_call["function"]["arguments"])
-        sys.stdout.write('\x1b[1;32mRunning \x1b[4m' + args["command"] + '\x1b[0m\n')
-        # r2lang.cmd('e scr.color=0')
-
+        builtins.print('\x1b[1;32mRunning \x1b[4m' + args["command"] + '\x1b[0m')
         res = r2lang.cmd(args["command"])
-        sysprint(res)
+        builtins.print(res)
       elif tool_call["function"]["name"] == "run_python":
         args = json.loads(tool_call["function"]["arguments"])
-        # save to file
-        with open('temp.py', 'w') as f:
+        with open('r2ai_tmp.py', 'w') as f:
           f.write(args["command"])
-        sys.stdout.write('\x1b[1;32mRunning \x1b[4m' + "#!python temp.py" + '\x1b[0m\n')
-        sysprint(args["command"])
-        sysprint("")
-        r2lang.cmd('#!python temp.py > temp_output')
-        with open('temp_output', 'r') as o:
-          res = o.read()
-        sysprint(res)
-      sysprint("")
+        builtins.print('\x1b[1;32mRunning \x1b[4m' + "python code" + '\x1b[0m')
+        builtins.print(args["command"])
+        r2lang.cmd('#!python r2ai_tmp.py > $tmp')
+        res = r2lang.cmd('cat $tmp')
+        r2lang.cmd('rm r2ai_tmp.py')
+        builtins.print('\x1b[1;32mResult\x1b[0m\n' + res)
 
-        # r2lang.cmd('e scr.color=3')
       self.messages.append({"role": "tool", "content": ANSI_REGEX.sub('', res), "name": tool_call["function"]["name"], "tool_call_id": tool_call["id"]})
 
 
@@ -805,8 +802,8 @@ class Interpreter:
         if m is not None:
           msgs.append(m)
           sys.stdout.write(m)
-    sysprint("")
-
+    builtins.print()
+    
     if(len(tool_calls) > 0):
       self.process_tool_calls(tool_calls)
       self.process_streaming_response(self.openai_client.chat.completions.create(
@@ -906,19 +903,13 @@ class Interpreter:
         print("Cannot find the model")
         return
       try:
-        if type(self.terminator).__name__ == "list":
-          terminator = self.terminator
-        else:
-          terminator = [self.terminator]
         response = self.llama_instance(
           prompt,
           stream=True,
           temperature=float(self.env["llm.temperature"]),
-          stop=terminator,
+          stop=[self.terminator],
           max_tokens=maxtokens
         )
-      except Exception as err:
-        print(Exception, err)
       except:
         if Ginterrupted:
           Ginterrupted = False
