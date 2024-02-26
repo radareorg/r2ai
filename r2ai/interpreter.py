@@ -112,7 +112,7 @@ def messages_to_prompt(self, messages):
 
 def template_gemma(self,messages):
   self.terminator = "<end_of_turn>"
-#formatted_messages = "<s>"
+  formatted_messages = ""
   try:
     system_prompt = messages[0]['content'].strip()
     if system_prompt != "":

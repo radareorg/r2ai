@@ -85,7 +85,7 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai -c [cmd] [query]  run the given r2 command with the given query
  r2ai -e [k[=v]]        set environment variable
  r2ai -f [file]         load file and paste the output
- r2ai -h                show this help
+ r2ai -h                show this help (same as ?)
  r2ai -i [file] [query] load the file contents and prompt it with the given query
  r2ai -m [file/repo]    select model from huggingface repository or local file
  r2ai -M                list supported and most common models from hf
@@ -97,7 +97,7 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai -rf [doc/role/.f] load contents of a file to define the role
  r2ai -R                reset the chat conversation context
  r2ai -t [temp]         from 0.0001 to 10 your scale to randomness in my replies
- r2ai -v                show r2ai version
+ r2ai -v                show r2ai version (same as ?V)
  r2ai -w                toggle including LLM responses into the query (False is faster)"""
 
 
@@ -121,13 +121,23 @@ def runline2(usertext):
 	return f"{res}\n"
 
 
+def r2ai_version():
+	import sys
+	import llama_cpp
+	print("python: " + sys.version)
+	print("llama: " + llama_cpp.__version__)
+	print("r2ai: " + r2ai.VERSION)
+
 def runline(ai, usertext):
 #	builtins.print(f"runline {usertext}")
 	global print
 	usertext = usertext.strip()
 	if usertext == "" or usertext.startswith("#"):
 		return
-	if usertext.startswith("?") or usertext.startswith("-h"):
+	if usertext.startswith("?V") or usertext.startswith("-v"):
+		print(r2ai.VERSION)
+		r2ai_version()
+	elif usertext.startswith("?") or usertext.startswith("-h"):
 		print(help_message)
 	elif usertext.startswith("clear") or usertext.startswith("-k"):
 		print("\x1b[2J\x1b[0;0H\r")
@@ -257,8 +267,6 @@ def runline(ai, usertext):
 				ais[index] = r2ai.Interpreter()
 				ais[index].model = ai.model
 			ai = ais[index]
-	elif usertext.startswith("-v"):
-		print(r2ai.VERSION)
 	elif usertext.startswith("-c"):
 		words = usertext[2:].strip().split(" ", 1)
 		res = r2_cmd(words[0])
