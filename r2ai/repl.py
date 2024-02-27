@@ -16,6 +16,7 @@ except:
 print_buffer = ""
 r2 = None
 ais = {}
+autoai = None
 have_rlang = False
 try:
   import r2lang
@@ -78,6 +79,7 @@ def start_http_server():
 help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai . [file]          interpret r2ai script with access to globals
  r2ai :aa               run a r2 command
+ r2ai :auto [prompt]    query LLM that can interact with r2 (WIP, OpenAI only atm)
  r2ai !ls               run a system command
  r2ai -a                query with audio voice
  r2ai -A                enter the voice chat loop
@@ -131,6 +133,7 @@ def r2ai_version():
 def runline(ai, usertext):
 #  builtins.print(f"runline {usertext}")
   global print
+  global autoai
   usertext = usertext.strip()
   if usertext == "" or usertext.startswith("#"):
     return
@@ -290,6 +293,11 @@ def runline(ai, usertext):
     except:
       traceback.print_exc()
       pass
+  elif usertext.startswith(":auto"):
+    if not autoai:
+      autoai = r2ai.interpreter.Interpreter()
+      autoai.auto_run = True
+      autoai.chat(usertext[5:])
   elif usertext[0] == ":":
     if r2 is None:
       print("r2 is not available")
