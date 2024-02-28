@@ -19,11 +19,13 @@ class CodeBlock:
     self.output = ""
     self.code = ""
     self.active_line = None
-#    self.live = Live(auto_refresh=False, console=Console(), vertical_overflow="hidden")
-    self.live = Live(auto_refresh=False, console=Console())
+    self.live = Live(auto_refresh=False, console=Console(), vertical_overflow="visible")
+#    self.live = Live(auto_refresh=False, console=Console())
     self.live.start()
 
   def update_from_message(self, message):
+    if "content" in message:
+      message = message["content"]
     if type(message) is str:
       lang = "python"
       pos = message.find("```")
@@ -36,16 +38,13 @@ class CodeBlock:
       message = re.sub(r"`+$", '', message)
       self.language = lang
       self.code = message
-      if self.code and self.language:
-        self.refresh()
     elif "function_call" in message and "parsed_arguments" in message["function_call"]:
       # never happens
       parsed_arguments = message["function_call"]["parsed_arguments"]
       if parsed_arguments is not None:
         self.language = parsed_arguments.get("language")
         self.code = parsed_arguments.get("code")
-        if self.code and self.language:
-          self.refresh()
+    self.refresh()
 
   def end(self):
     self.refresh(cursor=False)

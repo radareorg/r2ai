@@ -640,8 +640,8 @@ class Interpreter:
     self.end_active_block()
 
   def end_active_block(self):
-    if self.env["chat.code"] == "false":
-      return
+#    if self.env["chat.code"] == "false":
+#      return
     if self.active_block:
       self.active_block.end()
       self.active_block = None
@@ -922,7 +922,7 @@ class Interpreter:
     # Initialize message, function call trackers, and active block
     self.messages.append({})
     in_function_call = False
-    self.active_block = None
+    self.active_block = MessageBlock()
 
     for chunk in response:
       if Ginterrupted:
@@ -939,29 +939,30 @@ class Interpreter:
       self.messages[-1] = merge_deltas(self.messages[-1], delta)
       if self.env["chat.live"] != "true":
         continue
-      if self.env["chat.code"] == "false":
-        continue
-      if incodeblock(self.messages[-1]):
-        if in_function_call == False:
-          self.end_active_block()
-          if self.env["chat.code"] == "true":
+      flushed = False
+      if self.env["chat.code"] == "true":
+        if incodeblock(self.messages[-1]):
+          if in_function_call == False:
+            in_function_call = True
+            self.active_block.update_from_message(self.messages[-1])
+            self.end_active_block()
+#            flushed = True
             self.active_block = CodeBlock()
-          else:
+        else:
+          if in_function_call == True:
+            in_function_call = False
+            self.end_active_block()
+            flushed = True
             self.active_block = MessageBlock()
-        in_function_call = True
-      else:
-        if in_function_call == True:
-          self.end_active_block()
-          self.active_block = MessageBlock()
-          self.messages[-1]["content"] = ""
-          in_function_call = False
-      if self.active_block == None and self.env["chat.code"] == "true":
-          self.active_block = MessageBlock()
-      elif self.env["chat.live"] == "true" and self.env["chat.code"] == "true":
-        if self.active_block is not None:
-          self.active_block.update_from_message(self.messages[-1])
 #      else:
 #        print(self.messages[-1])
+
+      if self.env["chat.live"] == "true": # and self.env["chat.code"] == "true":
+        self.active_block.update_from_message(self.messages[-1])
+        if flushed:
+          self.messages[-1]["content"] = ""
+#     else:
+#      print(self.messages[-1])
       continue # end of for loop
 
     self.end_active_block()
@@ -974,8 +975,6 @@ class Interpreter:
       self.messages.append({"role": "assistant", "content": output_text})
     if self.env["chat.voice"] == "true":
       tts("(assistant)", output_text, self.env["voice.lang"])
-    elif self.env["chat.code"] == "false":
-      print(output_text)
     elif self.env["chat.live"] != "true":
       try:
         r2lang.print(output_text)

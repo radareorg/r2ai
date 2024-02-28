@@ -16,11 +16,12 @@ class MessageBlock:
     self.content = ""
 
   def update_from_message(self, message):
-    msg = message if type(message) is str else message.get("content", "")
-    msg = re.sub(r"`+$", '', msg)
-    self.content = msg
-    if self.content:
-      self.refresh()
+    if type(message) != str and "content" in message:
+      message = message["content"]
+# msg = message if type(message) is str else message.get("content", "")
+    message = re.sub(r"`+$", '', message)
+    self.content = message
+    self.refresh()
 
   def end(self):
     self.refresh(cursor=False)
@@ -40,6 +41,7 @@ class MessageBlock:
     self.live.refresh()
 
 def textify_markdown_code_blocks(text):
+  return text
   """
   To distinguish CodeBlocks from markdown code, we simply turn all markdown code
   (like '```python...') into text code blocks ('```text') which makes the code black and white.
