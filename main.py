@@ -22,7 +22,9 @@ sys.path.append(f"vectordb")
 OPENAI_KEY = ""
 try:
 	if "HOME" in os.environ:
-		os.environ["OPENAI_KEY"] = slurp(os.environ["HOME"] + "/.r2ai.openai-key").strip()
+		from r2ai.utils import slurp
+		apikey = slurp(os.environ["HOME"] + "/.r2ai.openai-key").strip()
+		os.environ["OPENAI_API_KEY"] = apikey
 		print("[R2AI] OpenAI key loaded from ~/.r2ai.openai-key")
 except:
 	pass
