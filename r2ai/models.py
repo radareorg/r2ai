@@ -532,4 +532,4 @@ def new_get_hf_llm(repo_id, debug_mode, context_window):
     # Initialize and return Code-Llama
     if not os.path.isfile(model_path):
         print("Model is not a file")
-    return llama_cpp.Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window, chat_model="gemma")
+    return llama_cpp.Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
