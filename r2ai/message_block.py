@@ -16,10 +16,9 @@ class MessageBlock:
     self.content = ""
 
   def update_from_message(self, message):
-    if type(message) is str:
-        self.content = message
-    else:
-        self.content = message.get("content", "")
+    msg = message if type(message) is str else message.get("content", "")
+    msg = re.sub(r"`+$", '', msg)
+    self.content = msg
     if self.content:
       self.refresh()
 
@@ -28,8 +27,8 @@ class MessageBlock:
     self.live.stop()
 
   def refresh(self, cursor=True):
-    # De-stylize any code blocks in markdown,
-    # to differentiate from our Code Blocks
+    # De-stylize any code blocks in markdown to differentiate from our Code Blocks
+    # WHY. this makes no sense, because codeblocks should be handled by the CodeBlocks class
     content = textify_markdown_code_blocks(self.content)
     
     if cursor:

@@ -8,11 +8,11 @@ from .voice import tts
 from .const import R2AI_HOMEDIR
 from .auto import tools, SYSTEM_PROMPT_AUTO
 try:
-	from openai import OpenAI
-	have_openai = True
+  from openai import OpenAI
+  have_openai = True
 except:
-	have_openai = False
-	pass
+  have_openai = False
+  pass
 
 import re
 import os
@@ -50,6 +50,9 @@ def signal_handler(sig, frame):
 sys.excepthook = signal_handler
 signal(SIGINT, signal_handler)
 
+def incodeblock(msg):
+  return "content" in msg and msg["content"].count("```") % 2 == 1
+
 def r2eval(m):
   if "$(" in m and have_rlang:
     def evaluate_expression(match):
@@ -62,6 +65,7 @@ def r2eval(m):
     return re.sub(r'\$\((.*?)\)', evaluate_expression, m)
   return m
 
+# move all this logic into r2ai/templates.py or r2ai/chat.py (chat_templates.py?)
 def messages_to_prompt(self, messages):
   for message in messages:
     # Happens if it immediatly writes code
@@ -555,7 +559,7 @@ class Interpreter:
   def keywords_ai(self, text):
     # kws = self.keywords_ai("who is the author of radare?") => "author,radare2"
     words = []
-    mmname = "TheBloke/Mistral-7B-Instruct-v0.1-GGUF"
+    mmname = "TheBloke/Mistral-7B-Instruct-v0.2-GGUF"
     ctxwindow = int(self.env["llm.window"])
     mm = new_get_hf_llm(mmname, False, ctxwindow)
     msg = f"Considering the sentence \"{text}\" as input, Take the KEYWORDS or combination of TWO words from the given text and respond ONLY a comma separated list of the most relevant words. DO NOT introduce your response, ONLY show the words"
@@ -841,11 +845,9 @@ class Interpreter:
     if self.env["debug"] == "true":
       print(messages)
 
-    # Code-Llama
     # Convert messages to prompt
     # (This only works if the first message is the only system message)
     prompt = messages_to_prompt(self, messages)
-    # builtins.print(prompt)
 
     if self.model.startswith("openai:"):
       # [
@@ -937,89 +939,33 @@ class Interpreter:
       self.messages[-1] = merge_deltas(self.messages[-1], delta)
       if self.env["chat.live"] != "true":
         continue
-
-      # Check if we're in a function call
-      # Since Code-Llama can't call functions, we just check if we're in a code block.
-      # This simply returns true if the number of "```" in the message is odd.
-      if "content" in self.messages[-1]:
-        condition = self.messages[-1]["content"].count("```") % 2 == 1
-      else:
-        # If it hasn't made "content" yet, we're certainly not in a function call.
-        condition = False
       if self.env["chat.code"] == "false":
         continue
-
-      if condition:
-        # We are in a function call.
-        # Check if we just entered a function call
+      if incodeblock(self.messages[-1]):
         if in_function_call == False:
-
-          # If so, end the last block,
           self.end_active_block()
-
-          # Print newline if it was just a code block or user message
-          # (this just looks nice)
-          self.messages[-2]["role"]
-
-          # then create a new code block
           if self.env["chat.code"] == "true":
             self.active_block = CodeBlock()
-
-        # Remember we're in a function_call
+          else:
+            self.active_block = MessageBlock()
         in_function_call = True
-
-        # Now let's parse the function's arguments:
-
-        # Code-Llama
-        # Parse current code block and save to parsed_arguments, under function_call
-        if "content" in self.messages[-1]:
-          content = self.messages[-1]["content"]
-          if "```" in content:
-            # Split by "```" to get the last open code block
-            blocks = content.split("```")
-            current_code_block = blocks[-1]
-            lines = current_code_block.split("\n")
-            if content.strip() == "```": # Hasn't outputted a language yet
-              language = None
-            else:
-              if lines[0] != "":
-                language = lines[0].strip()
-              else:
-                language = "python"
-                # In anticipation of its dumbassery let's check if "pip" is in there
-                if len(lines) > 1:
-                  if lines[1].startswith("pip"):
-                    language = "shell"
-
-            # Join all lines except for the language line
-            code = '\n'.join(lines[1:]).strip("` \n")
-
-            arguments = {"code": code}
-            if language: # We only add this if we have it-- the second we have it, an interpreter gets fired up (I think? maybe I'm wrong)
-              if language == "bash":
-                language = "shell"
-              arguments["language"] = language
-
-          # Code-Llama won't make a "function_call" property for us to store this under, so:
-          #if "function_call" not in self.messages[-1]:
-          #  self.messages[-1]["function_call"] = {}
-          #self.messages[-1]["function_call"]["parsed_arguments"] = arguments
       else:
-        # We are not in a function call.
-        # Check if we just left a function call
         if in_function_call == True:
-          pass
-        # Remember we're not in a function_call
-        in_function_call = False
-        # If there's no active block, create a message block
-        if self.active_block == None and self.env["chat.code"] == "true":
+          self.end_active_block()
           self.active_block = MessageBlock()
-      if self.env["chat.live"] == "true" and self.env["chat.code"] == "true":
-        self.active_block.update_from_message(self.messages[-1])
-      else:
-        print(self.messages[-1])
+          self.messages[-1]["content"] = ""
+          in_function_call = False
+      if self.active_block == None and self.env["chat.code"] == "true":
+          self.active_block = MessageBlock()
+      elif self.env["chat.live"] == "true" and self.env["chat.code"] == "true":
+        if self.active_block is not None:
+          self.active_block.update_from_message(self.messages[-1])
+#      else:
+#        print(self.messages[-1])
       continue # end of for loop
 
+    self.end_active_block()
+    self.active_block = None
     output_text = ""
     if len(self.messages) > 0 and "content" in self.messages[-1]:
       output_text = self.messages[-1]["content"].strip()
