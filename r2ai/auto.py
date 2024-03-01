@@ -2,6 +2,10 @@ import builtins
 import json
 import sys
 import re
+from llama_cpp import Llama
+from llama_cpp.llama_tokenizer import LlamaHFTokenizer
+from transformers import AutoTokenizer
+from .functionary import prompt_template
 
 try:
 	import r2lang
@@ -21,15 +25,11 @@ tools = [{
       "properties": {
         "command": {
           "type": "string",
-          "description": "command to run in radare2. You can run it multiple times or chain commands with pipes/semicolons. You can also use r2 interpreters to run scripts using the `#`, '#!', etc. commands. The output could be long, so try to use filters if possible or limit. This is your preferred tool"
-        },
-        "done": {
-          "type": "boolean",
-          "description": "set to true if you're done running commands and you don't need the output, otherwise false"
+          "description": "command to run in radare2"
         }
       }
     },
-    "required": ["command", "done"],   
+    "required": ["command"],   
   }
 }, {
   "type": "function",
@@ -61,7 +61,26 @@ If you're asked to decompile a function, make sure to return the code in the lan
 Don't just regurgitate the same code, figure out what it's doing and rewrite it to be more understandable.
 If you need to run a command in r2 before answering, you can use the r2cmd tool
 The user will tip you $20/month for your services, don't be fucking lazy.
+Do not repeat commands if you already know the answer.
 """
+
+FUNCTIONARY_PROMPT_AUTO = """
+  Think step by step.
+  Break down the task into steps and execute the necessary `radare2` commands in order to complete the task.
+"""
+
+def get_system_prompt(model):
+  if model.startswith("meetkai/"):
+    return SYSTEM_PROMPT_AUTO + "\n" + FUNCTIONARY_PROMPT_AUTO
+  else:
+    return SYSTEM_PROMPT_AUTO
+
+functionary_tokenizer = None
+def get_functionary_tokenizer(repo_id):
+  global functionary_tokenizer
+  if functionary_tokenizer is None:
+    functionary_tokenizer = AutoTokenizer.from_pretrained(repo_id, legacy=True)
+  return functionary_tokenizer
 
 def process_tool_calls(interpreter, tool_calls):
   interpreter.messages.append({ "content": None, "tool_calls": tool_calls, "role": "assistant" })
@@ -69,9 +88,14 @@ def process_tool_calls(interpreter, tool_calls):
     res = ''
     args = tool_call["function"]["arguments"]
     if type(args) is str:
-      args = json.loads(args)
-    
+      try:
+        args = json.loads(args)
+      except:
+        builtins.print(f"Error parsing json: {args}")
+
     if tool_call["function"]["name"] == "r2cmd":
+      if type(args) is str:
+        args = { "command": args }
       builtins.print('\x1b[1;32mRunning \x1b[4m' + args["command"] + '\x1b[0m')
       res = r2lang.cmd(args["command"])
       builtins.print(res)
@@ -84,7 +108,8 @@ def process_tool_calls(interpreter, tool_calls):
       res = r2lang.cmd('cat $tmp')
       r2lang.cmd('rm r2ai_tmp.py')
       builtins.print('\x1b[1;32mResult\x1b[0m\n' + res)
-
+    if not res or len(res) == 0 and interpreter.model.startswith('meetkai/'):
+      res = "OK done"
     interpreter.messages.append({"role": "tool", "content": ANSI_REGEX.sub('', res), "name": tool_call["function"]["name"], "tool_call_id": tool_call["id"]})
 
 
@@ -131,7 +156,7 @@ def process_streaming_response(interpreter, resp):
 
 def chat(interpreter):
   if len(interpreter.messages) == 1: 
-    interpreter.messages.insert(0,{"role": "system", "content": SYSTEM_PROMPT_AUTO})
+    interpreter.messages.insert(0,{"role": "system", "content": get_system_prompt(interpreter.model)})
 
   response = None
   if interpreter.model.startswith("openai:"):
@@ -156,22 +181,44 @@ def chat(interpreter):
     process_streaming_response(interpreter, response)
   else:
     chat_format = interpreter.llama_instance.chat_format
-    interpreter.llama_instance.chat_format = "chatml-function-calling"
-    response = interpreter.llama_instance.create_chat_completion(
-      max_tokens=int(interpreter.env["llm.maxtokens"]),
-      tools=tools,
-      messages=interpreter.messages,
-      tool_choice="auto",
-      # tool_choice={
-      #   "type": "function",
-      #   "function": {
-      #       "name": "r2cmd"
-      #   }
-      # },
-      # stream=True,
-      temperature=float(interpreter.env["llm.temperature"]),
-    )
-    process_streaming_response(interpreter, iter([response]))
-    interpreter.llama_instance.chat_format = chat_format
+    is_functionary = interpreter.model.startswith("meetkai/")
+    if is_functionary:
+      tokenizer = get_functionary_tokenizer(interpreter.model)
+      prompt_templ = prompt_template.get_prompt_template_from_tokenizer(tokenizer)
+      prompt_str = prompt_templ.get_prompt_from_messages(interpreter.messages + [{"role": "assistant"}], tools)
+      token_ids = tokenizer.encode(prompt_str)
+      stop_token_ids = [
+        tokenizer.encode(token)[-1]
+        for token in prompt_templ.get_stop_tokens_for_generation()
+      ]
+      gen_tokens = []
+      for token_id in interpreter.llama_instance.generate(token_ids, temp=float(interpreter.env["llm.temperature"])):
+        sys.stdout.write(tokenizer.decode([token_id]))
+        if token_id in stop_token_ids:
+            break
+        gen_tokens.append(token_id)
+      llm_output = tokenizer.decode(gen_tokens)
+      response = prompt_templ.parse_assistant_response(llm_output)
+      process_streaming_response(interpreter, iter([
+        { "choices": [{ "message": response }] }
+      ]))
+    else:
+      interpreter.llama_instance.chat_format = "chatml-function-calling"
+      response = interpreter.llama_instance.create_chat_completion(
+        max_tokens=int(interpreter.env["llm.maxtokens"]),
+        tools=tools,
+        messages=interpreter.messages,
+        tool_choice="auto",
+        # tool_choice={
+        #   "type": "function",
+        #   "function": {
+        #       "name": "r2cmd"
+        #   }
+        # },
+        # stream=is_functionary,
+        temperature=float(interpreter.env["llm.temperature"]),
+      )
+      process_streaming_response(interpreter, iter([response]))
+      interpreter.llama_instance.chat_format = chat_format
   return response
    

@@ -297,7 +297,7 @@ def runline(ai, usertext):
     if not autoai:
       autoai = r2ai.interpreter.Interpreter()
       autoai.auto_run = True
-      autoai.chat(usertext[2:])
+    autoai.chat(usertext[2:])
   elif usertext[0] == ":":
     if r2 is None:
       print("r2 is not available")

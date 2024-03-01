@@ -51,6 +51,12 @@ GPT4:
 -m TheBloke/Euryale-Inverted-L2-70B-GGUF
 -m TheBloke/StellarBright-GGUF
 -m TheBloke/GodziLLa2-70B-GGUF
+Functionary:
+-m meetkai/functionary-small-v2.2-GGUF
+-m meetkai/functionary-medium-v2.2-GGUF
+-m meetkai/functionary-7b-v2.1-GGUF
+-m meetkai/functionary-7b-v2-GGUF
+-m meetkai/functionary-7b-v1.4-GGUF
 Generic:
 -m TheBloke/Ferret_7B-GGUF
 -m TheBloke/Mistral-7B-Instruct-v0.1-GGUF
@@ -131,6 +137,8 @@ def get_hf_llm(repo_id, debug_mode, context_window):
             selected_model = combined_models[len(combined_models) // 2]["filename"]
         elif am.startswith("Large"):
             selected_model = combined_models[-1]["filename"]
+    else:
+        selected_model = repo_id
     
     if selected_model != None:
         # This means they either selected See More,
