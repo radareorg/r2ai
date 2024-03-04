@@ -14,6 +14,13 @@ except:
   have_openai = False
   pass
 
+try:
+  from anthropic import Anthropic
+  have_anthropic = True
+except:
+  have_anthropic = False
+  pass
+
 import re
 import os
 import traceback
@@ -451,6 +458,7 @@ class Interpreter:
     self.last_model = ""
     self.env = {}
     self.openai_client = None
+    self.anthropic_client = None
     self.api_base = None # Will set it to whatever OpenAI wants
     self.system_message = ""
     self.env["debug"] = "false"
@@ -823,6 +831,32 @@ class Interpreter:
       else:
         print("pip install -U openai")
         print("export OPENAI_API_KEY=...")
+        return
+    elif self.model.startswith('anthropic:'):
+      anthropic_model = self.model[10:]
+      messages = []
+      for m in self.messages:
+        if m["role"] == "system":
+          system_message = m["content"]
+        else:
+          messages.append(m["content"])
+
+      if have_anthropic:
+        if self.anthropic_client is None:
+          self.anthropic_client = Anthropic()
+        completion = self.anthropic_client.messages.create(
+          model=anthropic_model,
+          max_tokens=maxtokens,
+          temperature=float(self.env["llm.temperature"]),
+          messages=messages
+        )
+
+        if self.env["chat.reply"] == "true":
+          self.messages.append({"role": "assistant", "content": completion.content})
+          print(completion.content)
+      else:
+        print("pip install -U anthropic")
+        print("export ANTHROPIC_API_KEY=...")
         return
     else:
       # non-openai aka local-llama model
