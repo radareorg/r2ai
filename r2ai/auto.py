@@ -6,6 +6,7 @@ from llama_cpp import Llama
 from llama_cpp.llama_tokenizer import LlamaHFTokenizer
 from transformers import AutoTokenizer
 from .functionary import prompt_template
+from .anthropic import construct_tool_use_system_prompt, extract_claude_tool_calls
 
 try:
 	import r2lang
@@ -72,6 +73,8 @@ FUNCTIONARY_PROMPT_AUTO = """
 def get_system_prompt(model):
   if model.startswith("meetkai/"):
     return SYSTEM_PROMPT_AUTO + "\n" + FUNCTIONARY_PROMPT_AUTO
+  elif model.startswith("anthropic"):
+    return SYSTEM_PROMPT_AUTO + "\n\n" + construct_tool_use_system_prompt(tools)
   else:
     return SYSTEM_PROMPT_AUTO
 
@@ -108,7 +111,7 @@ def process_tool_calls(interpreter, tool_calls):
       res = r2lang.cmd('cat $tmp')
       r2lang.cmd('rm r2ai_tmp.py')
       builtins.print('\x1b[1;32mResult\x1b[0m\n' + res)
-    if not res or len(res) == 0 and interpreter.model.startswith('meetkai/'):
+    if (not res or len(res) == 0) and interpreter.model.startswith('meetkai/'):
       res = "OK done"
     interpreter.messages.append({"role": "tool", "content": ANSI_REGEX.sub('', res), "name": tool_call["function"]["name"], "tool_call_id": tool_call["id"]})
 
@@ -153,7 +156,6 @@ def process_streaming_response(interpreter, resp):
     response_message = ''.join(msgs)
     interpreter.messages.append({"role": "assistant", "content": response_message})
 
-
 def chat(interpreter):
   if len(interpreter.messages) == 1: 
     interpreter.messages.insert(0,{"role": "system", "content": get_system_prompt(interpreter.model)})
@@ -179,6 +181,42 @@ def chat(interpreter):
       temperature=float(interpreter.env["llm.temperature"]),
     )
     process_streaming_response(interpreter, response)
+  elif interpreter.model.startswith('anthropic:'):
+    if not interpreter.anthropic_client:
+      try:
+        from anthropic import Anthropic
+      except ImportError:
+        print("pip install -U anthropic")
+        return
+      interpreter.anthropic_client = Anthropic()
+    messages = []
+    system_message = construct_tool_use_system_prompt(tools)
+    for m in interpreter.messages:
+      role = m["role"]
+      if role == "system":
+        continue
+      if m["content"] is None:
+        continue
+      if role == "tool":
+        messages.append({ "role": "user", "content": f"<function_results>\n<result>\n<tool_name>{m['name']}</tool_name>\n<stdout>{m['content']}</stdout>\n</result>\n</function_results>" })
+        # TODO: handle errors
+      else:
+        messages.append({ "role": role, "content": m["content"] })
+
+    stream = interpreter.anthropic_client.messages.create(
+      model=interpreter.model[10:],
+      max_tokens=int(interpreter.env["llm.maxtokens"]),
+      messages=messages,
+      system=system_message,
+      temperature=float(interpreter.env["llm.temperature"]),
+      stream=True
+    )
+    (tool_calls, msg) = extract_claude_tool_calls(interpreter, stream)
+    if len(tool_calls) > 0:
+      process_tool_calls(interpreter, tool_calls)
+      chat(interpreter)
+    else:
+      builtins.print(msg)
   else:
     chat_format = interpreter.llama_instance.chat_format
     is_functionary = interpreter.model.startswith("meetkai/")

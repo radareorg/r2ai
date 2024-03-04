@@ -37,8 +37,12 @@ def models():
     return """
 OpenAI:
 -m openai:gpt-4-1106-preview
--m openai:gpt-3.5-turbo"
--m openai:gpt-4"
+-m openai:gpt-3.5-turbo
+-m openai:gpt-4
+Anthropic:
+-m anthropic:claude-2.1
+-m anthropic:claude-3-sonnet-20240229
+-m anthropic:claude-3-opus-20240229
 GPT4:
 -m TheBloke/goliath-120b-GGUF
 -m TheBloke/SynthIA-7B-v2.0-GGUF
@@ -443,7 +447,7 @@ def enough_disk_space(size, path) -> bool:
     return False
 
 def new_get_hf_llm(repo_id, debug_mode, context_window):
-    if repo_id.startswith("openai:"):
+    if repo_id.startswith("openai:") or repo_id.startswith("anthropic:"):
         return repo_id
     if not os.path.exists(repo_id):
         return get_hf_llm(repo_id, debug_mode, context_window)
