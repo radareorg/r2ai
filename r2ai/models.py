@@ -41,6 +41,7 @@ OpenAI:
 -m openai:gpt-4
 Anthropic:
 -m anthropic:claude-2.1
+-m anthropic:claude-3-haiku-20240307
 -m anthropic:claude-3-sonnet-20240229
 -m anthropic:claude-3-opus-20240229
 GPT4:
