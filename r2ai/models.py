@@ -47,6 +47,7 @@ GPT4:
 -m TheBloke/goliath-120b-GGUF
 -m TheBloke/SynthIA-7B-v2.0-GGUF
 -m TheBloke/Chronos-Hermes-13b-v2-GGUF
+-m NousResearch/Hermes-2-Pro-Mistral-7B-GGUF
 -m TheBloke/Chronos-70B-v2-GGUF
 -m lizpreciatior/lzlv_70b_fp16_hf
 -m TheBloke/dolphin-2.6-mixtral-8x7b-GGUF
