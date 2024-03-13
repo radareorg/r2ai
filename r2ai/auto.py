@@ -99,9 +99,10 @@ def process_tool_calls(interpreter, tool_calls):
     if tool_call["function"]["name"] == "r2cmd":
       if type(args) is str:
         args = { "command": args }
-      builtins.print('\x1b[1;32mRunning \x1b[4m' + args["command"] + '\x1b[0m')
-      res = r2lang.cmd(args["command"])
-      builtins.print(res)
+      if "command" in args:
+        builtins.print('\x1b[1;32mRunning \x1b[4m' + args["command"] + '\x1b[0m')
+        res = r2lang.cmd(args["command"])
+        builtins.print(res)
     elif tool_call["function"]["name"] == "run_python":
       with open('r2ai_tmp.py', 'w') as f:
         f.write(args["command"])
@@ -113,8 +114,28 @@ def process_tool_calls(interpreter, tool_calls):
       builtins.print('\x1b[1;32mResult\x1b[0m\n' + res)
     if (not res or len(res) == 0) and interpreter.model.startswith('meetkai/'):
       res = "OK done"
-    interpreter.messages.append({"role": "tool", "content": ANSI_REGEX.sub('', res), "name": tool_call["function"]["name"], "tool_call_id": tool_call["id"]})
+    interpreter.messages.append({"role": "tool", "content": ANSI_REGEX.sub('', res), "name": tool_call["function"]["name"], "tool_call_id": tool_call["id"] if "id" in tool_call else None})
 
+def process_hermes_response(interpreter, response):
+  choice = response["choices"][0]
+  message = choice["message"]
+  interpreter.messages.append(message)
+  r = re.search(r'<tool_call>([\s\S]*?)<\/tool_call>', message["content"])
+  tool_call_str = None
+  if r:
+    tool_call_str = r.group(1)
+  tool_calls = []
+  if tool_call_str:
+    tool_call = json.loads(tool_call_str)
+    tool_calls.append({"function": tool_call})
+
+  if len(tool_calls) > 0:
+    process_tool_calls(interpreter, tool_calls)
+    chat(interpreter)
+  else:
+    interpreter.messages.append({ "content": message["content"], "role": "assistant" })
+    sys.stdout.write(message["content"])
+  builtins.print()
 
 def process_streaming_response(interpreter, resp):
   tool_calls = []
@@ -240,6 +261,35 @@ def chat(interpreter):
       process_streaming_response(interpreter, iter([
         { "choices": [{ "message": response }] }
       ]))
+    elif interpreter.model.startswith("NousResearch/"):
+      interpreter.llama_instance.chat_format = "chatml"
+      messages = []
+      for m in interpreter.messages:
+        role = m["role"]
+        if m["content"] is None:
+          continue
+        if role == "system":
+          if not '<tools>' in m["content"]:
+            messages.append({ "role": "system", "content": f"""{m['content']}\nYou are a function calling AI model. You are provided with function signatures within <tools></tools> XML tags. You may call one or more functions to assist with the user query. Don't make assumptions about what values to plug into functions. Here are the available tools:
+<tools> {json.dumps(tools)} </tools>
+For each function call return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows:
+<tool_call>
+{{"arguments": <args-dict>, "name": <function-name>}}
+</tool_call>"""})
+        elif role == "tool":
+          messages.append({ "role": "tool", "content": "<tool_response>\n" + '{"name": ' + m['name'] + ', "content": ' + json.dumps(m['content']) + '}\n</tool_response>' })    
+        else:
+          messages.append(m)
+
+      response = interpreter.llama_instance.create_chat_completion(
+        max_tokens=int(interpreter.env["llm.maxtokens"]),
+        messages=messages,
+        temperature=float(interpreter.env["llm.temperature"]),
+      )
+      
+      process_hermes_response(interpreter, response)
+      interpreter.llama_instance.chat_format = chat_format
+
     else:
       interpreter.llama_instance.chat_format = "chatml-function-calling"
       response = interpreter.llama_instance.create_chat_completion(
