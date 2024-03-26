@@ -1,6 +1,7 @@
 R2_USER_PLUGINS=$(shell r2 -H R2_USER_PLUGINS)
 PWD=$(shell pwd)
 R2PM_BINDIR=$(shell r2pm -H R2PM_BINDIR)
+PIP=python -m pip
 
 ifeq ($(R2PM_BINDIR),)
 FATAL ERROR
@@ -10,7 +11,8 @@ all:
 	python3 main.py || $(MAKE) deps
 
 deps:
-	python -m pip install -r requirements.txt
+	export CMAKE_ARGS="-DLLAMA_METAL=on -DLLAMA_METAL_EMBED_LIBRARY=ON" && \
+		$(PIP) install -U -r requirements.txt --break-system-packages
 
 vectordb:
 	git clone https://github.com/kagisearch/vectordb
