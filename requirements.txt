@@ -5,3 +5,5 @@ huggingface_hub
 appdirs
 unidecode
 jsonref
+transformers
+pydantic
