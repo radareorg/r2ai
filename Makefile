@@ -10,9 +10,21 @@ endif
 all:
 	python3 main.py || $(MAKE) deps
 
-deps:
+venv:
+	python -m venv venv
+
+deps: venv
+	test -n "${VIRTUAL_ENV}" || (echo "Run: . venv/bin/activate" ; exit 1)
 	export CMAKE_ARGS="-DLLAMA_METAL=on -DLLAMA_METAL_EMBED_LIBRARY=ON" && \
-		$(PIP) install -U -r requirements.txt --break-system-packages
+		pip install --force-reinstall -U -r requirements.txt --no-cache-dir
+	$(MAKE) vectordb
+
+clean:
+	rm -rf venv
+
+deps-global:
+	export CMAKE_ARGS="-DLLAMA_METAL=on -DLLAMA_METAL_EMBED_LIBRARY=ON" && \
+		$(PIP) install --force-reinstall -U -r requirements.txt --break-system-packages --no-cache-dir
 
 vectordb:
 	git clone https://github.com/kagisearch/vectordb

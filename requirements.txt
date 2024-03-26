@@ -7,3 +7,4 @@ unidecode
 jsonref
 transformers
 pydantic
+torch
