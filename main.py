@@ -140,7 +140,8 @@ else:
 				runline(ai, arg)
 			if arg == "-h" or arg == "-v":
 				sys.exit(0)
-#		r2ai_repl(ai)
+			elif arg == "-repl":
+				r2ai_repl(ai)
 	elif not within_r2:
 		r2ai_repl(ai)
 	elif have_r2pipe:

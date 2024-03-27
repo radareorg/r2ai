@@ -94,6 +94,7 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai -n [num]          select the nth language model
  r2ai -q                quit/exit/^C
  r2ai -L                show chat logs (See -Lj for json)
+ r2ai -repl             enter the repl (only when running via r2pipe)
  r2ai -r [sysprompt]    define the role of the conversation
  r2ai -r2               enter the r2clippy assistant mode
  r2ai -rf [doc/role/.f] load contents of a file to define the role
@@ -185,6 +186,8 @@ def runline(ai, usertext):
     ai.env["chat.voice"] = "false"
   elif usertext == "-q" or usertext == "exit":
     return "q"
+  elif usertext == "-repl":
+    print("Nothing to do")
   elif usertext == "-r2":
     ai.env["data.use"] = "true"
     ai.env["data.hist"] = "true"
