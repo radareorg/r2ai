@@ -52,7 +52,9 @@ export PATH=/opt/homebrew/Cellar/llvm/17.0.5/bin/:$PATH
 CC=clang CXX=clang++ pip install git+https://github.com/teemupitkanen/mrpt/
 ```
 
-And now you should be able to run it like this
+## r2pm installation
+
+When running installed via r2pm you can execute it like this:
 
 ```bash
 r2pm -r r2ai
@@ -64,6 +66,8 @@ Additionally you can get the `r2ai` command inside r2 to run as an rlang plugin 
 r2pm -i rlang-python
 make user-install
 ```
+
+## Windows
 
 On native Windows follow these instructions (no need to install radare2 or use r2pm), note that you need Python 3.8 or higher:
 
@@ -80,10 +84,28 @@ python main.py
 
 There are 4 different ways to run `r2ai`:
 
-* Standalone and interactive: `r2pm -r r2ai`
+* Standalone and interactive: `r2pm -r r2ai` or `python main.py`
 * Batch mode: `r2ai '-r act as a calculator' '3+3=?'`
 * From radare2 (requires `r2pm -ci rlang-python`): `r2 -c 'r2ai -h'`
 * Using r2pipe: `#!pipe python main.py`
+  * Define a macro command: `'$r2ai=#!pipe python main.py`
+
+## Auto mode
+
+When using OpenAI, Claude or any of the Functionary local models you can use the auto mode which permits the language model to execute r2 commands, analyze the output in loop and in a loop until it is resolved. Here's a sample session to achieve that:
+
+* Video https://infosec.exchange/@radareorg/111946255058894583
+
+```bash
+$ . env/bin/activate
+(env)$ r2 /bin/ls
+[0x00000000]> '$r2ai=#!pipe python main.py
+[0x00000000]> $r2ai '-m openai:gpt-4'
+[0x00000000]> $r2ai "' list the imports for this program"
+[0x00000000]> $r2ai "' draw me a donut"
+[0x00000000]> $r2ai "' decompile current function and explain it"
+```
+
 
 ## Examples
 
