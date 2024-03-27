@@ -8,7 +8,7 @@ FATAL ERROR
 endif
 
 all:
-	@test -n "${VIRTUAL_ENV}" || (echo "Run: . venv/bin/activate" ; exit 1)
+	@test -n "${VIRTUAL_ENV}" || (echo "Run:"; echo ". venv/bin/activate" ; exit 1)
 	python3 main.py || $(MAKE) deps
 
 venv:

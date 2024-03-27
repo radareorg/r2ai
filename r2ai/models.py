@@ -84,6 +84,7 @@ Coding:
 -m TheBloke/CodeLlama-7B-Instruct-GGUF
 -m TheBloke/CodeLlama-34B-Instruct-GGUF
 -m mlabonne/gemma-7b-it-GGUF
+-m LoneStriker/OpenCodeInterpreter-DS-33B-GGUF
 Uncensored:
 -m TheBloke/openchat-3.5-0106-GGUF
 -m TheBloke/Dawn-v2-70B-GGUF
