@@ -12,7 +12,14 @@ try:
 	import r2lang
 	have_rlang = True
 except:
-	pass
+  import r2pipe
+  class FakeLang:
+    def __init__(self):
+      self.r2 = r2pipe.open()
+    def cmd(self,x):
+      return self.r2.cmd(x)
+  r2lang = FakeLang()
+  pass
 
 ANSI_REGEX = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 

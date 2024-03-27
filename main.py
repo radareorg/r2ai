@@ -98,11 +98,11 @@ def run_rcfile_once():
 		rcfile_loaded = True
 
 if have_rlang:
+	from r2ai.repl import runline, r2ai_repl, help_message
 	if have_r2pipe:
 		r2ai_repl(ai)
 		os.exit(0)
 	def r2ai_rlang_plugin(unused_but_required_argument):
-		from r2ai.repl import runline, r2ai_repl, help_message
 		global ai
 		def _call(s):
 			if not s.startswith("r2ai"):
