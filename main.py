@@ -52,6 +52,12 @@ if not have_rlang and not have_r2pipe and sys.argv[0] != 'main.py' and os.path.e
 	os.system("venv/bin/python main.py")
 	sys.exit(0)
 
+if "R2PIPE_IN" in os.environ.keys():
+	try:
+		import r2pipe
+		have_r2pipe = True
+	except:
+		pass
 ### MAIN ###
 ai = None
 if have_r2pipe and not have_rlang:
@@ -92,6 +98,9 @@ def run_rcfile_once():
 		rcfile_loaded = True
 
 if have_rlang:
+	if have_r2pipe:
+		r2ai_repl(ai)
+		os.exit(0)
 	def r2ai_rlang_plugin(unused_but_required_argument):
 		from r2ai.repl import runline, r2ai_repl, help_message
 		global ai
@@ -131,7 +140,7 @@ else:
 				runline(ai, arg)
 			if arg == "-h" or arg == "-v":
 				sys.exit(0)
-		r2ai_repl(ai)
+#		r2ai_repl(ai)
 	elif not within_r2:
 		r2ai_repl(ai)
 	elif have_r2pipe:
