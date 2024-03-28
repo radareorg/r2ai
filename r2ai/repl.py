@@ -5,6 +5,7 @@ import traceback
 have_readline = False
 from .const import R2AI_HISTFILE, R2AI_HOMEDIR, R2AI_RCFILE
 import r2ai
+import os
 
 try:
   import readline
