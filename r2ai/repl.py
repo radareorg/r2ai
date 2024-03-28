@@ -23,7 +23,18 @@ try:
   import r2lang
   have_rlang = True
 except:
-  pass
+  try:
+    import r2pipe
+    r2 = r2pipe.open()
+    class FakeLang:
+      def __init__(self):
+        self.r2 = r2
+      def cmd(self,x):
+        return self.r2.cmd(x)
+    r2lang = FakeLang()
+  except:
+    print("Cannot find r2lang or r2pipe")
+    pass
 
 def r2_cmd(x):
   have_rlang=True

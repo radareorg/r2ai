@@ -9,17 +9,19 @@ from .functionary import prompt_template
 from .anthropic import construct_tool_use_system_prompt, extract_claude_tool_calls
 
 try:
-	import r2lang
-	have_rlang = True
+  import r2lang
+  have_rlang = True
 except:
-  import r2pipe
-  class FakeLang:
-    def __init__(self):
-      self.r2 = r2pipe.open()
-    def cmd(self,x):
-      return self.r2.cmd(x)
-  r2lang = FakeLang()
-  pass
+  try:
+    import r2pipe
+    class FakeLang:
+      def __init__(self):
+        self.r2 = r2pipe.open()
+      def cmd(self,x):
+        return self.r2.cmd(x)
+    r2lang = FakeLang()
+  except:
+    pass
 
 ANSI_REGEX = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
