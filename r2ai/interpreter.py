@@ -21,6 +21,13 @@ except:
   have_anthropic = False
   pass
 
+try:
+  from groq import Groq
+  have_groq = True
+except:
+  have_groq = False
+  pass
+
 import re
 import os
 import traceback
@@ -459,6 +466,7 @@ class Interpreter:
     self.env = {}
     self.openai_client = None
     self.anthropic_client = None
+    self.groq_client = None
     self.api_base = None # Will set it to whatever OpenAI wants
     self.system_message = ""
     self.env["debug"] = "false"
@@ -792,9 +800,6 @@ class Interpreter:
     if self.env["debug"] == "true":
       print(messages)
 
-    # Convert messages to prompt
-    # (This only works if the first message is the only system message)
-    prompt = messages_to_prompt(self, messages)
     # builtins.print(prompt)
     response = None
     if self.auto_run:
@@ -858,12 +863,25 @@ class Interpreter:
         print("pip install -U anthropic")
         print("export ANTHROPIC_API_KEY=...")
         return
+    elif self.model.startswith('groq:'):
+      if have_groq:
+        self.groq_client = Groq()
+        completion = self.groq_client.completions.create(
+          model=self.model[5:],
+          max_tokens=maxtokens,
+          temperature=float(self.env["llm.temperature"]),
+          messages=self.messages
+        )
     else:
       # non-openai aka local-llama model
       if self.llama_instance == None:
         print("Cannot find the model")
         return
       try:
+        # Convert messages to prompt
+        # (This only works if the first message is the only system message)
+        prompt = messages_to_prompt(self, messages)
+
         if type(self.terminator).__name__ == "list":
           terminator = self.terminator
         else:

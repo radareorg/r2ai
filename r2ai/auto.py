@@ -37,9 +37,10 @@ tools = [{
           "type": "string",
           "description": "command to run in radare2"
         }
-      }
+      },
+      "required": ["command"]
     },
-    "required": ["command"],   
+      
   }
 }, {
   "type": "function",
@@ -53,14 +54,14 @@ tools = [{
           "type": "string",
           "description": "python script to run"
         }
-      }
-    },
-    "required": ["command"],   
+      },
+      "required": ["command"]
+    }  
   }
 }]
 
 SYSTEM_PROMPT_AUTO = """
-You are a reverse engineer and you are using radare2 to analyze a binary. 
+You are a reverse engineer and you are using radare2 to analyze a binary.
 The binary has already been loaded. 
 The user will ask questions about the binary and you will respond with the answer to the best of your ability.
 Assume the user is always asking you about the binary, unless they're specifically asking you for radare2 help.
@@ -149,8 +150,12 @@ def process_hermes_response(interpreter, response):
 def process_streaming_response(interpreter, resp):
   tool_calls = []
   msgs = []
+  
   for chunk in resp:
-    chunk = dict(chunk)
+    try:
+      chunk = dict(chunk)
+    except:
+      pass
     delta = None
     choice = dict(chunk["choices"][0])
     if "delta" in choice:
@@ -247,6 +252,24 @@ def chat(interpreter):
       chat(interpreter)
     else:
       builtins.print(msg)
+  elif interpreter.model.startswith("groq:"):
+    if not interpreter.groq_client:
+      try:
+        from groq import Groq
+      except ImportError:
+        print("pip install -U groq")
+        return
+      interpreter.groq_client = Groq()
+
+    response = interpreter.groq_client.chat.completions.create(
+      model=interpreter.model[5:],
+      max_tokens=int(interpreter.env["llm.maxtokens"]),
+      tools=tools,
+      messages=interpreter.messages,
+      tool_choice="auto",
+      temperature=float(interpreter.env["llm.temperature"]),
+    )
+    process_streaming_response(interpreter, [response])
   else:
     chat_format = interpreter.llama_instance.chat_format
     is_functionary = interpreter.model.startswith("meetkai/")
