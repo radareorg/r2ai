@@ -44,6 +44,10 @@ Anthropic:
 -m anthropic:claude-3-haiku-20240307
 -m anthropic:claude-3-sonnet-20240229
 -m anthropic:claude-3-opus-20240229
+groq:
+-m groq:mixtral-8x7b-32768
+-m groq:llama2-70b-4096
+-m groq:gemma-7b-it
 GPT4:
 -m TheBloke/goliath-120b-GGUF
 -m TheBloke/SynthIA-7B-v2.0-GGUF
@@ -451,7 +455,7 @@ def enough_disk_space(size, path) -> bool:
     return False
 
 def new_get_hf_llm(repo_id, debug_mode, context_window):
-    if repo_id.startswith("openai:") or repo_id.startswith("anthropic:"):
+    if repo_id.startswith("openai:") or repo_id.startswith("anthropic:") or repo_id.startswith("groq:"):
         return repo_id
     if not os.path.exists(repo_id):
         return get_hf_llm(repo_id, debug_mode, context_window)
