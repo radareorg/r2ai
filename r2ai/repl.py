@@ -99,7 +99,7 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai -e [k[=v]]        set environment variable
  r2ai -f [file]         load file and paste the output
  r2ai -h                show this help (same as ?)
- r2ai -i [file] [query] load the file contents and prompt it with the given query
+ r2ai -i [file] ([q])   load the file contents and prompt it with the given optional query
  r2ai -m [file/repo]    select model from huggingface repository or local file
  r2ai -M                list supported and most common models from hf
  r2ai -n [num]          select the nth language model
@@ -264,12 +264,12 @@ def runline(ai, usertext):
     res = slurp(words[0])
     if len(words) > 1:
       que = words[1]
+      # tag = "CODE" # INPUT , TEXT, ..
+      # r2ai.chat("Q: " + que + ":\n["+tag+"]\n"+ res+"\n[/"+tag+"]\n")
+      ai.chat(f"{que}:\n```\n{res}\n```\n")
     else:
       que = input("[Query]> ")
-    tag = "CODE" # INPUT , TEXT, ..
-    #r2ai.chat("Q: " + que + ":\n["+tag+"]\n"+ res+"\n[/"+tag+"]\n")
-    ai.chat(f"{que}:\n```\n{res}\n```\n")
-    #ai.chat(f"{que}:\n[{tag}]\n{res}\n[/{tag}]\n")
+      ai.chat(res)
   elif usertext.startswith("-n"):
     global ais
     if len(ais.keys()) == 0:
