@@ -31,7 +31,12 @@ except:
         self.r2 = r2
       def cmd(self, x):
         return self.r2.cmd(x)
-    r2lang = FakeLang(r2pipe.open())
+    try:
+      r2lang = FakeLang(r2pipe.open())
+      r2lang.cmd("?V") # r2pipe throws only here
+    except:
+      r2lang = FakeLang(r2pipe.open("/bin/ls"))
+      pass
   except:
     print("Cannot find r2lang or r2pipe")
     pass

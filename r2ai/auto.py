@@ -8,6 +8,7 @@ from transformers import AutoTokenizer
 from .functionary import prompt_template
 from .anthropic import construct_tool_use_system_prompt, extract_claude_tool_calls
 
+r2lang = None
 try:
   import r2lang
   have_rlang = True
@@ -15,12 +16,18 @@ except:
   try:
     import r2pipe
     class FakeLang:
-      def __init__(self):
-        self.r2 = r2pipe.open()
+      def __init__(self, r2):
+        self.r2 = r2
       def cmd(self,x):
         return self.r2.cmd(x)
-    r2lang = FakeLang()
+    try:
+      r2lang = FakeLang(r2pipe.open())
+      r2lang.cmd("?V") # r2pipe throws only here
+    except:
+      r2lang = FakeLang(r2pipe.open("/bin/ls"))
+      pass
   except:
+    print("Cannot instantiate this FakeLang class with r2pipe")
     pass
 
 ANSI_REGEX = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
@@ -276,6 +283,7 @@ def chat(interpreter):
     if is_functionary:
       tokenizer = get_functionary_tokenizer(interpreter.model)
       prompt_templ = prompt_template.get_prompt_template_from_tokenizer(tokenizer)
+      #print(prompt_templ)
       prompt_str = prompt_templ.get_prompt_from_messages(interpreter.messages + [{"role": "assistant"}], tools)
       token_ids = tokenizer.encode(prompt_str)
       stop_token_ids = [
