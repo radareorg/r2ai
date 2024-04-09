@@ -8,6 +8,11 @@ from transformers import AutoTokenizer
 from .functionary import prompt_template
 from .anthropic import construct_tool_use_system_prompt, extract_claude_tool_calls
 
+import os
+file_dir = os.path.dirname(__file__)
+sys.path.append(file_dir)
+import index
+
 r2lang = None
 try:
   import r2lang
@@ -47,7 +52,6 @@ tools = [{
       },
       "required": ["command"]
     },
-      
   }
 }, {
   "type": "function",
@@ -63,13 +67,13 @@ tools = [{
         }
       },
       "required": ["command"]
-    }  
+    }
   }
 }]
 
 SYSTEM_PROMPT_AUTO = """
 You are a reverse engineer and you are using radare2 to analyze a binary.
-The binary has already been loaded. 
+The binary has already been loaded.
 The user will ask questions about the binary and you will respond with the answer to the best of your ability.
 Assume the user is always asking you about the binary, unless they're specifically asking you for radare2 help.
 `this` or `here` might refer to the current address in the binary or the binary itself.
@@ -157,7 +161,6 @@ def process_hermes_response(interpreter, response):
 def process_streaming_response(interpreter, resp):
   tool_calls = []
   msgs = []
-  
   for chunk in resp:
     try:
       chunk = dict(chunk)
@@ -175,7 +178,7 @@ def process_streaming_response(interpreter, resp):
       fn_delta = dict(delta_tool_calls["function"])
       tool_call_id = delta_tool_calls["id"]
       if len(tool_calls) < index + 1:
-        tool_calls.append({ "function": { "arguments": "", "name": fn_delta["name"] }, "id": tool_call_id, "type": "function" })      
+        tool_calls.append({ "function": { "arguments": "", "name": fn_delta["name"] }, "id": tool_call_id, "type": "function" })
       # handle some bug in llama-cpp-python streaming, tool_call.arguments is sometimes blank, but function_call has it.
       if fn_delta["arguments"] == '':
         if "function_call" in delta and delta["function_call"]:
@@ -189,7 +192,6 @@ def process_streaming_response(interpreter, resp):
           msgs.append(m)
           sys.stdout.write(m)
   builtins.print()
-  
   if(len(tool_calls) > 0):
     process_tool_calls(interpreter, tool_calls)
     chat(interpreter)
@@ -198,9 +200,27 @@ def process_streaming_response(interpreter, resp):
     response_message = ''.join(msgs)
     interpreter.messages.append({"role": "assistant", "content": response_message})
 
+def context_from_msg(msg):
+  keywords = None
+  datadir = "doc/auto"
+  use_vectordb = False
+  matches = index.match(msg, keywords, datadir, False, False, False, False, use_vectordb)
+  if matches == None:
+    return ""
+  # "(analyze using 'af', decompile using 'pdc')"
+  return "context: " + ", ".join(matches)
+
 def chat(interpreter):
-  if len(interpreter.messages) == 1: 
+  if len(interpreter.messages) == 1:
     interpreter.messages.insert(0,{"role": "system", "content": get_system_prompt(interpreter.model)})
+
+  lastmsg = interpreter.messages[-1]["content"]
+  chat_context = context_from_msg (lastmsg)
+  #print("#### CONTEXT BEGIN")
+  print(chat_context) # DEBUG
+  #print("#### CONTEXT END")
+  if chat_context != "":
+    interpreter.messages.insert(0,{"role": "user", "content": chat_context})
 
   response = None
   if interpreter.model.startswith("openai:"):
@@ -283,7 +303,11 @@ def chat(interpreter):
     if is_functionary:
       tokenizer = get_functionary_tokenizer(interpreter.model)
       prompt_templ = prompt_template.get_prompt_template_from_tokenizer(tokenizer)
-      #print(prompt_templ)
+      #print("############# BEGIN")
+      #print(dir(prompt_templ))
+      #print("############# MESSAGES")
+      #print(interpreter.messages)
+      #print("############# END")
       prompt_str = prompt_templ.get_prompt_from_messages(interpreter.messages + [{"role": "assistant"}], tools)
       token_ids = tokenizer.encode(prompt_str)
       stop_token_ids = [
@@ -317,7 +341,7 @@ For each function call return a json object with function name and arguments wit
 {{"arguments": <args-dict>, "name": <function-name>}}
 </tool_call>"""})
         elif role == "tool":
-          messages.append({ "role": "tool", "content": "<tool_response>\n" + '{"name": ' + m['name'] + ', "content": ' + json.dumps(m['content']) + '}\n</tool_response>' })    
+          messages.append({ "role": "tool", "content": "<tool_response>\n" + '{"name": ' + m['name'] + ', "content": ' + json.dumps(m['content']) + '}\n</tool_response>' })
         else:
           messages.append(m)
 
@@ -326,7 +350,6 @@ For each function call return a json object with function name and arguments wit
         messages=messages,
         temperature=float(interpreter.env["llm.temperature"]),
       )
-      
       process_hermes_response(interpreter, response)
       interpreter.llama_instance.chat_format = chat_format
 
@@ -349,4 +372,3 @@ For each function call return a json object with function name and arguments wit
       process_streaming_response(interpreter, iter([response]))
       interpreter.llama_instance.chat_format = chat_format
   return response
-   
