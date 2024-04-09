@@ -27,8 +27,10 @@ except:
   try:
     import r2pipe
     class FakeLang:
-      def __init__(self, r2):
-        self.r2 = r2
+      def __init__(self, r):
+        global r2
+        self.r2 = r
+        r2 = r
       def cmd(self, x):
         return self.r2.cmd(x)
     try:
