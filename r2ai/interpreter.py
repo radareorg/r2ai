@@ -56,11 +56,18 @@ Ginterrupted = False
 def signal_handler(sig, frame):
 	global Ginterrupted
 	if Ginterrupted:
-		sys.exit(0) # throws exception
+	    sys.exit(0) # throws exception
 	Ginterrupted = True
 	print("^C")
-sys.excepthook = signal_handler
 signal(SIGINT, signal_handler)
+
+def exception_handler(self, sig, frame):
+	global Ginterrupted
+	if Ginterrupted:
+	    sys.exit(0) # throws exception
+	Ginterrupted = True
+	print("^C")
+sys.excepthook = exception_handler
 
 def incodeblock(msg):
   return "content" in msg and msg["content"].count("```") % 2 == 1
