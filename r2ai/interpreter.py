@@ -471,9 +471,9 @@ class Interpreter:
     self.system_message = ""
     self.env["debug"] = "false"
     self.env["llm.model"] = self.model ## TODO: dup. must get rid of self.model
-    self.env["llm.window"] = "4096" # context_window
-    self.env["llm.maxtokens"] = "1750"
-    self.env["llm.maxmsglen"] = "1750"
+    self.env["llm.window"] = "8096" # "4096" # context_window
+    self.env["llm.maxtokens"] = "4096" # "1750"
+    self.env["llm.maxmsglen"] = "8096" # "1750"
     self.env["llm.temperature"] = "0.002"
     self.env["user.name"] = "" # TODO auto fill?
     self.env["user.os"] = ""
@@ -717,6 +717,7 @@ class Interpreter:
     words = []
     if self.mistral == None:
       mmname = "TheBloke/Mistral-7B-Instruct-v0.1-GGUF"
+      mmname = "TheBloke/Mistral-7B-Instruct-v0.2-GGUF"
       ctxwindow = int(self.env["llm.window"])
       self.mistral = new_get_hf_llm(mmname, False, ctxwindow)
     # q = f"Rewrite this code into shorter pseudocode (less than 500 tokens). keep the comments and essential logic:\n```\n{msg}\n```\n"
@@ -728,15 +729,18 @@ class Interpreter:
     return text0.strip().replace("```", "")
 
   def compress_code_ai(self, code):
-    piecesize = 4096
+    piecesize = 1024 * 8 # mistral2 supports 32k vs 4096
     codelen = len(code)
     pieces = int(codelen / piecesize)
+    if pieces < 1:
+      pieces = 1
     plen = int(codelen / pieces)
     off = 0
     res = []
     for i in range(pieces):
-      print(f"Processing {i} / {pieces} ...")
-      if i + 1 == pieces:
+      piece = i + 1
+      print(f"Processing {piece} / {pieces} ...")
+      if piece == pieces:
         r = self.trimsource_ai(code[off:])
       else:
         r = self.trimsource_ai(code[off:off+plen])
