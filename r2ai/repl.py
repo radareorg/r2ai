@@ -25,13 +25,12 @@ try:
 except:
   try:
     import r2pipe
-    r2 = r2pipe.open()
     class FakeLang:
-      def __init__(self):
+      def __init__(self, r2):
         self.r2 = r2
-      def cmd(self,x):
+      def cmd(self, x):
         return self.r2.cmd(x)
-    r2lang = FakeLang()
+    r2lang = FakeLang(r2pipe.open())
   except:
     print("Cannot find r2lang or r2pipe")
     pass
