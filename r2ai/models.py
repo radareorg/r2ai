@@ -49,13 +49,14 @@ groq:
 -m groq:llama2-70b-4096
 -m groq:gemma-7b-it
 GPT4:
+-m dranger003/c4ai-command-r-plus-iMat.GGUF
 -m TheBloke/goliath-120b-GGUF
 -m TheBloke/SynthIA-7B-v2.0-GGUF
 -m TheBloke/Chronos-Hermes-13b-v2-GGUF
 -m NousResearch/Hermes-2-Pro-Mistral-7B-GGUF
 -m TheBloke/Chronos-70B-v2-GGUF
 -m lizpreciatior/lzlv_70b_fp16_hf
--m TheBloke/dolphin-2.6-mixtral-8x7b-GGUF
+-m TheBloke/dolphin-2.7-mixtral-8x7b-GGUF
 -m TheBloke/Nous-Capybara-7B-v1.9-GGUF
 -m TheBloke/Nous-Capybara-34B-GGUF
 -m TheBloke/Euryale-Inverted-L2-70B-GGUF
@@ -74,6 +75,7 @@ Generic:
 -m aisensiy/Qwen-72B-Chat-GGUF
 -m TheBloke/Yarn-Mistral-7B-128k-GGUF
 -m TheBloke/dolphin-2.2.1-mistral-7B-GGUF
+-m dagbs/dolphin-2.8-mistral-7b-v02-GGUF
 -m TheBloke/zephyr-7B-alpha-GGUF
 -m TheBloke/OpenOrca-Zephyr-7B-GGUF
 -m TheBloke/zephyr-7B-beta-GGUF
