@@ -165,10 +165,10 @@ def runline(ai, usertext):
     print(help_message)
   elif usertext.startswith("clear") or usertext.startswith("-k"):
     print("\x1b[2J\x1b[0;0H\r")
-  elif usertext.startswith("-M"):
-    print(r2ai.models().strip())
   elif usertext.startswith("-MM"):
     print(r2ai.mainmodels().strip())
+  elif usertext.startswith("-M"):
+    print(r2ai.models().strip())
   elif usertext.startswith("-m"):
     words = usertext.split(" ")
     if len(words) > 1:
