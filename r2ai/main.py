@@ -101,7 +101,7 @@ def run_rcfile_once():
 		rcfile_loaded = True
 
 if have_rlang:
-	from .repl import runline, r2ai_repl, help_message
+	from r2ai.repl import runline, r2ai_repl, help_message
 	if have_r2pipe:
 		r2ai_repl(ai)
 		os.exit(0)
