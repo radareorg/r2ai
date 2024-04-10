@@ -33,6 +33,15 @@ def get_default_model():
 def Markdown(x):
   return x
 
+def mainmodels():
+    return """
+-m Undi95/Utopia-13B-GGUF
+-m meetkai/functionary-small-v2.2-GGUF
+-m dagbs/dolphin-2.8-mistral-7b-v02-GGUF
+-m TheBloke/Mistral-7B-Instruct-v0.2-GGUF
+-m TheBloke/dolphin-2_6-phi-2-GGUF
+"""
+
 def models():
     return """
 OpenAI:
