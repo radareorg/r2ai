@@ -5,7 +5,7 @@ import re
 from llama_cpp import Llama
 from llama_cpp.llama_tokenizer import LlamaHFTokenizer
 from transformers import AutoTokenizer
-from .functionary import prompt_template
+  
 from .anthropic import construct_tool_use_system_prompt, extract_claude_tool_calls
 
 import os
@@ -301,6 +301,12 @@ def chat(interpreter):
     chat_format = interpreter.llama_instance.chat_format
     is_functionary = interpreter.model.startswith("meetkai/")
     if is_functionary:
+      try:
+        from .functionary import prompt_template
+      except ImportError:
+        print("pip install -U functionary")
+        return
+
       tokenizer = get_functionary_tokenizer(interpreter.model)
       prompt_templ = prompt_template.get_prompt_template_from_tokenizer(tokenizer)
       #print("############# BEGIN")
