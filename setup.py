@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='r2ai',
-    version='0.5.0',
+    version='0.6.0',
     packages=[
         'r2ai',
     ],
