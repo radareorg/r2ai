@@ -1,7 +1,8 @@
 R2_USER_PLUGINS=$(shell r2 -H R2_USER_PLUGINS)
 PWD=$(shell pwd)
 R2PM_BINDIR=$(shell r2pm -H R2PM_BINDIR)
-PIP=python -m pip
+PYTHON?=python3
+PIP=$(PYTHON) -m pip
 
 ifeq ($(R2PM_BINDIR),)
 FATAL ERROR
@@ -9,7 +10,7 @@ endif
 
 all:
 	@test -n "${VIRTUAL_ENV}" || (echo "Run:"; echo ". venv/bin/activate" ; exit 1)
-	python3 main.py || $(MAKE) deps
+	$(PYTHON) main.py || $(MAKE) deps
 
 venv:
 	python -m venv venv
@@ -39,3 +40,8 @@ install user-install:
 uninstall user-uninstall:
 	rm -f $(R2_USER_PLUGINS)/r2ai.py
 	rm -f $(R2PM_BINDIR)/r2ai
+
+pub:
+	$(PYTHON) setup.py build sdist
+	twine check dist/*
+	twine upload -u __token__ --repository-url https://upload.pypi.org/legacy/ --verbose dist/*

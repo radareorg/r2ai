@@ -1,8 +1,18 @@
 from setuptools import setup
+import r2ai
+
+with open("README.md") as fd:
+    readme = fd.read()
 
 setup(
     name='r2ai',
-    version='0.6.0',
+    version=r2ai.VERSION,
+    description="Applying language models on radare2 for reverse engineering and fun purposes",
+    long_description=readme,
+    long_description_content_type="text/markdown",
+    author="pancake",
+    author_email="pancake@nopcode.org",
+    url="https://www.radare.org/",
     packages=[
         'r2ai',
     ],
