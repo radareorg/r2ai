@@ -91,6 +91,7 @@ Generic:
 -m maddes8cht/nomic-ai-gpt4all-falcon-7b-gguf
 -m KoboldAI/LLaMA2-13B-Tiefighter-GGUF
 Coding:
+-m FaradayDotDev/llama-3-8b-Instruct-GGUF
 -m bartowski/stable-code-instruct-3b-GGUF
 -m TheBloke/CodeBooga-34B-v0.1-GGUF
 -m TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF

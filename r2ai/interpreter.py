@@ -129,6 +129,8 @@ def messages_to_prompt(self, messages):
     formatted_messages = template_llamapython(self, messages)
   elif "tinyllama" in lowermodel:
     formatted_messages = template_tinyllama(self, messages)
+  elif "llama-3" in lowermodel:
+    formatted_messages = template_llama3(self, messages)
   else:
     formatted_messages = template_llama(self, messages)
 
@@ -435,6 +437,32 @@ def template_gpt4all(self,messages):
       elif self.env["chat.reply"] == "true":
           formatted_messages += f"### System: {content}\n"
   formatted_messages += f"### System: "
+  return formatted_messages
+
+def template_llama3(self,messages):
+  formatted_messages = f"<|begin_of_text|>"
+  if self.system_message != "":
+      formatted_messages += f"<|start_header_id|>{self.system_message}<|end_header_id|>"
+  self.terminator = "<|end_header_id|>"
+  self.terminator = "<|eot_id|>"
+  self.terminator = "assistant"
+  for index, item in enumerate(messages):
+      if "role" in item:
+          role = item['role']
+      else:
+          role = 'user'
+      if "content" not in item:
+          continue
+      content = item['content']
+      if role == 'user':
+          formatted_messages += f"{content}<|eot_id|>"
+      elif role == 'hint':
+          formatted_messages += f"Hint: {content}<|eot_id|> "
+      elif role == 'function':
+          formatted_messages += f"Output: {content}<|eot_id|> "
+      elif role == 'assistant' and self.env["chat.reply"] == "true":
+          formatted_messages += f"{content}<|eot_id|>"
+  formatted_messages += f"<|start_header_id|>assistant<|end_header_id|>"
   return formatted_messages
 
 def template_llama(self,messages):
