@@ -158,6 +158,8 @@ def runline(ai, usertext):
   usertext = usertext.strip()
   if usertext == "" or usertext.startswith("#"):
     return
+  if usertext == "q":
+    return "q"
   if usertext.startswith("?V") or usertext.startswith("-v"):
     print(r2ai.VERSION)
     r2ai_version()
