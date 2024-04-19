@@ -3,7 +3,7 @@ from r2ai.models import set_default_model
 from .utils import slurp
 import traceback
 have_readline = False
-from .const import R2AI_HISTFILE, R2AI_HOMEDIR, R2AI_RCFILE
+from .const import R2AI_HISTFILE, R2AI_HOMEDIR, R2AI_RCFILE, R2AI_USERDIR
 import r2ai
 import sys
 import os
@@ -107,6 +107,7 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai -e [k[=v]]        set environment variable
  r2ai -f [file]         load file and paste the output
  r2ai -h                show this help (same as ?)
+ r2ai -H ([var])        show path variables like it's done in r2 -H
  r2ai -i [file] ([q])   load the file contents and prompt it with the given optional query
  r2ai -m [file/repo]    select model from huggingface repository or local file
  r2ai -M                list supported and most common models from hf
@@ -145,15 +146,20 @@ def runline2(usertext):
 def runplugin(ai, arg):
   r2ai_plugdir = ai.env["user.plugins"]
   if arg != "":
-    script_path = f"{r2ai_plugdir}/{arg}.py"
-    runline(ai, f". {script_path}")
+    for plugdir in [R2AI_USERDIR, r2ai_plugdir]:
+      script_path = f"{r2ai_plugdir}/{arg}.py"
+      if os.path.isfile(script_path):
+        runline(ai, f". {script_path}")
+        return
+    print("Script not found", file=sys.stderr)
     return
   try:
     # print("-e user.plugins = " + r2ai_plugdir)
-    files = os.listdir(r2ai_plugdir)
-    for file in files:
-      if file.endswith(".py"):
-        print(file.replace(".py", ""))
+    for plugdir in [R2AI_USERDIR, r2ai_plugdir]:
+      files = os.listdir(plugdir)
+      for file in files:
+        if file.endswith(".py"):
+          print(file.replace(".py", ""))
   except:
     pass
 
@@ -164,6 +170,23 @@ def r2ai_version():
   print("llama: " + llama_cpp.__version__)
   print("r2ai: " + r2ai.VERSION)
 
+def r2ai_vars(ai, arg):
+  vs = {
+    "R2AI_USERDIR": R2AI_USERDIR,
+    "R2AI_PLUGDIR": ai.env["user.plugins"],
+    "R2AI_HOMEDIR": R2AI_HOMEDIR,
+    "R2AI_RCFILE": R2AI_RCFILE,
+    "R2AI_HISTFILE": R2AI_HISTFILE
+  }
+  if arg != "":
+    if arg in vs.keys():
+      print(vs[arg])
+    else:
+      print("Unknown key", file=sys.stderr)
+  else:
+    for k in vs.keys():
+      print(k)
+
 def runline(ai, usertext):
 #  builtins.print(f"runline {usertext}")
   global print
@@ -173,6 +196,11 @@ def runline(ai, usertext):
     return
   if usertext == "q":
     return "q"
+  if usertext.startswith("-H"):
+    try:
+      return r2ai_vars(ai, usertext[2:].strip())
+    except:
+      traceback.print_exc()
   if usertext.startswith("?V") or usertext.startswith("-v"):
     print(r2ai.VERSION)
     r2ai_version()

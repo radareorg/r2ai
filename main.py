@@ -10,7 +10,7 @@ else:
 if "VIRTUAL_ENV" in os.environ:
   runpy.run_path(os.path.join(r2aihome, 'r2ai', 'main.py'))
 else:
-  os.system("run-venv.sh");
+  os.system(f"cd {r2aihome}; ./run-venv.sh");
 
 #print(os.path.relpath('./r2ai/main.py', __file__))
 #runpy.run_path(os.path.relpath('./r2ai/main.py', __file__))
