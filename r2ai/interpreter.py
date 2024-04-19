@@ -514,6 +514,7 @@ class Interpreter:
     self.env["user.os"] = ""
     self.env["user.arch"] = ""
     self.env["user.cwd"] = ""
+    self.env["user.plugins"] = f"{R2AI_HOMEDIR}/plugins"
     self.env["voice.lang"] = "en"
     self.env["voice.model"] = "base"
     self.env["data.use"] = "false"

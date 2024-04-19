@@ -123,7 +123,6 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai -v                show r2ai version (same as ?V)
  r2ai -w                toggle including LLM responses into the query (False is faster)"""
 
-
 def myprint(msg):
   global print_buffer
   builtins.print(msg)
@@ -143,6 +142,20 @@ def runline2(usertext):
   print_buffer = ""
   return f"{res}\n"
 
+def runplugin(ai, arg):
+  r2ai_plugdir = ai.env["user.plugins"]
+  if arg != "":
+    script_path = f"{r2ai_plugdir}/{arg}.py"
+    runline(ai, f". {script_path}")
+    return
+  try:
+    # print("-e user.plugins = " + r2ai_plugdir)
+    files = os.listdir(r2ai_plugdir)
+    for file in files:
+      if file.endswith(".py"):
+        print(file.replace(".py", ""))
+  except:
+    pass
 
 def r2ai_version():
   import sys
@@ -309,6 +322,9 @@ def runline(ai, usertext):
   elif usertext[0] == "!":
     os.system(usertext[1:])
   elif usertext[0] == ".":
+    if usertext[1] == ".": # ".." - run user plugins
+      runplugin(ai, usertext[2:].strip())
+      return
     try:
       filename = usertext[1:].strip()
       file = slurp(filename)
