@@ -8,4 +8,4 @@ if [ ! -d venv ]; then
 fi
 . venv/bin/activate
 export PYTHONPATH=$PWD
-python r2ai/main.py
+python r2ai/main.py $@
