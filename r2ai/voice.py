@@ -18,7 +18,7 @@ have_festival = os.path.isfile("/usr/bin/festival")
 
 def run(models):
 	for model in models:
-		cmd=f"ffmpeg -f avfoundation -list_devices true -i '' 2>&1 | grep '{model}'|cut -d '[' -f 3"
+		cmd = f"ffmpeg -f avfoundation -list_devices true -i '' 2>&1 | grep '{model}'|cut -d '[' -f 3"
 		output = syscmdstr(cmd)
 		if output != "":
 			return ":" + output[0]

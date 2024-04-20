@@ -58,7 +58,7 @@ def signal_handler(sig, frame):
 	if Ginterrupted:
 	    sys.exit(0) # throws exception
 	Ginterrupted = True
-	print("^C")
+	print("^C", file=sys.stderr)
 signal(SIGINT, signal_handler)
 
 def exception_handler(self, sig, frame):
@@ -66,7 +66,7 @@ def exception_handler(self, sig, frame):
 	if Ginterrupted:
 	    sys.exit(0) # throws exception
 	Ginterrupted = True
-	print("^C")
+	print("^C", file=sys.stderr)
 sys.excepthook = exception_handler
 
 def incodeblock(msg):
@@ -125,7 +125,7 @@ def messages_to_prompt(self, messages):
   elif "mistral" in lowermodel:
     formatted_messages = template_mistral(self, messages)
   elif "python" in lowermodel:
-    print("codellama-python model is not working well yet")
+    print("codellama-python model is not working well yet", file=sys.stderr)
     formatted_messages = template_llamapython(self, messages)
   elif "tinyllama" in lowermodel:
     formatted_messages = template_tinyllama(self, messages)
@@ -874,8 +874,8 @@ class Interpreter:
         print(response)
         return
       else:
-        print("pip install -U openai")
-        print("export OPENAI_API_KEY=...")
+        print("pip install -U openai", file=sys.stderr)
+        print("export OPENAI_API_KEY=...", file=sys.stderr)
         return
     elif self.model.startswith('anthropic:'):
       anthropic_model = self.model[10:]
@@ -900,8 +900,8 @@ class Interpreter:
           self.messages.append({"role": "assistant", "content": completion.content})
           print(completion.content)
       else:
-        print("pip install -U anthropic")
-        print("export ANTHROPIC_API_KEY=...")
+        print("pip install -U anthropic", file=sys.stderr)
+        print("export ANTHROPIC_API_KEY=...", file=sys.stderr)
         return
     elif self.model.startswith('groq:'):
       if have_groq:

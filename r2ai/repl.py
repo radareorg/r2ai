@@ -40,7 +40,7 @@ except:
       r2lang = FakeLang(r2pipe.open("/bin/ls"))
       pass
   except:
-    print("Cannot find r2lang or r2pipe")
+    print("Cannot find r2lang or r2pipe", file=sys.stderr)
     pass
 
 def r2_cmd(x):
@@ -147,7 +147,7 @@ def runplugin(ai, arg):
   r2ai_plugdir = ai.env["user.plugins"]
   if arg != "":
     for plugdir in [R2AI_USERDIR, r2ai_plugdir]:
-      script_path = f"{r2ai_plugdir}/{arg}.py"
+      script_path = f"{plugdir}/{arg}.py"
       if os.path.isfile(script_path):
         runline(ai, f". {script_path}")
         return
@@ -191,6 +191,8 @@ def runline(ai, usertext):
 #  builtins.print(f"runline {usertext}")
   global print
   global autoai
+  if ai == None:
+    ai = ais[0];
   usertext = usertext.strip()
   if usertext == "" or usertext.startswith("#"):
     return
@@ -274,12 +276,12 @@ def runline(ai, usertext):
         elif k in ai.env:
           ai.env[k] = v
         else:
-          print("Invalid config key")
+          print("Invalid config key", file=sys.stderr)
       else:
         try:
           print(ai.env[k])
         except:
-          print("Invalid config key")
+          print("Invalid config key", file=sys.stderr)
           pass
   elif usertext.startswith("-w"):
     start_http_server()
@@ -291,7 +293,7 @@ def runline(ai, usertext):
       try:
         ai.system_message = slurp(fname)
       except:
-        print(f"Cannot open file {fname}")
+        print(f"Cannot open file {fname}", file=sys.stderr)
     else:
       print(ai.system_message)
   elif usertext.startswith("-r"):
@@ -325,7 +327,6 @@ def runline(ai, usertext):
       que = input("[Query]> ")
       ai.chat(res)
   elif usertext.startswith("-n"):
-    global ais
     if len(ais.keys()) == 0:
       ais[0] = ai
     if usertext == "-n":
@@ -371,11 +372,11 @@ def runline(ai, usertext):
     autoai.chat(usertext[2:])
   elif usertext[0] == ":":
     if r2 is None:
-      print("r2 is not available")
+      print("r2 is not available", file=sys.stderr)
     else:
       print(r2_cmd(usertext[1:]))
   elif usertext.startswith("-"):
-    print("Unknown flag. See 'r2ai -h' for help")
+    print("Unknown flag. See 'r2ai -h' for help", file=sys.stderr)
   else:
     ai.chat(usertext)
 

@@ -28,7 +28,7 @@ try:
 		from r2ai.utils import slurp
 		apikey = slurp(os.environ["HOME"] + "/.r2ai.openai-key").strip()
 		os.environ["OPENAI_API_KEY"] = apikey
-		print("[R2AI] OpenAI key loaded from ~/.r2ai.openai-key")
+		print("[R2AI] OpenAI key loaded from ~/.r2ai.openai-key", file=sys.stderr)
 except:
 	pass
 

@@ -133,10 +133,10 @@ def get_hf_llm(repo_id, debug_mode, context_window):
             return llama_cpp.Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
     except:
         traceback.print_exc()
-    print(f"Select {repo_id} model. See -M and -m flags")
+    print(f"Select {repo_id} model. See -M and -m flags", file=sys.stderr)
     raw_models = list_gguf_files(repo_id)
     if not raw_models:
-        print(f"Failed. Are you sure there are GGUF files in `{repo_id}`?")
+        print(f"Failed. Are you sure there are GGUF files in `{repo_id}`?", file=sys.stderr)
         return None
 #    print(raw_models)
     combined_models = group_and_combine_splits(raw_models)
@@ -219,7 +219,7 @@ def get_hf_llm(repo_id, debug_mode, context_window):
 
                     # Check disk space and exit if not enough
                     if not enough_disk_space(selected_model_details['Size'], default_path):
-                        print(f"Not enough disk space available to download this model.")
+                        print(f"Not enough disk space available to download this model.", file=sys.stderr)
                         return None
 
             # Check if model was originally split
@@ -253,7 +253,7 @@ def get_hf_llm(repo_id, debug_mode, context_window):
             model_path = download_path
         
         else:
-            print('\n', "Download cancelled. Exiting.", '\n')
+            print('\nDownload cancelled. Exiting\n', file=sys.stderr)
             return None
     try:
         from llama_cpp import Llama
@@ -293,7 +293,7 @@ def get_hf_llm(repo_id, debug_mode, context_window):
                 try:
                     subprocess.run([sys.executable, "-m", "pip", "install", "llama-cpp-python"], env={**os.environ, **env_vars}, check=True)
                 except subprocess.CalledProcessError as e:
-                    print(f"Error during installation with {backend}: {e}")
+                    print(f"Error during installation with {backend}: {e}", file=sys.stderr)
             
             def supports_metal():
                 # Check for macOS version
@@ -320,7 +320,7 @@ def get_hf_llm(repo_id, debug_mode, context_window):
             if platform.system() == "Darwin":
                 # Check if it's Apple Silicon
                 if platform.machine() != "arm64":
-                    print("Warning: Running python-x86 on arm64, which is 10x slower than native m1")
+                    print("Warning: Running python-x86 on arm64, which is 10x slower than native m1", file=sys.stderr)
         else:
             print('', "Installation cancelled. Exiting.", '')
             return None
@@ -519,7 +519,7 @@ def new_get_hf_llm(repo_id, debug_mode, context_window):
                 try:
                     subprocess.run([sys.executable, "-m", "pip", "install", "llama-cpp-python"], env={**os.environ, **env_vars}, check=True)
                 except subprocess.CalledProcessError as e:
-                    print(f"Error during installation with {backend}: {e}")
+                    print(f"Error during installation with {backend}: {e}", file=sys.stderr)
             
             def supports_metal():
                 # Check for macOS version
@@ -539,26 +539,9 @@ def new_get_hf_llm(repo_id, debug_mode, context_window):
                 install_llama("Metal")
             else:
                 install_llama("OpenBLAS")
-          
             print('', Markdown("Finished downloading `Code-Llama` interface."), '')
-
-            # Tell them if their architecture won't work well
-
-            # Check if on macOS
-            if platform.system() == "Darwin":
-                # Check if it's Apple Silicon
-                if platform.machine() != "arm64":
-                    print("Warning: You are using Apple Silicon (M1/M2) Mac but your Python is not of 'arm64' architecture.")
-                    print("The llama.ccp x86 version will be 10x slower on Apple Silicon (M1/M2) Mac.")
-                    print("\nTo install the correct version of Python that supports 'arm64' architecture:")
-                    print("1. Download Miniforge for M1/M2:")
-                    print("wget https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-MacOSX-arm64.sh")
-                    print("2. Install it:")
-                    print("bash Miniforge3-MacOSX-arm64.sh")
-                    print("")
-      
         else:
-            print('', "Installation cancelled. Exiting.", '')
+            print("Installation cancelled. Exiting.", file=sys.stderr)
             return None
 
     # Initialize and return Code-Llama
