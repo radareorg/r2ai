@@ -8,6 +8,12 @@ for m in sorted(models().split("\n")):
         mmm.append(m[3:])
 eee = []
 
+def autocomplete_files(flag, second_word):
+  cwd = second_word[:second_word.rfind('/') + 1]
+  if cwd == "": cwd = "./"
+  files = [cwd + c + "/" for c in os.listdir(cwd)]
+  return [flag + " " + s for s in files if s and s.startswith(second_word)]
+
 class MyCompleter(object):  # Custom completer
   def __init__(self, options):
     self.options = sorted(options)
@@ -21,28 +27,25 @@ class MyCompleter(object):  # Custom completer
       if not text:
         self.matches = self.options[:]
       elif first_word == ".":
-        cwd = second_word[:second_word.rfind('/') + 1]
-        if cwd == "": cwd = "./"
-        files = [cwd + c + "/" for c in os.listdir(cwd)]
-        if second_word == "":
-            self.matches = [". " + c + ' ' for c in files]
-        else:
-            self.matches = [". " + s for s in files if s and s.startswith(second_word)]
+        self.matches = autocomplete_files(".", second_word)
       elif first_word == "-e":
         if second_word == "":
-            self.matches = ["-e " + c + ' ' for c in eee]
+          self.matches = ["-e " + c + ' ' for c in eee]
         else:
-            self.matches = ["-e " + s for s in eee if s and s.startswith(second_word)]
+          self.matches = ["-e " + s for s in eee if s and s.startswith(second_word)]
+      elif first_word == "-rf":
+        self.matches = autocomplete_files("-rf", second_word)
+      elif first_word == "-i":
+        self.matches = autocomplete_files("-i", second_word)
+      elif first_word == "-f":
+        self.matches = autocomplete_files("-f", second_word)
       elif first_word == "-m":
         if second_word.startswith("/") or second_word.startswith("."):
-          cwd = second_word[:second_word.rfind('/') + 1]
-          if cwd == "": cwd = "./"
-          files = [cwd + c + "/" for c in os.listdir(cwd)]
-          self.matches = ["-m " + s for s in files if s and s.startswith(second_word)]
+          self.matches = autocomplete_files("-m", second_word)
         elif second_word == "":
-            self.matches = ["-m " + c + ' ' for c in mmm]
+          self.matches = ["-m " + c + ' ' for c in mmm]
         else:
-            self.matches = ["-m " + s for s in mmm if s and s.startswith(second_word)]
+          self.matches = ["-m " + s for s in mmm if s and s.startswith(second_word)]
       else:
         self.matches = [s for s in self.options if s and s.startswith(text)]
     try:
@@ -78,7 +81,7 @@ commands.extend(sorted([
   "?", ".", "..", ":", "' ", "!",
   "-a", "-A", "-k", "-c", "-e", "-f", "-h", "-H",
   "-i", "-m", "-M", "-n", "-q", "-L",
-  "-r", "-r2", "-repl",
+  "-r", "-r2", "-rf", "-repl",
   "-R", "-t", "-v", "-w",
 ]))
 
