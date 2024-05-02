@@ -22,7 +22,7 @@ jobs:
         wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2-dev_${R2V}_amd64.deb"
         sudo dpkg -i "radare2_${R2V}_amd64.deb"
         sudo dpkg -i "radare2-dev_${R2V}_amd64.deb"
-    - name: Installing Python virtual environment
+    - name: Setting up the Python virtual environment
       run: |
         python -m venv venv
         . venv/bin/activate
@@ -31,7 +31,7 @@ jobs:
       run: |
         . venv/bin/activate
         pylint main.py
-    - name: Install r2ai dependencies
+    - name: Install Python dependencies
       run: |
         . venv/bin/activate
         pip install -r requirements.txt
