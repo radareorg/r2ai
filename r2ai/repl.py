@@ -8,12 +8,9 @@ import r2ai
 import sys
 import os
 
-try:
-  import readline
-  readline.read_history_file(R2AI_HISTFILE)
-  have_readline = True
-except:
-  pass #readline not available
+from .tab import tab_init, tab_hist, tab_write, tab_evals
+
+tab_init()
 
 print_buffer = ""
 r2 = None
@@ -94,9 +91,9 @@ def start_http_server():
   print("Serving at port", PORT)
   server.serve_forever()
 
-
 help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai . [file]          interpret r2ai script with access to globals
+ r2ai ..([script])      list or run r2ai user script
  r2ai :aa               run a r2 command
  r2ai ' [prompt]        auto mode; query LLM that can interact with r2
  r2ai !ls               run a system command
@@ -188,7 +185,6 @@ def r2ai_vars(ai, arg):
       print(k)
 
 def runline(ai, usertext):
-#  builtins.print(f"runline {usertext}")
   global print
   global autoai
   if ai == None:
@@ -266,6 +262,12 @@ def runline(ai, usertext):
       for k in ai.env.keys():
         v = ai.env[k]
         print(f"-e {k}={v}")
+    elif usertext.endswith("."):
+      kp = usertext[2:].strip()
+      for k in ai.env.keys():
+        if k.startswith(kp):
+          v = ai.env[k]
+          print(f"-e {k}={v}")
     else:
       line = usertext[2:].strip().split("=")
       k = line[0]
@@ -342,16 +344,21 @@ def runline(ai, usertext):
   elif usertext.startswith("-c"):
     words = usertext[2:].strip().split(" ", 1)
     res = r2_cmd(words[0])
-    if len(words) > 1:
-      que = words[1]
-    else:
-      que = input("[Query]> ")
+    que = ""
+    try:
+      if len(words) > 1:
+        que = words[1]
+      else:
+        que = input("[Query]> ")
+    except:
+      print("")
+      return
     tag = "```\n" # TEXT, INPUT ..
     ai.chat(f"{que}:\n{tag}\n{res}\n{tag}\n")
   elif usertext[0] == "!":
     os.system(usertext[1:])
   elif usertext[0] == ".":
-    if usertext[1] == ".": # ".." - run user plugins
+    if len(usertext) > 0 and usertext[1] == ".": # ".." - run user plugins
       runplugin(ai, usertext[2:].strip())
       return
     try:
@@ -382,6 +389,7 @@ def runline(ai, usertext):
 
 def r2ai_repl(ai):
   from r2ai import bubble
+  tab_evals(ai.env.keys())
   oldoff = "0x00000000"
   olivemode = ai.env["chat.live"]
   ai.env["chat.live"] = "true"
@@ -417,5 +425,5 @@ def r2ai_repl(ai):
     except:
       traceback.print_exc()
       continue
-    readline.write_history_file(R2AI_HISTFILE)
+    tab_write()
   ai.env["chat.live"] = olivemode
