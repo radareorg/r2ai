@@ -8,6 +8,8 @@
              *       --pancake
 ```
 
+[![ci](https://github.com/radareorg/r2ai/actions/workflows/ci.yml/badge.svg)](https://github.com/radareorg/r2ai/actions/workflows/ci.yml)
+
 Run a language model in local, without internet, to entertain you or help answering questions about radare2 or reverse engineering in general. Note that models used by r2ai are pulled from external sources which may behave different or respond unrealible information. That's why there's an ongoing effort into improving the post-finetuning using memgpt-like techniques which can't get better without your help!
 
 <p align="center">
