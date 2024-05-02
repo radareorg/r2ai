@@ -35,6 +35,14 @@ jobs:
       run: |
         . venv/bin/activate
         pip install -r requirements.txt
+    - name: Running r2ai from the shell
+      run: |
+        . venv/bin/activate
+        python main.py -h
+    - name: Running r2ai from r2
+      run: |
+        . venv/bin/activate
+        r2 -q -i main.py -c r2ai /bin/ls
 
   check_release:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
