@@ -3,7 +3,7 @@ from .const import R2AI_HISTFILE, R2AI_HOMEDIR, R2AI_RCFILE, R2AI_USERDIR
 from .models import models
 
 mmm = []
-for m in models().split("\n"):
+for m in sorted(models().split("\n")):
     if m.startswith("-m "):
         mmm.append(m[3:])
 eee = []
@@ -74,12 +74,13 @@ class MyCompleter(object):  # Custom completer
     sys.stdout.flush()
 
 commands = []
-commands.extend([
+commands.extend(sorted([
   "?", ".", "..", ":", "' ", "!",
   "-a", "-A", "-k", "-c", "-e", "-f", "-h", "-H",
   "-i", "-m", "-M", "-n", "-q", "-L",
-  "-r", "-r2", "-R", "-t", "-v", "-w",
-])
+  "-r", "-r2", "-repl",
+  "-R", "-t", "-v", "-w",
+]))
 
 commands = [x.split(' ')[0] for x in commands]
 
@@ -99,7 +100,7 @@ def tab_hist(text):
 
 def tab_evals(x):
   global eee
-  eee = x
+  eee = sorted(x)
 
 def tab_write():
   if not have_readline:

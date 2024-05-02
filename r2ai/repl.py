@@ -250,7 +250,10 @@ def runline(ai, usertext):
   elif usertext == "-q" or usertext == "exit":
     return "q"
   elif usertext == "-repl":
-    print("Nothing to do")
+    if have_rlang:
+      r2ai_repl(ai)
+    else:
+      print("r2ai -repl # only works when running as an radare2 plugin")
   elif usertext == "-r2":
     ai.env["data.use"] = "true"
     ai.env["data.hist"] = "true"
