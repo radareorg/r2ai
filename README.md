@@ -86,6 +86,7 @@ There are 4 different ways to run `r2ai`:
 
 * Standalone and interactive: `r2pm -r r2ai` or `python main.py`
 * Batch mode: `r2ai '-r act as a calculator' '3+3=?'`
+* As an r2 plugin: `r2 -i main.py /bin/ls`
 * From radare2 (requires `r2pm -ci rlang-python`): `r2 -c 'r2ai -h'`
 * Using r2pipe: `#!pipe python main.py`
   * Define a macro command: `'$r2ai=#!pipe python main.py`
@@ -106,7 +107,6 @@ $ . env/bin/activate
 [0x00000000]> $r2ai "' decompile current function and explain it"
 ```
 
-
 ## Examples
 
 You can interact with r2ai from standalone python, from r2pipe via r2 keeping a global state or using the javascript intrepreter embedded inside `radare2`.
@@ -121,6 +121,7 @@ Just run `make` .. or well `python main.py`
 
 * add "undo" command to drop the last message
 * dump / restore conversational states (see -L command)
+* Implement `~`, `|` and `>`
 
 ### Kudos
 

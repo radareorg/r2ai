@@ -45,3 +45,7 @@ pub:
 	$(PYTHON) setup.py build sdist
 	twine check dist/*
 	twine upload -u __token__ --repository-url https://upload.pypi.org/legacy/ --verbose dist/*
+
+lint:
+	pylint main.py
+	pylint r2ai/*.py
