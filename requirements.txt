@@ -2,7 +2,7 @@ rich
 r2pipe
 inquirer
 llama-cpp-python
-huggingface_hub
+huggingface_hub==0.22.2
 appdirs
 unidecode
 jsonref
