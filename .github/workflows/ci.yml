@@ -23,11 +23,13 @@ jobs:
         sudo dpkg -i "radare2_${R2V}_amd64.deb"
         sudo dpkg -i "radare2-dev_${R2V}_amd64.deb"
     - name: Installing Python virtual environment
-      run: python -m venv venv
+      run: |
+        python -m venv venv
+        . venv/bin/activate
+        pip install pylint
     - name: Linting
       run: |
         . venv/bin/activate
-        pip install pylint
         pylint main.py
     - name: Install r2ai dependencies
       run: |
