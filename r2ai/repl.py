@@ -361,7 +361,7 @@ def runline(ai, usertext):
   elif usertext[0] == "!":
     os.system(usertext[1:])
   elif usertext[0] == ".":
-    if len(usertext) > 0 and usertext[1] == ".": # ".." - run user plugins
+    if len(usertext) > 1 and usertext[1] == ".": # ".." - run user plugins
       runplugin(ai, usertext[2:].strip())
       return
     try:
@@ -372,8 +372,9 @@ def runline(ai, usertext):
       else:
         for line in file.split("\n"):
           runline(ai, line)
-    except:
-      traceback.print_exc()
+    except Exception as e:
+      # traceback.print_exc()
+      print(e)
       pass
   elif usertext.startswith("' "):
     if not autoai:
