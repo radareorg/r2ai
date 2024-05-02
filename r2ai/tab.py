@@ -82,7 +82,7 @@ commands.extend(sorted([
   "-a", "-A", "-k", "-c", "-e", "-f", "-h", "-H",
   "-i", "-m", "-M", "-n", "-q", "-L",
   "-r", "-r2", "-rf", "-repl",
-  "-R", "-t", "-v", "-w",
+  "-R", "-t", "-v", "-w", "q"
 ]))
 
 commands = [x.split(' ')[0] for x in commands]

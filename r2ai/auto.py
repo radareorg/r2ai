@@ -13,27 +13,7 @@ file_dir = os.path.dirname(__file__)
 sys.path.append(file_dir)
 import index
 
-r2lang = None
-try:
-  import r2lang
-  have_rlang = True
-except:
-  try:
-    import r2pipe
-    class FakeLang:
-      def __init__(self, r2):
-        self.r2 = r2
-      def cmd(self,x):
-        return self.r2.cmd(x)
-    try:
-      r2lang = FakeLang(r2pipe.open())
-      r2lang.cmd("?V") # r2pipe throws only here
-    except:
-      r2lang = FakeLang(r2pipe.open("/bin/ls"))
-      pass
-  except:
-    print("Cannot instantiate this FakeLang class with r2pipe")
-    pass
+from .pipe import have_rlang, r2lang
 
 ANSI_REGEX = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 

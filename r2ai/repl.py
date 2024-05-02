@@ -13,36 +13,14 @@ from .tab import tab_init, tab_hist, tab_write, tab_evals
 tab_init()
 
 print_buffer = ""
-r2 = None
 ais = {}
 autoai = None
-have_rlang = False
-try:
-  import r2lang
-  have_rlang = True
-except:
-  try:
-    import r2pipe
-    class FakeLang:
-      def __init__(self, r):
-        global r2
-        self.r2 = r
-        r2 = r
-      def cmd(self, x):
-        return self.r2.cmd(x)
-    try:
-      r2lang = FakeLang(r2pipe.open())
-      r2lang.cmd("?V") # r2pipe throws only here
-    except:
-      r2lang = FakeLang(r2pipe.open("/bin/ls"))
-      pass
-  except:
-    print("Cannot find r2lang or r2pipe", file=sys.stderr)
-    pass
+from .pipe import have_rlang, r2lang, r2singleton
+r2 = r2singleton()
 
 def r2_cmd(x):
-  have_rlang=True
-  global ai, r2, r2_file
+  global have_rlang, ai, r2, r2_file
+  have_rlang = True
   res = x
   if have_rlang:
     oc = r2lang.cmd('e scr.color').strip()
