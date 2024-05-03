@@ -6,8 +6,6 @@ env:
 
 on:
   push:
-    branches:
-      - main
   pull_request:
   workflow_dispatch:
 
@@ -43,61 +41,3 @@ jobs:
       run: |
         . venv/bin/activate
         r2 -q -i main.py -c r2ai /bin/ls
-
-  check_release:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-    outputs:
-      is_release: ${{ steps.release.outputs.is }}
-      tag_name: ${{ steps.release.outputs.tag }}
-    needs:
-      - build-linux
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Download all git history and tags
-      - name: Check if is a release
-        run: |
-          TAG="`git describe --exact-match --tags ${{ github.sha }} || true`"
-          if [ -n "$TAG" ]; then
-            echo "tag=$TAG" >> $GITHUB_OUTPUT
-            echo "is=yes" >> $GITHUB_OUTPUT
-          else
-            echo "is=no" >> $GITHUB_OUTPUT
-          fi
-        id: release
-
-  release:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.check_release.outputs.is_release == 'yes' }}
-    needs:
-      - check_release
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Download all git history and tags
-      - name: Extract r2f version
-        shell: bash
-        run: echo "branch=`./configure -qV`" >> $GITHUB_OUTPUT
-        id: r2fv
-      - name: Prepare release notes
-        run: echo Release > ./RELEASE_NOTES.md
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: dist/artifacts
-      - name: Create GitHub release
-        id: create_release
-        uses: softprops/action-gh-release@v2.0.4
-        with:
-          name: ${{ steps.r2fv.outputs.branch }}
-          tag_name: ${{ needs.check_release.outputs.tag_name }}
-          body_path: ./RELEASE_NOTES.md
-          draft: false
-          prerelease: false
-          generate_release_notes: false
-          files: |
-            dist/artifacts/build-linux/r2yara_${{ steps.r2fv.outputs.branch }}_amd64.deb
-#           dist/artifacts/build-macos/r2yara-${{ steps.r2fv.outputs.branch }}-x64.pkg
