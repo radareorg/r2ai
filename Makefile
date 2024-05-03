@@ -4,6 +4,11 @@ R2PM_BINDIR=$(shell r2pm -H R2PM_BINDIR)
 PYTHON?=python3
 PIP=$(PYTHON) -m pip
 
+LINTED=r2ai/code_block.py
+LINTED+=r2ai/bubble.py
+LINTED+=setup.py
+LINTED+=main.py
+
 ifeq ($(R2PM_BINDIR),)
 FATAL ERROR
 endif
@@ -47,9 +52,7 @@ pub:
 	twine upload -u __token__ --repository-url https://upload.pypi.org/legacy/ --verbose dist/*
 
 cilint:
-	pylint setup.py
-	pylint main.py
-	pylint r2ai/bubble.py
+	pylint $(LINTED)
 
 lint:
 	pylint *.py r2ai/*.py
