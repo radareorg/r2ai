@@ -27,14 +27,14 @@ jobs:
         python -m venv venv
         . venv/bin/activate
         pip install pylint
-    - name: Linting
-      run: |
-        . venv/bin/activate
-        make cilint
     - name: Install Python dependencies
       run: |
         . venv/bin/activate
         pip install -r requirements.txt
+    - name: Linting
+      run: |
+        . venv/bin/activate
+        make cilint
     - name: Running r2ai from the shell
       run: |
         . venv/bin/activate
