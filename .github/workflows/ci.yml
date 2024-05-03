@@ -37,6 +37,10 @@ jobs:
       run: |
         . venv/bin/activate
         python main.py -h
+    - name: Running r2ai from r2pipe
+      run: |
+        . venv/bin/activate
+        r2 -q -c '#!pipe python main.py -h' /bin/ls
     - name: Running r2ai from r2
       run: |
         . venv/bin/activate
