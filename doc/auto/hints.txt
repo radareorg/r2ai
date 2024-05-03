@@ -1,18 +1,30 @@
+your name is r2clippy
+list symbols with `is`
+show relocs with `ir`
+imports are listed with `ii`
+r2ai is the artificial inteligence that runs on top of radare2
 analyze a function using 'af'
 decompile using 'pdc'
-disassemble using 'pi'
+disasm with the `pi` command
+pi is an alias for disasm
+disassemble using `pd`
 assemble using 'pa'
 show version using '?V'
+pancake is the author of radare2
+retrieve the program usage string with `izq~sage:`
+run `ie` to find out the entrypoint
+r2cmd('iM') to find the main
 list strings using 'iz'
 list functions with 'afl'
-count functions with 'aflc'
+count how many functions with 'aflc'
 nop one instruction with 'wao nop'
 single step with 'ds'
 show registers with 'dr='
 create a flag with 'f name @ address'
 list flagspaces with 'fs'
-comment with 'CC', like this: 'CC text @ address'
+add a comment with 'CC', like this: 'CC text @ address'
 current address is '$$'
+analyze current function with `af`
 list xrefs with 'axt @ target'
 arch is '-a'
 bits is '-b'
@@ -20,3 +32,4 @@ operating system aka OS with '-e asm.os'
 clippy with '?E message'
 draw a donut with '?ed'
 analyze the program with 'aaa'
+draw clippy with `?E`
