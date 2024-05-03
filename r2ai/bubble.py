@@ -1,6 +1,8 @@
+"""Bubble chat helper functions to make clippy-ai look nice."""
+
 import os
 
-clippy_begin="""
+CLIPPY_BEGIN = """
                                                                       .--.
                                                                      _|_ |
                                                                      O O |
@@ -10,29 +12,43 @@ clippy_begin="""
                                                                  / | `---'  
 .---------------------------------------------------------------'  '----"""
 
-clippy_end="""`-----------------------------------------------------------------------"""
+CLIPPY_END = """`-----------------------------------------------------------------------"""
 
-user_begin="""   |\\
+USER_BEGIN = """   |\\
    | \\
 .--'  '--"""
 
-user_end='`---'
+USER_END = '`---'
 
 def query(text):
-	l = len(text) + 10
-	print("\033[F\033[J")
-	print(user_begin + ("-"*(l-5)) + ".")
-	pad = " " * (l - len(text))
-	print(f"| {text} {pad} |")
-	print(user_end+ ("-"*l) + "'")
+    """Display the user text using an ascii-art bubble chat
+
+    Parameters:
+    text (string): Message to display
+
+    """
+    l = len(text) + 10
+    print("\033[F\033[J")
+    print(USER_BEGIN + ("-" * (l - 5)) + ".")
+    pad = " " * (l - len(text))
+    print(f"| {text} {pad} |")
+    print(USER_END + ("-"*l) + "'")
 
 def getpad():
-	tw = os.get_terminal_size().columns - 75
-	pad = "-"
-	if tw > 0:
-		pad = "-" * tw
-	return pad
+    """Generate padding with dashes
+    """
+    tw = os.get_terminal_size().columns - 75
+    pad = "-"
+    if tw > 0:
+        pad = "-" * tw
+    return pad
+
 def response_begin():
-	print(clippy_begin + getpad() + ".")
+    """Print the beginning of the clippy response
+    """
+    print(CLIPPY_BEGIN + getpad() + ".")
+
 def response_end():
-	print(clippy_end + getpad() + "'")
+    """Print the end of the clippy response
+    """
+    print(CLIPPY_END + getpad() + "'")
