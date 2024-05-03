@@ -13,7 +13,13 @@ ifeq ($(R2PM_BINDIR),)
 FATAL ERROR
 endif
 
+.PHONY: all all.old venv deps clean deps-global pub lint cilint
+.PHONY: install uninstall user-install user-uninstall
+
 all:
+	. venv/bin/activate ; $(PYTHON) main.py || $(MAKE) deps
+
+all.old:
 	@test -n "${VIRTUAL_ENV}" || (echo "Run:"; echo ". venv/bin/activate" ; exit 1)
 	$(PYTHON) main.py || $(MAKE) deps
 
