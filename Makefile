@@ -46,6 +46,10 @@ pub:
 	twine check dist/*
 	twine upload -u __token__ --repository-url https://upload.pypi.org/legacy/ --verbose dist/*
 
-lint:
+cilint:
+	pylint setup.py
 	pylint main.py
-	pylint r2ai/*.py
+	pylint r2ai/bubble.py
+
+lint:
+	pylint *.py r2ai/*.py

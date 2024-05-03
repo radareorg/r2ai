@@ -30,7 +30,7 @@ jobs:
     - name: Linting
       run: |
         . venv/bin/activate
-        pylint main.py
+        make cilint
     - name: Install Python dependencies
       run: |
         . venv/bin/activate
