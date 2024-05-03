@@ -98,7 +98,7 @@ except:
 
 def tab_hist(text):
   if not have_readline:
-    print("Cannot find readline")
+    print("Cannot find readline", file=sys.stderr)
     return False  
 
 def tab_evals(x):
@@ -107,16 +107,19 @@ def tab_evals(x):
 
 def tab_write():
   if not have_readline:
-    print("Cannot find readline")
+    print("Cannot find readline", file=sys.stderr)
     return False  
   readline.write_history_file(R2AI_HISTFILE)
 
 def tab_init():
   if not have_readline:
-    print("Cannot find readline")
+    print("Cannot find readline", file=sys.stderr)
     return False  
   completer = MyCompleter(list(set(commands)))
-  readline.read_history_file(R2AI_HISTFILE)
+  try:
+    readline.read_history_file(R2AI_HISTFILE)
+  except FileNotFoundError:
+    pass
   readline.set_completer(completer.complete)
   readline.set_completer_delims('\t\n;')
   readline.set_completion_display_matches_hook(completer.display_matches)
