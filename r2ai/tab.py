@@ -7,6 +7,13 @@ for m in sorted(models().split("\n")):
     if m.startswith("-m "):
         mmm.append(m[3:])
 eee = []
+hhh = [
+        "R2AI_USERDIR",
+        "R2AI_PLUGDIR",
+        "R2AI_HOMEDIR",
+        "R2AI_RCFILE",
+        "R2AI_HISTFILE",
+    ]
 
 def autocomplete_files(flag, second_word):
   cwd = second_word[:second_word.rfind('/') + 1]
@@ -39,6 +46,11 @@ class MyCompleter(object):  # Custom completer
         self.matches = autocomplete_files("-i", second_word)
       elif first_word == "-f":
         self.matches = autocomplete_files("-f", second_word)
+      elif first_word == "-H":
+        if second_word == "":
+          self.matches = ["-H " + c + ' ' for c in hhh]
+        else:
+          self.matches = ["-H " + s for s in hhh if s and s.startswith(second_word)]
       elif first_word == "-m":
         if second_word.startswith("/") or second_word.startswith("."):
           self.matches = autocomplete_files("-m", second_word)
@@ -80,7 +92,7 @@ commands = []
 commands.extend(sorted([
   "?", ".", "..", ":", "' ", "!",
   "-a", "-A", "-k", "-c", "-e", "-f", "-h", "-H",
-  "-i", "-m", "-M", "-n", "-q", "-L",
+  "-i", "-m", "-M", "-MM", "-n", "-q", "-L",
   "-r", "-r2", "-rf", "-repl",
   "-R", "-t", "-v", "-w", "q"
 ]))
