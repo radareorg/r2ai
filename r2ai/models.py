@@ -36,81 +36,85 @@ def Markdown(x):
 
 def mainmodels():
     return """
--m Undi95/Utopia-13B-GGUF
--m meetkai/functionary-small-v2.2-GGUF
--m dagbs/dolphin-2.8-mistral-7b-v02-GGUF
+-m FaradayDotDev/llama-3-8b-Instruct-GGUF
 -m TheBloke/Mistral-7B-Instruct-v0.2-GGUF
+-m TheBloke/Unholy-v2-13B-GGUF
 -m TheBloke/dolphin-2_6-phi-2-GGUF
+-m Undi95/Utopia-13B-GGUF
+-m dagbs/dolphin-2.8-mistral-7b-v02-GGUF
+-m meetkai/functionary-small-v2.2-GGUF
 """
 
 def models():
     return """
 OpenAI:
--m openai:gpt-4-1106-preview
 -m openai:gpt-3.5-turbo
 -m openai:gpt-4
+-m openai:gpt-4-1106-preview
 Anthropic:
 -m anthropic:claude-2.1
 -m anthropic:claude-3-haiku-20240307
--m anthropic:claude-3-sonnet-20240229
 -m anthropic:claude-3-opus-20240229
+-m anthropic:claude-3-sonnet-20240229
 groq:
--m groq:mixtral-8x7b-32768
--m groq:llama2-70b-4096
 -m groq:gemma-7b-it
+-m groq:llama2-70b-4096
+-m groq:mixtral-8x7b-32768
 GPT4:
--m dranger003/c4ai-command-r-plus-iMat.GGUF
--m TheBloke/goliath-120b-GGUF
--m TheBloke/SynthIA-7B-v2.0-GGUF
--m TheBloke/Chronos-Hermes-13b-v2-GGUF
 -m NousResearch/Hermes-2-Pro-Mistral-7B-GGUF
 -m TheBloke/Chronos-70B-v2-GGUF
--m lizpreciatior/lzlv_70b_fp16_hf
--m TheBloke/dolphin-2.7-mixtral-8x7b-GGUF
--m TheBloke/Nous-Capybara-7B-v1.9-GGUF
--m TheBloke/Nous-Capybara-34B-GGUF
+-m TheBloke/Chronos-Hermes-13b-v2-GGUF
 -m TheBloke/Euryale-Inverted-L2-70B-GGUF
--m TheBloke/StellarBright-GGUF
 -m TheBloke/GodziLLa2-70B-GGUF
+-m TheBloke/Nous-Capybara-34B-GGUF
+-m TheBloke/Nous-Capybara-7B-v1.9-GGUF
+-m TheBloke/StellarBright-GGUF
+-m TheBloke/SynthIA-7B-v2.0-GGUF
+-m TheBloke/dolphin-2.7-mixtral-8x7b-GGUF
+-m TheBloke/goliath-120b-GGUF
+-m dranger003/c4ai-command-r-plus-iMat.GGUF
+-m lizpreciatior/lzlv_70b_fp16_hf
 Functionary:
--m meetkai/functionary-small-v2.2-GGUF
--m meetkai/functionary-medium-v2.2-GGUF
--m meetkai/functionary-7b-v2.1-GGUF
--m meetkai/functionary-7b-v2-GGUF
 -m meetkai/functionary-7b-v1.4-GGUF
+-m meetkai/functionary-7b-v2-GGUF
+-m meetkai/functionary-7b-v2.1-GGUF
+-m meetkai/functionary-medium-v2.2-GGUF
+-m meetkai/functionary-small-v2.2-GGUF
 Generic:
+-m KoboldAI/LLaMA2-13B-Tiefighter-GGUF
 -m TheBloke/Ferret_7B-GGUF
 -m TheBloke/Mistral-7B-Instruct-v0.1-GGUF
 -m TheBloke/Mistral-7B-Instruct-v0.2-GGUF
--m aisensiy/Qwen-72B-Chat-GGUF
+-m TheBloke/OpenOrca-Zephyr-7B-GGUF
 -m TheBloke/Yarn-Mistral-7B-128k-GGUF
 -m TheBloke/dolphin-2.2.1-mistral-7B-GGUF
--m dagbs/dolphin-2.8-mistral-7b-v02-GGUF
 -m TheBloke/zephyr-7B-alpha-GGUF
--m TheBloke/OpenOrca-Zephyr-7B-GGUF
 -m TheBloke/zephyr-7B-beta-GGUF
+-m aisensiy/Qwen-72B-Chat-GGUF
+-m dagbs/dolphin-2.8-mistral-7b-v02-GGUF
 -m maddes8cht/nomic-ai-gpt4all-falcon-7b-gguf
--m KoboldAI/LLaMA2-13B-Tiefighter-GGUF
 Coding:
 -m FaradayDotDev/llama-3-8b-Instruct-GGUF
--m bartowski/stable-code-instruct-3b-GGUF
--m TheBloke/CodeBooga-34B-v0.1-GGUF
--m TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF
--m TheBloke/deepseek-coder-6.7B-instruct-GGUF
--m TheBloke/deepseek-coder-33B-instruct-GGUF
--m TheBloke/CodeLlama-7B-Instruct-GGUF
--m TheBloke/CodeLlama-34B-Instruct-GGUF
--m mlabonne/gemma-7b-it-GGUF
 -m LoneStriker/OpenCodeInterpreter-DS-33B-GGUF
+-m TheBloke/CodeBooga-34B-v0.1-GGUF
+-m TheBloke/CodeLlama-34B-Instruct-GGUF
+-m TheBloke/CodeLlama-7B-Instruct-GGUF
+-m TheBloke/deepseek-coder-33B-instruct-GGUF
+-m TheBloke/deepseek-coder-6.7B-instruct-GGUF
+-m TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF
+-m bartowski/stable-code-instruct-3b-GGUF
+-m cognitivecomputations/dolphin-2.9-llama3-8b-gguf
+-m mlabonne/gemma-7b-it-GGUF
 Uncensored:
--m TheBloke/openchat-3.5-0106-GGUF
 -m TheBloke/Dawn-v2-70B-GGUF
 -m TheBloke/Guanaco-7B-Uncensored-GGUF
 -m TheBloke/Luna-AI-Llama2-Uncensored-GGUF
+-m TheBloke/Unholy-v2-13B-GGUF
 -m TheBloke/Wizard-Vicuna-13B-Uncensored-GGUF
 -m TheBloke/Wizard-Vicuna-7B-Uncensored-GGUF
--m TheBloke/llama2_70b_chat_uncensored-GGUF
 -m TheBloke/dolphin-2_6-phi-2-GGUF
+-m TheBloke/llama2_70b_chat_uncensored-GGUF
+-m TheBloke/openchat-3.5-0106-GGUF
 -m Undi95/Utopia-13B-GGUF
 -m Undi95/UtopiaXL-13B-GGUF
 """
