@@ -95,7 +95,7 @@ def process_tool_calls(interpreter, tool_calls):
       try:
         args = json.loads(args)
       except:
-        builtins.print(f"Error parsing json: {args}")
+        builtins.print(f"Error parsing json: {args}", file=sys.stderr)
 
     if tool_call["function"]["name"] == "r2cmd":
       if type(args) is str:
@@ -208,8 +208,8 @@ def chat(interpreter):
       try:
         from openai import OpenAI
       except ImportError:
-        print("pip install -U openai")
-        print("export OPENAI_API_KEY=...")
+        print("pip install -U openai", file=sys.stderr)
+        print("export OPENAI_API_KEY=...", file=sys.stderr)
         return
       interpreter.openai_client = OpenAI()
 
@@ -228,7 +228,7 @@ def chat(interpreter):
       try:
         from anthropic import Anthropic
       except ImportError:
-        print("pip install -U anthropic")
+        print("pip install -U anthropic", file=sys.stderr)
         return
       interpreter.anthropic_client = Anthropic()
     messages = []
@@ -264,7 +264,7 @@ def chat(interpreter):
       try:
         from groq import Groq
       except ImportError:
-        print("pip install -U groq")
+        print("pip install -U groq", file=sys.stderr)
         return
       interpreter.groq_client = Groq()
 
@@ -284,7 +284,7 @@ def chat(interpreter):
       try:
         from .functionary import prompt_template
       except ImportError:
-        print("pip install -U functionary")
+        print("pip install -U functionary", file=sys.stderr)
         return
 
       tokenizer = get_functionary_tokenizer(interpreter.model)
