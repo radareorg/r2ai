@@ -7,6 +7,8 @@ from .models import get_hf_llm, new_get_hf_llm, get_default_model
 from .voice import tts
 from .const import R2AI_HOMEDIR
 from . import auto
+import os
+
 try:
   from openai import OpenAI
   have_openai = True
@@ -26,6 +28,14 @@ try:
   have_groq = True
 except:
   have_groq = False
+  pass
+
+try:
+  import google.generativeai as google
+  google.configure(api_key=os.environ['GOOGLE_API_KEY'])
+  have_google = True
+except Exception as e:
+  have_google = False
   pass
 
 import re
@@ -502,6 +512,8 @@ class Interpreter:
     self.openai_client = None
     self.anthropic_client = None
     self.groq_client = None
+    self.google_client = None
+    self.google_chat = None
     self.api_base = None # Will set it to whatever OpenAI wants
     self.system_message = ""
     self.env["debug"] = "false"
@@ -912,6 +924,27 @@ class Interpreter:
           temperature=float(self.env["llm.temperature"]),
           messages=self.messages
         )
+        if self.env["chat.reply"] == "true":
+          self.messages.append({"role": "assistant", "content": completion.content})
+          print(completion.content)        
+    elif self.model.startswith('google:'):
+      if have_google:
+        if not self.google_client:
+          self.google_client = google.GenerativeModel(self.model[7:])
+        if not self.google_chat:
+          self.google_chat = self.google_client.start_chat()
+
+        completion = self.google_chat.send_message(
+          self.messages[-1]["content"],
+          generation_config={
+            "max_output_tokens": maxtokens, 
+            "temperature": float(self.env["llm.temperature"])
+          } 
+        )
+        if self.env["chat.reply"] == "true":
+          self.messages.append({"role": "assistant", "content": completion.text})
+        print(completion.text)
+        return
     else:
       # non-openai aka local-llama model
       if self.llama_instance == None:

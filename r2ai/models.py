@@ -60,6 +60,9 @@ groq:
 -m groq:gemma-7b-it
 -m groq:llama2-70b-4096
 -m groq:mixtral-8x7b-32768
+Google:
+-m google:gemini-1.0-pro
+-m google:gemini-1.5-pro-latest
 GPT4:
 -m NousResearch/Hermes-2-Pro-Mistral-7B-GGUF
 -m TheBloke/Chronos-70B-v2-GGUF
@@ -472,7 +475,7 @@ def enough_disk_space(size, path) -> bool:
     return False
 
 def new_get_hf_llm(repo_id, debug_mode, context_window):
-    if repo_id.startswith("openai:") or repo_id.startswith("anthropic:") or repo_id.startswith("groq:"):
+    if repo_id.startswith("openai:") or repo_id.startswith("anthropic:") or repo_id.startswith("groq:") or repo_id.startswith("google:"):
         return repo_id
     if not os.path.exists(repo_id):
         return get_hf_llm(repo_id, debug_mode, context_window)
