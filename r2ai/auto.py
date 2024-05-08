@@ -86,6 +86,25 @@ def get_functionary_tokenizer(repo_id):
     functionary_tokenizer = AutoTokenizer.from_pretrained(repo_id, legacy=True)
   return functionary_tokenizer
 
+def r2cmd(command: str):
+  """runs commands in radare2. You can run it multiple times or chain commands with pipes/semicolons. You can also use r2 interpreters to run scripts using the `#`, '#!', etc. commands. The output could be long, so try to use filters if possible or limit. This is your preferred tool"""
+  builtins.print('\x1b[1;32mRunning \x1b[4m' + command + '\x1b[0m')
+  res = r2lang.cmd(command)
+  builtins.print(res)
+  return res
+
+def run_python(command: str):
+  """runs a python script and returns the results"""
+  with open('r2ai_tmp.py', 'w') as f:
+    f.write(command) 
+  builtins.print('\x1b[1;32mRunning \x1b[4m' + "python code" + '\x1b[0m')
+  builtins.print(command)
+  r2lang.cmd('#!python r2ai_tmp.py > $tmp')
+  res = r2lang.cmd('cat $tmp')
+  r2lang.cmd('rm r2ai_tmp.py')
+  builtins.print('\x1b[1;32mResult\x1b[0m\n' + res)
+  return res
+
 def process_tool_calls(interpreter, tool_calls):
   interpreter.messages.append({ "content": None, "tool_calls": tool_calls, "role": "assistant" })
   for tool_call in tool_calls:
@@ -101,18 +120,9 @@ def process_tool_calls(interpreter, tool_calls):
       if type(args) is str:
         args = { "command": args }
       if "command" in args:
-        builtins.print('\x1b[1;32mRunning \x1b[4m' + args["command"] + '\x1b[0m')
-        res = r2lang.cmd(args["command"])
-        builtins.print(res)
+        res = r2cmd(args["command"])
     elif tool_call["function"]["name"] == "run_python":
-      with open('r2ai_tmp.py', 'w') as f:
-        f.write(args["command"])
-      builtins.print('\x1b[1;32mRunning \x1b[4m' + "python code" + '\x1b[0m')
-      builtins.print(args["command"])
-      r2lang.cmd('#!python r2ai_tmp.py > $tmp')
-      res = r2lang.cmd('cat $tmp')
-      r2lang.cmd('rm r2ai_tmp.py')
-      builtins.print('\x1b[1;32mResult\x1b[0m\n' + res)
+      res = run_python(args["command"])
     if (not res or len(res) == 0) and interpreter.model.startswith('meetkai/'):
       res = "OK done"
     interpreter.messages.append({"role": "tool", "content": ANSI_REGEX.sub('', res), "name": tool_call["function"]["name"], "tool_call_id": tool_call["id"] if "id" in tool_call else None})
@@ -197,7 +207,7 @@ def chat(interpreter):
   lastmsg = interpreter.messages[-1]["content"]
   chat_context = context_from_msg (lastmsg)
   #print("#### CONTEXT BEGIN")
-  print(chat_context) # DEBUG
+  #print(chat_context) # DEBUG
   #print("#### CONTEXT END")
   if chat_context != "":
     interpreter.messages.insert(0,{"role": "user", "content": chat_context})
@@ -277,6 +287,34 @@ def chat(interpreter):
       temperature=float(interpreter.env["llm.temperature"]),
     )
     process_streaming_response(interpreter, [response])
+  elif interpreter.model.startswith("google"):
+    if not interpreter.google_client:
+      try:
+        import google.generativeai as google
+        google.configure(api_key=os.environ['GOOGLE_API_KEY'])
+      except ImportError:
+        print("pip install -U google-generativeai", file=sys.stderr)
+        return
+
+      interpreter.google_client = google.GenerativeModel(interpreter.model[7:])
+      if not interpreter.google_chat:
+        interpreter.google_chat = interpreter.google_client.start_chat(
+          enable_automatic_function_calling=True
+        )
+
+      response = interpreter.google_chat.send_message(
+        interpreter.messages[-1]["content"],
+        generation_config={
+          "max_output_tokens": int(interpreter.env["llm.maxtokens"]),
+          "temperature": float(interpreter.env["llm.temperature"])
+        },
+        safety_settings=[{
+          "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+          "threshold": "BLOCK_NONE"
+        }],
+        tools=[r2cmd, run_python]
+      )
+      print(response.text)
   else:
     chat_format = interpreter.llama_instance.chat_format
     is_functionary = interpreter.model.startswith("meetkai/")

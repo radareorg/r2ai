@@ -51,6 +51,7 @@ if os.name != "nt":
 			have_r2pipe = True
 		except:
 			pass
+
 if not have_rlang and not have_r2pipe and sys.argv[0] != 'main.py' and os.path.exists("venv/bin/python"):
 	os.system("venv/bin/python main.py")
 	sys.exit(0)
