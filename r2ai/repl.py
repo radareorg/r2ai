@@ -6,6 +6,7 @@ have_readline = False
 from .const import R2AI_HISTFILE, R2AI_HOMEDIR, R2AI_RCFILE, R2AI_USERDIR
 from .web import start_http_server
 import r2ai
+from datetime import datetime
 import sys
 import os
 
@@ -41,6 +42,7 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai ..([script])      list or run r2ai user script
  r2ai :aa               run a r2 command
  r2ai ' [prompt]        auto mode; query LLM that can interact with r2
+ r2ai ?t [query]        run an query and show it's timing
  r2ai !ls               run a system command
  r2ai -a                query with audio voice
  r2ai -A                enter the voice chat loop
@@ -146,6 +148,11 @@ def runline(ai, usertext):
   if usertext.startswith("?V") or usertext.startswith("-v"):
     print(r2ai.VERSION)
     r2ai_version()
+  elif usertext.startswith("?t"):
+    tstart = datetime.now()
+    runline(ai, usertext[2:].strip())
+    tend = datetime.now()
+    print(tend - tstart)
   elif usertext.startswith("?") or usertext.startswith("-h"):
     print(help_message)
   elif usertext.startswith("clear") or usertext.startswith("-k"):
