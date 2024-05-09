@@ -117,6 +117,8 @@ def messages_to_prompt(self, messages):
     formatted_messages = template_zephyr(self, messages)
   elif "dolphin" in lowermodel:
     formatted_messages = template_ferret(self, messages)
+  elif "Phi" in lowermodel:
+    formatted_messages = template_phi3(self, messages)
   elif "coder" in lowermodel:
     formatted_messages = template_alpaca(self, messages)
   elif "deepseek" in lowermodel:
@@ -255,6 +257,27 @@ def template_falcon(self,messages):
   for message in messages:
     formatted_messages += f"{message['role'].capitalize()}: {message['content']}"
   return formatted_messages.strip()
+
+def template_phi3(self,messages):
+  self.terminator = "<|end|>"
+  system_prompt = self.system_message # messages[0]['content'].strip()
+  if system_prompt != "":
+      q = f"<|assistant|>\n{system_prompt}<|end|>\n"
+  else:
+      q = f""
+  for index, item in enumerate(messages):
+      role = item['role']
+      content = item['content']
+      if role == 'user':
+          q += f"<|user|>\n{content}<|end|>"
+      elif role == "hint":
+          q += f"knowledge: {content}\n"
+      elif role == 'function':
+          q += f"user {content} "
+      elif role == 'assistant' and self.env["chat.reply"] == "true":
+          q += f"<|assistant|>\n{content}<|end|>\n"
+  q += f"<|assistant|>\n"
+  return q
 
 def template_zephyr(self,messages):
 #<|system|>

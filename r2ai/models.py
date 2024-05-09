@@ -108,6 +108,7 @@ Coding:
 -m bartowski/stable-code-instruct-3b-GGUF
 -m cognitivecomputations/dolphin-2.9-llama3-8b-gguf
 -m mlabonne/gemma-7b-it-GGUF
+-m microsoft/Phi-3-mini-4k-instruct-gguf
 Uncensored:
 -m TheBloke/Dawn-v2-70B-GGUF
 -m TheBloke/Guanaco-7B-Uncensored-GGUF
