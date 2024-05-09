@@ -35,7 +35,7 @@ def r2_cmd(x):
   return res
 
 # TODO : move into r2ai/http.py
-def start_http_server():
+def start_http_server(ai):
   import http.server
   import socketserver
 
@@ -55,7 +55,7 @@ def start_http_server():
         msg = self.rfile.read(content_length).decode('utf-8')
         self.send_response(200)
         self.end_headers()
-        res = runline2(msg)
+        res = runline2(ai, msg)
         self.wfile.write(bytes(f'{res}','utf-8'))
       else:
         self.send_response(404)
@@ -97,15 +97,14 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai -R                reset the chat conversation context
  r2ai -t [temp]         from 0.0001 to 10 your scale to randomness in my replies
  r2ai -v                show r2ai version (same as ?V)
- r2ai -w                toggle including LLM responses into the query (False is faster)"""
+ r2ai -w                start webserver (curl -D hello http://localhost:8000)"""
 
 def myprint(msg):
   global print_buffer
   builtins.print(msg)
   print_buffer += msg
 
-def runline2(usertext):
-  global ai
+def runline2(ai, usertext):
   global print
   global print_buffer
   ai.print = myprint
@@ -267,7 +266,7 @@ def runline(ai, usertext):
           print("Invalid config key", file=sys.stderr)
           pass
   elif usertext.startswith("-w"):
-    start_http_server()
+    start_http_server(ai)
   elif usertext.startswith("-s"):
     r2ai_repl(ai)
   elif usertext.startswith("-rf"):
