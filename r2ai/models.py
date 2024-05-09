@@ -107,6 +107,7 @@ Coding:
 -m TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF
 -m bartowski/stable-code-instruct-3b-GGUF
 -m cognitivecomputations/dolphin-2.9-llama3-8b-gguf
+-m cosmo3769/starcoderbase-1b-GGUF
 -m mlabonne/gemma-7b-it-GGUF
 -m microsoft/Phi-3-mini-4k-instruct-gguf
 Uncensored:
