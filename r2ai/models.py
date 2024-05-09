@@ -122,8 +122,15 @@ Uncensored:
 -m Undi95/UtopiaXL-13B-GGUF
 """
 
-def get_hf_llm(repo_id, debug_mode, context_window):
-    n_gpu_layers = -1
+def gpulayers(ai):
+    if "llm.gpu" in ai.env:
+        if ai.env["llm.gpu"] == "true":
+            print("[r2ai] Using GPU")
+            return -1
+    print("[r2ai] Using CPU")
+    return 0
+
+def get_hf_llm(ai, repo_id, debug_mode, context_window):
     usermodels = None
     try:
         try:
@@ -138,7 +145,7 @@ def get_hf_llm(repo_id, debug_mode, context_window):
         if usermodels is not None and repo_id in usermodels:
             model_path = usermodels[repo_id]
 #            print(f"[r2ai] Using {r2ai_model_json} {model_path}")
-            return llama_cpp.Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
+            return llama_cpp.Llama(model_path=model_path, n_gpu_layers=gpulayers(ai), verbose=debug_mode, n_ctx=context_window)
     except:
         traceback.print_exc()
     print(f"Select {repo_id} model. See -M and -m flags", file=sys.stderr)
@@ -188,11 +195,6 @@ def get_hf_llm(repo_id, debug_mode, context_window):
       print("No model selected")
       return
     answers = inquirer.prompt([inquirer.List("default", message="Use this model by default? ~/.r2ai.model", choices=["Yes", "No"])])
-    # Third stage: GPU confirm
-#if confirm_action("Use GPU? (Large models might crash on GPU, but will run more quickly)"):
-##      n_gpu_layers = -1
-#    else:
-#      n_gpu_layers = 0
 
     # Get user data directory
     user_data_dir = appdirs.user_data_dir("r2ai")
@@ -348,7 +350,7 @@ def get_hf_llm(repo_id, debug_mode, context_window):
         json.dump(usermodels, fd)
         fd.close()
         print("Saved")
-    return llama_cpp.Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
+    return llama_cpp.Llama(model_path=model_path, n_gpu_layers=gpulayers(ai), verbose=debug_mode, n_ctx=context_window)
 
 def set_default_model(repo_id):
     usermodels = {"default": repo_id}
@@ -474,13 +476,12 @@ def enough_disk_space(size, path) -> bool:
 
     return False
 
-def new_get_hf_llm(repo_id, debug_mode, context_window):
+def new_get_hf_llm(ai, repo_id, debug_mode, context_window):
     if repo_id.startswith("openai:") or repo_id.startswith("anthropic:") or repo_id.startswith("groq:") or repo_id.startswith("google:"):
         return repo_id
     if not os.path.exists(repo_id):
-        return get_hf_llm(repo_id, debug_mode, context_window)
+        return get_hf_llm(ai, repo_id, debug_mode, context_window)
     # print(f"LOADING FILE: {repo_id}")
-    n_gpu_layers = -1 # = 0 to use cpu
     user_data_dir = appdirs.user_data_dir("Open Interpreter")
     default_path = os.path.join(user_data_dir, "models")
 
@@ -555,4 +556,4 @@ def new_get_hf_llm(repo_id, debug_mode, context_window):
     # Initialize and return Code-Llama
     if not os.path.isfile(model_path):
         print("Model is not a file")
-    return llama_cpp.Llama(model_path=model_path, n_gpu_layers=n_gpu_layers, verbose=debug_mode, n_ctx=context_window)
+    return llama_cpp.Llama(model_path=model_path, n_gpu_layers=gpulayers(ai), verbose=debug_mode, n_ctx=context_window)

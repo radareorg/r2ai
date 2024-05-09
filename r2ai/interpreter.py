@@ -518,6 +518,7 @@ class Interpreter:
     self.system_message = ""
     self.env["debug"] = "false"
     self.env["llm.model"] = self.model ## TODO: dup. must get rid of self.model
+    self.env["llm.gpu"] = "true"
     self.env["llm.window"] = "8096" # "4096" # context_window
     self.env["llm.maxtokens"] = "4096" # "1750"
     self.env["llm.maxmsglen"] = "8096" # "1750"
@@ -623,7 +624,7 @@ class Interpreter:
     words = []
     mmname = "TheBloke/Mistral-7B-Instruct-v0.2-GGUF"
     ctxwindow = int(self.env["llm.window"])
-    mm = new_get_hf_llm(mmname, False, ctxwindow)
+    mm = new_get_hf_llm(self, mmname, False, ctxwindow)
     msg = f"Considering the sentence \"{text}\" as input, Take the KEYWORDS or combination of TWO words from the given text and respond ONLY a comma separated list of the most relevant words. DO NOT introduce your response, ONLY show the words"
     msg = f"Take \"{text}\" as input, and extract the keywords and combination of keywords to make a search online, the output must be a comma separated list" #Take the KEYWORDS or combination of TWO words from the given text and respond ONLY a comma separated list of the most relevant words. DO NOT introduce your response, ONLY show the words"
     response = mm(msg, stream=False, temperature=0.1, stop="</s>", max_tokens=1750)
@@ -682,7 +683,7 @@ class Interpreter:
       try:
         ctxwindow = int(self.env["llm.window"])
         debug_mode = False # maybe true when debuglevel=2 ?
-        self.llama_instance = new_get_hf_llm(self.model, debug_mode, ctxwindow)
+        self.llama_instance = new_get_hf_llm(self, self.model, debug_mode, ctxwindow)
         if self.llama_instance == None:
           builtins.print("Cannot find the model")
           return
@@ -767,7 +768,7 @@ class Interpreter:
       mmname = "TheBloke/Mistral-7B-Instruct-v0.1-GGUF"
       mmname = "TheBloke/Mistral-7B-Instruct-v0.2-GGUF"
       ctxwindow = int(self.env["llm.window"])
-      self.mistral = new_get_hf_llm(mmname, False, ctxwindow)
+      self.mistral = new_get_hf_llm(self, mmname, False, ctxwindow)
     # q = f"Rewrite this code into shorter pseudocode (less than 500 tokens). keep the comments and essential logic:\n```\n{msg}\n```\n"
     q = f"Rewrite this code into shorter pseudocode (less than 200 tokens). keep the relevant comments and essential logic:\n```\n{msg}\n```\n"
     response = self.mistral(q, stream=False, temperature=0.1, stop="</s>", max_tokens=4096)
