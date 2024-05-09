@@ -26,7 +26,7 @@ all.old:
 
 venv:
 	python -m venv venv
-	if [ -z "`find venv | grep llama_cpp`" ]; then pip install -r requirements.txt ; fi
+	if [ -z "`find venv | grep llama_cpp`" ]; then . venv/bin/activate ; pip install -r requirements.txt ; fi
 
 deps: venv
 	test -n "${VIRTUAL_ENV}" || (echo "Run: . venv/bin/activate" ; exit 1)
