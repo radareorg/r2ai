@@ -25,7 +25,7 @@ all.old:
 	$(PYTHON) main.py || $(MAKE) deps
 
 venv:
-	python -m venv venv
+	$(PYTHON) -m venv venv
 	if [ -z "`find venv | grep llama_cpp`" ]; then . venv/bin/activate ; pip install -r requirements.txt ; fi
 
 deps: venv
