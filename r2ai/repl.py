@@ -4,6 +4,7 @@ from .utils import slurp
 import traceback
 have_readline = False
 from .const import R2AI_HISTFILE, R2AI_HOMEDIR, R2AI_RCFILE, R2AI_USERDIR
+from .web import start_http_server
 import r2ai
 import sys
 import os
@@ -34,40 +35,6 @@ def r2_cmd(x):
     r2.cmd('e scr.color=' + oc)
   return res
 
-# TODO : move into r2ai/http.py
-def start_http_server(ai):
-  import http.server
-  import socketserver
-
-  PORT = 8000
-  BASEPATH = ""
-
-  Handler = http.server.SimpleHTTPRequestHandler
-
-  class SimpleHTTPRequestHandler(Handler):
-    def do_GET(self):
-      self.send_response(404)
-      self.end_headers()
-      self.wfile.write(bytes(f'Invalid request. Use POST and /{BASEPATH}', 'utf-8'))
-    def do_POST(self):
-      if self.path.startswith(BASEPATH):
-        content_length = int(self.headers['Content-Length'])
-        msg = self.rfile.read(content_length).decode('utf-8')
-        self.send_response(200)
-        self.end_headers()
-        res = runline2(ai, msg)
-        self.wfile.write(bytes(f'{res}','utf-8'))
-      else:
-        self.send_response(404)
-        self.end_headers()
-        self.wfile.write(bytes(f'Invalid request. Use {BASEPATH}'))
-
-  Handler.protocol_version = "HTTP/1.0"
-  server = socketserver.TCPServer(("", PORT), SimpleHTTPRequestHandler)
-  server.allow_reuse_address = True
-  server.allow_reuse_port = True
-  print("Serving at port", PORT)
-  server.serve_forever()
 
 help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai . [file]          interpret r2ai script with access to globals
@@ -266,8 +233,9 @@ def runline(ai, usertext):
           print("Invalid config key", file=sys.stderr)
           pass
   elif usertext.startswith("-w"):
-    start_http_server(ai)
+    start_http_server(ai, runline2)
   elif usertext.startswith("-s"):
+    ai.runline2 = runline2
     r2ai_repl(ai)
   elif usertext.startswith("-rf"):
     if len(usertext) > 2:
