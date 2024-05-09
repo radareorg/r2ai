@@ -134,6 +134,8 @@ def messages_to_prompt(self, messages):
     formatted_messages = template_falcon(self, messages)
   elif "utopia" in lowermodel:
     formatted_messages = template_alpaca(self, messages)
+  elif "holy" in lowermodel:
+    formatted_messages = template_alpaca(self, messages)
   elif "mistral" in lowermodel:
     formatted_messages = template_mistral(self, messages)
   elif "python" in lowermodel:
