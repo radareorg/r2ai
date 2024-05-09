@@ -17,7 +17,8 @@ endif
 .PHONY: install uninstall user-install user-uninstall
 
 all: venv
-	. venv/bin/activate ; $(PYTHON) main.py || $(MAKE) deps
+	. venv/bin/activate ; $(PYTHON) main.py
+#	|| $(MAKE) deps
 
 all.old:
 	@test -n "${VIRTUAL_ENV}" || (echo "Run:"; echo ". venv/bin/activate" ; exit 1)
@@ -25,6 +26,7 @@ all.old:
 
 venv:
 	python -m venv venv
+	if [ -z "`find venv | grep llama_cpp`" ]; then pip install -r requirements.txt ; fi
 
 deps: venv
 	test -n "${VIRTUAL_ENV}" || (echo "Run: . venv/bin/activate" ; exit 1)
