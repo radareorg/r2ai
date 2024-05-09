@@ -99,7 +99,7 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai -v                show r2ai version (same as ?V)
  r2ai -w                start webserver (curl -D hello http://localhost:8000)"""
 
-def myprint(msg):
+def myprint(msg, file=None):
   global print_buffer
   builtins.print(msg)
   print_buffer += msg
