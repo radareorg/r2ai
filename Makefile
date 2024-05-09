@@ -16,7 +16,7 @@ endif
 .PHONY: all all.old venv deps clean deps-global pub lint cilint
 .PHONY: install uninstall user-install user-uninstall
 
-all:
+all: venv
 	. venv/bin/activate ; $(PYTHON) main.py || $(MAKE) deps
 
 all.old:
