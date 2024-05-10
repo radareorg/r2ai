@@ -78,6 +78,7 @@ if have_r2pipe and not have_rlang:
 	except:
 		traceback.print_exc()
 
+# TODO: see repl.run_script as replacement
 def run_rcfile():
 	global ai
 	try:

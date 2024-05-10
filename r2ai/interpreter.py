@@ -576,6 +576,7 @@ class Interpreter:
     self.env["user.os"] = ""
     self.env["user.arch"] = ""
     self.env["user.cwd"] = ""
+    self.env["user.editor"] = ""
     self.env["user.plugins"] = f"{R2AI_HOMEDIR}/plugins"
     self.env["voice.lang"] = "en"
     self.env["voice.model"] = "base"
@@ -769,6 +770,8 @@ class Interpreter:
       kvs += "OS: " + self.env["user.os"] + "\n"
     if self.env["user.cwd"] != "":
       kvs += "CWD: " + self.env["user.cwd"] + "\n"
+    if self.env["user.editor"] != "":
+      kvs += "EDITOR: " + self.env["user.editor"] + "\n"
     if self.env["user.arch"] != "":
       kvs += "ARCH: " + self.env["user.arch"] + "\n"
     # info += f"[User Info]\nName: {username}\nCWD: {current_working_directory}\nOS: {operating_system}"

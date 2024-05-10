@@ -49,6 +49,7 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai -k                clear the screen
  r2ai -c [cmd] [query]  run the given r2 command with the given query
  r2ai -e [k[=v]]        set environment variable
+ r2ai -ed               launch user.editor with ~/.r2ai.rc
  r2ai -f [file]         load file and paste the output
  r2ai -h                show this help (same as ?)
  r2ai -H ([var])        show path variables like it's done in r2 -H
@@ -129,6 +130,16 @@ def r2ai_vars(ai, arg):
   else:
     for k in vs.keys():
       print(k)
+
+# copypasta from main.run_rcfile . todo avoid dup code
+def run_script(ai, script):
+	try:
+		lines = slurp(script)
+		for line in lines.split("\n"):
+			if line.strip() != "":
+				runline(ai, line)
+	except:
+		pass
 
 def runline(ai, usertext):
   global print
@@ -211,6 +222,16 @@ def runline(ai, usertext):
     ai.env["data.path"] = f"{R2AI_HOMEDIR}/doc/"
     ai.env["chat.bubble"] = "true"
     runline(ai, f"-rf {R2AI_HOMEDIR}/doc/role/r2clippy.txt")
+  elif usertext.startswith("-ed"):
+    editor = "vim" # Defaults to the only real editor
+    if ai.env["user.editor"] != "":
+      editor = ai.env["user.editor"]
+    elif "EDITOR" in os.environ:
+      editor = os.environ["EDITOR"]
+    os.system(f"{editor} {R2AI_RCFILE}")
+    print("Reload? (y/N)")
+    if input() == "y":
+      run_script(ai, R2AI_RCFILE)
   elif usertext.startswith("-e"):
     if len(usertext) == 2:
       for k in ai.env.keys():
