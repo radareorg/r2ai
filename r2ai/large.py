@@ -10,15 +10,16 @@ class Large:
         # self.model = "TheBloke/Mistral-7B-Instruct-v0.2-GGUF"
         self.model = "FaradayDotDev/llama-3-8b-Instruct-GGUF"
         if ai is not None:
-            self.env = ai.env
+            self.ai = ai
         else:
-            self.env = {}
-            self.env["llm.gpu"] = "true"
+            self.ai = {}
+            self.ai.env = {}
+            self.ai.env["llm.gpu"] = "true"
 
     def slice_text(self, amsg):
         slices = []
         pos = self.maxlen
-        while(len(amsg) > self.maxlen):
+        while len(amsg) > self.maxlen:
             s = amsg[:pos]
             amsg = amsg[pos:]
             slices.append(s)
@@ -27,7 +28,7 @@ class Large:
 
     def compress_text(self, msg):
         if self.mistral == None:
-            self.mistral = new_get_hf_llm(self, self.model, False, self.window)
+            self.mistral = new_get_hf_llm(self.ai, self.model, False, self.window)
         # q = f"Rewrite this code into shorter pseudocode (less than 500 tokens). keep the comments and essential logic:\n```\n{msg}\n```\n"
         #q = f"Rewrite this code into shorter pseudocode (less than 200 tokens). keep the relevant comments and essential logic:\n```\n{msg}\n```\n"
         q = f"Resumen y responde SOLO la información relevante del siguiente texto:\n{msg}"
@@ -55,12 +56,12 @@ class Large:
     def keywords_ai(self, text):
         # kws = self.keywords_ai("who is the author of radare?") => "author,radare2"
         words = []
-        ctxwindow = int(self.env["llm.window"])
-        mm = new_get_hf_llm(self, self.model, False, ctxwindow)
+        ctxwindow = int(self.ai.env["llm.window"])
+        mm = new_get_hf_llm(self.ai, self.model, False, ctxwindow)
         msg = f"Considering the sentence \"{text}\" as input, Take the KEYWORDS or combination of TWO words from the given text and respond ONLY a comma separated list of the most relevant words. DO NOT introduce your response, ONLY show the words"
         msg = f"Take \"{text}\" as input, and extract the keywords and combination of keywords to make a search online, the output must be a comma separated list" #Take the KEYWORDS or combination of TWO words from the given text and respond ONLY a comma separated list of the most relevant words. DO NOT introduce your response, ONLY show the words"
         response = mm(msg, stream=False, temperature=0.001, stop="</s>", max_tokens=1750)
-        if self.env["debug"] == "true":
+        if self.ai.env["debug"] == "true":
             print("KWSPLITRESPONSE", response)
         text0 = response["choices"][0]["text"]
         text0 = text0.replace('"', ",")
@@ -108,8 +109,8 @@ class Large:
     def trimsource_ai(self, msg):
         words = []
         if self.mistral == None:
-            ctxwindow = int(self.env["llm.window"])
-            self.mistral = new_get_hf_llm(self, self.model, False, ctxwindow)
+            ctxwindow = int(self.ai.env["llm.window"])
+            self.mistral = new_get_hf_llm(self.ai, self.model, False, ctxwindow)
         # q = f"Rewrite this code into shorter pseudocode (less than 500 tokens). keep the comments and essential logic:\n```\n{msg}\n```\n"
         q = f"Rewrite this code into shorter pseudocode (less than 200 tokens). keep the relevant comments and essential logic:\n```\n{msg}\n```\n"
         response = self.mistral(q, stream=False, temperature=0.1, stop="</s>", max_tokens=4096)
@@ -143,13 +144,13 @@ class Large:
         olen = 0
         msglen = 0
         for msg in messages:
-            if self.env["chat.reply"] == "false":
+            if self.ai.env["chat.reply"] == "false":
                 if msg["role"] != "user":
                     continue
             if "content" in msg:
                 amsg = msg["content"]
                 olen += len(amsg)
-                if len(amsg) > int(self.env["llm.maxmsglen"]):
+                if len(amsg) > int(self.ai.env["llm.maxmsglen"]):
                     if "while" in amsg and "```" in amsg:
                         que = re.search(r"^(.*?)```", amsg, re.DOTALL).group(0).replace("```", "")
                         cod = re.search(r"```(.*?)$", amsg, re.DOTALL).group(0).replace("```", "")

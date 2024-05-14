@@ -6,8 +6,6 @@ import time
 import builtins
 import traceback
 
-def __main__():
-    print("Hello maiN")
 os.environ["TOKENIZERS_PARALLELISM"]="false"
 
 try:
@@ -33,6 +31,7 @@ except:
     pass
 
 OPENAI_KEY = ""
+print("MAIN")
 try:
     if "HOME" in os.environ:
         from r2ai.utils import slurp

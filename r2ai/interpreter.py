@@ -612,6 +612,7 @@ class Interpreter:
         # gpt-4 is faster, smarter, can call functions, and is all-around easier to use.
         # This makes gpt-4 better aligned with Open Interpreters priority to be easy to use.
         self.llama_instance = None
+        self.large = Large(self)
 
     def get_info_for_system_message(self):
         """Gets relevent information for the system message."""
@@ -763,102 +764,6 @@ class Interpreter:
                 res.append(msg)
         self.messages = res
 
-    def trimsource(self, msg):
-        msg = msg.replace("public ", "")
-        msg = re.sub(r'import.*\;', "", msg)
-        msg = msg.replace("const ", "")
-        msg = msg.replace("new ", "")
-        msg = msg.replace("undefined", "0")
-        msg = msg.replace("null", "0")
-        msg = msg.replace("false", "0")
-        msg = msg.replace("true", "1")
-        msg = msg.replace("let ", "")
-        msg = msg.replace("var ", "")
-        msg = msg.replace("class ", "")
-        msg = msg.replace("interface ", "")
-        msg = msg.replace("function ", "fn ")
-        msg = msg.replace("substring", "")
-        msg = msg.replace("this.", "")
-        msg = msg.replace("while (", "while(")
-        msg = msg.replace("if (", "if(")
-        msg = msg.replace("!== 0", "")
-        msg = msg.replace("=== true", "")
-        msg = msg.replace(" = ", "=")
-        msg = msg.replace(" === ", "==")
-        msg = msg.replace("\t", " ")
-        msg = msg.replace("\n", "")
-        msg = re.sub(r"/\*.*?\*/", '', msg, flags=re.DOTALL)
-        # msg = re.sub(r"\n+", "\n", msg)
-        msg = re.sub(r"\t+", ' ', msg)
-        msg = re.sub(r"\s+", " ", msg)
-        # msg = msg.replace(";", "")
-        return msg.strip()
-
-    def trimsource_ai(self, msg):
-        words = []
-        if self.mistral == None:
-            mmname = "TheBloke/Mistral-7B-Instruct-v0.1-GGUF"
-            mmname = "TheBloke/Mistral-7B-Instruct-v0.2-GGUF"
-            ctxwindow = int(self.env["llm.window"])
-            self.mistral = new_get_hf_llm(self, mmname, False, ctxwindow)
-        # q = f"Rewrite this code into shorter pseudocode (less than 500 tokens). keep the comments and essential logic:\n```\n{msg}\n```\n"
-        q = f"Rewrite this code into shorter pseudocode (less than 200 tokens). keep the relevant comments and essential logic:\n```\n{msg}\n```\n"
-        response = self.mistral(q, stream=False, temperature=0.1, stop="</s>", max_tokens=4096)
-        text0 = response["choices"][0]["text"]
-        if "```" in text0:
-            return text0.split("```")[1].strip()
-        return text0.strip().replace("```", "")
-
-    def compress_code_ai(self, code):
-        piecesize = 1024 * 8 # mistral2 supports 32k vs 4096
-        codelen = len(code)
-        pieces = int(codelen / piecesize)
-        if pieces < 1:
-            pieces = 1
-        plen = int(codelen / pieces)
-        off = 0
-        res = []
-        for i in range(pieces):
-            piece = i + 1
-            print(f"Processing {piece} / {pieces} ...")
-            if piece == pieces:
-                r = self.trimsource_ai(code[off:])
-            else:
-                r = self.trimsource_ai(code[off:off+plen])
-            res.append(r)
-            off += plen
-        return "\n".join(res)
-
-    def compress_messages(self, messages):
-        # TODO: implement a better logic in here asking the lm to summarize the context
-        olen = 0
-        msglen = 0
-        for msg in messages:
-            if self.env["chat.reply"] == "false":
-                if msg["role"] != "user":
-                    continue
-            if "content" in msg:
-                amsg = msg["content"]
-                olen += len(amsg)
-                if len(amsg) > int(self.env["llm.maxmsglen"]):
-                    if "while" in amsg and "```" in amsg:
-                        que = re.search(r"^(.*?)```", amsg, re.DOTALL).group(0).replace("```", "")
-                        cod = re.search(r"```(.*?)$", amsg, re.DOTALL).group(0).replace("```", "")
-                        shortcode = cod
-                        while len(shortcode) > 4000:
-                            olen = len(shortcode)
-                            shortcode = self.compress_code_ai(shortcode)
-                            nlen = len(shortcode)
-                            print(f"Went from {olen} to {nlen}")
-                        msg["content"] = f"{que}\n```\n{shortcode}\n```\n"
-                    else:
-                        print(f"total length {msglen} (original length was {olen})")
-                msglen += len(msg["content"])
-        # print(f"total length {msglen} (original length was {olen})")
-        # if msglen > 4096:
-        #   ¡print("Query is too large.. you should consider triming old messages")
-        return messages
-
     def respond(self):
         global Ginterrupted
         maxtokens = int(self.env["llm.maxtokens"])
@@ -880,7 +785,7 @@ class Interpreter:
             import tokentrim
             messages = tokentrim.trim(self.messages, max_tokens=maxtokens, system_message=system_message)
         else:
-            messages = self.compress_messages(self.messages)
+            messages = self.large.compress_messages(self.messages)
 
         if self.env["debug"] == "true":
             print(messages)
