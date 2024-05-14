@@ -376,6 +376,8 @@ def r2ai_repl(ai):
     from r2ai import bubble
     tab_evals(ai.env.keys())
     oldoff = r2_cmd("s").strip()
+    if oldoff == "0x0" or oldoff == "":
+        oldoff = "0x00000000"
     olivemode = ai.env["chat.live"]
     ai.env["chat.live"] = "true"
     while True:

@@ -740,6 +740,14 @@ class Interpreter:
             else:
                 traceback.print_exc()
         self.end_active_block()
+
+    def end_active_block(self):
+        # if self.env["chat.code"] == "false":
+        # return
+        if self.active_block:
+            self.active_block.end()
+            self.active_block = None
+
     def environment(self):
         kvs = ""
         if self.env["user.name"] != "":

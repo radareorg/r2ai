@@ -6,17 +6,15 @@ import time
 import builtins
 import traceback
 
-os.environ["TOKENIZERS_PARALLELISM"]="false"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 try:
     r2aihome = os.path.dirname(os.readlink(__file__))
     sys.path.append(r2aihome)
-    print(r2aihome)
     # if available
     sys.path.append(f"{r2aihome}/../vectordb")
 except:
     pass
-
 
 # create symlink if it doesnt exist
 try:
@@ -31,15 +29,14 @@ except:
     pass
 
 OPENAI_KEY = ""
-print("MAIN")
-try:
-    if "HOME" in os.environ:
+if "HOME" in os.environ:
+    try:
         from r2ai.utils import slurp
         apikey = slurp(os.environ["HOME"] + "/.r2ai.openai-key").strip()
         os.environ["OPENAI_API_KEY"] = apikey
         print("[R2AI] OpenAI key loaded from ~/.r2ai.openai-key", file=sys.stderr)
-except:
-    pass
+    except:
+        pass
 
 r2 = None
 r2_file = None
@@ -141,6 +138,9 @@ if have_rlang:
         }
     r2lang.plugin("core", r2ai_rlang_plugin)
 else:
+    if "R2CORE" in os.environ:
+        print("[R2AI] Please: r2pm -ci rlang-python")
+        sys.exit(0)
     from r2ai.repl import runline, r2ai_repl
     from r2ai.utils import slurp
     run_rcfile()
