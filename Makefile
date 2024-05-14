@@ -17,8 +17,7 @@ endif
 .PHONY: install uninstall user-install user-uninstall
 
 all: venv
-	. venv/bin/activate ; $(PYTHON) main.py
-#	|| $(MAKE) deps
+	./r2ai.sh
 
 large:
 	. venv/bin/activate ; $(PYTHON) main.py -l
@@ -50,7 +49,7 @@ vectordb:
 
 install user-install:
 	ln -fs $(PWD)/main.py $(R2_USER_PLUGINS)/r2ai.py
-	ln -fs $(PWD)/main.py $(R2PM_BINDIR)/r2ai
+	ln -fs $(PWD)/r2ai.sh $(R2PM_BINDIR)/r2ai
 	$(MAKE) -C native/cxx user-uninstall
 
 uninstall user-uninstall:
