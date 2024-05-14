@@ -3,6 +3,7 @@ from .large import Large
 from .utils import merge_deltas
 from .message_block import MessageBlock
 from .code_block import CodeBlock
+from .backend import kobaldcpp
 
 from .models import get_hf_llm, new_get_hf_llm, get_default_model
 from .voice import tts
@@ -726,7 +727,7 @@ class Interpreter:
       print(message)
 #    print(message)
     # Code-Llama
-    if not self.model.startswith("openai:") and self.llama_instance == None:
+    if not self.model.startswith("openai:") and not self.model.startswith("kobaldcpp") and self.llama_instance == None:
       # Find or install Code-Llama
       try:
         ctxwindow = int(self.env["llm.window"])
@@ -907,6 +908,26 @@ class Interpreter:
     response = None
     if self.auto_run:
       response = auto.chat(self)
+      return
+    elif self.model.startswith("kobaldcpp"):
+      if self.system_message != "":
+        message = f"Context:\n```\n{self.system_message}\n```\n"
+      else:
+        message = ""
+      #f"{Your name is r2ai, an assistant for radare2. User will ask about actions and you must respond with the radare2 command associated or the answer to the question. Be precise and concise when answering"
+      for m in messages:
+        role = m["role"]
+        content = m["content"]
+        if role == "user":
+          message += f"User: {content}\n"
+        elif role == "assistant":
+          message += f"AI: {content}\n"
+      response = kobaldcpp.chat(message)
+      if "content" in self.messages[-1]:
+        last_message = self.messages[-1]["content"]
+      if self.env["chat.reply"] == "true":
+        self.messages.append({"role": "assistant", "content": response})
+      print(response)
       return
     elif self.model.startswith("openai:"):
       # [

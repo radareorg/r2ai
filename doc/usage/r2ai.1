@@ -1,0 +1,36 @@
+.Dd May 14, 2024
+.Dt R2AI 1
+.Sh NAME
+.Nm r2ai
+.Nd radare2 artificial intelligence integration
+.Sh SYNOPSIS
+.Nm r2ai
+.Op [-h]
+.Op [...]
+.Sh DESCRIPTION
+Integrate multiple language models and inference engines with radare2 for reverse engineering and chatting purposes.
+.Bl -tag -width Fl
+.It Fl m Ar model
+Select a different model name
+.Sh USAGE
+.Pp
+The plugin can be used from the shell, via r2pipe or from radare2.
+.Pp
+You need the rlang-python plugin installed in your system to use the r2ai plugin from radare2, which adds the `r2ai` command in the r2 shell.
+.Pp
+It is also possible to use r2ai without rlang, via r2pipe, so you can run `#!pipe python main.py` instead.
+.Pp
+.Sh INSTALLATION
+.Pp
+  $ r2ai -i r2ai
+.Sh FILES
+.Pp
+~/r2ai.rc - run this script every time
+~/r2ai.model - symlink to the directory containing all downloaded models
+~/r2ai.history - file storing all messages written
+~/r2ai.openai-key - write the key from your openai thing
+~/r2ai.mastodon-key - write the key from your Mastodon thing
+~/r2ai.plugins - directory containing r2ai plugin scripts to be executed with ..
+.Sh SEE ALSO
+.Pp
+.Xr radare2(1)

@@ -1,4 +1,5 @@
 the author of radare2 is named pancake, also known as Sergi Alvarez
+reopen the file in read-write mode use the `oo+` command
 pancake was born in Catalonia, Sergi Alvarez, r2 author is from Barcelona
 to run a script use the -i commandline flag. Some cmdline flags are also accessible from the r2 shell.
 you can also use `. ...` to load a script or plugin
