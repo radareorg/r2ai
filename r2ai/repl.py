@@ -134,13 +134,13 @@ def r2ai_vars(ai, arg):
 
 # copypasta from main.run_rcfile . todo avoid dup code
 def run_script(ai, script):
-	try:
-		lines = slurp(script)
-		for line in lines.split("\n"):
-			if line.strip() != "":
-				runline(ai, line)
-	except:
-		pass
+    try:
+        lines = slurp(script)
+        for line in lines.split("\n"):
+            if line.strip() != "":
+                runline(ai, line)
+    except:
+        pass
 
 def runline(ai, usertext):
   global print

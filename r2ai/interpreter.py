@@ -57,28 +57,28 @@ import index
 r2clippy = False
 have_rlang = False
 try:
-	import r2lang
-	have_rlang = True
-	print = r2lang.print
-	r2clippy = True
+    import r2lang
+    have_rlang = True
+    print = r2lang.print
+    r2clippy = True
 except:
-	pass
+    pass
 
 Ginterrupted = False
 def signal_handler(sig, frame):
-	global Ginterrupted
-	if Ginterrupted:
-	    sys.exit(0) # throws exception
-	Ginterrupted = True
-	print("^C", file=sys.stderr)
+    global Ginterrupted
+    if Ginterrupted:
+        sys.exit(0) # throws exception
+    Ginterrupted = True
+    print("^C", file=sys.stderr)
 signal(SIGINT, signal_handler)
 
 def exception_handler(self, sig, frame):
-	global Ginterrupted
-	if Ginterrupted:
-	    sys.exit(0) # throws exception
-	Ginterrupted = True
-	print("^C", file=sys.stderr)
+    global Ginterrupted
+    if Ginterrupted:
+        sys.exit(0) # throws exception
+    Ginterrupted = True
+    print("^C", file=sys.stderr)
 sys.excepthook = exception_handler
 
 def incodeblock(msg):

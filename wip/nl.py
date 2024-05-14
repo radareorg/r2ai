@@ -1,7 +1,7 @@
 import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
- 
+
 nltk.download('stopwords')
 nltk.download('punkt')
 long_sentence = "It's such a fine day today, The sun is out, and the sky is blue. Can you tell me what the weather will be like tomorrow?"

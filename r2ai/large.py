@@ -14,7 +14,7 @@ class Large:
         else:
             self.env = {}
             self.env["llm.gpu"] = "true"
-  
+
     def slice_text(self, amsg):
         slices = []
         pos = self.maxlen
@@ -24,7 +24,7 @@ class Large:
             slices.append(s)
         slices.append(amsg)
         return slices
-  
+
     def compress_text(self, msg):
         if self.mistral == None:
             self.mistral = new_get_hf_llm(self, self.model, False, self.window)
@@ -35,7 +35,7 @@ class Large:
         print(response["choices"]) #json.dumps(response))
         text0 = response["choices"][0]["text"]
         return text0
-  
+
     def summarize_text(self, amsg):
         olen = len(amsg)
         while len(amsg) > self.maxlen:
@@ -51,7 +51,7 @@ class Large:
         nlen = len(amsg)
         print(f"total length {nlen} (original length was {olen})")
         return amsg
-  
+
     def keywords_ai(self, text):
         # kws = self.keywords_ai("who is the author of radare?") => "author,radare2"
         words = []
@@ -104,7 +104,7 @@ class Large:
         msg = re.sub(r"\s+", " ", msg)
         # msg = msg.replace(";", "")
         return msg.strip()
-  
+
     def trimsource_ai(self, msg):
         words = []
         if self.mistral == None:
@@ -117,7 +117,7 @@ class Large:
         if "```" in text0:
           return text0.split("```")[1].strip()
         return text0.strip().replace("```", "")
-  
+
     def compress_code_ai(self, code):
         piecesize = 1024 * 8 # mistral2 supports 32k vs 4096
         codelen = len(code)
@@ -137,7 +137,7 @@ class Large:
             res.append(r)
             off += plen
         return "\n".join(res)
-  
+
     def compress_messages(self, messages):
         # TODO: implement a better logic in here asking the lm to summarize the context
         olen = 0

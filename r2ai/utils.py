@@ -21,17 +21,17 @@ def merge_deltas(original, delta):
     return original
 
 def slurp(f):
-	fd = open(f, errors="ignore")
-	data = fd.read()
-	fd.close()
-	return str(data)
+    fd = open(f, errors="ignore")
+    data = fd.read()
+    fd.close()
+    return str(data)
 
 def dump(f, x):
-	fd = open(f, "w")
-	fd.write(x)
-	fd.close()
+    fd = open(f, "w")
+    fd.write(x)
+    fd.close()
 
 def syscmdstr(cmd):
-	process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-	output, error = process.communicate()
-	return output.decode().strip()
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    output, error = process.communicate()
+    return output.decode().strip()

@@ -107,4 +107,3 @@ res = llm(prompt=leprompt)
 # print(res)
 print(res["choices"][0]["text"])
 # print(llm(prompt=leprompt)["choices"])
-    

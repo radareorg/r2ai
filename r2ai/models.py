@@ -18,7 +18,7 @@ import traceback
 DEFAULT_MODEL = "-m FaradayDotDev/llama-3-8b-Instruct-GGUF"
 r2ai_model_json = "r2ai.model.json" # windows path
 if "HOME" in os.environ:
-	r2ai_model_json = os.environ["HOME"] + "/.r2ai.model"
+    r2ai_model_json = os.environ["HOME"] + "/.r2ai.model"
 
 def get_default_model():
     try:
@@ -183,7 +183,7 @@ def get_hf_llm(ai, repo_id, debug_mode, context_window):
             selected_model = combined_models[-1]["filename"]
     else:
         selected_model = repo_id
-    
+
     if selected_model != None:
         # This means they either selected See More,
         # Or the model only had 1 or 2 options
@@ -226,7 +226,6 @@ def get_hf_llm(ai, repo_id, debug_mode, context_window):
     else:
         # If the file was not found, ask for confirmation to download it
         download_path = os.path.join(default_path, selected_model)
-      
         if confirm_action(f"Download to {default_path}?"):
             for model_details in combined_models:
                 if model_details["filename"] == selected_model:
@@ -239,7 +238,6 @@ def get_hf_llm(ai, repo_id, debug_mode, context_window):
 
             # Check if model was originally split
             split_files = [model["filename"] for model in raw_models if selected_model in model["filename"]]
-            
             if len(split_files) > 1:
                 # Download splits
                 for split_file in split_files:
@@ -254,7 +252,6 @@ def get_hf_llm(ai, repo_id, debug_mode, context_window):
                         local_dir=default_path,
                         local_dir_use_symlinks=False,
                         resume_download=True)
-                
                 # Combine and delete splits
                 actually_combine_files(default_path, selected_model, split_files)
             else:
@@ -266,7 +263,6 @@ def get_hf_llm(ai, repo_id, debug_mode, context_window):
                     resume_download=True)
 
             model_path = download_path
-        
         else:
             print('\nDownload cancelled. Exiting\n', file=sys.stderr)
             return None
@@ -278,11 +274,8 @@ def get_hf_llm(ai, repo_id, debug_mode, context_window):
         # Ask for confirmation to install the required pip package
         message = "Local LLM interface package not found. Install `llama-cpp-python`?"
         if confirm_action(message):
-            
             # We're going to build llama-cpp-python correctly for the system we're on
-
             import platform
-            
             def check_command(command):
                 try:
                     subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -291,7 +284,6 @@ def get_hf_llm(ai, repo_id, debug_mode, context_window):
                     return False
                 except FileNotFoundError:
                     return False
-            
             def install_llama(backend):
                 env_vars = {
                     "FORCE_CMAKE": "1"
@@ -304,12 +296,10 @@ def get_hf_llm(ai, repo_id, debug_mode, context_window):
                     env_vars["CMAKE_ARGS"] = "-DLLAMA_METAL=on"
                 else:  # Default to OpenBLAS
                     env_vars["CMAKE_ARGS"] = "-DLLAMA_BLAS=ON -DLLAMA_BLAS_VENDOR=OpenBLAS"
-                
                 try:
                     subprocess.run([sys.executable, "-m", "pip", "install", "llama-cpp-python"], env={**os.environ, **env_vars}, check=True)
                 except subprocess.CalledProcessError as e:
                     print(f"Error during installation with {backend}: {e}", file=sys.stderr)
-            
             def supports_metal():
                 # Check for macOS version
                 if platform.system() == "Darwin":
@@ -318,7 +308,6 @@ def get_hf_llm(ai, repo_id, debug_mode, context_window):
                     if mac_version >= (10, 11):
                         return True
                 return False
-            
             # Check system capabilities
             if check_command(["nvidia-smi"]):
                 install_llama("cuBLAS")
@@ -328,7 +317,6 @@ def get_hf_llm(ai, repo_id, debug_mode, context_window):
                 install_llama("Metal")
             else:
                 install_llama("OpenBLAS")
-          
             print('', Markdown("Finished downloading `Code-Llama` interface."), '')
 
             # Check if on macOS
@@ -424,7 +412,6 @@ def group_and_combine_splits(models: List[Dict[str, Union[str, float]]]) -> List
 
     for model in models:
         base_name = model["filename"].split('-split-')[0]
-        
         if base_name in grouped_files:
             grouped_files[base_name]["Size"] += model["Size"]
             grouped_files[base_name]["RAM"] += model["RAM"]
@@ -447,7 +434,7 @@ def actually_combine_files(default_path: str, base_name: str, files: List[str]) 
     :param base_name: The base name for the combined file.
     :param files: List of files to be combined.
     """
-    files.sort()    
+    files.sort()
     base_path = os.path.join(default_path, base_name)
     with open(base_path, 'wb') as outfile:
         for file in files:
@@ -475,7 +462,7 @@ def enough_disk_space(size, path) -> bool:
     _, _, free = shutil.disk_usage(path)
 
     # Convert bytes to gigabytes
-    free_gb = free / (2**30) 
+    free_gb = free / (2**30)
     if free_gb > size:
         return True
 
@@ -493,7 +480,6 @@ def new_get_hf_llm(ai, repo_id, debug_mode, context_window):
     # Ensure the directory exists
     os.makedirs(default_path, exist_ok=True)
     model_path = repo_id
-  
     try:
         from llama_cpp import Llama
     except:
@@ -502,11 +488,8 @@ def new_get_hf_llm(ai, repo_id, debug_mode, context_window):
         # Ask for confirmation to install the required pip package
         message = "Local LLM interface package not found. Install `llama-cpp-python`?"
         if confirm_action(message):
-            
             # We're going to build llama-cpp-python correctly for the system we're on
-
             import platform
-            
             def check_command(command):
                 try:
                     subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -515,12 +498,10 @@ def new_get_hf_llm(ai, repo_id, debug_mode, context_window):
                     return False
                 except FileNotFoundError:
                     return False
-            
             def install_llama(backend):
                 env_vars = {
                     "FORCE_CMAKE": "1"
                 }
-                
                 if backend == "cuBLAS":
                     env_vars["CMAKE_ARGS"] = "-DLLAMA_CUBLAS=on"
                 elif backend == "hipBLAS":
@@ -529,12 +510,10 @@ def new_get_hf_llm(ai, repo_id, debug_mode, context_window):
                     env_vars["CMAKE_ARGS"] = "-DLLAMA_METAL=on"
                 else:  # Default to OpenBLAS
                     env_vars["CMAKE_ARGS"] = "-DLLAMA_BLAS=ON -DLLAMA_BLAS_VENDOR=OpenBLAS"
-                
                 try:
                     subprocess.run([sys.executable, "-m", "pip", "install", "llama-cpp-python"], env={**os.environ, **env_vars}, check=True)
                 except subprocess.CalledProcessError as e:
                     print(f"Error during installation with {backend}: {e}", file=sys.stderr)
-            
             def supports_metal():
                 # Check for macOS version
                 if platform.system() == "Darwin":
@@ -543,7 +522,6 @@ def new_get_hf_llm(ai, repo_id, debug_mode, context_window):
                     if mac_version >= (10, 11):
                         return True
                 return False
-            
             # Check system capabilities
             if check_command(["nvidia-smi"]):
                 install_llama("cuBLAS")
