@@ -375,7 +375,7 @@ def runline(ai, usertext):
 def r2ai_repl(ai):
     from r2ai import bubble
     tab_evals(ai.env.keys())
-    oldoff = "0x00000000"
+    oldoff = r2_cmd("s").strip()
     olivemode = ai.env["chat.live"]
     ai.env["chat.live"] = "true"
     while True:
