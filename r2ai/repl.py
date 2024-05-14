@@ -380,6 +380,8 @@ def r2ai_repl(ai):
     ai.env["chat.live"] = "true"
     while True:
         prompt = "[r2ai:" + oldoff + "]> "
+        if os.name != "nt":
+            prompt = f"\x1b[33m{prompt}\x1b[0m"
         if r2 is not None:
             off = r2_cmd("s").strip()
             if off == "":
