@@ -55,11 +55,14 @@ vectordb:
 install user-install:
 	ln -fs $(PWD)/main.py $(R2_USER_PLUGINS)/r2ai.py
 	ln -fs $(PWD)/r2ai.sh $(R2PM_BINDIR)/r2ai
+	-mkdir -p /usr/local/share/man/man1/r2ai.1
+	-cp doc/usage/r2ai.1 /usr/local/share/man/man1/r2ai.1
 	$(MAKE) -C native/cxx user-uninstall
 
 uninstall user-uninstall:
 	rm -f $(R2_USER_PLUGINS)/r2ai.py
 	rm -f $(R2PM_BINDIR)/r2ai
+	-rm -f /usr/local/share/man/man1/r2ai.1
 
 pub:
 	$(PYTHON) setup.py build sdist
