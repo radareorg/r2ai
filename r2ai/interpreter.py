@@ -224,12 +224,12 @@ def template_mistral(self, messages):
     return msg
 
 def template_uncensored(self, messages):
-  #{'role': 'function', 'name': 'run_code', 'content': 'User decided not to run this code.'}
-  #{'role': 'user', 'content': 'tenis'}
-  #{'content': "\nI'm here to help you with any questions or tasks you have! What can I assist you with today?", 'role': 'assistant'}
-  #{'role': 'user', 'content': "thehre's no purpose on this"}
-  #{'role': 'assistant'}
-  #{'role': 'user', 'content': 'force a crash'}
+    #{'role': 'function', 'name': 'run_code', 'content': 'User decided not to run this code.'}
+    #{'role': 'user', 'content': 'tenis'}
+    #{'content': "\nI'm here to help you with any questions or tasks you have! What can I assist you with today?", 'role': 'assistant'}
+    #{'role': 'user', 'content': "thehre's no purpose on this"}
+    #{'role': 'assistant'}
+    #{'role': 'user', 'content': 'force a crash'}
     self.terminator = "</s>"
     formatted_messages = "<s>"
     try:
@@ -624,9 +624,7 @@ class Interpreter:
         return info
 
     def reset(self):
-        """
-        Resets the interpreter.
-        """
+        """Resets the interpreter."""
         self.messages = []
 
     def load(self, messages):
@@ -636,9 +634,9 @@ class Interpreter:
         json.dumps(self.messages, f, indent=2)
 
     def handle_undo(self, arguments):
-        # Removes all messages after the most recent user entry (and the entry itself).
-        # Therefore user can jump back to the latest point of conversation.
-        # Also gives a visual representation of the messages removed.
+        """Remove all messages after the most recent user entry (and the entry itself).
+        Therefore user can jump back to the latest point of conversation.
+        Also gives a visual representation of the messages removed."""
         if len(self.messages) == 0:
             return
         # Find the index of the last 'role': 'user' entry
