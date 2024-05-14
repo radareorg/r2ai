@@ -666,12 +666,6 @@ class Interpreter:
       elif 'function_call' in message:
         print(f"**Removed codeblock**") # TODO: Could add preview of code removed here.
 
-  def systag(self, beg):
-    lowermodel = self.model.lower()
-    if "llama" in lowermodel:
-      return "[INST]<<SYS>>" if beg else "<</SYS>>[/INST]"
-    return "[INST]" if beg else "[/INST]\n"
-
   def keywords_ai(self, text):
     # kws = self.keywords_ai("who is the author of radare?") => "author,radare2"
     words = []
