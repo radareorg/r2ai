@@ -14,4 +14,5 @@ if [ ! -d venv ]; then
 else
 	. venv/bin/activate
 fi
+# export PYTHONPATH=$PWD
 $PYTHON main.py $@

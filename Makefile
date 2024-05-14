@@ -6,18 +6,23 @@ PIP=$(PYTHON) -m pip
 
 LINTED=r2ai/code_block.py
 LINTED+=r2ai/bubble.py
+LINTED+=r2ai/const.py
+LINTED+=r2ai/voice.py
 LINTED+=setup.py
 LINTED+=main.py
+LINTED+=r2ai/backend/kobaldcpp.py
+# LINTED+=r2ai/index.py
+# LINTED+=r2ai/anthropic.py
 
 ifeq ($(R2PM_BINDIR),)
 FATAL ERROR
 endif
 
-.PHONY: all all.old venv deps clean deps-global pub lint cilint
+.PHONY: all all.old deps clean deps-global pub lint cilint
 .PHONY: install uninstall user-install user-uninstall
 
 all: venv
-	./r2ai.sh
+	@./r2ai.sh
 
 large:
 	. venv/bin/activate ; $(PYTHON) main.py -l

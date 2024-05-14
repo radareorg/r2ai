@@ -14,4 +14,4 @@ if "VIRTUAL_ENV" in os.environ or "R2CORE" in os.environ:
     runpy.run_path(os.path.join(r2aihome, 'r2ai', 'main.py'))
 else:
     ARGS = " ".join(sys.argv[1:])
-    os.system(f"cd {r2aihome}; ./run-venv.sh {ARGS}")
+    os.system(f"cd {r2aihome}; ./r2ai.sh {ARGS}")
