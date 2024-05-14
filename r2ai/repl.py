@@ -1,5 +1,6 @@
 import builtins
 from r2ai.models import set_default_model
+from .large import Large
 from .utils import slurp
 import traceback
 have_readline = False
@@ -260,6 +261,14 @@ def runline(ai, usertext):
         except:
           print("Invalid config key", file=sys.stderr)
           pass
+  elif usertext.startswith("-l"):
+    try:
+      l = Large()
+      t = slurp("doc/samples/qcw.txt")
+      print(l.summarize_text(t))
+    except:
+      traceback.print_exc()
+    sys.exit(0)
   elif usertext.startswith("-w"):
     start_http_server(ai, runline2)
   elif usertext.startswith("-s"):

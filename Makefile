@@ -20,6 +20,9 @@ all: venv
 	. venv/bin/activate ; $(PYTHON) main.py
 #	|| $(MAKE) deps
 
+large:
+	. venv/bin/activate ; $(PYTHON) main.py -l
+
 all.old:
 	@test -n "${VIRTUAL_ENV}" || (echo "Run:"; echo ". venv/bin/activate" ; exit 1)
 	$(PYTHON) main.py || $(MAKE) deps
