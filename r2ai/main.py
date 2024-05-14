@@ -19,8 +19,18 @@ try:
 except:
 	pass
 
-# run `make vectordb` because pip install vectordb2 is too old
-sys.path.append(f"vectordb")
+
+# create symlink if it doesnt exist
+try:
+    import appdirs
+    dst = os.environ["HOME"] + "/.r2ai.models"
+    udd = appdirs.user_data_dir("r2ai")
+    src = os.path.join(udd, "models")
+    if not os.path.exists(dst):
+        os.symlink(src, dst)
+except:
+    traceback.print_exc()
+    pass
 
 OPENAI_KEY = ""
 try:
