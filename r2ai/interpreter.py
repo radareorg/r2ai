@@ -922,7 +922,11 @@ class Interpreter:
           message += f"User: {content}\n"
         elif role == "assistant":
           message += f"AI: {content}\n"
-      response = kobaldcpp.chat(message)
+      response = ""
+      if ":" in self.model:
+        response = kobaldcpp.chat(message, self.model.split(":")[1:])
+      else:
+        response = kobaldcpp.chat(message)
       if "content" in self.messages[-1]:
         last_message = self.messages[-1]["content"]
       if self.env["chat.reply"] == "true":

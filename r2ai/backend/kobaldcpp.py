@@ -2,8 +2,8 @@
 import json
 import requests
 
-def chat(message):
-    API_ENDPOINT='http://localhost:5001/v1/completions'
+def chat(message, API_ENDPOINT='http://localhost:5001'):
+    API_ENDPOINT+='/v1/completions'
     data = {
       "max_length": 1024,
       "prompt": message,

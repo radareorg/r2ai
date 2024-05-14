@@ -47,6 +47,9 @@ def mainmodels():
 
 def models():
     return """
+KobaldCpp:
+-m kobaldcpp
+-m kobaldcpp:http://localhost:5001
 OpenAI:
 -m openai:gpt-3.5-turbo
 -m openai:gpt-4
