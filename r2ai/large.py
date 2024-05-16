@@ -1,4 +1,5 @@
 from .models import get_hf_llm, new_get_hf_llm, get_default_model
+import re
 import json
 
 class Large:
@@ -140,6 +141,7 @@ class Large:
         return "\n".join(res)
 
     def compress_messages(self, messages):
+        return messages
         # TODO: implement a better logic in here asking the lm to summarize the context
         olen = 0
         msglen = 0

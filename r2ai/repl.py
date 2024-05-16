@@ -1,6 +1,5 @@
 import builtins
 from r2ai.models import set_default_model
-from .large import Large
 from .utils import slurp
 import traceback
 have_readline = False
@@ -302,6 +301,9 @@ def runline(ai, usertext):
             print("Cannot load file", file=sys.stderr)
     elif usertext.startswith("-i"):
         text = usertext[2:].strip()
+        if text == "":
+            print("Usage: r2ai -i [file] [question]")
+            return
         words = text.split(" ", 1)
         res = slurp(words[0])
         if len(words) > 1:
