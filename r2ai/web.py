@@ -1,24 +1,26 @@
+import platform
 import json
 import re
 
 ores = ""
 
-def handle_tabby_query(self, ai, obj, runline2, method):
-    global ores
-    # TODO build proper health json instead of copypasting a stolen one
-    healthstr='''
-    {"model":"TabbyML/StarCoder-1B","device":"cpu","arch":"aarch64","cpu_info":"Apple M1 Max","cpu_count":10,"cuda_devices":[],"version":{"build_date":"2024-04-22","build_timestamp":"2024-04-22T21:00:09.963266000Z","git_sha":"0b5504eccbbdde20aba26f6dbd5810f57497e6a4","git_describe":"v0.10.0"}}'''
-    if method == "GET" and self.path == "/v1/health":
+# OpenAI API endpoint here
+def handle_v1_completions_default(self, ai, obj, runline2, method):
+    if "prompt" in obj:
+        res = runline2(ai, obj["prompt"])
+        resobj = {}
+        resobj["choices"] = [{
+            "text": res
+        }]
+        resjson = json.dumps(resobj)
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(bytes(f'{healthstr}','utf-8'))
-        return True
-    # /v1/completions
-    if self.path != "/v1/completions":
-        print(f"UnkPath: {self.path}")
-        self.send_response(200)
-        self.end_headers()
-        return True
+        self.wfile.write(bytes(f'{resobj}', 'utf-8'))
+    self.send_response(404)
+    self.end_headers()
+    return True
+
+def handle_v1_completions(self, ai, obj, runline2, method):
     print("/v1/completions")
     if obj == None:
         print("ObjNone")
@@ -26,8 +28,7 @@ def handle_tabby_query(self, ai, obj, runline2, method):
         self.end_headers()
         return True
     if "segments" not in obj:
-        print("Nothing")
-        return True
+        return handle_v1_completions_default(self, ai, obj, runline2, method)
     pfx = obj["segments"]["prefix"].strip()
     sfx = obj["segments"]["suffix"].strip()
     lng = obj["language"]
@@ -66,6 +67,40 @@ def handle_tabby_query(self, ai, obj, runline2, method):
     print(f"RES2 {ores}")
     #ores = ores.replace("\n", "")
     print("computed")
+
+def handle_tabby_query(self, ai, obj, runline2, method):
+    global ores
+    # TODO build proper health json instead of copypasting a stolen one
+    model = ai.env["llm.model"]
+    healthobj = {
+            "model":ai.env["llm.model"],
+            "device":"gpu" if ai.env["llm.gpu"] else "cpu",
+            "arch": platform.machine(),
+            "cpu_info": "",
+            "cpu_count": 1,
+            "cuda_devices": [],
+            "version": {
+                "build_date": "2024-05-22",
+                "build_timestamp": "2024-05-22",
+                "git_sha": "",
+                "git_describe": "",
+            },
+    }
+    healthstr=json.dumps(healthobj)
+    print(healthstr)
+    if method == "GET" and self.path == "/v1/health":
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(bytes(f'{healthstr}','utf-8'))
+        return True
+    # /v1/completions
+    if self.path == "/v1/completions":
+        return handle_v1_completions(self, ai, obj, runline2, method)
+
+    print(f"UnkPath: {self.path}")
+    self.send_response(200)
+    self.end_headers()
+    return True
 
 def handle_custom_request(self, ai, msg, runline2, method):
     print("CUSTOM")
