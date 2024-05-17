@@ -1,4 +1,5 @@
 rich
+pyreadline3
 r2pipe
 inquirer
 llama-cpp-python

@@ -36,21 +36,29 @@ venv:
 	if [ -z "`find venv | grep llama_cpp`" ]; then . venv/bin/activate ; pip install -r requirements.txt ; fi
 
 deps: venv
-	test -n "${VIRTUAL_ENV}" || (echo "Run: . venv/bin/activate" ; exit 1)
-	export CMAKE_ARGS="-DLLAMA_METAL=on -DLLAMA_METAL_EMBED_LIBRARY=ON" && \
+	#test -n "${VIRTUAL_ENV}" || (echo "Run: . venv/bin/activate" ; exit 1)
+	. venv/bin/activate && export CMAKE_ARGS="-DLLAMA_METAL=on -DLLAMA_METAL_EMBED_LIBRARY=ON" && \
 		pip install --force-reinstall -U -r requirements.txt --no-cache-dir
 	$(MAKE) vectordb
 
 clean:
-	rm -rf venv
+	rm -rf venv vectordb vdb
+
+mrproper:
+	$(MAKE) clean
 
 deps-global:
 	export CMAKE_ARGS="-DLLAMA_METAL=on -DLLAMA_METAL_EMBED_LIBRARY=ON" && \
 		$(PIP) install --force-reinstall -U -r requirements.txt --break-system-packages --no-cache-dir
 
-vectordb:
-	git clone https://github.com/kagisearch/vectordb
-	cd vectordb && python setup.py build
+vdb vectordb:
+	git clone https://github.com/kagisearch/vectordb vdb
+	cat vdb/setup.py | grep -v tensorflow_text > .x && mv .x vdb/setup.py
+	. venv/bin/activate \
+		&& cd vdb \
+		&& $(PIP) install setuptools tensorflow_hub \
+		&& $(PYTHON) setup.py build \
+		&& $(PYTHON) setup.py install
 
 install user-install:
 	ln -fs $(PWD)/main.py $(R2_USER_PLUGINS)/r2ai.py

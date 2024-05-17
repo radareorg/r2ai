@@ -2,7 +2,6 @@ import builtins
 from r2ai.models import set_default_model
 from .utils import slurp
 import traceback
-have_readline = False
 from .const import R2AI_HISTFILE, R2AI_HOMEDIR, R2AI_RCFILE, R2AI_USERDIR
 from .web import start_http_server
 import r2ai

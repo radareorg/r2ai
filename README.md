@@ -19,8 +19,9 @@ Run a language model in local, without internet, to entertain you or help answer
 ## Features
 
 * Prompt the language model without internet requirements
+* Use local GGUF or remote language models (via http)
 * Index large codebases or markdown books using a vector database
-* Slurp file contents and make actions on that
+* Slurp file and perform actions on that
 * Embed the output of an r2 command and resolve questions on the given data
 * Define different system-level assistant role
 * Set environment variables to provide context to the language model
@@ -32,29 +33,11 @@ Run a language model in local, without internet, to entertain you or help answer
 
 ## Installation
 
-This is optional ans system dependant. but on recent Debian/Ubuntu systems the `pip` tool is no longer working, because it conflicts with the system packages. The best way to do this is with `venv`:
+To use `r2ai`, you need to setup a venv and install all the python dependencies inside. Just running `make` or `r2pm -ci r2ai` should be enough.
 
-```bash
-python -m venv venv
-. venv/bin/activate
-pip install -r requirements.txt
-```
+You can optionally install vectordb to index local data by typing: `make vdb`. If the process fails  `rm -rf vdb` and try again
 
-Optionally if you want better indexer for the data install vectordb.
-
-```bash
-# on Linux
-pip install vectordb2
-
-# on macOS
-pip install vectordb2 spacy
-python -m spacy download en_core_web_sm
-brew install llvm
-export PATH=/opt/homebrew/Cellar/llvm/17.0.5/bin/:$PATH
-CC=clang CXX=clang++ pip install git+https://github.com/teemupitkanen/mrpt/
-```
-
-## r2pm installation
+## Running
 
 When running installed via r2pm you can execute it like this:
 
@@ -69,17 +52,18 @@ r2pm -i rlang-python
 make user-install
 ```
 
+After this you should get the `r2ai` command inside the radare2 shell. Set the `R2_DEBUG=1` environment to see the reasons why the plugin is not loaded if it's not there.
+
 ## Windows
 
-On native Windows follow these instructions (no need to install radare2 or use r2pm), note that you need Python 3.8 or higher:
+On Windows you may follow the same instructions, just ensure you have the right python environment ready and create the venv to use
 
 ```cmd
 git clone https://github.com/radareorg/r2ai
 cd r2ai
 set PATH=C:\Users\YOURUSERNAME\Local\Programs\Python\Python39\;%PATH%
-python -m pip -r requirements.txt
-python -m pip install pyreadline3
-python main.py
+python3 -m pip -r requirements.txt
+python3 main.py
 ```
 
 ## Usage
@@ -117,14 +101,10 @@ You can interact with r2ai from standalone python, from r2pipe via r2 keeping a 
 
 ### Development/Testing
 
-Just run `make` .. or well `python main.py`
+Just run `make` .. or well `python3 main.py`
 
 ### TODO
 
 * add "undo" command to drop the last message
 * dump / restore conversational states (see -L command)
-* Implement `~`, `|` and `>`
-
-### Kudos
-
-The original code of r2ai is based on OpenInterpreter. I want to thanks all the contributors to this project as they made it possible to build r2ai taking their code as source for this.  Kudos to Killian and all the contributors.
+* Implement `~`, `|` and `>` and other r2shell features
