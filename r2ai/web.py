@@ -22,6 +22,7 @@ def handle_v1_completions_default(self, ai, obj, runline2, method):
     return True
 
 def handle_v1_completions(self, ai, obj, runline2, method):
+    global ores
     print("/v1/completions")
     if obj == None:
         print("ObjNone")
@@ -64,9 +65,9 @@ def handle_v1_completions(self, ai, obj, runline2, method):
     ores = re.sub(r'```.*$', '', ores)
     ores = ores.replace("```javascript", "")
     ores = ores.replace("```", "")
+    ores = ores.replace("\n", "");
     ores = ores.strip()
     print(f"RES2 {ores}")
-    #ores = ores.replace("\n", "")
     print("computed")
 
 def handle_tabby_query(self, ai, obj, runline2, method):
