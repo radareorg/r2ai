@@ -65,7 +65,8 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai -R                reset the chat conversation context
  r2ai -t [temp]         from 0.0001 to 10 your scale to randomness in my replies
  r2ai -v                show r2ai version (same as ?V)
- r2ai -w                start webserver (curl -D hello http://localhost:8000)"""
+ r2ai -w                start webserver (curl -D hello http://localhost:8000)
+ r2ai -W                start webserver in background"""
 
 def myprint(msg, file=None):
     global print_buffer
@@ -266,8 +267,10 @@ def runline(ai, usertext):
         except:
             traceback.print_exc()
         sys.exit(0)
+    elif usertext.startswith("-W"):
+        start_http_server(ai, runline2, True)
     elif usertext.startswith("-w"):
-        start_http_server(ai, runline2)
+        start_http_server(ai, runline2, False)
     elif usertext.startswith("-s"):
         ai.runline2 = runline2
         r2ai_repl(ai)

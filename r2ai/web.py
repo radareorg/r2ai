@@ -1,3 +1,4 @@
+import _thread as thread
 import platform
 import json
 import re
@@ -115,7 +116,7 @@ def handle_custom_request(self, ai, msg, runline2, method):
             return True
     return True
 
-def start_http_server(ai, runline2):
+def start_http_server_now(ai, runline2):
     import http.server
     import socketserver
     WANTCTX = ai.env["http.chatctx"] == "true"
@@ -154,3 +155,8 @@ def start_http_server(ai, runline2):
     server.allow_reuse_port = True
     server.serve_forever()
 
+def start_http_server(ai, runline2, background):
+    if background:
+        thread.start_new_thread(start_http_server_now, (ai, runline2))
+    else:
+        start_http_server_now(ai, runline2)

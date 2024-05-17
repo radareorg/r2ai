@@ -592,6 +592,7 @@ class Interpreter:
         self.env["key.openai"] = ""
         self.env["http.port"] = "8080"
         self.env["http.path"] = ""
+        self.env["http.verbose"] = "true" # not used yet
         self.env["http.chatctx"] = "false"
         if have_rlang:
             self.env["chat.live"] = "false"
