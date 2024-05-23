@@ -143,10 +143,13 @@ def get_hf_llm(ai, repo_id, debug_mode, context_window):
             usermodels = json.load(fd)
             fd.close()
         except:
+            usermodels = {}
             pass
         model_path = "" # slurp(r2ai_model_json)
         if not repo_id:
             repo_id = get_default_model()
+        elif repo_id.startswith ("-m "):
+            repo_id = repo_id[3:]
         if usermodels is not None and repo_id in usermodels:
             model_path = usermodels[repo_id]
 #            print(f"[r2ai] Using {r2ai_model_json} {model_path}")
