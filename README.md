@@ -95,7 +95,7 @@ $ . env/bin/activate
 
 ## Examples
 
-You can interact with r2ai from standalone python, from r2pipe via r2 keeping a global state or using the javascript intrepreter embedded inside `radare2`.
+You can interact with r2ai from standalone python, from r2pipe via r2 keeping a global state or using the javascript interpreter embedded inside `radare2`.
 
 * [conversation.r2.js](examples/conversation.r2.js) - load two models and make them talk to each other
 
