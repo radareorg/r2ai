@@ -1,7 +1,3 @@
-from llama_cpp import LlamaGrammar, Llama
-
-
-
 
 # Define a python function and parse it into a grammar
 def get_current_weather( location, unit, source):
@@ -83,27 +79,36 @@ Here are the functions available to you:
 }]
 
 <</SYS>> [/INST]
-[INST]
-{
 '''
-leprompt += f'  "prompt": "{question}"'
-leprompt += r'''
-}
-[/INST]
-'''
+###[INST]
+###{
+###'''
+###leprompt += f'  "prompt": "{question}"'
+###leprompt += r'''
+###}
+###[/INST]
+###'''
 
-#model_name = "llama-2-7b-chat-codeCherryPop.Q5_K_M.gguf"
-model_name = "mistral-7b-instruct-v0.1.Q2_K.gguf"
-# model_name = "dolphin-2_6-phi-2.Q5_K_M.gguf"
-# model_name = "codellama-7b-instruct.Q4_K_M.gguf"
-# model_name = "codellama-34b-instruct.Q4_K_M.gguf"
-# model_name = "Wizard-Vicuna-7B-Uncensored.Q2_K.gguf"
-model_path = f"/Users/pancake/Library/Application Support/r2ai/models/{model_name}"
-# grammar = SchemaConverter.from_function(get_current_weather)
-llm = Llama(model_path, max_tokens=4096, n_ctx=4096, max_length=4096, verbose=False, temperature=0.04) # , top_p=0)
-print(leprompt)
-# print(llm(prompt="### User: What is the weather in London today? ### Assistant:")["choices"][0]["text"])
-res = llm(prompt=leprompt)
-# print(res)
-print(res["choices"][0]["text"])
-# print(llm(prompt=leprompt)["choices"])
+
+p = leprompt.replace("\n", "")
+# print(p)
+r2.ai(f"-r {p}")
+# print(question)
+# r2.ai(question)
+
+def old():
+    #model_name = "llama-2-7b-chat-codeCherryPop.Q5_K_M.gguf"
+    model_name = "mistral-7b-instruct-v0.1.Q2_K.gguf"
+    # model_name = "dolphin-2_6-phi-2.Q5_K_M.gguf"
+    # model_name = "codellama-7b-instruct.Q4_K_M.gguf"
+    # model_name = "codellama-34b-instruct.Q4_K_M.gguf"
+    # model_name = "Wizard-Vicuna-7B-Uncensored.Q2_K.gguf"
+    model_path = f"/Users/pancake/Library/Application Support/r2ai/models/{model_name}"
+    # grammar = SchemaConverter.from_function(get_current_weather)
+    llm = Llama(model_path, max_tokens=4096, n_ctx=4096, max_length=4096, verbose=False, temperature=0.04) # , top_p=0)
+    print(leprompt)
+    # print(llm(prompt="### User: What is the weather in London today? ### Assistant:")["choices"][0]["text"])
+    res = llm(prompt=leprompt)
+    # print(res)
+    print(res["choices"][0]["text"])
+    # print(llm(prompt=leprompt)["choices"])

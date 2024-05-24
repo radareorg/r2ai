@@ -5,6 +5,7 @@ import sys
 import time
 import builtins
 import traceback
+from r2ai.repl import r2ai_singleton
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -93,13 +94,14 @@ def run_rcfile():
         for line in lines.split("\n"):
             if line.strip() != "":
                 if ai is None:
-                    ai = Interpreter()
+                    ai = r2ai_singleton() # Interpreter()
                 runline(ai, line)
     except:
         pass
     if ai is None:
-        from r2ai.interpreter import Interpreter
-        ai = Interpreter()
+        ai = r2ai_singleton() # Interpreter()
+        # from r2ai.interpreter import Interpreter
+        # ai = Interpreter()
 
 rcfile_loaded = False
 def run_rcfile_once():

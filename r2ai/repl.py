@@ -14,10 +14,18 @@ from .tab import tab_init, tab_hist, tab_write, tab_evals
 tab_init()
 
 print_buffer = ""
-ais = {}
+ais = []
 autoai = None
 from .pipe import have_rlang, r2lang, r2singleton
 r2 = r2singleton()
+
+def r2ai_singleton():
+    global ais
+    if len(ais) == 0:
+        from r2ai.interpreter import Interpreter
+        ai = Interpreter()
+        ais.append(R2AI(ai))
+    return ais[0].ai
 
 def r2_cmd(x):
     global have_rlang, ai, r2, r2_file
@@ -71,7 +79,7 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
 def myprint(msg, file=None):
     global print_buffer
     builtins.print(msg)
-    print_buffer += msg
+    print_buffer += str(msg)
 
 def runline2(ai, usertext):
     global print
@@ -140,11 +148,17 @@ def run_script(ai, script):
     except:
         pass
 
+class R2AI:
+    def __init__(self,ai):
+        self.ai = ai
+    def cmd(x):
+        return runline2(self.ai, cmd)
+
 def runline(ai, usertext):
     global print
     global autoai
     if ai == None:
-        ai = ais[0];
+        ai = ais[0].ai
     usertext = usertext.strip()
     if usertext == "" or usertext.startswith("#"):
         return
@@ -325,18 +339,23 @@ def runline(ai, usertext):
             que = input("[Query]> ")
             ai.chat(res)
     elif usertext.startswith("-n"):
-        if len(ais.keys()) == 0:
-            ais[0] = ai
+        if len(ais) == 0:
+            ais.append(R2AI(ai))
         if usertext == "-n":
-            for a in ais.keys():
-                model = ais[a].model
-                print(f"{a}  - {model}")
+            pos = 0
+            for a in ais:
+                model = a.ai.model
+                print(f"{pos}  - {model}")
+                pos += 1
         else:
             index = int(usertext[2:])
-            if index not in ais:
-                ais[index] = r2ai.Interpreter()
-                ais[index].model = ai.model
-            ai = ais[index]
+            if index < len(ais):
+                ai = ais[index].ai
+            else:
+                from r2ai.interpreter import Interpreter
+                ai0 = Interpreter()
+                ai0.model = ai.model
+                ais.append(R2AI(ai0))
     elif usertext.startswith("-c"):
         words = usertext[2:].strip().split(" ", 1)
         res = r2_cmd(words[0])
@@ -354,20 +373,19 @@ def runline(ai, usertext):
     elif usertext[0] == "!":
         os.system(usertext[1:])
     elif usertext[0] == ".":
-        if len(usertext) > 1 and usertext[1] == ".": # ".." - run user plugins
-            runplugin(ai, usertext[2:].strip())
-            return
+        #if len(usertext) > 1 and usertext[1] == ".": # ".." - run user plugins
+        #    runplugin(ai, usertext[2:].strip())
+        #    return
         try:
             filename = usertext[1:].strip()
             file = slurp(filename)
             if filename.endswith(".py"):
-              exec(file, globals())
+                exec(file, globals())
             else:
-              for line in file.split("\n"):
-                runline(ai, line)
+                for line in file.split("\n"):
+                    runline(ai, line)
         except Exception as e:
-            # traceback.print_exc()
-            print(e)
+            traceback.print_exc()
             pass
     elif usertext.startswith("' "):
         if not autoai:
@@ -378,7 +396,7 @@ def runline(ai, usertext):
         if r2 is None:
             print("r2 is not available", file=sys.stderr)
         else:
-            print(r2_cmd(usertext[1:]))
+            builtins.print(r2_cmd(usertext[1:]))
     elif usertext.startswith("-"):
         print("Unknown flag. See 'r2ai -h' for help", file=sys.stderr)
     else:

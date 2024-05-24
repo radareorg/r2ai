@@ -1,9 +1,21 @@
+import traceback
 have_rlang = False
 r2lang = None
 
 class FakeLang:
     def __init__(self, r2):
         self.r2 = r2
+    def ai(self, x):
+        try:
+            from r2ai.repl import r2ai_singleton, runline2
+            ai = r2ai_singleton()
+            if ai is None:
+                print("No global r2ai instance found")
+                return ""
+            return runline2(ai, x)
+        except:
+            traceback.print_exc()
+            return None
     def cmd(self, x):
         r = self.r2.cmd(x)
         return r
