@@ -408,8 +408,11 @@ def r2ai_repl(ai):
         try:
             usertext = input(prompt).strip()
             if os.name != "nt":
-                print("\001\x1b[0m\002", end="")
+                builtins.print("\001\x1b[0m\002", end="")
+        except EOFError:
+            break
         except:
+            traceback.print_exc()
             break
         try:
             if ai.env["chat.bubble"] == "true":
