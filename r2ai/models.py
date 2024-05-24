@@ -100,6 +100,7 @@ Generic:
 -m dagbs/dolphin-2.8-mistral-7b-v02-GGUF
 -m maddes8cht/nomic-ai-gpt4all-falcon-7b-gguf
 Coding:
+-m segolilylabs/Lily-Cybersecurity-7B-v0.2-GGUF
 -m FaradayDotDev/llama-3-8b-Instruct-GGUF
 -m LoneStriker/OpenCodeInterpreter-DS-33B-GGUF
 -m TheBloke/CodeBooga-34B-v0.1-GGUF
