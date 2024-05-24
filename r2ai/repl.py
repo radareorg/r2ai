@@ -395,7 +395,7 @@ def r2ai_repl(ai):
     while True:
         prompt = "[r2ai:" + oldoff + "]> "
         if os.name != "nt":
-            prompt = f"\x1b[33m{prompt}\x1b[0m"
+            prompt = f"\001\x1b[33m\002{prompt}" # \001\x1b[0m\002"
         if r2 is not None:
             off = r2_cmd("s").strip()
             if off == "":
@@ -407,6 +407,8 @@ def r2ai_repl(ai):
             ai.end_active_block()
         try:
             usertext = input(prompt).strip()
+            if os.name != "nt":
+                print("\001\x1b[0m\002", end="")
         except:
             break
         try:
