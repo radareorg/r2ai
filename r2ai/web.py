@@ -33,7 +33,7 @@ def handle_v1_chat_completions(self, ai, obj, runline2, method):
     if "messages" not in obj:
         return handle_v1_completions_default(self, ai, obj, runline2, method)
     codequery = obj["messages"][0]["content"]
-    runline2(ai, "-R")
+    #runline2(ai, "-R")
     response = json.loads('''{
   "id": "r2ai",
   "object": "chat.completion.chunk",
@@ -143,7 +143,7 @@ def handle_v1_completions(self, ai, obj, runline2, method):
         self.send_response(200)
         self.end_headers()
         return True
-    runline2(ai, "-R")
+    #runline2(ai, "-R")
     #codequery = f"What's between `{pfx}` and `{sfx}` in `{lng}`, without including the context"
     codequery = f"Complete the code between `{pfx}` and `{sfx}` in `{lng}`"
     response = json.loads('''{
