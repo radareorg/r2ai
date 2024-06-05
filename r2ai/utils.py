@@ -1,6 +1,11 @@
 import json
 import subprocess
 
+# TODO: move into utils
+from datetime import datetime
+def get_timez():
+    return datetime.utcnow().isoformat(timespec='microseconds') + 'Z'
+
 def merge_deltas(original, delta):
     """
     Pushes the delta into the original and returns that.

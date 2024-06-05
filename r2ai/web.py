@@ -2,6 +2,7 @@ import _thread as thread
 import platform
 import json
 import re
+from .utils import get_timez
 
 ores = ""
 
@@ -88,7 +89,7 @@ def handle_v1_chat(self, ai, obj, runline2, method):
     ores = runline2(ai, codequery.strip()).strip()
     response = {
         "model": "r2ai:latest",
-        "created_at": get_current_time(),
+        "created_at": get_timez(),
         "response": ores,
         "message": {
             "role": "assistant",
@@ -115,7 +116,7 @@ def handle_v1_chat_generate(self, ai, obj, runline2, method):
     ores = runline2(ai, codequery).strip()
     response = {
         "model": "r2ai:latest",
-        "created_at": get_current_time(),
+        "created_at": get_timez(),
         "response": ores,
         "done": True,
         "done_reason": "stop"
