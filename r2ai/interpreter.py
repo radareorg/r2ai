@@ -659,6 +659,7 @@ class Interpreter:
             elif 'function_call' in message:
                 print(f"**Removed codeblock**") # TODO: Could add preview of code removed here.
 
+    # reimplement using nltk or index.match
     def keywords_ai(self, text):
         # kws = self.keywords_ai("who is the author of radare?") => "author,radare2"
         words = []
@@ -688,7 +689,7 @@ class Interpreter:
         if self.print != None:
             print = self.print
         if self.last_model != self.model:
-            self.llama_instance = None
+#            self.llama_instance = None
             self.last_model = self.model
         if not message and self["chat.code"] == "true":
             self.end_active_block()
