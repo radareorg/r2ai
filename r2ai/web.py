@@ -63,6 +63,68 @@ def handle_v1_chat_completions(self, ai, obj, runline2, method):
     self.wfile.write(bytes(f'data: {jresponse}','utf-8'))
     print("computed")
 
+# TODO: move into utils
+from datetime import datetime
+def get_current_time():
+    return datetime.utcnow().isoformat(timespec='microseconds') + 'Z'
+
+def handle_v1_chat(self, ai, obj, runline2, method):
+    print("/api/chat")
+    # receive {"prompt": ""}
+    print('{"model":"llama3","created_at":"2024-06-05T13:37:28.344614Z","response":" century","done":false}')
+    print('{"model":"llama3","created_at":"2024-06-05T13:37:28.393143Z","response":"","done":true,"done_reason":"stop"')
+    if obj == None or "messages" not in obj:
+        print("ObjNone")
+        self.send_response(200)
+        self.end_headers()
+        return True
+    messages = obj["messages"]
+    codequery = ""
+    for m in messages:
+        if m["role"] == "user":
+            codequery = m["content"] + "\n"
+        else:
+            codequery = m["role"] + ": " + m["content"]
+    ores = runline2(ai, codequery.strip()).strip()
+    response = {
+        "model": "r2ai:latest",
+        "created_at": get_current_time(),
+        "response": ores,
+        "message": {
+            "role": "assistant",
+            "content": ores,
+            "images": None
+        },
+        "done": True,
+    }
+    self.send_response(200)
+    self.end_headers()
+    jresponse = json.dumps(response)
+    self.wfile.write(bytes(f'{jresponse}','utf-8'))
+
+# like completions but in realtime
+def handle_v1_chat_generate(self, ai, obj, runline2, method):
+    print("/api/generate")
+    if obj == None or "prompt" not in obj:
+        print("ObjNone")
+        self.send_response(200)
+        self.end_headers()
+        return True
+    codequery = obj["prompt"]
+    #runline2(ai, "-R")
+    ores = runline2(ai, codequery).strip()
+    response = {
+        "model": "r2ai:latest",
+        "created_at": get_current_time(),
+        "response": ores,
+        "done": True,
+        "done_reason": "stop"
+    }
+    self.send_response(200)
+    self.end_headers()
+    jresponse = json.dumps(response)
+    self.wfile.write(bytes(f'{jresponse}','utf-8'))
+
 def handle_v1_completions(self, ai, obj, runline2, method):
     global ores
     print("/v1/completions")
@@ -115,6 +177,29 @@ def handle_v1_completions(self, ai, obj, runline2, method):
 def handle_tabby_query(self, ai, obj, runline2, method):
     global ores
     print(self.path)
+    if self.path == '/api/generate':
+        return handle_v1_chat_generate(self, ai, obj, runline2, method)
+    if self.path == '/api/chat':
+        return handle_v1_chat(self, ai, obj, runline2, method)
+    if self.path == '/api/tags':
+        models = {
+                "models":[
+                    {
+                        "name": "r2ai:latest",
+                     "model": "r2ai:latest",
+                      "modified_at":"2024-06-04T18:23:52.962173399+02:00",
+                     "size":4661224676,
+                     "digest":"365c0bd3c000a25d28ddbf732fe1c6add414de7275464c4e4d1c3b5fcb5d8ad1",
+                     "details":{"parent_model":"","format":"gguf","family":"llama","families":["llama"],"parameter_size":"8.0B","quantization_level":"Q4_0"},
+                     "expires_at":"0001-01-01T00:00:00Z"
+                     }
+                    ]
+        }
+        models=json.dumps(models)
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(bytes(f'{models}','utf-8'))
+        return True
     if self.path == "/v1/chat/completions":
         return handle_v1_chat_completions(self, ai, obj, runline2, method)
     if self.path == "/v1/health": ## GET only
