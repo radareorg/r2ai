@@ -64,16 +64,35 @@ def handle_v1_chat_completions(self, ai, obj, runline2, method):
     self.wfile.write(bytes(f'data: {jresponse}','utf-8'))
     print("computed")
 
-# TODO: move into utils
-from datetime import datetime
-def get_current_time():
-    return datetime.utcnow().isoformat(timespec='microseconds') + 'Z'
+def handle_api_show(self, ai, obj, runline2, method):
+    print("/api/show")
+    # receive {"prompt": ""}
+    if obj == None or "name" not in obj:
+        print("ObjNone")
+        self.send_response(200)
+        self.end_headers()
+        return True
+    mname = obj["name"]
+    response = {
+        "modelfile": "r2ai:latest",
+        "parameters": "num_ctx                        4096\nstop                           \u003c/s\u003e\nstop                           USER:\nstop                           ASSISTANT:",
+        "template": "{{ .System }}\nUSER: {{ .Prompt }}\nASSISTANT: ",
+        "details": {
+            "format": "gguf",
+            "family": "llama",
+            "families": ["llama", "clip"],
+            "parameter_size": "7B",
+            "quantization_level": "Q4_0"
+        }
+    }
+    self.send_response(200)
+    self.end_headers()
+    jresponse = json.dumps(response)
+    self.wfile.write(bytes(f'{jresponse}','utf-8'))
 
 def handle_v1_chat(self, ai, obj, runline2, method):
     print("/api/chat")
     # receive {"prompt": ""}
-    print('{"model":"llama3","created_at":"2024-06-05T13:37:28.344614Z","response":" century","done":false}')
-    print('{"model":"llama3","created_at":"2024-06-05T13:37:28.393143Z","response":"","done":true,"done_reason":"stop"')
     if obj == None or "messages" not in obj:
         print("ObjNone")
         self.send_response(200)
@@ -182,13 +201,15 @@ def handle_tabby_query(self, ai, obj, runline2, method):
         return handle_v1_chat_generate(self, ai, obj, runline2, method)
     if self.path == '/api/chat':
         return handle_v1_chat(self, ai, obj, runline2, method)
+    if self.path == '/api/show':
+        return handle_api_show(self, ai, obj, runline2, method)
     if self.path == '/api/tags':
         models = {
                 "models":[
                     {
                         "name": "r2ai:latest",
                      "model": "r2ai:latest",
-                      "modified_at":"2024-06-04T18:23:52.962173399+02:00",
+                     "modified_at":get_timez(),
                      "size":4661224676,
                      "digest":"365c0bd3c000a25d28ddbf732fe1c6add414de7275464c4e4d1c3b5fcb5d8ad1",
                      "details":{"parent_model":"","format":"gguf","family":"llama","families":["llama"],"parameter_size":"8.0B","quantization_level":"Q4_0"},
