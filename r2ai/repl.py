@@ -1,5 +1,5 @@
 import builtins
-from r2ai.models import set_default_model
+from .models import set_default_model, models, mainmodels
 from .utils import slurp
 import traceback
 from .const import R2AI_HISTFILE, R2AI_HOMEDIR, R2AI_RCFILE, R2AI_USERDIR
@@ -22,7 +22,7 @@ r2 = r2singleton()
 def r2ai_singleton():
     global ais
     if len(ais) == 0:
-        from r2ai.interpreter import Interpreter
+        from .interpreter import Interpreter
         ai = Interpreter()
         ais.append(R2AI(ai))
     return ais[0].ai
@@ -182,9 +182,9 @@ def runline(ai, usertext):
     elif usertext.startswith("clear") or usertext.startswith("-k"):
         print("\x1b[2J\x1b[0;0H\r")
     elif usertext.startswith("-MM"):
-        print(r2ai.mainmodels().strip())
+        print(mainmodels().strip())
     elif usertext.startswith("-M"):
-        print(r2ai.models().strip())
+        print(models().strip())
     elif usertext.startswith("-m"):
         words = usertext.split(" ")
         if len(words) > 1:
@@ -201,7 +201,7 @@ def runline(ai, usertext):
         else:
             ai.env["llm.temperature"] = usertext[2:].strip()
     elif usertext == "-A":
-        from r2ai.voice import stt
+        from .voice import stt
         ai.env["chat.voice"] = "true"
         old_live = ai.env["chat.live"]
         ai.env["chat.live"] = "false"
@@ -213,7 +213,7 @@ def runline(ai, usertext):
         ai.env["chat.live"] = old_live
         ai.env["chat.voice"] = "false"
     elif usertext == "-a":
-        from r2ai.voice import stt
+        from .voice import stt
         ai.env["chat.voice"] = "true"
         old_live = ai.env["chat.live"]
         ai.env["chat.live"] = "true"
@@ -352,7 +352,7 @@ def runline(ai, usertext):
             if index < len(ais):
                 ai = ais[index].ai
             else:
-                from r2ai.interpreter import Interpreter
+                from .interpreter import Interpreter
                 ai0 = Interpreter()
                 ai0.model = ai.model
                 ais.append(R2AI(ai0))
@@ -389,7 +389,8 @@ def runline(ai, usertext):
             pass
     elif usertext.startswith("' "):
         if not autoai:
-            autoai = r2ai.interpreter.Interpreter()
+            from .interpreter import Interpreter
+            autoai = Interpreter()
             autoai.auto_run = True
         autoai.chat(usertext[2:])
     elif usertext[0] == ":":
