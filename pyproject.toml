@@ -1,0 +1,52 @@
+[project]
+name = "r2ai"
+dynamic = ["readme"]
+version = "0.7.0"
+description = "Applying language models on radare2 for reverse engineering and fun purposes"
+
+license = {text = "MIT License"}
+authors = [
+  {name = "pancake", email = "pancake@nopcode.org"}
+]
+
+[project.urls]
+homepage = "https://www.radare.org/"
+repository = "https://github.com/radareorg/r2ai"
+
+[project.scripts]
+r2ai = "r2ai:main"
+
+[tool.setuptools.packages.find]
+where = [".", "r2ai"]
+include = ["main", "r2ai"]
+namespaces = true
+
+[tool.setuptools.dynamic]
+readme = {file = "README.md", content-type = "text/markdown"}
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+dependencies = [
+  "rich",
+  "r2pipe",
+  "inquirer",
+  "llama-cpp-python",
+  "huggingface_hub==0.22.0",
+  "appdirs",
+  "unidecode",
+  "jsonref",
+  "transformers",
+  "pydantic",
+  "torch"
+]
+
+[project.optional-dependencies]
+extras = [
+  "openai",
+  "anthropic",
+  "groq",
+  "google-generativeai",
+  "google-cloud-aiplatform"
+]
