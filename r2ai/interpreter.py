@@ -569,7 +569,7 @@ class Interpreter:
         self.env["debug"] = "false"
         self.env["llm.model"] = self.model ## TODO: dup. must get rid of self.model
         self.env["llm.gpu"] = "true"
-        self.env["llm.window"] = "8096" # "4096" # context_window
+        self.env["llm.window"] = "32768" # "4096" # context_window
         self.env["llm.maxtokens"] = "4096" # "1750"
         self.env["llm.maxmsglen"] = "8096" # "1750"
         self.env["llm.temperature"] = "0.002"
