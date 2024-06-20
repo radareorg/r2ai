@@ -36,11 +36,11 @@ def handle_v1_chat_completions(self, ai, obj, runline2, method):
     system = []
     for m in obj["messages"]:
         if m["role"] == "system":
-            system.push(m["content"])
+            system.append(m["content"])
         else:
-            user.push(m["content"])
-    rolequery = system.join("\n")
-    codequery = user.join("\n")
+            user.append(m["content"])
+    rolequery = "\n".join(system)
+    codequery = "\n".join(user)
     WANTCTX = ai.env["http.chatctx"] == "true"
     if not WANTCTX:
         runline2(ai, "-R")
