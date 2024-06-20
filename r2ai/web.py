@@ -32,8 +32,19 @@ def handle_v1_chat_completions(self, ai, obj, runline2, method):
         return True
     if "messages" not in obj:
         return handle_v1_completions_default(self, ai, obj, runline2, method)
-    codequery = obj["messages"][0]["content"]
-    #runline2(ai, "-R")
+    user = []
+    system = []
+    for m in obj["messages"]:
+        if m["role"] == "system":
+            system.push(m["content"])
+        else:
+            user.push(m["content"])
+    rolequery = system.join("\n")
+    codequery = user.join("\n")
+    WANTCTX = ai.env["http.chatctx"] == "true"
+    if not WANTCTX:
+        runline2(ai, "-R")
+    runline2(ai, "-r " + rolequery)
     response = json.loads('''{
   "id": "r2ai",
   "object": "chat.completion.chunk",
