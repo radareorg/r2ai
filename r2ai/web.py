@@ -101,6 +101,16 @@ def handle_api_show(self, ai, obj, runline2, method):
     jresponse = json.dumps(response)
     self.wfile.write(bytes(f'{jresponse}','utf-8'))
 
+def handle_cmd(self, ai, obj, runline2, method):
+    # receive {"prompt": ""}
+    userline = self.path[5:].replace("%20", " ");
+    print("RUNLINE: " + userline)
+    ores = runline2(ai, userline)
+    self.send_response(200)
+    self.end_headers()
+    self.wfile.write(bytes(f'{ores}','utf-8'))
+    return True
+
 def handle_v1_chat(self, ai, obj, runline2, method):
     print("/api/chat")
     # receive {"prompt": ""}
@@ -270,6 +280,8 @@ def handle_tabby_query(self, ai, obj, runline2, method):
 def handle_custom_request(self, ai, msg, runline2, method):
     print("CUSTOM")
     if method == "GET":
+        if self.path.startswith('/cmd'):
+            return handle_cmd(self, ai, None, runline2, method)
         if handle_tabby_query(self, ai, None, runline2, method):
             return True
         return False
