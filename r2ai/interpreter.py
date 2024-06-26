@@ -591,6 +591,7 @@ class Interpreter:
         self.env["key.mastodon"] = ""
         self.env["key.openai"] = ""
         self.env["http.port"] = "8080"
+        self.env["http.tabby"] = "false"
         self.env["http.path"] = ""
         self.env["http.verbose"] = "true" # not used yet
         self.env["http.chatctx"] = "false"

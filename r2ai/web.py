@@ -267,9 +267,10 @@ def handle_tabby_query(self, ai, obj, runline2, method):
         healthstr=json.dumps(healthobj)
         self.wfile.write(bytes(f'{healthstr}','utf-8'))
         return True
-    # /v1/completions
-    if self.path == "/v1/completions":
-        return handle_v1_completions(self, ai, obj, runline2, method)
+    if ai.env["http.tabby"] == "true":
+        # /v1/completions
+        if self.path == "/v1/completions":
+            return handle_v1_completions(self, ai, obj, runline2, method)
 
     print(f"UnkPath: {self.path}")
     self.send_response(200)
