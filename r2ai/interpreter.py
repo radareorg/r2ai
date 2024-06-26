@@ -867,11 +867,12 @@ class Interpreter:
                 if m["role"] == "system":
                     system_message = m["content"]
                 else:
-                    messages.append(m["content"])
+                    messages.append(m)
             if have_anthropic:
                 if self.anthropic_client is None:
                     self.anthropic_client = Anthropic()
                 completion = self.anthropic_client.messages.create(
+                    system=system_message,
                     model=anthropic_model,
                     max_tokens=maxtokens,
                     temperature=float(self.env["llm.temperature"]),
@@ -879,7 +880,8 @@ class Interpreter:
                 )
                 if self.env["chat.reply"] == "true":
                     self.messages.append({"role": "assistant", "content": completion.content})
-                    print(completion.content)
+                print(completion.content[0].text)
+                return
             else:
                 print("pip install -U anthropic", file=sys.stderr)
                 print("export ANTHROPIC_API_KEY=...", file=sys.stderr)
