@@ -22,7 +22,10 @@
 	function r2ai(s) {
 		const host = "http://localhost:8080/cmd";
 		const ss = s.replace(/ /g, "%20").replace(/'/g, "\\'");
-		return r2.cmd ('!curl -s "' + host + '/' + ss + '"');
+		r2.cmd ('\'!curl -s "' + host + '/' + ss + '" > .pdc.txt');
+		const res = r2.cmd ('cat .pdc.txt');
+		console.log(res);
+		return res;
 	}
 	function r2aidec(args) {
 		if (args === "") {
