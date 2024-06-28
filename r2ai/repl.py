@@ -48,6 +48,7 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai ..([script])      list or run r2ai user script
  r2ai :aa               run a r2 command
  r2ai ' [prompt]        auto mode; query LLM that can interact with r2
+ r2ai ?e [msg]          echo a message
  r2ai ?t [query]        run an query and show it's timing
  r2ai !ls               run a system command
  r2ai -a                query with audio voice
@@ -172,6 +173,8 @@ def runline(ai, usertext):
     if usertext.startswith("?V") or usertext.startswith("-v"):
         print(r2ai.VERSION)
         r2ai_version()
+    elif usertext.startswith("?e"):
+        print(usertext[2:].strip())
     elif usertext.startswith("?t"):
         tstart = datetime.now()
         runline(ai, usertext[2:].strip())
