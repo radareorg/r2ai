@@ -31,11 +31,17 @@ except:
 
 OPENAI_KEY = ""
 if "HOME" in os.environ:
+    from r2ai.utils import slurp
     try:
-        from r2ai.utils import slurp
         apikey = slurp(os.environ["HOME"] + "/.r2ai.openai-key").strip()
         os.environ["OPENAI_API_KEY"] = apikey
-        print("[R2AI] OpenAI key loaded from ~/.r2ai.openai-key", file=sys.stderr)
+        print("[R2AI] OpenAI API key loaded from ~/.r2ai.openai-key", file=sys.stderr)
+    except:
+        pass
+    try:
+        apikey = slurp(os.environ["HOME"] + "/.r2ai.anthropic-key").strip()
+        os.environ["ANTHROPIC_API_KEY"] = apikey
+        print("[R2AI] Anthropic API key loaded from ~/.r2ai.anthropic-key", file=sys.stderr)
     except:
         pass
 
