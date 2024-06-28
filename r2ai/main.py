@@ -95,6 +95,7 @@ if have_r2pipe and not have_rlang:
 def run_rcfile():
     global ai
     try:
+        from .const import R2AI_RCFILE
         lines = slurp(R2AI_RCFILE)
         from r2ai.interpreter import Interpreter
         for line in lines.split("\n"):
