@@ -23,14 +23,13 @@
 		const host = "http://localhost:8080/cmd";
 		const ss = s.replace(/ /g, "%20").replace(/'/g, "\\'");
 		r2.cmd ('\'!curl -s "' + host + '/' + ss + '" > .pdc.txt');
-		const res = r2.cmd ('cat .pdc.txt');
-		console.log(res);
-		return res;
+		return r2.cmd ('cat .pdc.txt');
 	}
 	function r2aidec(args) {
 		if (args === "") {
 			usage ();
 		} else if (args[0] === "-") {
+			var out = "";
 			switch (args[1]) {
 			case "n": // "-n"
 			case "f": // "-f"
@@ -38,12 +37,12 @@
 				var considerations = r2.cmd("fd.").trim().split(/\n/).filter(x=>!x.startsWith("secti")).join(",");
 				// console.log(considerations);
 				r2ai ("-R");
-				r2ai ("-i /tmp/.pdc.txt give me a better name for this function. the output must be: 'afn NEWNAME'. consider: " + considerations);
+				out = r2ai ("-i /tmp/.pdc.txt give me a better name for this function. the output must be: 'afn NEWNAME'. consider: " + considerations);
 				break;
 			case "v": // "-v"
 				r2.cmd ("pdc > /tmp/.pdc.txt");
 				r2ai ("-R");
-				r2ai ("-i /tmp/.pdc.txt show only the local variables.");
+				out = r2ai ("-i /tmp/.pdc.txt show only the local variables.");
 				break;
 			case "V": // "-V"
 				r2aidec("-d find vulnerabilities, dont show the code, only show the response");
@@ -51,7 +50,7 @@
 			case "e": // "-e"
 				r2.cmd ("pdsf > /tmp/.pdc.txt");
 				r2ai ("-R");
-				r2ai ("-i /tmp/.pdc.txt Explain what's this function doing in one sentence.")
+				out = r2ai ("-i /tmp/.pdc.txt Explain what's this function doing in one sentence.")
 				break;
 			case "D": // "-D"
 				try {
@@ -66,7 +65,7 @@
 					r2.cmd("'!echo '</code>' >> /tmp/.pdc.txt");
 					r2ai("-R");
 					const p = decprompt + ". replace variables with the actual strings";
-					r2ai("-i /tmp/.pdc.txt " + (p + " " + args).trim());
+					out = r2ai("-i /tmp/.pdc.txt " + (p + " " + args).trim());
 				} catch (e) {
 					console.error(e);
 				}
@@ -76,7 +75,7 @@
 					args = args.slice(2).trim();
 					r2.cmd ("pdc > /tmp/.pdc.txt");
 					r2ai("-R");
-					r2ai("-i /tmp/.pdc.txt " + (decprompt + " " + args).trim());
+					out = r2ai("-i /tmp/.pdc.txt " + (decprompt + " " + args).trim());
 				} catch (e) {
 					console.error(e);
 				}
@@ -85,6 +84,7 @@
 				usage();
 				break;
 			}
+			r2.log(out);
 		} else {
 			console.log("ARGS: " + args);
 			usage();
