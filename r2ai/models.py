@@ -59,6 +59,7 @@ Anthropic:
 -m anthropic:claude-3-haiku-20240307
 -m anthropic:claude-3-opus-20240229
 -m anthropic:claude-3-sonnet-20240229
+-m anthropic:claude-3-5-sonnet-20240620
 groq:
 -m groq:gemma-7b-it
 -m groq:llama2-70b-4096
@@ -66,20 +67,6 @@ groq:
 Google:
 -m google:gemini-1.0-pro
 -m google:gemini-1.5-pro-latest
-GPT4:
--m NousResearch/Hermes-2-Pro-Mistral-7B-GGUF
--m TheBloke/Chronos-70B-v2-GGUF
--m TheBloke/Chronos-Hermes-13b-v2-GGUF
--m TheBloke/Euryale-Inverted-L2-70B-GGUF
--m TheBloke/GodziLLa2-70B-GGUF
--m TheBloke/Nous-Capybara-34B-GGUF
--m TheBloke/Nous-Capybara-7B-v1.9-GGUF
--m TheBloke/StellarBright-GGUF
--m TheBloke/SynthIA-7B-v2.0-GGUF
--m TheBloke/dolphin-2.7-mixtral-8x7b-GGUF
--m TheBloke/goliath-120b-GGUF
--m dranger003/c4ai-command-r-plus-iMat.GGUF
--m lizpreciatior/lzlv_70b_fp16_hf
 Functionary:
 -m meetkai/functionary-7b-v1.4-GGUF
 -m meetkai/functionary-7b-v2-GGUF
