@@ -932,6 +932,8 @@ class Interpreter:
                     prompt,
                     stream=True,
                     temperature=float(self.env["llm.temperature"]),
+#                    top_p = 0.95,
+#                    top_k = 10,
                     stop=terminator,
                     max_tokens=maxtokens
                 )
