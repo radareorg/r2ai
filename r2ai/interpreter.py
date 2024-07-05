@@ -943,7 +943,11 @@ class Interpreter:
                 if Ginterrupted:
                     Ginterrupted = False
                     return
-
+        if response is None:
+            print("No response")
+            ctxwindow = int(self.env["llm.window"])
+            self.llama_instance = new_get_hf_llm(self, self.model, False, ctxwindow)
+            return
         # Initialize message, function call trackers, and active block
         self.messages.append({})
         in_function_call = False

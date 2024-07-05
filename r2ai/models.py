@@ -76,19 +76,15 @@ Functionary:
 Generic:
 -m KoboldAI/LLaMA2-13B-Tiefighter-GGUF
 -m TheBloke/Ferret_7B-GGUF
--m TheBloke/Mistral-7B-Instruct-v0.1-GGUF
--m TheBloke/Mistral-7B-Instruct-v0.2-GGUF
 -m TheBloke/OpenOrca-Zephyr-7B-GGUF
 -m TheBloke/Yarn-Mistral-7B-128k-GGUF
 -m TheBloke/dolphin-2.2.1-mistral-7B-GGUF
 -m TheBloke/zephyr-7B-alpha-GGUF
 -m TheBloke/zephyr-7B-beta-GGUF
 -m aisensiy/Qwen-72B-Chat-GGUF
--m dagbs/dolphin-2.8-mistral-7b-v02-GGUF
 -m maddes8cht/nomic-ai-gpt4all-falcon-7b-gguf
 Coding:
 -m segolilylabs/Lily-Cybersecurity-7B-v0.2-GGUF
--m FaradayDotDev/llama-3-8b-Instruct-GGUF
 -m LoneStriker/OpenCodeInterpreter-DS-33B-GGUF
 -m TheBloke/CodeBooga-34B-v0.1-GGUF
 -m TheBloke/CodeLlama-34B-Instruct-GGUF
@@ -105,14 +101,19 @@ Uncensored:
 -m TheBloke/Dawn-v2-70B-GGUF
 -m TheBloke/Guanaco-7B-Uncensored-GGUF
 -m TheBloke/Luna-AI-Llama2-Uncensored-GGUF
--m TheBloke/Unholy-v2-13B-GGUF
 -m TheBloke/Wizard-Vicuna-13B-Uncensored-GGUF
 -m TheBloke/Wizard-Vicuna-7B-Uncensored-GGUF
 -m TheBloke/dolphin-2_6-phi-2-GGUF
 -m TheBloke/llama2_70b_chat_uncensored-GGUF
 -m TheBloke/openchat-3.5-0106-GGUF
--m Undi95/Utopia-13B-GGUF
 -m Undi95/UtopiaXL-13B-GGUF
+Best:
+-m dagbs/dolphin-2.8-mistral-7b-v02-GGUF
+-m FaradayDotDev/llama-3-8b-Instruct-GGUF
+-m bartowski/gemma-2-9b-it-GGUF
+-m Undi95/Utopia-13B-GGUF
+-m TheBloke/Unholy-v2-13B-GGUF
+-m TheBloke/Mistral-7B-Instruct-v0.2-GGUF
 """
 
 def gpulayers(ai):
