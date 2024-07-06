@@ -268,6 +268,8 @@ def runline(ai, usertext):
                     ai.env[k] = ""
                 elif k in ai.env:
                     ai.env[k] = v
+                    if k.startswith("llm."):
+                        ai.llama_instance = None
                 else:
                     print("Invalid config key", file=sys.stderr)
             else:
