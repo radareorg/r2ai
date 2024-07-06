@@ -127,6 +127,8 @@ def messages_to_prompt(self, messages):
         formatted_messages = template_alpaca(self, messages)
     elif "deepseek" in lowermodel:
         formatted_messages = template_alpaca(self, messages)
+    elif "llama-3" in lowermodel:
+        formatted_messages = template_llama3(self, messages)
     elif "uncensor" in lowermodel:
         # formatted_messages = template_gpt4all(self, messages)
         # formatted_messages = template_alpaca(self, messages)
@@ -147,8 +149,6 @@ def messages_to_prompt(self, messages):
         formatted_messages = template_llamapython(self, messages)
     elif "tinyllama" in lowermodel:
         formatted_messages = template_tinyllama(self, messages)
-    elif "llama-3" in lowermodel:
-        formatted_messages = template_llama3(self, messages)
     else:
         formatted_messages = template_llama(self, messages)
     if self.env["debug"] == "true":

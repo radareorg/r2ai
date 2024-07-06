@@ -98,6 +98,7 @@ Coding:
 -m mlabonne/gemma-7b-it-GGUF
 -m microsoft/Phi-3-mini-4k-instruct-gguf
 Uncensored:
+-m Orenguteng/Llama-3-8B-Lexi-Uncensored-GGUF
 -m TheBloke/Dawn-v2-70B-GGUF
 -m TheBloke/Guanaco-7B-Uncensored-GGUF
 -m TheBloke/Luna-AI-Llama2-Uncensored-GGUF
