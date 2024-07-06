@@ -573,6 +573,8 @@ class Interpreter:
         self.env["llm.maxtokens"] = "4096" # "1750"
         self.env["llm.maxmsglen"] = "8096" # "1750"
         self.env["llm.temperature"] = "0.002"
+        self.env["llm.top_p"] = "0.95"
+        self.env["llm.top_k"] = "50"
         self.env["user.name"] = "" # TODO auto fill?
         self.env["user.os"] = ""
         self.env["user.arch"] = ""
@@ -932,8 +934,8 @@ class Interpreter:
                     prompt,
                     stream=True,
                     temperature=float(self.env["llm.temperature"]),
-#                    top_p = 0.95,
-#                    top_k = 10,
+                    top_p=float(self.env["llm.top_p"]),
+                    top_k=int(self.env["llm.top_k"]),
                     stop=terminator,
                     max_tokens=maxtokens
                 )
