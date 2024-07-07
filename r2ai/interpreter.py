@@ -865,7 +865,13 @@ class Interpreter:
         elif self.model.startswith('anthropic:'):
             anthropic_model = self.model[10:]
             messages = []
+            lastrole = ""
             for m in self.messages:
+                if lastrole != "":
+                    if lastrole == "user" and m["role"] == "user":
+                        m2 = {"role": "assistant", "content": "."}
+                        messages.append(m2)
+                lastrole = m["role"]
                 if m["role"] == "system":
                     system_message = m["content"]
                 else:
