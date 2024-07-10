@@ -11,6 +11,11 @@ def chat(message, uri='http://localhost:5001'):
     """Send a message to a kobaldcpp server and return the autocompletion response
     """
     url = f'{uri}/v1/completions'
+#    url = f'{uri}/v1/chat/completions'
+    odata = {
+      "model": "gpt-3.5-turbo",
+      "messages": [ { "role": "user", "content": message } ]
+    }
     data = {
         "max_length": 1024,
         "prompt": message,
@@ -30,8 +35,12 @@ def chat(message, uri='http://localhost:5001'):
     }
     r = requests.post(url=url, data=json.dumps(data), timeout=600)
     j = json.loads(r.text)
-    i = j["choices"][0]["text"]
-    return i
+    if "choices" in j:
+        choice = j["choices"][0]
+        if "text" in choice:
+            return j["choices"][0]["text"]
+        return choice["message"]["content"]
+    return "No response"
 
 #m = slurp("/Users/pancake/prg/r2ai/doc/data/quotes.txt")
 #AI="AI"

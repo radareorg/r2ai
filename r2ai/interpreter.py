@@ -4,6 +4,7 @@ from .utils import merge_deltas
 from .message_block import MessageBlock
 from .code_block import CodeBlock
 from .backend import kobaldcpp
+from .backend import openapi
 
 from .models import get_hf_llm, new_get_hf_llm, get_default_model
 from .voice import tts
@@ -722,7 +723,7 @@ class Interpreter:
             print(message)
         # print(message)
         # Code-Llama
-        if not self.model.startswith("openai:") and not self.model.startswith("kobaldcpp") and self.llama_instance == None:
+        if not self.model.startswith("openai:") and not self.model.startswith("openapi:") and not self.model.startswith("kobaldcpp") and self.llama_instance == None:
             # Find or install Code-Llama
             try:
                 ctxwindow = int(self.env["llm.window"])
@@ -808,6 +809,27 @@ class Interpreter:
         if self.auto_run:
             response = auto.chat(self)
             return
+        elif self.model.startswith("openapi"):
+            print("SYSTEM")
+            print(self.system_message)
+            print("USER")
+            m = messages
+            if self.system_message != "":
+                m.insert(0, {"role": "system", "content":self.system_message})
+#                m.insert(0, {"role": "user", "content":"Context: ```"+self.system_message + "```"})
+            response = ""
+            print(m)
+            if ":" in self.model:
+                uri = self.model.split(":")[1:]
+                response = openapi.chat(m, ":".join(uri))
+            else:
+                response = openapi.chat(m)
+            if "content" in self.messages[-1]:
+                last_message = self.messages[-1]["content"]
+            if self.env["chat.reply"] == "true":
+                self.messages.append({"role": "assistant", "content": response})
+            print(response)
+            return
         elif self.model.startswith("kobaldcpp"):
             if self.system_message != "":
                 message = f"Context:\n```\n{self.system_message}\n```\n"
@@ -823,7 +845,8 @@ class Interpreter:
                     message += f"AI: {content}\n"
             response = ""
             if ":" in self.model:
-                response = kobaldcpp.chat(message, self.model.split(":")[1:])
+                uri = self.model.split(":")[1:]
+                response = kobaldcpp.chat(message, ":".join(uri))
             else:
                 response = kobaldcpp.chat(message)
             if "content" in self.messages[-1]:
