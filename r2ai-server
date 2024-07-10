@@ -1,0 +1,82 @@
+#!/bin/sh
+
+MODEL=""
+PORT=8080
+MODELDIR=~/.r2ai.models
+LLAMA=llamafile
+
+main() {
+	if [ -z "${MODEL}" ]; then
+		echo "Use -l and -m to select a model"
+		exit 1
+	fi
+	case ${LLAMA} in
+	llamafile)
+		llamafile --server --nobrowser -c 0 --port ${PORT} -m "${MODELDIR}/${MODEL}.gguf"
+		;;
+	llamacpp)
+		llama-server -c 0 --port ${PORT} -m "${MODELDIR}/${MODEL}.gguf"
+		;;
+	koboldcpp)
+		koboldcpp -c 0 --port ${PORT} -m "${MODELDIR}/${MODEL}.gguf"
+		;;
+	*)
+		echo "Invalid llama server selected."
+		;;
+	esac
+}
+
+help() {
+	cat <<EOF
+Usage: r2ai-server [-flags]
+ -m         list models
+ -m [name]  select given model
+ -l         list llama servers available
+ -h         show this help message
+ -p [port]  select port        
+EOF
+}
+
+models() {
+	cd "${MODELDIR}" || exit 1
+	ls | sed -e 's,.gguf$,,'
+	exit 0
+}
+
+llamas() {
+	echo llamafile
+	echo llamacpp
+	echo koboldcpp
+}
+
+while : ; do
+	case "$1" in
+	-l)
+		if [ -z "$2" ]; then
+			llamas
+			break
+		fi
+		LLAMA="$2"
+		shift
+		;;
+	-m)
+		if [ -z "$2" ]; then
+			models
+			break
+		fi
+		MODEL=$2
+		shift
+		;;
+	-p)
+		PORT=$2
+		shift
+		;;
+	-h)
+		help
+		;;
+	"")
+		main
+		;;
+	esac
+	shift
+done

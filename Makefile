@@ -65,6 +65,7 @@ vdb vectordb:
 		&& $(PYTHON) setup.py install
 
 install user-install:
+	ln -fs $(PWD)/r2ai-server $(R2PM_BINDIR)/r2ai-server
 	ln -fs $(PWD)/main.py $(R2_USER_PLUGINS)/r2ai.py
 	ln -fs $(PWD)/r2ai.sh $(R2PM_BINDIR)/r2ai
 	-mkdir -p /usr/local/share/man/man1/r2ai.1
