@@ -64,9 +64,11 @@ vdb vectordb:
 		&& $(PYTHON) setup.py build \
 		&& $(PYTHON) setup.py install
 
-install user-install:
+user-install:
 	ln -fs $(PWD)/r2ai-server $(R2PM_BINDIR)/r2ai-server
 	ln -fs $(PWD)/r2ai.sh $(R2PM_BINDIR)/r2ai
+
+install: user-install
 	-mkdir -p /usr/local/share/man/man1/r2ai.1
 	-cp doc/usage/r2ai.1 /usr/local/share/man/man1/r2ai.1
 
