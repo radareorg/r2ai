@@ -180,7 +180,6 @@ def runline(ai, usertext):
         except:
             traceback.print_exc()
     if usertext.startswith("?V") or usertext.startswith("-v"):
-        print(r2ai.VERSION)
         r2ai_version()
     elif usertext.startswith("?e"):
         print(usertext[2:].strip())

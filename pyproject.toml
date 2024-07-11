@@ -1,8 +1,8 @@
 [project]
 name = "r2ai"
 dynamic = ["readme"]
-version = "0.7.0"
-description = "Applying language models on radare2 for reverse engineering and fun purposes"
+version = "0.8.0"
+description = "Artificial intelligence tooling for radare2"
 
 license = {text = "MIT License"}
 authors = [
