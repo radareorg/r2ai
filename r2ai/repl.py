@@ -67,6 +67,7 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai -n [num]          select the nth language model
  r2ai -q                quit/exit/^C
  r2ai -L                show chat logs (See -Lj for json)
+ r2ai -L-[N]            delete the last (or N last messages from the chat history)
  r2ai -repl             enter the repl (only when running via r2pipe)
  r2ai -r [sysprompt]    define the role of the conversation
  r2ai -r2               enter the r2clippy assistant mode
@@ -315,6 +316,19 @@ def runline(ai, usertext):
             ai.system_message = usertext[2:].strip()
         else:
             print(ai.system_message)
+    elif usertext.startswith("-L-"):
+        try:
+            amount = int(usertext[3:])
+            if amount < 1:
+                amount = 1
+        except:
+            amount = 1
+        try:
+            for i in range(amount):
+                ai.messages.pop() # delete user message
+                ai.messages.pop() # delete assistant message
+        except:
+            pass
     elif usertext.startswith("-Lj"):
         print(ai.messages)
     elif usertext.startswith("-L"):
