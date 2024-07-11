@@ -166,14 +166,14 @@ def runline(ai, usertext):
         return
     if usertext == "q":
         return "q"
-    pipepos = usertext.find("|")
-    if pipepos != -1:
-        usertext = usertext[0:pipepos - 1]
-        print("TODO: | pipes are not yet implemented in r2ai", file=sys.stderr)
-    redipos = usertext.find(">")
-    if redipos != -1:
-        usertext = usertext[0:redipos - 1]
-        print("TODO: > redirections are not yet implemented in r2ai", file=sys.stderr)
+#    pipepos = usertext.find("|")
+#    if pipepos != -1:
+#        usertext = usertext[0:pipepos - 1]
+#        print("TODO: | pipes are not yet implemented in r2ai", file=sys.stderr)
+#    redipos = usertext.find(">")
+#    if redipos != -1:
+#        usertext = usertext[0:redipos - 1]
+#        print("TODO: > redirections are not yet implemented in r2ai", file=sys.stderr)
     if usertext.startswith("-H"):
         try:
             return r2ai_vars(ai, usertext[2:].strip())
