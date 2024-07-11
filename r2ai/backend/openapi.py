@@ -9,6 +9,8 @@ import requests
 def chat(messages, uri='http://localhost:5001'):
     """Send a message to a kobaldcpp server and return the autocompletion response
     """
+    if uri.endswith("/"):
+        uri = uri[0:len(uri)-1]
 #    url = f'{uri}/v1/completions'
     url = f'{uri}/v1/chat/completions'
     data = {

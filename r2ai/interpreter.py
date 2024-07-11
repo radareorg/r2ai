@@ -810,15 +810,10 @@ class Interpreter:
             response = auto.chat(self)
             return
         elif self.model.startswith("openapi"):
-            print("SYSTEM")
-            print(self.system_message)
-            print("USER")
             m = messages
             if self.system_message != "":
                 m.insert(0, {"role": "system", "content":self.system_message})
-#                m.insert(0, {"role": "user", "content":"Context: ```"+self.system_message + "```"})
             response = ""
-            print(m)
             if ":" in self.model:
                 uri = self.model.split(":")[1:]
                 response = openapi.chat(m, ":".join(uri))
