@@ -6,17 +6,19 @@ import sys
 import os
 
 def main():
-    if os.environ.get('R2AI'):
+    if os.environ.get('R2AI') is not None:
         print("Cant load r2ai r2 plugin from inside r2ai")
-        sys.exit(0)
+        return
     r2aihome = os.path.dirname(__file__)
     try:
         r2aihome = os.path.dirname(os.readlink(__file__))
     except (OSError, FileNotFoundError):
         pass
     sys.path.insert(0, r2aihome)
-    os.environ["R2AI"] = "1"
+#   os.environ["R2AI"] = "1"
     import r2ai.main
 
-if __name__ == "__main__":
+if os.environ.get('R2AI') is not None:
+    print("[r2ai] leaving early", file=sys.stderr)
+elif __name__ == "__main__":
     main()

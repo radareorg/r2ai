@@ -18,7 +18,7 @@ def chat(messages, uri='http://localhost:5001'):
       "messages": messages
     }
     r = requests.post(url=url, data=json.dumps(data), timeout=600)
-    print(r.text)
+# print(r.text)
     j = json.loads(r.text)
     if "choices" in j:
         choice = j["choices"][0]

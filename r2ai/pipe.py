@@ -1,9 +1,11 @@
+import os
 import traceback
+
 have_rlang = False
 r2lang = None
 
 class FakeLang:
-    def __init__(self, r2):
+    def __init__(self, r2 = None):
         self.r2 = r2
     def ai(self, x):
         try:
@@ -17,8 +19,11 @@ class FakeLang:
             traceback.print_exc()
             return None
     def cmd(self, x):
-        r = self.r2.cmd(x)
-        return r
+        if self.r2 is None:
+            return ""
+        if hasattr(self.r2, "_cmd"):
+            return self.r2.cmd(x)
+        return ""
 
 try:
     import r2lang
@@ -26,14 +31,25 @@ try:
 except:
     import r2pipe
     try:
-        r2lang = FakeLang(r2pipe.open())
-        r2lang.cmd("?V") # r2pipe throws only here
+        if r2pipe.in_r2():
+            r2lang = FakeLang(r2pipe.open())
+            r2lang.cmd("?V") # r2pipe throws only here
+        else:
+            raise Error("must spawn")
     except:
         try:
-            r2lang = FakeLang(r2pipe.open("/bin/ls"))
+            have_rlang = False
+            if os.environ.get('R2AI') is None:
+                ppid = os.getppid()
+                os.environ["R2AI"] = "1"
+                r2lang = FakeLang(r2pipe.open("/bin/ls"))
+            else:
+                r2lang = FakeLang(None)
         except:
             print("Cannot instantiate this FakeLang class with r2pipe")
+            r2lang = FakeLang(None)
             pass
 
 def r2singleton():
+    global r2lang
     return r2lang

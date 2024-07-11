@@ -12,7 +12,7 @@ def chat(message, uri='http://localhost:5001'):
     """
     url = f'{uri}/v1/completions'
 #    url = f'{uri}/v1/chat/completions'
-    odata = {
+    data = {
       "model": "gpt-3.5-turbo",
       "messages": [ { "role": "user", "content": message } ]
     }
