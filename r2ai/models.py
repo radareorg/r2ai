@@ -37,13 +37,19 @@ def Markdown(x):
 
 def mainmodels():
     return """
+Local:
 -m FaradayDotDev/llama-3-8b-Instruct-GGUF
 -m TheBloke/Mistral-7B-Instruct-v0.2-GGUF
--m TheBloke/Unholy-v2-13B-GGUF
--m TheBloke/dolphin-2_6-phi-2-GGUF
--m Undi95/Utopia-13B-GGUF
+-m bartowski/gemma-2-9b-it-GGUF
 -m dagbs/dolphin-2.8-mistral-7b-v02-GGUF
 -m meetkai/functionary-small-v2.2-GGUF
+Uncensored:
+-m Orenguteng/Llama-3-8B-Lexi-Uncensored-GGUF
+-m TheBloke/Unholy-v2-13B-GGUF
+-m Undi95/Utopia-13B-GGUF
+Remote:
+-m openapi:http://localhost:5001
+-m anthropic:claude-3-5-sonnet-20240620
 """
 
 def models():
@@ -51,6 +57,8 @@ def models():
 KobaldCpp:
 -m kobaldcpp
 -m kobaldcpp:http://localhost:5001
+OpenAPI:
+-m openapi:http://localhost:5001
 OpenAI:
 -m openai:gpt-3.5-turbo
 -m openai:gpt-4
@@ -96,10 +104,8 @@ Coding:
 -m bartowski/stable-code-instruct-3b-GGUF
 -m cognitivecomputations/dolphin-2.9-llama3-8b-gguf
 -m cosmo3769/starcoderbase-1b-GGUF
--m mlabonne/gemma-7b-it-GGUF
 -m microsoft/Phi-3-mini-4k-instruct-gguf
 Uncensored:
--m Orenguteng/Llama-3-8B-Lexi-Uncensored-GGUF
 -m TheBloke/Dawn-v2-70B-GGUF
 -m TheBloke/Guanaco-7B-Uncensored-GGUF
 -m TheBloke/Luna-AI-Llama2-Uncensored-GGUF
@@ -108,11 +114,15 @@ Uncensored:
 -m TheBloke/dolphin-2_6-phi-2-GGUF
 -m TheBloke/llama2_70b_chat_uncensored-GGUF
 -m TheBloke/openchat-3.5-0106-GGUF
--m Undi95/UtopiaXL-13B-GGUF
-Best:
--m dagbs/dolphin-2.8-mistral-7b-v02-GGUF
+Llama3:
 -m FaradayDotDev/llama-3-8b-Instruct-GGUF
+-m mradermacher/llama-3-tsuki-unsloth-8b-GGUF
+-m Orenguteng/Llama-3-8B-Lexi-Uncensored-GGUF
+Gemma:
+-m mlabonne/gemma-7b-it-GGUF
 -m bartowski/gemma-2-9b-it-GGUF
+Other:
+-m dagbs/dolphin-2.8-mistral-7b-v02-GGUF
 -m Undi95/Utopia-13B-GGUF
 -m TheBloke/Unholy-v2-13B-GGUF
 -m TheBloke/Mistral-7B-Instruct-v0.2-GGUF

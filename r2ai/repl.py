@@ -62,8 +62,8 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai -H ([var])        show path variables like it's done in r2 -H
  r2ai -i [file] ([q])   load the file contents and prompt it with the given optional query
  r2ai -m [file/repo]    select model from huggingface repository or local file
- r2ai -M                list supported and most common models from hf
- r2ai -MM               shorter list of models
+ r2ai -M                shorter list of models
+ r2ai -MM               list supported and most common models from hf
  r2ai -n [num]          select the nth language model
  r2ai -q                quit/exit/^C
  r2ai -L                show chat logs (See -Lj for json)
@@ -194,9 +194,9 @@ def runline(ai, usertext):
     elif usertext.startswith("clear") or usertext.startswith("-k"):
         print("\x1b[2J\x1b[0;0H\r")
     elif usertext.startswith("-MM"):
-        print(mainmodels().strip())
-    elif usertext.startswith("-M"):
         print(models().strip())
+    elif usertext.startswith("-M"):
+        print(mainmodels().strip())
     elif usertext.startswith("-m"):
         words = usertext.split(" ")
         if len(words) > 1:
