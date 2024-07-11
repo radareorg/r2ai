@@ -5,7 +5,7 @@ if [ -h "$0" ]; then
 else
 	F="$0"
 fi
-D=`dirname $0`
+D=`dirname $F`
 [ -n "$D" ] && cd "$D"
 if [ ! -d venv ]; then
 	$PYTHON -m venv venv
@@ -15,4 +15,4 @@ else
 	. venv/bin/activate
 fi
 # export PYTHONPATH=$PWD
-$PYTHON main.py $@
+$PYTHON $D/main.py $@
