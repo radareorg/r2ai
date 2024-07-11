@@ -1,5 +1,6 @@
 from .utils import slurp, dump
-from huggingface_hub import list_files_info, hf_hub_download, login
+from huggingface_hub import hf_hub_download, login
+from huggingface_hub import HfApi, list_repo_tree, get_paths_info
 from typing import Dict, List, Union
 import appdirs
 import builtins
@@ -372,8 +373,11 @@ def list_gguf_files(repo_id: str) -> List[Dict[str, Union[str, float]]]:
     """
 
     try:
-      files_info = list_files_info(repo_id=repo_id)
+      api = HfApi()
+      tree = list(api.list_repo_tree(repo_id))
+      files_info = [file for file in tree if file.path.endswith('.gguf')]
     except Exception as e:
+      traceback.print_exc()
       return []
     gguf_files = [file for file in files_info if "gguf" in file.rfilename]
     if len(gguf_files) == 0:
