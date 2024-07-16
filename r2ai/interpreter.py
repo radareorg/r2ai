@@ -504,10 +504,9 @@ def template_gpt4all(self,messages):
 def template_llama3(self,messages):
     formatted_messages = f"<|begin_of_text|>"
     if self.system_message != "":
-        formatted_messages += f"<|start_header_id|>{self.system_message}<|end_header_id|>"
-    self.terminator = "<|end_header_id|>"
+        formatted_messages += f"<|start_header_id|>system<{self.system_message}<|end_header_id|>"
+        formatted_messages += f"<{self.system_message}<|eot_id|>"
     self.terminator = "<|eot_id|>"
-    self.terminator = "assistant"
     for index, item in enumerate(messages):
         if "role" in item:
             role = item['role']
@@ -517,12 +516,16 @@ def template_llama3(self,messages):
             continue
         content = item['content']
         if role == 'user':
+            formatted_messages += f"<|start_header_id|>user<|end_header_id|>"
             formatted_messages += f"{content}<|eot_id|>"
         elif role == 'hint':
+            formatted_messages += f"<|start_header_id|>user<|end_header_id|>"
             formatted_messages += f"Hint: {content}<|eot_id|> "
         elif role == 'function':
-            formatted_messages += f"Output: {content}<|eot_id|> "
+            formatted_messages += f"<|start_header_id|>user<|end_header_id|>"
+            formatted_messages += f"Function: {content}<|eot_id|> "
         elif role == 'assistant' and self.env["chat.reply"] == "true":
+            formatted_messages += f"<|start_header_id|>assistant<|end_header_id|>"
             formatted_messages += f"{content}<|eot_id|>"
     formatted_messages += f"<|start_header_id|>assistant<|end_header_id|>"
     return formatted_messages
