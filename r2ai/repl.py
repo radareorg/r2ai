@@ -156,6 +156,15 @@ class R2AI:
     def cmd(x):
         return runline2(self.ai, cmd)
 
+def slurptil(endword):
+    text = ""
+    while True:
+      line = sys.stdin.readline()
+      if line.strip() == endword:
+          break
+      text += line
+    return text
+
 def runline(ai, usertext):
     global print
     global autoai
@@ -181,6 +190,9 @@ def runline(ai, usertext):
             traceback.print_exc()
     if usertext.startswith("?V") or usertext.startswith("-v"):
         r2ai_version()
+    elif usertext.startswith("<<"):
+        newline = slurptil(usertext[2:])
+        return runline(ai, newline)
     elif usertext.startswith("?e"):
         print(usertext[2:].strip())
     elif usertext.startswith("?t"):
