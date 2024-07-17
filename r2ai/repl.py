@@ -218,6 +218,10 @@ def runline(ai, usertext):
             print(ai.model)
     elif usertext == "reset" or usertext.startswith("-R"):
         ai.reset()
+    elif usertext.startswith("-j"):
+        q = usertext[2:].strip()
+        query = f"Please respond using ONLY in JSON with the following fields if relevant: topic, array of key words, location, url, name, description, target, amounts and other details if necessary without providing any response. Question: \"{q}\""
+        ai.chat(query)
     elif usertext.startswith("-t"):
         if usertext == "-t":
             print(ai.env["llm.temperature"])
