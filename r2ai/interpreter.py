@@ -98,6 +98,14 @@ def r2eval(m):
         return re.sub(r'\$\((.*?)\)', evaluate_expression, m)
     return m
 
+from utils import syscmdstr
+
+def ddg(m):
+    print("[R2AI] Crawling the web with ddg and curl+sed")
+    m = m.replace("'", "")
+    res = syscmdstr(f"cd examples; ./scrap-ddgweb.sh '{m}'")
+    return f"Considering:\n```{res}\n```\n"
+
 # move all this logic into r2ai/templates.py or r2ai/chat.py (chat_templates.py?)
 def messages_to_prompt(self, messages):
     for message in messages:
@@ -158,23 +166,25 @@ def messages_to_prompt(self, messages):
     return formatted_messages
 
 def template_gemma(self,messages):
-    self.terminator = ["<end_of_turn>"] #, "SneakyThrows", "\n"]
-    formatted_messages = ""
+    self.terminator = "<end_of_turn>"
+    msg = ""
     try:
-        system_prompt = self.system_message
-        if system_prompt != "":
-            formatted_messages += f"<start_of_turn>model\n{system_prompt}<end_of_turn>"
+        if self.system_message != "":
+            msg += f"<start_of_turn>system\n{self.system_message}<end_of_turn>"
         for index, item in enumerate(messages):
             role = item['role']
-            if role == "assistant":
-                role = "user"
             content = item['content'].strip()
-            formatted_messages += f"<start_of_turn>{role}\n{content}<end_of_turn>\n"
-        formatted_messages += f"<start_of_turn>model\n"
-        #print("```\n" + formatted_messages + "\n```")
+            if not role:
+                role = "user"
+            elif role == "hint":
+                role = "user"
+                content = f"Use this information to respond the question:{content}"
+            if content != "":
+                msg += f"<start_of_turn>{role}\n{content}<end_of_turn>\n"
+        msg += f"<start_of_turn>model\n"
     except:
         traceback.print_exc()
-    return formatted_messages
+    return msg
 
 def template_q4im(self,messages):
     self.terminator = "<|im_end|>"
@@ -592,6 +602,7 @@ class Interpreter:
         self.env["data.path"] = f"{R2AI_HOMEDIR}/doc/data"
         self.env["data.local"] = "false"
         self.env["data.wikit"] = "false"
+        self.env["data.ddg"] = "false"
         self.env["data.mastodon"] = "false"
         self.env["data.vectordb"] = "false"
         self.env["data.hist"] = "false"
@@ -715,6 +726,12 @@ class Interpreter:
                 keywords = self.keywords_ai(message)
             if self.env["data.local"] == "true":
                 datadir = self.env["data.path"]
+            if self.env["data.ddg"] == "true":
+                results = ddg(message)
+                if use_vectordb:
+                    index.memorize(message, results)
+                else:
+                    self.messages.append({"role": "hint", "content": results})
             matches = index.match(message, keywords, datadir, use_hist, use_mastodon, use_debug, use_wikit, use_vectordb)
             if matches == None:
                 matches = []
