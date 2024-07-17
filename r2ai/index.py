@@ -468,10 +468,7 @@ def match(text, keywords, datadir, use_hist, use_mastodon, use_debug, use_wikit,
     if use_vectordb:
         if use_wikit:
             find_wikit(text, keywords)
-        print("LETS SEE");
-        a = vectordb_search(text, keywords, files, use_mastodon, use_debug)
-        print(a)
-        return a
+        return vectordb_search(text, keywords, files, use_mastodon, use_debug)
     raredb = compute_rarity(files, use_mastodon, use_debug)
     if use_wikit:
         print("[R2AI] Warning: data.wikit only works with vectordb")
