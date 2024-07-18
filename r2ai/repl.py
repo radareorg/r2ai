@@ -448,7 +448,7 @@ def runline(ai, usertext):
 def r2ai_repl(ai):
     from r2ai import bubble
     tab_evals(ai.env.keys())
-    oldoff = r2_cmd("s").strip()
+    oldoff = r2_cmd("?vx $$").strip()
     if oldoff == "0x0" or oldoff == "":
         oldoff = "0x00000000"
     olivemode = ai.env["chat.live"]
@@ -458,9 +458,9 @@ def r2ai_repl(ai):
         if os.name != "nt":
             prompt = f"\001\x1b[33m\002{prompt}" # \001\x1b[0m\002"
         if r2 is not None:
-            off = r2_cmd("s").strip()
+            off = r2_cmd("?vx $$").strip()
             if off == "":
-                off = r2_cmd("s").strip()
+                off = r2_cmd("?vx $$").strip()
             if len(off) > 5 and len(off) < 20:
                 oldoff = off
         if ai.active_block is not None:
