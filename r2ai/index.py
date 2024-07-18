@@ -302,7 +302,7 @@ def vectordb_search(text, keywords, source_files, use_mastodon, use_debug):
             continue
         lines = smart_slurp(file).splitlines()
         for line in lines:
-            vdb_add(f"{line} file={file}, url={url}")
+            vdb_add(f"{line} file={file}")
             saved = saved + 1
     if use_mastodon:
         lines = mastodon_lines(text, None, True)
