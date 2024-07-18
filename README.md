@@ -33,9 +33,12 @@ Run a language model in local, without internet, to entertain you or help answer
 
 ## Installation
 
-To use `r2ai`, you need to setup a venv and install all the python dependencies inside. Just running `make` or `r2pm -ci r2ai` should be enough.
+Running `make` will setup a python virtual environment in the current directory installing all the necessary dependencies and will get into a shell to run r2ai.
 
-You can optionally install vectordb to index local data by typing: `make vdb`. If the process fails  `rm -rf vdb` and try again
+The installation is now splitted into two different targets:
+
+* `make install` will place a symlink in `$BINDIR/r2ai`
+* `make install-plugin` will install the native r2 plugin into your home
 
 ## Running
 

@@ -43,10 +43,9 @@ deps: venv
 	#test -n "${VIRTUAL_ENV}" || (echo "Run: . venv/bin/activate" ; exit 1)
 	. venv/bin/activate && export CMAKE_ARGS="-DLLAMA_METAL=on -DLLAMA_METAL_EMBED_LIBRARY=ON" && \
 		pip install --force-reinstall -U -r requirements.txt --no-cache-dir
-	$(MAKE) vectordb
 
 clean:
-	rm -rf venv vectordb vdb
+	rm -rf venv
 
 mrproper:
 	$(MAKE) clean
@@ -54,15 +53,6 @@ mrproper:
 deps-global:
 	export CMAKE_ARGS="-DLLAMA_METAL=on -DLLAMA_METAL_EMBED_LIBRARY=ON" && \
 		$(PIP) install --force-reinstall -U -r requirements.txt --break-system-packages --no-cache-dir
-
-vdb vectordb:
-	git clone https://github.com/kagisearch/vectordb vdb
-	cat vdb/setup.py | grep -v tensorflow_text > .x && mv .x vdb/setup.py
-	. venv/bin/activate \
-		&& cd vdb \
-		&& $(PIP) install setuptools tensorflow_hub \
-		&& $(PYTHON) setup.py build \
-		&& $(PYTHON) setup.py install
 
 user-install:
 	ln -fs $(PWD)/r2ai-server $(R2PM_BINDIR)/r2ai-server
