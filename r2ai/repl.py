@@ -61,6 +61,7 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai -h                show this help (same as ?)
  r2ai -H ([var])        show path variables like it's done in r2 -H
  r2ai -i [file] ([q])   load the file contents and prompt it with the given optional query
+ r2ai -j [query]        convert the user prompt into a meaningful json
  r2ai -m [file/repo]    select model from huggingface repository or local file
  r2ai -M                shorter list of models
  r2ai -MM               list supported and most common models from hf
@@ -156,7 +157,7 @@ class R2AI:
     def cmd(x):
         return runline2(self.ai, cmd)
 
-def slurptil(endword):
+def slurp_until(endword):
     text = ""
     while True:
       line = sys.stdin.readline()
@@ -191,7 +192,7 @@ def runline(ai, usertext):
     if usertext.startswith("?V") or usertext.startswith("-v"):
         r2ai_version()
     elif usertext.startswith("<<"):
-        newline = slurptil(usertext[2:])
+        newline = slurp_until(usertext[2:])
         return runline(ai, newline)
     elif usertext.startswith("?e"):
         print(usertext[2:].strip())
