@@ -1,9 +1,9 @@
 R2_USER_PLUGINS=$(shell r2 -H R2_USER_PLUGINS)
 PWD=$(shell pwd)
 R2PM_BINDIR=$(shell r2pm -H R2PM_BINDIR)
-# Note that a bunch of packages are not available for 3.12 yet
-ifeq ($(shell which python3.11 > /dev/null && echo ok),ok)
-PYTHON?=python3.11
+PV=3.12
+ifeq ($(shell which python${PV} > /dev/null && echo ok),ok)
+PYTHON?=python${PV}
 else
 PYTHON?=python3
 endif

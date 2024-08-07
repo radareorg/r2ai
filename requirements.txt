@@ -2,7 +2,7 @@ rich
 pyreadline3
 r2pipe
 inquirer
-llama-cpp-python
+llama-cpp-python==0.2.85
 huggingface_hub==0.22.2
 appdirs
 unidecode
