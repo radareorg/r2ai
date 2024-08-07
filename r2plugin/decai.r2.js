@@ -1,5 +1,7 @@
 (function () {
     const command = "decai";
+    let decaiHost = "http://localhost:8080";
+    let decaiCommands = "pdc";
     let decprompt = "optimize this pseudodisasm into high level quality decompiled code,";
     decprompt += "replace goto with proper control flow statements,";
     decprompt += "use better names for variables,";
@@ -11,8 +13,22 @@
     decprompt += "remove unnecessary assignments inlining them into the function argument calls, add a comment on top explaining whats the function for in one sentence";
     // simplest the better
     // decprompt = "do not explain, just improve and merge the following decompiled functions, remove gotos and use better names for variables. optimize for readability, assume calling conventions to fill function arguments";
-    decprompt = "do not explain, just improve and merge the following decompiled functions, remove gotos and use better names for variables, focus on readability";
+    decprompt = "show only the code without explanations, just improve and merge the following decompiled functions, remove gotos and use better names for variables, focus on readability";
 
+    function decaiEval(arg) {
+        const [k, v] = arg.split("=");
+	switch (k) {
+	case "decai.cmds":
+	    decaiCommands = v;
+	    break;
+	case "decai.prompt":
+	    decprompt = v;
+	    break;
+	case "decai.host":
+	    decaiHost = v;
+	    break;
+	}
+    }
     function usage() {
         console.error("Usage: " + command + " (-h) [prompt]");
         console.error(" " + command + " -d  - decompile");
@@ -26,7 +42,7 @@
         console.error(" " + command + " -V  - find vulnerabilities");
     }
     function r2ai(s) {
-        const host = "http://localhost:8080/cmd";
+        const host = decaiHost + "/cmd"; // "http://localhost:8080/cmd";
         const ss = s.replace(/ /g, "%20").replace(/'/g, "\\'");
         r2.cmd0 ('\'!curl -s "' + host + '/' + ss + '" > .pdc.txt || echo cannot curl. Is "r2ai -w" running?');
         return r2.cmd ('cat .pdc.txt');
@@ -79,9 +95,14 @@
                 r2aidec("-d find vulnerabilities, dont show the code, only show the response");
                 break;
             case "e": // "-e"
-                console.log("e decai.host=http://localhost:8080");
-                console.log("e decai.prompt=" + decprompt);
-		// eval
+                args = args.slice(2).trim();
+		if (args) {
+                    decaiEval(args);
+		} else {
+                    console.log("e decai.host=" + decaiHost);
+                    console.log("e decai.prompt=" + decprompt);
+                    console.log("e decai.cmds=" + decaiCommands);
+		}
                 break;
             case "x": // "-x"
                 r2.cmd ("pdsf > /tmp/.pdc.txt");
@@ -109,7 +130,16 @@
             case "d": // "-d"
                 try {
                     args = args.slice(2).trim();
-                    r2.cmd ("pdc > /tmp/.pdc.txt");
+                    r2.call ("rm /tmp/.pdc.txt");
+                    r2.call ("rm .pdc.txt");
+                    r2.cmd ("echo > /tmp/.pdc.txt");
+		    for (const c of decaiCommands.split(",")) {
+                        console.error("Running " + c);
+                        r2.cmd ("echo Output from " + c + ": >> /tmp/.pdc.txt");
+                        r2.cmd ("echo BEGIN >> /tmp/.pdc.txt");
+                        r2.cmd (c + " >> /tmp/.pdc.txt");
+                        r2.cmd ("echo END >> /tmp/.pdc.txt");
+		    }
                     r2ai("-R");
                     out = r2ai("-i /tmp/.pdc.txt " + (decprompt + " " + args).trim());
                 } catch (e) {
