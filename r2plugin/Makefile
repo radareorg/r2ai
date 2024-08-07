@@ -1,4 +1,4 @@
-PD=$(shell -H R2_USER_PLUGINS)
+PD=$(shell r2 -H R2_USER_PLUGINS)
 
 all:
 	@echo 'You can now use 'decai' command'
