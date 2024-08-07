@@ -39,9 +39,9 @@ def mainmodels():
     return """
 Local:
 -m FaradayDotDev/llama-3-8b-Instruct-GGUF
--m TheBloke/Mistral-7B-Instruct-v0.2-GGUF
+-m second-state/Mistral-Nemo-Instruct-2407-GGUF
 -m bartowski/gemma-2-9b-it-GGUF
--m dagbs/dolphin-2.8-mistral-7b-v02-GGUF
+-m cognitivecomputations/dolphin-2.9.3-mistral-nemo-12b-gguf
 -m meetkai/functionary-small-v2.2-GGUF
 Uncensored:
 -m Orenguteng/Llama-3-8B-Lexi-Uncensored-GGUF

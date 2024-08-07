@@ -12,3 +12,5 @@ pydantic
 torch
 tokentrim
 chromadb
+openai
+anthropic
