@@ -2,6 +2,7 @@
     const command = "decai";
     let decaiHost = "http://localhost:8080";
     let decaiCommands = "pdc";
+    let decaiLanguage = "C";
     let decprompt = "optimize this pseudodisasm into high level quality decompiled code,";
     decprompt += "replace goto with proper control flow statements,";
     decprompt += "use better names for variables,";
@@ -18,6 +19,9 @@
     function decaiEval(arg) {
         const [k, v] = arg.split("=");
 	switch (k) {
+	case "decai.lang":
+	    decaiLanguage = v;
+	    break;
 	case "decai.cmds":
 	    decaiCommands = v;
 	    break;
@@ -102,6 +106,7 @@
                     console.log("e decai.host=" + decaiHost);
                     console.log("e decai.prompt=" + decprompt);
                     console.log("e decai.cmds=" + decaiCommands);
+                    console.log("e decai.lang=" + decaiLanguage);
 		}
                 break;
             case "x": // "-x"
@@ -121,7 +126,7 @@
                     r2.cmd("pdd >> /tmp/.pdc.txt");
                     r2.cmd("'!echo '</code>' >> /tmp/.pdc.txt");
                     r2ai("-R");
-                    const p = decprompt + ". replace variables with the actual strings";
+                    const p = decprompt + ". replace variables with the actual strings. Output in "+ decaiLanguage;
                     out = r2ai("-i /tmp/.pdc.txt " + (p + " " + args).trim());
                 } catch (e) {
                     console.error(e);
@@ -141,7 +146,8 @@
                         r2.cmd ("echo END >> /tmp/.pdc.txt");
 		    }
                     r2ai("-R");
-                    out = r2ai("-i /tmp/.pdc.txt " + (decprompt + " " + args).trim());
+                    var query = (decprompt + " " + args).trim()) + ". Output in " + decaiLanguage;
+                    out = r2ai("-i /tmp/.pdc.txt " + query);
                 } catch (e) {
                     console.error(e);
                 }
