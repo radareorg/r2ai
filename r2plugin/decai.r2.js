@@ -2,6 +2,8 @@
     const decaiHelp = `
 You need r2ai webserver to be running, to do this run 'r2ai -w' in a separate terminal.
 
+  $ r2pm -ci r2ai
+
 The best model for decompiling is ClaudeAI from Anthropic:
 
   $ r2pm -r r2ai
@@ -12,8 +14,15 @@ The best model for decompiling is ClaudeAI from Anthropic:
 
 If you want to run r2ai in local you should use llama3, gemma or mistral
 
-You can also make r2ai -w talk to an 'r2ai-server'
+  [r2ai:0x0000000]> -m TheBloke/Mistral-7B-Instruct-v0.2-GGUF
+  [r2ai:0x0000000]> -w
 
+You can also make r2ai -w talk to an 'r2ai-server' using this line:
+
+  [r2ai:0x0000000]> -m openapi:http://localhost:8080
+  [r2ai:0x0000000]> -e http.port=8082
+
+  [0x0000000]> decai -e host=http://localhost:8082
 `;
     const command = "decai";
     let decaiHost = "http://localhost:8080";
