@@ -1,8 +1,25 @@
 (function () {
+    const decaiHelp = `
+You need r2ai webserver to be running, to do this run 'r2ai -w' in a separate terminal.
+
+The best model for decompiling is ClaudeAI from Anthropic:
+
+  $ r2pm -r r2ai
+  $ echo $CLAUDEAPIKEY > ~/.r2ai.anthropic
+  [r2ai:0x0000000]> -m anthropic:claude-3-5-sonnet-20240620
+  [r2ai:0x0000000]> -w
+  Webserver listening at port 8080
+
+If you want to run r2ai in local you should use llama3, gemma or mistral
+
+You can also make r2ai -w talk to an 'r2ai-server'
+
+`;
     const command = "decai";
     let decaiHost = "http://localhost:8080";
     let decaiCommands = "pdc";
     let decaiLanguage = "C";
+    let decaiDebug = "false";
     let decprompt = "optimize this pseudodisasm into high level quality decompiled code,";
     decprompt += "replace goto with proper control flow statements,";
     decprompt += "use better names for variables,";
@@ -19,6 +36,9 @@
     function decaiEval(arg) {
         const [k, v] = arg.split("=");
 	switch (k) {
+	case "decai.debug":
+	    decaiDebug = v === "true" || v === "1";;
+	    break;
 	case "decai.lang":
 	    decaiLanguage = v;
 	    break;
@@ -39,6 +59,8 @@
         console.error(" " + command + " -e  - eval vars");
         console.error(" " + command + " -r  - role");
         console.error(" " + command + " -m  - model");
+        console.error(" " + command + " -h  - show help");
+        console.error(" " + command + " -H  - help setting up r2ai");
         console.error(" " + command + " -M  - list most relevant models");
         console.error(" " + command + " -x  - eXplain");
         console.error(" " + command + " -n  - suggest better function name");
@@ -48,7 +70,11 @@
     function r2ai(s) {
         const host = decaiHost + "/cmd"; // "http://localhost:8080/cmd";
         const ss = s.replace(/ /g, "%20").replace(/'/g, "\\'");
-        r2.cmd0 ('\'!curl -s "' + host + '/' + ss + '" > .pdc.txt || echo cannot curl. Is "r2ai -w" running?');
+        const cmd = '\'!curl -s "' + host + '/' + ss + '" > .pdc.txt || echo Cannot curl, use r2ai-server or r2ai -w #';
+	if (decayDebug) {
+            console.error(cmd);
+	}
+        r2.cmd0 (cmd);
         return r2.cmd ('cat .pdc.txt');
     }
     function r2aidec(args) {
@@ -57,6 +83,9 @@
         } else if (args[0] === "-") {
             var out = "";
             switch (args[1]) {
+            case "H": // "-H"
+                console.log(decaiHelp);
+                break;
             case "n": // "-n"
             case "f": // "-f"
                 r2.cmd ("pdc > /tmp/.pdc.txt");
@@ -107,6 +136,7 @@
                     console.log("e decai.prompt=" + decprompt);
                     console.log("e decai.cmds=" + decaiCommands);
                     console.log("e decai.lang=" + decaiLanguage);
+                    console.log("e decai.debug=" + decaiDebug);
 		}
                 break;
             case "x": // "-x"
@@ -139,7 +169,7 @@
                     r2.call ("rm .pdc.txt");
                     r2.cmd ("echo > /tmp/.pdc.txt");
 		    for (const c of decaiCommands.split(",")) {
-                        console.error("Running " + c);
+                        // console.error("Running " + c);
                         r2.cmd ("echo Output from " + c + ": >> /tmp/.pdc.txt");
                         r2.cmd ("echo BEGIN >> /tmp/.pdc.txt");
                         r2.cmd (c + " >> /tmp/.pdc.txt");
