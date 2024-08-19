@@ -36,19 +36,19 @@ You can also make r2ai -w talk to an 'r2ai-server'
     function decaiEval(arg) {
         const [k, v] = arg.split("=");
 	switch (k) {
-	case "decai.debug":
+	case "debug":
 	    decaiDebug = v === "true" || v === "1";;
 	    break;
-	case "decai.lang":
+	case "lang":
 	    decaiLanguage = v;
 	    break;
-	case "decai.cmds":
+	case "cmds":
 	    decaiCommands = v;
 	    break;
-	case "decai.prompt":
+	case "prompt":
 	    decprompt = v;
 	    break;
-	case "decai.host":
+	case "host":
 	    decaiHost = v;
 	    break;
 	}
@@ -71,7 +71,7 @@ You can also make r2ai -w talk to an 'r2ai-server'
         const host = decaiHost + "/cmd"; // "http://localhost:8080/cmd";
         const ss = s.replace(/ /g, "%20").replace(/'/g, "\\'");
         const cmd = '\'!curl -s "' + host + '/' + ss + '" > .pdc.txt || echo Cannot curl, use r2ai-server or r2ai -w #';
-	if (decayDebug) {
+	if (decaiDebug) {
             console.error(cmd);
 	}
         r2.cmd0 (cmd);
@@ -132,11 +132,11 @@ You can also make r2ai -w talk to an 'r2ai-server'
 		if (args) {
                     decaiEval(args);
 		} else {
-                    console.log("e decai.host=" + decaiHost);
-                    console.log("e decai.prompt=" + decprompt);
-                    console.log("e decai.cmds=" + decaiCommands);
-                    console.log("e decai.lang=" + decaiLanguage);
-                    console.log("e decai.debug=" + decaiDebug);
+                    console.log("decai -e host=" + decaiHost);
+                    console.log("decai -e prompt=" + decprompt);
+                    console.log("decai -e cmds=" + decaiCommands);
+                    console.log("decai -e lang=" + decaiLanguage);
+                    console.log("decai -e debug=" + decaiDebug);
 		}
                 break;
             case "x": // "-x"

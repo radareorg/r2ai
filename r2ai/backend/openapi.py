@@ -17,6 +17,7 @@ def chat(messages, uri='http://localhost:5001'):
       "model": "gpt-3.5-turbo",
       "messages": messages
     }
+    print(json.dumps(data))
     r = requests.post(url=url, data=json.dumps(data), timeout=600)
 # print(r.text)
     j = json.loads(r.text)
