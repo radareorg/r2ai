@@ -19,7 +19,7 @@ You can also make r2ai -w talk to an 'r2ai-server'
     let decaiHost = "http://localhost:8080";
     let decaiCommands = "pdc";
     let decaiLanguage = "C";
-    let decaiDebug = "false";
+    let decaiDebug = false;
     let decprompt = "optimize this pseudodisasm into high level quality decompiled code,";
     decprompt += "replace goto with proper control flow statements,";
     decprompt += "use better names for variables,";
@@ -31,13 +31,13 @@ You can also make r2ai -w talk to an 'r2ai-server'
     decprompt += "remove unnecessary assignments inlining them into the function argument calls, add a comment on top explaining whats the function for in one sentence";
     // simplest the better
     // decprompt = "do not explain, just improve and merge the following decompiled functions, remove gotos and use better names for variables. optimize for readability, assume calling conventions to fill function arguments";
-    decprompt = "show only the code without explanations, just improve and merge the following decompiled functions, remove gotos and use better names for variables, focus on readability";
+    decprompt = "do not explain. show only the optimized code, improve and merge the following decompiled functions, remove gotos and use better names for variables, focus on readability";
 
     function decaiEval(arg) {
         const [k, v] = arg.split("=");
 	switch (k) {
 	case "debug":
-	    decaiDebug = v === "true" || v === "1";;
+	    decaiDebug = (v === "true" || v === "1");
 	    break;
 	case "lang":
 	    decaiLanguage = v;
