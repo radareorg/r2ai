@@ -146,7 +146,7 @@
                         r2.cmd ("echo END >> /tmp/.pdc.txt");
 		    }
                     r2ai("-R");
-                    var query = (decprompt + " " + args).trim()) + ". Output in " + decaiLanguage;
+                    var query = (decprompt + " " + args).trim() + ". Output in " + decaiLanguage;
                     out = r2ai("-i /tmp/.pdc.txt " + query);
                 } catch (e) {
                     console.error(e);
