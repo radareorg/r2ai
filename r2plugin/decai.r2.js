@@ -31,20 +31,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
     let decaiCommands = "pdc";
     let decaiLanguage = "C";
     let decaiDebug = false;
-    let decprompt = "optimize this pseudodisasm into high level quality decompiled code,";
-    decprompt += "replace goto with proper control flow statements,";
-    decprompt += "use better names for variables,";
-    decprompt += "show only the code snippet,";
-    decprompt += "do not introduce or explain the code,";
-    decprompt += "combine the compare line with the conditional line below,";
-    decprompt += "use better names for variables. combine the compare line with the conditional line below,";
-    decprompt += "keep comments from source";
-    decprompt += "remove unnecessary assignments inlining them into the function argument calls, add a comment on top explaining whats the function for in one sentence";
-    // simplest the better
-    // decprompt = "do not explain, just improve and merge the following decompiled functions, remove gotos and use better names for variables. optimize for readability, assume calling conventions to fill function arguments";
-    ///// using commands and dots makes some models perform very large outputs or fall in infinite loops
-//    decprompt = "do not introduce, comment or explain. reply only with the optimized code, improve and merge the following decompiled functions, remove gotos and use better names for variables, focus on readability";
-    decprompt = "You are an assistant that outputs only simplified code with no explanations, replaces gotos with high level control flow statements like for/if/while rename variables and merges all given functions";
+    let decprompt = "You are an assistant that outputs only simplified code with no explanations, replaces gotos with high level control flow statements like for/if/while rename variables and merges all given functions";
 
     function decaiEval(arg) {
         const [k, v] = arg.split("=");
@@ -112,35 +99,47 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         console.error(" " + command + " -v  - show local variables");
         console.error(" " + command + " -V  - find vulnerabilities");
     }
-    function r2ai(s) {
-        if (decaiApi === "r2") {
-            const host = decaiHost + ":" + decaiPort + "/cmd"; // "http://localhost:8080/cmd";
-            const ss = s.replace(/ /g, "%20").replace(/'/g, "\\'");
-            const cmd = '\'!curl -s "' + host + '/' + ss + '" > .pdc.txt || echo Cannot curl, use r2ai-server or r2ai -w #';
-            if (decaiDebug) {
-                console.error(cmd);
-            }
-            r2.cmd0(cmd);
-            return r2.cmd('cat .pdc.txt');
-        }
-        if (!s.startsWith ("-i")) {
-            return;
-        }
-        const msg = r2.cmd("cat /tmp/.pdc.txt");
-/*
-        const payload2 = JSON.stringify({
-        // "model": decaiModel,
-            "messages": [
-                {"role": "system", "content": decprompt }, // "You are a helpful assistant."},
-                {"role": "user", "content": msg } //  "Can you explain how to use the OpenAI API with curl?"}
-            ],
-        });
-        const curlcmd2 = `'!curl -s -o .decai.txt ${decaiHost}:${decaiPort}/v1/chat/completions
+    function r2aiAnthropic(s) {
+       const claudeKeyPath = r2.cmd("'ls ~/.r2ai.anthropic-key").trim()
+       const claudeKey = r2.cmd(`'cat ${claudeKeyPath}`).trim();
+       const claudeModel = "claude-3-5-sonnet-20240620";
+       if (claudeKey === '') {
+           return "Cannot read ~/.r2ai.anthropic-key";
+       }
+       const msg = r2.cmd("cat /tmp/.pdc.txt");
+       const payload = JSON.stringify({
+           model: claudeModel,
+           max_tokens: 5128,
+           messages: [
+               {
+                   "role": "user",
+                   "content": decprompt + ", Output in " + decaiLanguage + "\n" + msg
+               }
+	   ]
+       });
+       const curlcmd = `'!curl -s -o .decai.txt https://api.anthropic.com/v1/messages
           -H "Content-Type: application/json"
-          -d '${payload2}' #`.replace(/\n/g, "");
-          // -H "Authorization: Bearer YOUR_API_KEY"
-        // return JSON.parse(res).choices[0].message.content;
-*/
+          -H "anthropic-version: 2023-06-01"
+          -H "x-api-key: ${claudeKey}"
+          -d '${payload}' #`.replace(/\n/g, "");
+        if (decaiDebug) {
+            console.log(curlcmd);
+	}
+        r2.cmd0(curlcmd);
+        const res = r2.cmd("cat .decai.txt");
+        try {
+            return JSON.parse(res).content[0].text;
+        } catch(e) {
+            console.error(e);
+            console.log(res);
+        }
+        return "error invalid response";
+    }
+    function r2aiOpenAI(s) {
+        return "Not yet implemented";
+    }
+    function r2aiOpenAPI(s) {
+        const msg = r2.cmd("cat /tmp/.pdc.txt");
         const payload = JSON.stringify({ "prompt": decprompt + ", Output in " + decaiLanguage + "\n" + msg });
         const curlcmd = `'!curl -s -o .decai.txt ${decaiHost}:${decaiPort}/completion
           -H "Content-Type: application/json"
@@ -157,6 +156,31 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
             console.log(res);
         }
         return "error invalid response";
+    }
+    function r2ai(s) {
+        if (decaiApi === "r2" || decaiApi === "r2ai") {
+            const host = decaiHost + ":" + decaiPort + "/cmd"; // "http://localhost:8080/cmd";
+            const ss = s.replace(/ /g, "%20").replace(/'/g, "\\'");
+            const cmd = '\'!curl -s "' + host + '/' + ss + '" > .pdc.txt || echo Cannot curl, use r2ai-server or r2ai -w #';
+            if (decaiDebug) {
+                console.error(cmd);
+            }
+            r2.cmd0(cmd);
+            return r2.cmd('cat .pdc.txt');
+        }
+        if (!s.startsWith ("-i")) {
+            return "";
+        }
+        if (decaiApi === "anthropic" || decaiApi === "claude") {
+            return r2aiAnthropic(s);
+        }
+        if (decaiApi === "openapi") {
+            return r2aiOpenAPI(s);
+        }
+        if (decaiApi === "openai") {
+            return r2aiOpenAI(s);
+        }
+        return "Unknown value for 'decai -e api'. Use r2ai, claude, openapi or openai";
     }
     function r2aidec(args) {
         if (args === "") {
