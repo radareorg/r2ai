@@ -136,7 +136,41 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         return "error invalid response";
     }
     function r2aiOpenAI(s) {
-        return "Not yet implemented";
+       const openaiKeyPath = r2.cmd("'ls ~/.r2ai.openai-key").trim()
+       const openaiKey = r2.cmd(`'cat ${openaiKeyPath}`).trim();
+       // const openaiModel = "gpt-3.5-turbo";
+       const openaiModel = "gpt-4";
+       if (openaiKey === '') {
+           return "Cannot read ~/.r2ai.openai-key";
+       }
+       const msg = r2.cmd("cat /tmp/.pdc.txt");
+       const payload = JSON.stringify({
+           model: openaiModel,
+           max_tokens: 5128,
+           messages: [
+               {"role": "system", "content": decprompt },
+               {
+                   "role": "user",
+                   "content": decprompt + ", Output in " + decaiLanguage + "\n" + msg
+               }
+	   ]
+       });
+       const curlcmd = `'!curl -s -o .decai.txt https://api.openai.com/v1/chat/completions
+          -H "Content-Type: application/json"
+          -H "Authorization: Bearer ${openaiKey}"
+          -d '${payload}' #`.replace(/\n/g, "");
+        if (decaiDebug) {
+            console.log(curlcmd);
+	}
+        r2.cmd0(curlcmd);
+        const res = r2.cmd("cat .decai.txt");
+        try {
+            return JSON.parse(res).choices[0].message.content;
+        } catch(e) {
+            console.error(e);
+            console.log(res);
+        }
+        return "error invalid response";
     }
     function r2aiOpenAPI(s) {
         const msg = r2.cmd("cat /tmp/.pdc.txt");
