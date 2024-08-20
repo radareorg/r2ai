@@ -44,7 +44,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
     // decprompt = "do not explain, just improve and merge the following decompiled functions, remove gotos and use better names for variables. optimize for readability, assume calling conventions to fill function arguments";
     ///// using commands and dots makes some models perform very large outputs or fall in infinite loops
 //    decprompt = "do not introduce, comment or explain. reply only with the optimized code, improve and merge the following decompiled functions, remove gotos and use better names for variables, focus on readability";
-    decprompt = "You are an assistant that outputs only simplified code replaces gotos with high level control flow statements like for/if/while rename variables and merges all given functions";
+    decprompt = "You are an assistant that outputs only simplified code with no explanations, replaces gotos with high level control flow statements like for/if/while rename variables and merges all given functions";
 
     function decaiEval(arg) {
         const [k, v] = arg.split("=");
