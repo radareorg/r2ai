@@ -44,7 +44,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
     // decprompt = "do not explain, just improve and merge the following decompiled functions, remove gotos and use better names for variables. optimize for readability, assume calling conventions to fill function arguments";
     ///// using commands and dots makes some models perform very large outputs or fall in infinite loops
 //    decprompt = "do not introduce, comment or explain. reply only with the optimized code, improve and merge the following decompiled functions, remove gotos and use better names for variables, focus on readability";
-    decprompt = "remove gotos use better variable names and merge cleanup the given decompiled code for readability purposes. do not explain the code.";
+    decprompt = "You are an assistant that outputs only simplified code replaces gotos with high level control flow statements like for/if/while rename variables and merges all given functions";
 
     function decaiEval(arg) {
         const [k, v] = arg.split("=");
@@ -138,14 +138,16 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         const curlcmd2 = `'!curl -s -o .decai.txt ${decaiHost}:${decaiPort}/v1/chat/completions
           -H "Content-Type: application/json"
           -d '${payload2}' #`.replace(/\n/g, "");
-                const payload = JSON.stringify({ "prompt": decprompt + "\n" + msg });
           // -H "Authorization: Bearer YOUR_API_KEY"
         // return JSON.parse(res).choices[0].message.content;
 */
+        const payload = JSON.stringify({ "prompt": decprompt + ", Output in " + decaiLanguage + "\n" + msg });
         const curlcmd = `'!curl -s -o .decai.txt ${decaiHost}:${decaiPort}/completion
           -H "Content-Type: application/json"
           -d '${payload}' #`.replace(/\n/g, "");
-        console.log(curlcmd);
+        if (decaiDebug) {
+            console.log(curlcmd);
+	}
         r2.cmd0(curlcmd);
         const res = r2.cmd("cat .decai.txt");
         try {
