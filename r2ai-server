@@ -32,6 +32,7 @@ Usage: r2ai-server [-flags]
  -m         list models
  -m [name]  select given model
  -l         list llama servers available
+ -l [name]  select llama software
  -h         show this help message
  -p [port]  select port        
 EOF
