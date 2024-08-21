@@ -112,8 +112,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         console.error(" " + command + " -V  - find vulnerabilities");
     }
     function r2aiAnthropic(msg) {
-       const claudeKeyPath = r2.cmd("'ls ~/.r2ai.anthropic-key").trim()
-       const claudeKey = r2.cmd(`'cat ${claudeKeyPath}`).trim();
+       const claudeKey = r2.cmd("'cat ~/.r2ai.anthropic-key").trim()
        const claudeModel = "claude-3-5-sonnet-20240620";
        if (claudeKey === '') {
            return "Cannot read ~/.r2ai.anthropic-key";
@@ -148,8 +147,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         return "error invalid response";
     }
     function r2aiOpenAI(msg) {
-       const openaiKeyPath = r2.cmd("'ls ~/.r2ai.openai-key").trim()
-       const openaiKey = r2.cmd(`'cat ${openaiKeyPath}`).trim();
+       const openaiKey = r2.cmd("'cat ~/.r2ai.openai-key").trim()
        // const openaiModel = "gpt-3.5-turbo";
        const openaiModel = "gpt-4";
        if (openaiKey === '') {
