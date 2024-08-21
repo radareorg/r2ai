@@ -202,7 +202,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
     }
     function fileDump(fileName, fileData) {
         const d = b64(fileData);
-        r2.cmd0("p6ds " + d + " > " + fileName + " #");
+        r2.cmd("p6ds " + d + " > " + fileName);
     }
     function r2ai(queryText, fileData) {
         if (!fileData) {
