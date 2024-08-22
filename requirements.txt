@@ -9,7 +9,6 @@ unidecode
 jsonref
 transformers
 pydantic
-torch
 tokentrim
 chromadb
 openai
