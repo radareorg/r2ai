@@ -313,11 +313,13 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
                     r2.cmd("echo > " + file);
                     let count = 0;
                     let text = "";
+		    const origColor = r2.cmd("e scr.color");
+		    r2.cmd("e scr.color=0");
                     for (const c of decaiCommands.split(",")) {
                         if (c.trim() === "") {
                             continue;
                         }
-                        const output = r2.cmd(c);
+                        const output = r2.cmd(c).replace(/\`/g, '').replace(/'/g, '"');
                         if (output.length > 5) {
                             text += "Output from " + c + ":\n";
                             text += "[BEGIN]\n";
@@ -326,6 +328,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
                             count++;
                         }
                     }
+                    r2.cmd("e scr.color=" + origColor);
                     if (count === 0) {
                         console.error("Nothing to do.");
                         break;
