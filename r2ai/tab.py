@@ -127,6 +127,8 @@ def tab_init():
         readline.read_history_file(R2AI_HISTFILE)
     except FileNotFoundError:
         pass
+    except:
+        pass
     readline.set_completer(completer.complete)
     readline.set_completer_delims('\t\n;')
     readline.set_completion_display_matches_hook(completer.display_matches)
