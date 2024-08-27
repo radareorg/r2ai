@@ -6,13 +6,12 @@ import requests
 import json
 import traceback
 import chromadb
-from utils import syscmdstr
 from unidecode import unidecode
 import sys
 try:
-    from .utils import slurp
+    from .utils import slurp, syscmdstr
     from .const import R2AI_HISTFILE
-except:
+except Exception:
     from utils import slurp
     R2AI_HISTFILE = "/dev/null"
 
@@ -25,7 +24,7 @@ MASTODON_KEY = ""
 try:
     if "HOME" in os.environ:
         MASTODON_KEY = slurp(os.environ["HOME"] + "/.r2ai.mastodon-key").strip()
-except:
+except Exception:
     pass
 MASTODON_INSTANCE = "mastodont.cat"
 if "MASTODON_INSTANCE" in os.environ:
@@ -190,7 +189,7 @@ def filter_line(line):
         try:
             int(b)
             continue
-        except:
+        except Exception:
             pass
         if len(b) > 0:
             words.append(b)
@@ -225,7 +224,7 @@ def vectordb_search2(text, keywords, use_mastodon):
         res = {}
         try:
             res = vectordb_instance.query(query_texts=text)
-        except:
+        except Exception:
             traceback.print_exc()
             pass
         if res["documents"] is not None:
@@ -244,18 +243,18 @@ def vectordb_init():
         return
     try:
         have_vectordb = True
-    except Exception as e:
+    except Exception:
         print("To better data index use: pip install chromadb")
         return
 #    try:
 #        vectordb_instance = vectordb.Memory(embeddings="normal") # normal or fast
-#    except:
+#    except Exception:
 #        vectordb_instance = vectordb.Memory() # normal or fast
     # vectordb_instance = vectordb.Memory() # normal or fast
     client = chromadb.Client() # normal or fast
     try:
         vectordb_instance = client.delete_collection("r2ai")
-    except:
+    except Exception:
         pass
     vectordb_instance = client.create_collection("r2ai")
     if vectordb_instance is not None:
@@ -405,7 +404,7 @@ def find_sources(srcdir):
     files = []
     try:
         files = os.walk(srcdir)
-    except:
+    except Exception:
         return []
     res = []
     for f in files:

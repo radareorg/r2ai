@@ -13,7 +13,7 @@ DEVICE = None
 try:
     import whisper
     HAVE_WHISPER = True
-except:
+except Exception:
     pass
 
 have_festival = os.path.isfile("/usr/bin/festival")

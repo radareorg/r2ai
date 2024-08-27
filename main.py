@@ -4,21 +4,20 @@
 # pylint: disable=missing-function-docstring
 import sys
 import os
+import argparse
+
+from r2ai.main import main as r2ai_main
+
+def is_valid_file(parser, arg):
+    if not os.path.isfile(arg):
+        parser.error(f"The file {arg} does not exist!")
 
 def main():
-    if os.environ.get('R2AI') is not None:
-        print("Cant load r2ai r2 plugin from inside r2ai")
-        return
-    r2aihome = os.path.dirname(__file__)
-    try:
-        r2aihome = os.path.dirname(os.readlink(__file__))
-    except (OSError, FileNotFoundError):
-        pass
-    sys.path.insert(0, r2aihome)
-#   os.environ["R2AI"] = "1"
-    import r2ai.main
+    parser = argparse.ArgumentParser()
+    parser.add_argument("bin", nargs="?", type=str)
+    args =  parser.parse_args()
 
-if os.environ.get('R2AI') is not None:
-    print("[r2ai] leaving early", file=sys.stderr)
-elif __name__ == "__main__":
+    r2ai_main(args)
+
+if __name__ == "__main__":
     main()

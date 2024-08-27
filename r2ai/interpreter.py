@@ -1,4 +1,17 @@
 import builtins
+import re
+import os
+import sys
+import traceback
+import json
+import platform
+import getpass
+import tokentrim
+
+from rich.rule import Rule
+from signal import signal, SIGINT
+
+
 from .large import Large
 from .utils import merge_deltas
 from .message_block import MessageBlock
@@ -10,26 +23,25 @@ from .models import get_hf_llm, new_get_hf_llm, get_default_model
 from .voice import tts
 from .const import R2AI_HOMEDIR
 from . import auto
-import os
 
 try:
     from openai import OpenAI
     have_openai = True
-except:
+except Exception:
     have_openai = False
     pass
 
 try:
     from anthropic import Anthropic
     have_anthropic = True
-except:
+except Exception:
     have_anthropic = False
     pass
 
 try:
     from groq import Groq
     have_groq = True
-except:
+except Exception:
     have_groq = False
     pass
 
@@ -40,16 +52,6 @@ try:
 except Exception as e:
     have_google = False
     pass
-
-import re
-import os
-import traceback
-import json
-import platform
-import getpass
-from rich.rule import Rule
-from signal import signal, SIGINT
-import sys
 
 file_dir = os.path.dirname(__file__)
 sys.path.append(file_dir)
@@ -62,7 +64,7 @@ try:
     have_rlang = True
     print = r2lang.print
     r2clippy = True
-except:
+except Exception:
     pass
 
 Ginterrupted = False
@@ -182,7 +184,7 @@ def template_gemma(self,messages):
             if content != "":
                 msg += f"<start_of_turn>{role}\n{content}<end_of_turn>\n"
         msg += f"<start_of_turn>model\n"
-    except:
+    except Exception:
         traceback.print_exc()
     return msg
 
@@ -205,7 +207,7 @@ def template_q4im(self,messages):
             # formatted_messages += "{\"text\":\"{"+content+"}\"}"
         formatted_messages += f"<|im_start|>\n"
         print("```" + formatted_messages + "```")
-    except:
+    except Exception:
         traceback.print_exc()
     return formatted_messages
 
@@ -231,7 +233,7 @@ def template_mistral(self, messages):
                 if 'content' in item:
                     content = item['content'].strip()
                     msg += f"{content}."
-    except:
+    except Exception:
         traceback.print_exc()
     return msg
 
@@ -264,7 +266,7 @@ def template_uncensored(self, messages):
                     formatted_messages += f"{content}\n"
         formatted_messages += f"### Assistant:"
         # print("```" + formatted_messages + "```")
-    except:
+    except Exception:
         traceback.print_exc()
     return formatted_messages
 
@@ -579,6 +581,7 @@ class Interpreter:
         self.groq_client = None
         self.google_client = None
         self.google_chat = None
+        self.bedrock_client = None
         self.api_base = None # Will set it to whatever OpenAI wants
         self.system_message = ""
         self.env["debug"] = "false"
@@ -673,7 +676,7 @@ class Interpreter:
 
         # Print out a preview of what messages were removed.
         for message in removed_messages:
-            if 'content' in message and message['content'] != None:
+            if message.get("content"):
                 print(f"**Removed message:** `\"{message['content'][:30]}...\"`")
             elif 'function_call' in message:
                 print(f"**Removed codeblock**") # TODO: Could add preview of code removed here.
@@ -696,7 +699,7 @@ class Interpreter:
             text0 = text0[1:].strip()
         try:
             text0 = text0.split(":")[1].strip()
-        except:
+        except Exception:
             pass
         # print(text0)
         mm = None
@@ -705,15 +708,19 @@ class Interpreter:
     def chat(self, message=None):
         global print
         global Ginterrupted
-        if self.print != None:
+
+        if self.print is not None:
             print = self.print
+
         if self.last_model != self.model:
 #            self.llama_instance = None
             self.last_model = self.model
-        if not message and self["chat.code"] == "true":
+
+        if not message and self.env["chat.code"] == "true":
             self.end_active_block()
             print("Missing message")
             return
+
         if self.env["data.use"] == "true":
             use_hist = self.env["data.hist"] == "true"
             use_wikit = self.env["data.wikit"] == "true"
@@ -733,27 +740,36 @@ class Interpreter:
                 else:
                     self.messages.append({"role": "hint", "content": results})
             matches = index.match(message, keywords, datadir, use_hist, use_mastodon, use_debug, use_wikit, use_vectordb)
-            if matches == None:
+            if not matches:
                 matches = []
+
             if len(matches) > 0:
                 for m in matches:
                     if self.env["debug"] == "true":
                         print("HINT: " + m)
                     self.messages.append({"role": "hint", "content": r2eval(m)})
+
         if self.env["debug"] == "true":
             print(message)
+
         # print(message)
         # Code-Llama
-        if not self.model.startswith("openai:") and not self.model.startswith("openapi:") and not self.model.startswith("kobaldcpp") and self.llama_instance == None:
+        if (
+            not self.model.startswith("openai:") and
+            not self.model.startswith("openapi:") and
+            not self.model.startswith("kobaldcpp") and
+            not self.model.startswith("bedrock:") and
+            self.llama_instance is None
+        ):
             # Find or install Code-Llama
             try:
                 ctxwindow = int(self.env["llm.window"])
                 debug_mode = False # maybe true when debuglevel=2 ?
                 self.llama_instance = new_get_hf_llm(self, self.model, debug_mode, ctxwindow)
-                if self.llama_instance == None:
+                if self.llama_instance is not None:
                     builtins.print("Cannot find the model")
                     return
-            except:
+            except Exception:
                 traceback.print_exc()
 
         # If it was, we respond non-interactively
@@ -761,7 +777,7 @@ class Interpreter:
         try:
             self.respond()
             self.clear_hints()
-        except:
+        except Exception:
             if Ginterrupted:
                 Ginterrupted = False
             else:
@@ -817,7 +833,6 @@ class Interpreter:
         if self.env["chat.trim"] == "true":
             ## this stupid function is slow as hell and doesn not provides much goodies
             ## just ignore it by default
-            import tokentrim
             messages = tokentrim.trim(self.messages, max_tokens=maxtokens, system_message=system_message)
         else:
             messages = self.large.compress_messages(self.messages)
@@ -830,10 +845,11 @@ class Interpreter:
         if self.auto_run:
             response = auto.chat(self)
             return
+
         elif self.model.startswith("openapi"):
             m = messages
             if self.system_message != "":
-                m.insert(0, {"role": "system", "content":self.system_message})
+                m.insert(0, {"role": "system", "content": self.system_message})
             response = ""
             if ":" in self.model:
                 uri = self.model.split(":")[1:]
@@ -846,6 +862,7 @@ class Interpreter:
                 self.messages.append({"role": "assistant", "content": response})
             print(response)
             return
+
         elif self.model.startswith("kobaldcpp"):
             if self.system_message != "":
                 message = f"Context:\n```\n{self.system_message}\n```\n"
@@ -871,6 +888,7 @@ class Interpreter:
                 self.messages.append({"role": "assistant", "content": response})
             print(response)
             return
+
         elif self.model.startswith("openai:"):
             # [
             #  {"role": "system", "content": "You are a poetic assistant, be creative."},
@@ -901,6 +919,7 @@ class Interpreter:
                 print("pip install -U openai", file=sys.stderr)
                 print("export OPENAI_API_KEY=...", file=sys.stderr)
                 return
+
         elif self.model.startswith('anthropic:'):
             anthropic_model = self.model[10:]
             messages = []
@@ -933,6 +952,29 @@ class Interpreter:
                 print("pip install -U anthropic", file=sys.stderr)
                 print("export ANTHROPIC_API_KEY=...", file=sys.stderr)
                 return
+
+        elif self.model.startswith("bedrock:"):
+            import boto3
+            bedrock_model = self.model.split(":")[1] + ":0"
+            self.bedrock_client = boto3.client("bedrock-runtime")
+            request = {
+                "anthropic_version": "bedrock-2023-05-31",
+                "temperature": float(self.env["llm.temperature"]),
+                "max_tokens": maxtokens,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [{"type": "text", "text": m["content"]} for m in self.messages],
+                    }
+                ],
+            }
+            response = self.bedrock_client.invoke_model(
+                modelId=bedrock_model,
+                body=json.dumps(request)
+            )
+            model_response = json.loads(response["body"].read())
+            response = model_response["content"][0]["text"]
+
         elif self.model.startswith('groq:'):
             if have_groq:
                 self.groq_client = Groq()
@@ -945,6 +987,7 @@ class Interpreter:
                 if self.env["chat.reply"] == "true":
                     self.messages.append({"role": "assistant", "content": completion.content})
                     print(completion.content)
+
         elif self.model.startswith('google:'):
             if have_google:
                 if not self.google_client:
@@ -962,6 +1005,7 @@ class Interpreter:
                     self.messages.append({"role": "assistant", "content": completion.text})
                 print(completion.text)
             return
+
         else:
             # non-openai aka local-llama model
             if self.llama_instance == None:
@@ -986,10 +1030,10 @@ class Interpreter:
                 )
             except Exception as err:
                 print(Exception, err)
-            except:
                 if Ginterrupted:
                     Ginterrupted = False
                     return
+
         if response is None:
             print("No response")
             ctxwindow = int(self.env["llm.window"])
@@ -1045,6 +1089,6 @@ class Interpreter:
         elif self.env["chat.live"] != "true":
             try:
                 r2lang.print(output_text)
-            except:
+            except Exception:
                 print(output_text)
             # print(str(self.messages))

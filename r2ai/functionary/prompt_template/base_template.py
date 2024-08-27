@@ -222,7 +222,7 @@ class PromptTemplate:
             try:
                 _ = json.loads('{"' + gen_state["param_names"][-1] + latest_param_val)
                 gen_state["stage"] = "pre-function"
-            except:
+            except Exception:
                 pass
 
             # Check if the current state can be converted to json, it means the
@@ -244,7 +244,7 @@ class PromptTemplate:
                     else:
                         gen_state["curr_tokens"] = [new_token_id]
                         gen_state["curr_text"] = tokenizer.decode([new_token_id])
-                except:
+                except Exception:
                     pass
         elif gen_state["stage"] in ["no-tool-call", "code-interpreter"]:
             # probability of stop token is not 100% at the end of no-tool-call

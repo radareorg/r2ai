@@ -28,12 +28,12 @@ def get_default_model():
         fd.close()
         if "default" in usermodels:
             return usermodels["default"]
-    except:
+    except Exception:
         pass
     return DEFAULT_MODEL
 
 def Markdown(x):
-  return x
+    return x
 
 def mainmodels():
     return """
@@ -50,6 +50,7 @@ Uncensored:
 Remote:
 -m openapi:http://localhost:5001
 -m anthropic:claude-3-5-sonnet-20240620
+-m bedrock:anthropic.claude-3-5-sonnet-20240620-v1
 """
 
 def models():
@@ -143,9 +144,9 @@ def get_hf_llm(ai, repo_id, debug_mode, context_window):
             fd = open(r2ai_model_json)
             usermodels = json.load(fd)
             fd.close()
-        except:
+        except Exception:
             usermodels = {}
-            pass
+
         model_path = "" # slurp(r2ai_model_json)
         if not repo_id:
             repo_id = get_default_model()
@@ -155,8 +156,9 @@ def get_hf_llm(ai, repo_id, debug_mode, context_window):
             model_path = usermodels[repo_id]
 #            print(f"[r2ai] Using {r2ai_model_json} {model_path}")
             return llama_cpp.Llama(model_path=model_path, n_gpu_layers=gpulayers(ai), verbose=debug_mode, n_ctx=context_window)
-    except:
+    except Exception:
         traceback.print_exc()
+
     print(f"Select {repo_id} model. See -M and -m flags", file=sys.stderr)
     raw_models = list_gguf_files(repo_id)
     if not raw_models:
@@ -272,7 +274,7 @@ def get_hf_llm(ai, repo_id, debug_mode, context_window):
             return None
     try:
         from llama_cpp import Llama
-    except:
+    except Exception:
         if debug_mode:
             traceback.print_exc()
         # Ask for confirmation to install the required pip package
@@ -355,7 +357,7 @@ def set_default_model(repo_id):
         fd = open(r2ai_model_json)
         usermodels = json.load(fd)
         fd.close()
-    except:
+    except Exception:
         pass
     usermodels["default"] = repo_id
 #    usermodels[repo_id] = model_path
@@ -489,7 +491,7 @@ def new_get_hf_llm(ai, repo_id, debug_mode, context_window):
     model_path = repo_id
     try:
         from llama_cpp import Llama
-    except:
+    except Exception:
         if debug_mode:
             traceback.print_exc()
         # Ask for confirmation to install the required pip package
