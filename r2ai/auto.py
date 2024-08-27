@@ -230,204 +230,210 @@ def chat(interpreter):
     # if chat_context != "":
     #     interpreter.messages.insert(1, {"role": "user", "content": chat_context})
 
-    response = None
-    if interpreter.model.startswith("openai:"):
-        if not interpreter.openai_client:
-            try:
-                from openai import OpenAI
-            except ImportError:
-                print("pip install -U openai", file=sys.stderr)
-                print("export OPENAI_API_KEY=...", file=sys.stderr)
-                return
-            interpreter.openai_client = OpenAI()
-        response = interpreter.openai_client.chat.completions.create(
-            model=interpreter.model[7:],
-            max_tokens=int(interpreter.env["llm.maxtokens"]),
-            tools=tools,
-            messages=interpreter.messages,
-            tool_choice="auto",
-            stream=True,
-            temperature=float(interpreter.env["llm.temperature"]),
-        )
-        process_streaming_response(interpreter, response)
+    platform, modelid = None, None
+    if ":" in interpreter.model:
+        platform = interpreter.model.split(":")[0]
+        modelid  = ":".join(interpreter.model.split(":")[1:])
+    elif "/" in interpreter.model:
+        platform = interpreter.model.split("/")[0]
+        modelid  = "/".join(interpreter.model.split("/")[1:])
 
-    elif interpreter.model.startswith('anthropic:'):
-        if not interpreter.anthropic_client:
-            interpreter.anthropic_client = Anthropic()
-        messages = []
-        system_message = construct_tool_use_system_prompt(tools)
-        for m in interpreter.messages:
-            role = m["role"]
-            if role == "system":
-                continue
-            if m["content"] is None:
-                continue
-            if role == "tool":
-                messages.append({ "role": "user", "content": f"<function_results>\n<result>\n<tool_name>{m['name']}</tool_name>\n<stdout>{m['content']}</stdout>\n</result>\n</function_results>" })
-                # TODO: handle errors
-            else:
-                messages.append({ "role": role, "content": m["content"] })
-        stream = interpreter.anthropic_client.messages.create(
-            model=interpreter.model[10:],
-            max_tokens=int(interpreter.env["llm.maxtokens"]),
-            messages=messages,
-            system=system_message,
-            temperature=float(interpreter.env["llm.temperature"]),
-            stream=True
-        )
-        (tool_calls, msg) = extract_claude_tool_calls(interpreter, stream)
-        if len(tool_calls) > 0:
-            process_tool_calls(interpreter, tool_calls)
-            chat(interpreter)
+    auto_chat_handler_fn = None
+    if modelid in auto_chat_handlers.get(platform, {}):
+        auto_chat_handler_fn = auto_chat_handlers[platform][modelid]
+    elif "default" in auto_chat_handlers.get(platform, {}):
+        auto_chat_handler_fn = auto_chat_handlers[platform]["default"]
+
+    if not auto_chat_handler_fn:
+        print(f"Model {platform}:{modelid} is not currently supported in auto mode")
+        return
+
+    return auto_chat_handler_fn(interpreter)
+
+def auto_chat_openai(interpreter):
+    if not interpreter.openai_client:
+        interpreter.openai_client = OpenAI()
+
+    response = interpreter.openai_client.chat.completions.create(
+        model=interpreter.model[7:],
+        max_tokens=int(interpreter.env["llm.maxtokens"]),
+        tools=tools,
+        messages=interpreter.messages,
+        tool_choice="auto",
+        stream=True,
+        temperature=float(interpreter.env["llm.temperature"]),
+    )
+    process_streaming_response(interpreter, response)
+    return response
+
+def auto_chat_anthropic(interpreter):
+    if not interpreter.anthropic_client:
+        interpreter.anthropic_client = Anthropic()
+    messages = []
+    system_message = construct_tool_use_system_prompt(tools)
+    for m in interpreter.messages:
+        role = m["role"]
+        if role == "system":
+            continue
+        if m["content"] is None:
+            continue
+        if role == "tool":
+            messages.append({ "role": "user", "content": f"<function_results>\n<result>\n<tool_name>{m['name']}</tool_name>\n<stdout>{m['content']}</stdout>\n</result>\n</function_results>" })
+            # TODO: handle errors
         else:
-            builtins.print(msg)
-
-    elif interpreter.model.startswith("bedrock:"):
-        interpreter.bedrock_client = boto3.client("bedrock-runtime")
-        model_id = interpreter.model.split(":")[1] + ":0"
-        system_message = construct_tool_use_system_prompt(tools)
-
-        response = interpreter.bedrock_client.converse(
-            modelId=model_id,
-            toolConfig=BEDROCK_TOOLS_CONFIG,
-            messages=build_messages_for_bedrock(interpreter.messages),
-            inferenceConfig={
-                "maxTokens": int(interpreter.env["llm.maxtokens"]),
-                "temperature": float(interpreter.env["llm.temperature"]),
-                "topP": 0.9
-            },
-        )
-        print_bedrock_response(response)
-        # Update conversation
-        interpreter.messages.append(response["output"]["message"])
-        # Execute tools
-        tool_calls = extract_bedrock_tool_calls(response)
-        if tool_calls:
-            tool_msgs = process_bedrock_tool_calls(tool_calls)
-            interpreter.messages.extend(tool_msgs)
-            chat(interpreter)
-
-    elif interpreter.model.startswith("groq:"):
-        if not interpreter.groq_client:
-            try:
-                from groq import Groq
-            except ImportError:
-                print("pip install -U groq", file=sys.stderr)
-                return
-            interpreter.groq_client = Groq()
-        response = interpreter.groq_client.chat.completions.create(
-            model=interpreter.model[5:],
-            max_tokens=int(interpreter.env["llm.maxtokens"]),
-            tools=tools,
-            messages=interpreter.messages,
-            tool_choice="auto",
-            temperature=float(interpreter.env["llm.temperature"]),
-        )
-        process_streaming_response(interpreter, [response])
-
-    elif interpreter.model.startswith("google"):
-        if not interpreter.google_client:
-            try:
-                import google.generativeai as google
-                google.configure(api_key=os.environ['GOOGLE_API_KEY'])
-            except ImportError:
-                print("pip install -U google-generativeai", file=sys.stderr)
-                return
-            interpreter.google_client = google.GenerativeModel(interpreter.model[7:])
-            if not interpreter.google_chat:
-                interpreter.google_chat = interpreter.google_client.start_chat(
-                    enable_automatic_function_calling=True
-                )
-            response = interpreter.google_chat.send_message(
-                interpreter.messages[-1]["content"],
-                generation_config={
-                    "max_output_tokens": int(interpreter.env["llm.maxtokens"]),
-                    "temperature": float(interpreter.env["llm.temperature"])
-                },
-                safety_settings=[{
-                    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-                    "threshold": "BLOCK_NONE"
-                }],
-                tools=[r2cmd, run_python]
-            )
-            print(response.text)
-
-        else:
-            chat_format = interpreter.llama_instance.chat_format
-            is_functionary = interpreter.model.startswith("meetkai/")
-            if is_functionary:
-                try:
-                    from .functionary import prompt_template
-                except ImportError:
-                    print("pip install -U functionary", file=sys.stderr)
-                    return
-                tokenizer = get_functionary_tokenizer(interpreter.model)
-                prompt_templ = prompt_template.get_prompt_template_from_tokenizer(tokenizer)
-                #print("############# BEGIN")
-                #print(dir(prompt_templ))
-                #print("############# MESSAGES")
-                #print(interpreter.messages)
-                #print("############# END")
-                prompt_str = prompt_templ.get_prompt_from_messages(interpreter.messages + [{"role": "assistant"}], tools)
-                token_ids = tokenizer.encode(prompt_str)
-                stop_token_ids = [
-                    tokenizer.encode(token)[-1]
-                    for token in prompt_templ.get_stop_tokens_for_generation()
-                ]
-                gen_tokens = []
-                for token_id in interpreter.llama_instance.generate(token_ids, temp=float(interpreter.env["llm.temperature"])):
-                    sys.stdout.write(tokenizer.decode([token_id]))
-                    if token_id in stop_token_ids:
-                        break
-                    gen_tokens.append(token_id)
-                llm_output = tokenizer.decode(gen_tokens)
-                response = prompt_templ.parse_assistant_response(llm_output)
-                process_streaming_response(interpreter, iter([
-                    { "choices": [{ "message": response }] }
-                ]))
-
-    elif interpreter.model.startswith("NousResearch/"):
-        interpreter.llama_instance.chat_format = "chatml"
-        messages = []
-        for m in interpreter.messages:
-            if m["content"] is None:
-                continue
-            role = m["role"]
-            if role == "system":
-                if not '<tools>' in m["content"]:
-                    messages.append({ "role": "system", "content": f"""{m['content']}\nYou are a function calling AI model. You are provided with function signatures within <tools></tools> XML tags. You may call one or more functions to assist with the user query. Don't make assumptions about what values to plug into functions. Here are the available tools:
-    <tools> {json.dumps(tools)} </tools>
-    For each function call return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows:
-    <tool_call>
-    {{"arguments": <args-dict>, "name": <function-name>}}
-    </tool_call>"""})
-                elif role == "tool":
-                    messages.append({ "role": "tool", "content": "<tool_response>\n" + '{"name": ' + m['name'] + ', "content": ' + json.dumps(m['content']) + '}\n</tool_response>' })
-            else:
-                messages.append(m)
-            response = interpreter.llama_instance.create_chat_completion(
-                max_tokens=int(interpreter.env["llm.maxtokens"]),
-                messages=messages,
-                temperature=float(interpreter.env["llm.temperature"]),
-            )
-            process_hermes_response(interpreter, response)
-            interpreter.llama_instance.chat_format = chat_format
+            messages.append({ "role": role, "content": m["content"] })
+    stream = interpreter.anthropic_client.messages.create(
+        model=interpreter.model[10:],
+        max_tokens=int(interpreter.env["llm.maxtokens"]),
+        messages=messages,
+        system=system_message,
+        temperature=float(interpreter.env["llm.temperature"]),
+        stream=True
+    )
+    (tool_calls, msg) = extract_claude_tool_calls(interpreter, stream)
+    if len(tool_calls) > 0:
+        process_tool_calls(interpreter, tool_calls)
+        chat(interpreter)
     else:
-        interpreter.llama_instance.chat_format = "chatml-function-calling"
+        builtins.print(msg)
+
+def auto_chat_bedrock(interpreter):
+    interpreter.bedrock_client = boto3.client("bedrock-runtime")
+    model_id = interpreter.model.split(":")[1] + ":0"
+    system_message = construct_tool_use_system_prompt(tools)
+
+    response = interpreter.bedrock_client.converse(
+        modelId=model_id,
+        toolConfig=BEDROCK_TOOLS_CONFIG,
+        messages=build_messages_for_bedrock(interpreter.messages),
+        inferenceConfig={
+            "maxTokens": int(interpreter.env["llm.maxtokens"]),
+            "temperature": float(interpreter.env["llm.temperature"]),
+            "topP": 0.9
+        },
+    )
+    print_bedrock_response(response)
+    # Update conversation
+    interpreter.messages.append(response["output"]["message"])
+    # Execute tools
+    tool_calls = extract_bedrock_tool_calls(response)
+    if tool_calls:
+        tool_msgs = process_bedrock_tool_calls(tool_calls)
+        interpreter.messages.extend(tool_msgs)
+        chat(interpreter)
+
+    return response
+
+def auto_chat_groq(interpreter):
+    if not interpreter.groq_client:
+        interpreter.groq_client = Groq()
+
+    response = interpreter.groq_client.chat.completions.create(
+        model=interpreter.model[5:],
+        max_tokens=int(interpreter.env["llm.maxtokens"]),
+        tools=tools,
+        messages=interpreter.messages,
+        tool_choice="auto",
+        temperature=float(interpreter.env["llm.temperature"]),
+    )
+    process_streaming_response(interpreter, [response])
+    return response
+
+def auto_chat_google(interpreter):
+    import google.generativeai as google
+
+    response = None
+    if not interpreter.google_client:
+        google.configure(api_key=os.environ['GOOGLE_API_KEY'])
+        interpreter.google_client = google.GenerativeModel(interpreter.model[7:])
+
+    if not interpreter.google_chat:
+        interpreter.google_chat = interpreter.google_client.start_chat(
+            enable_automatic_function_calling=True
+        )
+
+    response = interpreter.google_chat.send_message(
+        interpreter.messages[-1]["content"],
+        generation_config={
+            "max_output_tokens": int(interpreter.env["llm.maxtokens"]),
+            "temperature": float(interpreter.env["llm.temperature"])
+        },
+        safety_settings=[{
+            "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+            "threshold": "BLOCK_NONE"
+        }],
+        tools=[r2cmd, run_python]
+    )
+    print(response.text)
+    return response
+
+def auto_chat_nousresearch(interpreter):
+    interpreter.llama_instance.chat_format = "chatml"
+    messages = []
+    for m in interpreter.messages:
+        if m["content"] is None:
+            continue
+        role = m["role"]
+        if role == "system":
+            if not '<tools>' in m["content"]:
+                messages.append({ "role": "system", "content": f"""{m['content']}\nYou are a function calling AI model. You are provided with function signatures within <tools></tools> XML tags. You may call one or more functions to assist with the user query. Don't make assumptions about what values to plug into functions. Here are the available tools:
+<tools> {json.dumps(tools)} </tools>
+For each function call return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows:
+<tool_call>
+{{"arguments": <args-dict>, "name": <function-name>}}
+</tool_call>"""})
+            elif role == "tool":
+                messages.append({ "role": "tool", "content": "<tool_response>\n" + '{"name": ' + m['name'] + ', "content": ' + json.dumps(m['content']) + '}\n</tool_response>' })
+        else:
+            messages.append(m)
         response = interpreter.llama_instance.create_chat_completion(
             max_tokens=int(interpreter.env["llm.maxtokens"]),
-            tools=tools,
-            messages=interpreter.messages,
-            tool_choice="auto",
-            # tool_choice={
-            #   "type": "function",
-            #   "function": {
-            #       "name": "r2cmd"
-            #   }
-            # },
-            # stream=is_functionary,
+            messages=messages,
             temperature=float(interpreter.env["llm.temperature"]),
-            )
-        process_streaming_response(interpreter, iter([response]))
-        interpreter.llama_instance.chat_format = chat_format
+        )
+        process_hermes_response(interpreter, response)
+        return response
+
+def auto_chat_llama(interpreter):
+    interpreter.llama_instance.chat_format = "chatml-function-calling"
+    response = interpreter.llama_instance.create_chat_completion(
+        max_tokens=int(interpreter.env["llm.maxtokens"]),
+        tools=tools,
+        messages=interpreter.messages,
+        tool_choice="auto",
+        # tool_choice={
+        #   "type": "function",
+        #   "function": {
+        #       "name": "r2cmd"
+        #   }
+        # },
+        # stream=is_functionary,
+        temperature=float(interpreter.env["llm.temperature"]),
+        )
+    process_streaming_response(interpreter, iter([response]))
     return response
+
+
+auto_chat_handlers = {
+    "openai": {
+        "default": auto_chat_openai,
+    },
+    "anthropic": {
+        "default": auto_chat_anthropic
+    },
+    "bedrock": {
+        "default": auto_chat_bedrock
+    },
+    "groq": {
+        "default": auto_chat_groq
+    },
+    "google": {
+        "default": auto_chat_google
+    },
+    "NousResearch": {
+        "default": auto_chat_nousresearch
+    },
+    "llama": {
+        "default": auto_chat_llama
+    }
+}
