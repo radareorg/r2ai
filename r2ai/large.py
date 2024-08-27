@@ -70,7 +70,7 @@ class Large:
             text0 = text0[1:].strip()
         try:
             text0 = text0.split(":")[1].strip()
-        except:
+        except Exception:
             pass
         # print(text0)
         mm = None

@@ -10,25 +10,26 @@ import sys
 import os
 
 from .tab import tab_init, tab_hist, tab_write, tab_evals
+from .interpreter import Interpreter
+from .pipe import have_rlang, r2lang, r2singleton
+from r2ai import bubble
 
 tab_init()
 
 print_buffer = ""
 ais = []
 autoai = None
-from .pipe import have_rlang, r2lang, r2singleton
 r2 = r2singleton()
 
 def r2ai_singleton():
     global ais
     if len(ais) == 0:
-        from .interpreter import Interpreter
         ai = Interpreter()
         ais.append(R2AI(ai))
     return ais[0].ai
 
 def r2_cmd(x):
-    global have_rlang, ai, r2, r2_file
+    global have_rlang, ai, r2
     have_rlang = True
     res = x
     if have_rlang:
@@ -114,11 +115,10 @@ def runplugin(ai, arg):
           for file in files:
               if file.endswith(".py"):
                   print(file.replace(".py", ""))
-    except:
+    except Exception:
       pass
 
 def r2ai_version():
-    import sys
     import llama_cpp
     print("python: " + sys.version)
     print("llama: " + llama_cpp.__version__)
@@ -148,14 +148,15 @@ def run_script(ai, script):
         for line in lines.split("\n"):
             if line.strip() != "":
                 runline(ai, line)
-    except:
+    except Exception:
         pass
 
 class R2AI:
     def __init__(self,ai):
         self.ai = ai
-    def cmd(x):
-        return runline2(self.ai, cmd)
+
+    def cmd(self, x):
+        return runline2(self.ai, x)
 
 def slurp_until(endword):
     text = ""
@@ -187,7 +188,7 @@ def runline(ai, usertext):
     if usertext.startswith("-H"):
         try:
             return r2ai_vars(ai, usertext[2:].strip())
-        except:
+        except Exception:
             traceback.print_exc()
     if usertext.startswith("?V") or usertext.startswith("-v"):
         r2ai_version()
@@ -300,7 +301,7 @@ def runline(ai, usertext):
             else:
                 try:
                     print(ai.env[k])
-                except:
+                except Exception:
                     print("Invalid config key", file=sys.stderr)
                     pass
     elif usertext.startswith("-l"):
@@ -308,7 +309,7 @@ def runline(ai, usertext):
             l = Large()
             t = slurp("doc/samples/qcw.txt")
             print(l.summarize_text(t))
-        except:
+        except Exception:
             traceback.print_exc()
         sys.exit(0)
     elif usertext.startswith("-W"):
@@ -331,7 +332,7 @@ def runline(ai, usertext):
             fname = usertext[3:].strip()
             try:
                 ai.system_message = slurp(fname)
-            except:
+            except Exception:
                 print(f"Cannot open file {fname}", file=sys.stderr)
         else:
             print(ai.system_message)
@@ -345,13 +346,13 @@ def runline(ai, usertext):
             amount = int(usertext[3:])
             if amount < 1:
                 amount = 1
-        except:
+        except Exception:
             amount = 1
         try:
             for i in range(amount):
                 ai.messages.pop() # delete user message
                 ai.messages.pop() # delete assistant message
-        except:
+        except Exception:
             pass
     elif usertext.startswith("-Lj"):
         print(ai.messages)
@@ -364,7 +365,7 @@ def runline(ai, usertext):
         try:
             res = slurp(text)
             ai.chat(res)
-        except:
+        except Exception:
             print("Cannot load file", file=sys.stderr)
     elif usertext.startswith("-i"):
         text = usertext[2:].strip()
@@ -395,7 +396,6 @@ def runline(ai, usertext):
             if index < len(ais):
                 ai = ais[index].ai
             else:
-                from .interpreter import Interpreter
                 ai0 = Interpreter()
                 ai0.model = ai.model
                 ais.append(R2AI(ai0))
@@ -408,9 +408,10 @@ def runline(ai, usertext):
                 que = words[1]
             else:
                 que = input("[Query]> ")
-        except:
+        except Exception:
             print("")
             return
+
         tag = "```\n" # TEXT, INPUT ..
         ai.chat(f"{que}:\n{tag}\n{res}\n{tag}\n")
     elif usertext[0] == "!":
@@ -427,15 +428,16 @@ def runline(ai, usertext):
             else:
                 for line in file.split("\n"):
                     runline(ai, line)
-        except Exception as e:
+        except Exception:
             traceback.print_exc()
-            pass
+
     elif usertext.startswith("' "):
         if not autoai:
-            from .interpreter import Interpreter
             autoai = Interpreter()
             autoai.auto_run = True
+
         autoai.chat(usertext[2:])
+
     elif usertext[0] == ":":
         if r2 is None:
             print("r2 is not available", file=sys.stderr)
@@ -447,7 +449,6 @@ def runline(ai, usertext):
         ai.chat(usertext)
 
 def r2ai_repl(ai):
-    from r2ai import bubble
     tab_evals(ai.env.keys())
     oldoff = r2_cmd("?vx $$").strip()
     if oldoff == "0x0" or oldoff == "":
@@ -473,7 +474,7 @@ def r2ai_repl(ai):
                 builtins.print("\001\x1b[0m\002", end="")
         except EOFError:
             break
-        except:
+        except Exception:
             traceback.print_exc()
             break
         try:
@@ -490,7 +491,7 @@ def r2ai_repl(ai):
             else:
                 if runline(ai, usertext) == "q":
                     break
-        except:
+        except Exception:
             traceback.print_exc()
             continue
         tab_write()

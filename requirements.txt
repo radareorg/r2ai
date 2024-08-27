@@ -13,3 +13,4 @@ tokentrim
 chromadb
 openai
 anthropic
+boto3

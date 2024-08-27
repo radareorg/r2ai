@@ -99,7 +99,7 @@ try:
     import readline
     import rlcompleter
     have_readline = True
-except:
+except Exception:
     have_readline = True
     pass # readline not available
 
@@ -127,7 +127,7 @@ def tab_init():
         readline.read_history_file(R2AI_HISTFILE)
     except FileNotFoundError:
         pass
-    except:
+    except Exception:
         pass
     readline.set_completer(completer.complete)
     readline.set_completer_delims('\t\n;')

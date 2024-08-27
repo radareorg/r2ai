@@ -2,17 +2,21 @@ import builtins
 import json
 import sys
 import re
+import os
+import boto3
+
 from llama_cpp import Llama
 from llama_cpp.llama_tokenizer import LlamaHFTokenizer
 from transformers import AutoTokenizer
+from anthropic import Anthropic
+
+from . import index
 from .anthropic import construct_tool_use_system_prompt, extract_claude_tool_calls
-
-import os
-file_dir = os.path.dirname(__file__)
-sys.path.append(file_dir)
-import index
-
-from .pipe import have_rlang, r2lang
+from .backend.bedrock import (
+    BEDROCK_TOOLS_CONFIG, build_messages_for_bedrock, extract_bedrock_tool_calls,
+    process_bedrock_tool_calls, print_bedrock_response
+)
+from .pipe import have_rlang, r2lang, get_r2_inst
 
 ANSI_REGEX = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
@@ -90,7 +94,8 @@ def r2cmd(command: str):
     the `#`, '#!', etc. commands. The output could be long, so try to use filters
     if possible or limit. This is your preferred tool"""
     builtins.print('\x1b[1;32mRunning \x1b[4m' + command + '\x1b[0m')
-    res = r2lang.cmd(command)
+    r2 = get_r2_inst()
+    res = r2.cmd(command)
     builtins.print(res)
     return res
 
@@ -114,7 +119,7 @@ def process_tool_calls(interpreter, tool_calls):
         if type(args) is str:
             try:
                 args = json.loads(args)
-            except:
+            except Exception:
                 builtins.print(f"Error parsing json: {args}", file=sys.stderr)
         if tool_call["function"]["name"] == "r2cmd":
             if type(args) is str:
@@ -159,7 +164,7 @@ def process_streaming_response(interpreter, resp):
     for chunk in resp:
         try:
             chunk = dict(chunk)
-        except:
+        except Exception:
             pass
         delta = None
         choice = dict(chunk["choices"][0])
@@ -206,15 +211,24 @@ def context_from_msg(msg):
 
 def chat(interpreter):
     if len(interpreter.messages) == 1:
-        interpreter.messages.insert(0,{"role": "system", "content": get_system_prompt(interpreter.model)})
+        interpreter.messages.insert(0, {
+            "role": "system",
+            "content": get_system_prompt(interpreter.model)
+        })
 
-    lastmsg = interpreter.messages[-1]["content"]
-    chat_context = context_from_msg (lastmsg)
+    # chat_context = ""
+    # try:
+    #     lastmsg = interpreter.messages[-1]["content"]
+    #     chat_context = context_from_msg (lastmsg)
+    # except Exception:
+    #     pass
+
     #print("#### CONTEXT BEGIN")
     #print(chat_context) # DEBUG
     #print("#### CONTEXT END")
-    if chat_context != "":
-        interpreter.messages.insert(0,{"role": "user", "content": chat_context})
+
+    # if chat_context != "":
+    #     interpreter.messages.insert(1, {"role": "user", "content": chat_context})
 
     response = None
     if interpreter.model.startswith("openai:"):
@@ -236,13 +250,9 @@ def chat(interpreter):
             temperature=float(interpreter.env["llm.temperature"]),
         )
         process_streaming_response(interpreter, response)
+
     elif interpreter.model.startswith('anthropic:'):
         if not interpreter.anthropic_client:
-            try:
-                from anthropic import Anthropic
-            except ImportError:
-                print("pip install -U anthropic", file=sys.stderr)
-                return
             interpreter.anthropic_client = Anthropic()
         messages = []
         system_message = construct_tool_use_system_prompt(tools)
@@ -271,6 +281,32 @@ def chat(interpreter):
             chat(interpreter)
         else:
             builtins.print(msg)
+
+    elif interpreter.model.startswith("bedrock:"):
+        interpreter.bedrock_client = boto3.client("bedrock-runtime")
+        model_id = interpreter.model.split(":")[1] + ":0"
+        system_message = construct_tool_use_system_prompt(tools)
+
+        response = interpreter.bedrock_client.converse(
+            modelId=model_id,
+            toolConfig=BEDROCK_TOOLS_CONFIG,
+            messages=build_messages_for_bedrock(interpreter.messages),
+            inferenceConfig={
+                "maxTokens": int(interpreter.env["llm.maxtokens"]),
+                "temperature": float(interpreter.env["llm.temperature"]),
+                "topP": 0.9
+            },
+        )
+        print_bedrock_response(response)
+        # Update conversation
+        interpreter.messages.append(response["output"]["message"])
+        # Execute tools
+        tool_calls = extract_bedrock_tool_calls(response)
+        if tool_calls:
+            tool_msgs = process_bedrock_tool_calls(tool_calls)
+            interpreter.messages.extend(tool_msgs)
+            chat(interpreter)
+
     elif interpreter.model.startswith("groq:"):
         if not interpreter.groq_client:
             try:
@@ -288,6 +324,7 @@ def chat(interpreter):
             temperature=float(interpreter.env["llm.temperature"]),
         )
         process_streaming_response(interpreter, [response])
+
     elif interpreter.model.startswith("google"):
         if not interpreter.google_client:
             try:
@@ -314,6 +351,7 @@ def chat(interpreter):
                 tools=[r2cmd, run_python]
             )
             print(response.text)
+
         else:
             chat_format = interpreter.llama_instance.chat_format
             is_functionary = interpreter.model.startswith("meetkai/")
@@ -347,6 +385,7 @@ def chat(interpreter):
                 process_streaming_response(interpreter, iter([
                     { "choices": [{ "message": response }] }
                 ]))
+
     elif interpreter.model.startswith("NousResearch/"):
         interpreter.llama_instance.chat_format = "chatml"
         messages = []

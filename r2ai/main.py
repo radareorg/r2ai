@@ -2,98 +2,51 @@
 
 import os
 import sys
-import time
 import builtins
 import traceback
+import appdirs
+
 from r2ai.repl import r2ai_singleton
+from r2ai.utils import slurp
+from r2ai.repl import runline, r2ai_repl, help_message
 
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
-
-try:
-    r2aihome = os.path.dirname(os.readlink(__file__))
-    sys.path.append(r2aihome)
-    # if available
-    sys.path.append(f"{r2aihome}/../vectordb")
-except:
-    pass
-
-# create symlink if it doesnt exist
-try:
-    import appdirs
-    dst = os.environ["HOME"] + "/.r2ai.models"
-    udd = appdirs.user_data_dir("r2ai")
-    src = os.path.join(udd, "models")
-    if not os.path.exists(dst):
-        os.symlink(src, dst)
-except:
-    traceback.print_exc()
-    pass
+from r2ai.pipe import open_r2
 
 OPENAI_KEY = ""
-if "HOME" in os.environ:
-    from r2ai.utils import slurp
-    try:
-        apikey = slurp(os.environ["HOME"] + "/.r2ai.openai-key").strip()
-        os.environ["OPENAI_API_KEY"] = apikey
-        print("[R2AI] OpenAI API key loaded from ~/.r2ai.openai-key", file=sys.stderr)
-    except:
-        pass
-    try:
-        apikey = slurp(os.environ["HOME"] + "/.r2ai.anthropic-key").strip()
-        os.environ["ANTHROPIC_API_KEY"] = apikey
-        print("[R2AI] Anthropic API key loaded from ~/.r2ai.anthropic-key", file=sys.stderr)
-    except:
-        pass
-
-r2 = None
-r2_file = None
-have_rlang = False
-have_r2pipe = False
+HAVE_RLANG = False
+HAVE_R2PIPE = False
+RCFILE_LOADED = False
 within_r2 = False
-print = print
+
 if "R2CORE" in os.environ:
     within_r2 = True
-if os.name != "nt":
-    try:
-        import r2lang
-        have_rlang = True
-        print = r2lang.print
-    except:
+
+def r2ai_rlang_plugin(unused_but_required_argument):
+    global ai
+    def _call(s):
+        if not s.startswith("r2ai"):
+            return False
         try:
-            import r2pipe
-            have_r2pipe = True
-        except:
-            pass
+            run_rcfile_once()
+            if len(s) == 4:
+                builtins.print(help_message)
+            else:
+                usertext = s[4:].strip()
+                runline(ai, usertext)
+        except Exception as e:
+            builtins.print(e)
+            traceback.print_exc()
+        return True
 
-if not have_rlang and not have_r2pipe and sys.argv[0] != 'main.py' and os.path.exists("venv/bin/python"):
-    os.system("venv/bin/python main.py")
-    sys.exit(0)
-
-if "R2PIPE_IN" in os.environ.keys():
-    try:
-        import r2pipe
-        have_r2pipe = True
-    except:
-        pass
-### MAIN ###
-ai = None
-if have_r2pipe and not have_rlang:
-    try:
-        if "R2PIPE_IN" in os.environ.keys():
-            r2 = r2pipe.open()
-            within_r2 = True
-        else:
-            file = "/bin/ls"
-            for arg in sys.argv[1:]:
-                if arg.startswith("/"):
-                    file = arg
-            r2_file = file
-    except:
-        traceback.print_exc()
+    return {
+        "name": "r2ai",
+        "license": "MIT",
+        "desc": "run llama language models inside r2",
+        "call": _call,
+    }
 
 # TODO: see repl.run_script as replacement
 def run_rcfile():
-    global ai
     try:
         from .const import R2AI_RCFILE
         lines = slurp(R2AI_RCFILE)
@@ -103,71 +56,94 @@ def run_rcfile():
                 if ai is None:
                     ai = r2ai_singleton() # Interpreter()
                 runline(ai, line)
-    except:
+    except Exception:
         pass
     if ai is None:
         ai = r2ai_singleton() # Interpreter()
         # from r2ai.interpreter import Interpreter
         # ai = Interpreter()
 
-rcfile_loaded = False
 def run_rcfile_once():
-    global rcfile_loaded
-    if rcfile_loaded == False:
+    global RCFILE_LOADED
+    if not RCFILE_LOADED:
         run_rcfile()
-        rcfile_loaded = True
+        RCFILE_LOADED = True
 
-if have_rlang:
-    from r2ai.repl import runline, r2ai_repl, help_message
-    if have_r2pipe:
-        r2ai_repl(ai)
-        os.exit(0)
-    def r2ai_rlang_plugin(unused_but_required_argument):
-        global ai
-        def _call(s):
-            if not s.startswith("r2ai"):
-                return False
-            try:
-                run_rcfile_once()
-                if len(s) == 4:
-                    builtins.print(help_message)
-                else:
-                    usertext = s[4:].strip()
-                    runline(ai, usertext)
-            except Exception as e:
-                builtins.print(e)
-                traceback.print_exc()
-            return True
 
-        return {
-            "name": "r2ai",
-            "license": "MIT",
-            "desc": "run llama language models inside r2",
-            "call": _call,
-        }
-    r2lang.plugin("core", r2ai_rlang_plugin)
-else:
-    if "R2CORE" in os.environ:
-        print("[R2AI] Please: r2pm -ci rlang-python")
-        sys.exit(0)
-    from r2ai.repl import runline, r2ai_repl
-    from r2ai.utils import slurp
-    run_rcfile()
-    if len(sys.argv) > 1:
-        for arg in sys.argv[1:]:
-            if arg.endswith(".py"):
-                exec(slurp(arg), globals())
-                sys.stderr.close()
-                sys.exit(0)
-            elif not arg.startswith("/"):
-                runline(ai, arg)
-            if arg == "-h" or arg == "-v":
-                sys.exit(0)
-            elif arg == "-repl":
-                r2ai_repl(ai)
-    elif not within_r2:
-        r2ai_repl(ai)
-    elif have_r2pipe:
-        r2ai_repl(ai)
-    else:
-        print("r2ai plugin cannot be loaded. Run `r2pm -ci rlang-python`")
+def main(args):
+    global within_r2
+
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+    try:
+        r2aihome = os.path.dirname(os.path.realpath(__file__))
+        sys.path.append(r2aihome)
+        # if available
+        sys.path.append(
+            os.path.join(r2aihome, "..", "vectordb")
+        )
+    except Exception:
+        traceback.print_exc()
+
+    home_dir = os.path.expanduser("~")
+    # create symlink if it doesnt exist
+    try:
+        dst = os.path.join(home_dir, ".r2ai.models")
+        udd = appdirs.user_data_dir("r2ai")
+        src = os.path.join(udd, "models")
+        if not os.path.exists(dst):
+            os.symlink(src, dst)
+    except Exception:
+        traceback.print_exc()
+
+    r2_openai_file = os.path.join(home_dir, ".r2ai.openai-key")
+    if os.path.isfile(r2_openai_file):
+        apikey = slurp(r2_openai_file).strip()
+        os.environ["OPENAI_API_KEY"] = apikey
+        print("[R2AI] OpenAI API key loaded from ~/.r2ai.openai-key", file=sys.stderr)
+
+
+    r2_anthropic_file = os.path.join(home_dir, ".r2ai.anthropic-key")
+    if os.path.isfile(r2_anthropic_file):
+        apikey = slurp(r2_anthropic_file).strip()
+        os.environ["ANTHROPIC_API_KEY"] = apikey
+        print("[R2AI] Anthropic API key loaded from ~/.r2ai.anthropic-key", file=sys.stderr)
+    
+    ai = r2ai_singleton()
+    if "R2PIPE_IN" in os.environ:
+        open_r2(None)
+        within_r2 = True
+    elif args.bin:
+        open_r2(vars(args)["bin"])
+
+    r2ai_repl(ai)
+    # elif HAVE_RLANG and HAVE_R2PIPE:
+    #     r2ai_repl(ai)
+    #     os.exit(0)
+
+    #     r2lang.plugin("core", r2ai_rlang_plugin)
+
+    # else:
+    #     if "R2CORE" in os.environ:
+    #         print("[R2AI] Please: r2pm -ci rlang-python")
+    #         sys.exit(0)
+        
+    #     run_rcfile()
+    #     if len(sys.argv) > 1:
+    #         for arg in sys.argv[1:]:
+    #             if arg.endswith(".py"):
+    #                 exec(slurp(arg), globals())
+    #                 sys.stderr.close()
+    #                 sys.exit(0)
+    #             elif not arg.startswith("/"):
+    #                 runline(ai, arg)
+    #             if arg == "-h" or arg == "-v":
+    #                 sys.exit(0)
+    #             elif arg == "-repl":
+    #                 r2ai_repl(ai)
+    #     elif not within_r2:
+    #         r2ai_repl(ai)
+    #     elif HAVE_R2PIPE:
+    #         r2ai_repl(ai)
+    #     else:
+    #         print("r2ai plugin cannot be loaded. Run `r2pm -ci rlang-python`")
