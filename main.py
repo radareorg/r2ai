@@ -15,7 +15,8 @@ def is_valid_file(parser, arg):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("bin", nargs="?", type=str)
-    parser.add_argument("-c", "--command", action="append", help="Command to be executed. Can be passed multiple times.")
+    parser.add_argument("-c", "--command", action="append",
+        help="Command to be executed. Can be passed multiple times.")
     args =  parser.parse_args()
 
     r2ai_main(args, args.command)
