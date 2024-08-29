@@ -11,6 +11,7 @@ from r2ai.utils import slurp
 from r2ai.repl import runline, r2ai_repl, help_message
 
 from r2ai.pipe import open_r2
+from .const import R2AI_RCFILE
 
 OPENAI_KEY = ""
 HAVE_RLANG = False
@@ -48,20 +49,17 @@ def r2ai_rlang_plugin(unused_but_required_argument):
 # TODO: see repl.run_script as replacement
 def run_rcfile():
     try:
-        from .const import R2AI_RCFILE
         lines = slurp(R2AI_RCFILE)
-        from r2ai.interpreter import Interpreter
+        
         for line in lines.split("\n"):
             if line.strip() != "":
                 if ai is None:
-                    ai = r2ai_singleton() # Interpreter()
+                    ai = r2ai_singleton()
                 runline(ai, line)
     except Exception:
         pass
     if ai is None:
-        ai = r2ai_singleton() # Interpreter()
-        # from r2ai.interpreter import Interpreter
-        # ai = Interpreter()
+        ai = r2ai_singleton()
 
 def run_rcfile_once():
     global RCFILE_LOADED
@@ -114,7 +112,7 @@ def main(args):
         open_r2(None)
         within_r2 = True
     elif args.bin:
-        open_r2(vars(args)["bin"])
+        open_r2(vars(args)["bin"], flags=["-2"])
 
     r2ai_repl(ai)
     # elif HAVE_RLANG and HAVE_R2PIPE:
