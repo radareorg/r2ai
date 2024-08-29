@@ -62,6 +62,6 @@ def get_r2_inst():
     global r2
     return r2
 
-def open_r2(file):
+def open_r2(file, flags=[]):
     global r2
-    r2 = r2pipe.open(file)
+    r2 = r2pipe.open(file, flags=flags)

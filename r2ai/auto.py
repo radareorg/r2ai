@@ -203,10 +203,20 @@ def context_from_msg(msg):
     keywords = None
     datadir = "doc/auto"
     use_vectordb = False
-    matches = index.match(msg, keywords, datadir, False, False, False, False, use_vectordb)
-    if matches == None:
-        return ""
-    # "(analyze using 'af', decompile using 'pdc')"
+    last_msg = None
+    if isinstance(msg.get("content"), str):
+        last_msg = msg["content"]
+    elif isinstance(msg.get("content"), list):
+        # Bedrock puts an array in the 'content' key, in that case unfold them in a single message
+        last_msg = ". ".join([c["text"] for c in msg["content"] if "text" in c])
+
+    if not last_msg:
+        return None
+
+    matches = index.match(last_msg, keywords, datadir, False, False, False, False, use_vectordb)
+    if not matches:
+        return None
+
     return "context: " + ", ".join(matches)
 
 def chat(interpreter):
@@ -216,19 +226,16 @@ def chat(interpreter):
             "content": get_system_prompt(interpreter.model)
         })
 
-    # chat_context = ""
-    # try:
-    #     lastmsg = interpreter.messages[-1]["content"]
-    #     chat_context = context_from_msg (lastmsg)
-    # except Exception:
-    #     pass
+    chat_context = ""
+    try:
+        lastmsg = interpreter.messages[-1]
+        chat_context = context_from_msg(lastmsg)
+        # print(f"Adding context: {chat_context}")
+    except Exception:
+        pass
 
-    #print("#### CONTEXT BEGIN")
-    #print(chat_context) # DEBUG
-    #print("#### CONTEXT END")
-
-    # if chat_context != "":
-    #     interpreter.messages.insert(1, {"role": "user", "content": chat_context})
+    if chat_context:
+        interpreter.messages.append({"role": "user", "content": chat_context})
 
     platform, modelid = None, None
     if ":" in interpreter.model:
