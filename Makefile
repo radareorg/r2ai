@@ -55,7 +55,9 @@ deps-global:
 		$(PIP) install --force-reinstall -U -r requirements.txt --break-system-packages --no-cache-dir
 
 user-install:
+	rm -f $(R2PM_BINDIR)/r2ai-server
 	ln -fs $(PWD)/r2ai-server $(R2PM_BINDIR)/r2ai-server
+	rm -f $(R2PM_BINDIR)/r2ai
 	ln -fs $(PWD)/r2ai.sh $(R2PM_BINDIR)/r2ai
 
 install: user-install
