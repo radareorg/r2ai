@@ -133,7 +133,7 @@ def messages_to_prompt(self, messages):
         formatted_messages = template_zephyr(self, messages)
     elif "dolphin" in lowermodel:
         formatted_messages = template_ferret(self, messages)
-    elif "Phi" in lowermodel:
+    elif "phi" in lowermodel:
         formatted_messages = template_phi3(self, messages)
     elif "coder" in lowermodel:
         formatted_messages = template_alpaca(self, messages)

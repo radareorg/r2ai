@@ -38,19 +38,23 @@ def Markdown(x):
 def mainmodels():
     return """
 Local:
+-m cognitivecomputations/dolphin-2.9.4-llama3.1-8b-gguf
 -m FaradayDotDev/llama-3-8b-Instruct-GGUF
 -m second-state/Mistral-Nemo-Instruct-2407-GGUF
 -m bartowski/gemma-2-9b-it-GGUF
 -m cognitivecomputations/dolphin-2.9.3-mistral-nemo-12b-gguf
--m meetkai/functionary-small-v2.2-GGUF
+Functionary:
+-m meetkai/functionary-small-v3.2-GGUF
 Uncensored:
--m Orenguteng/Llama-3-8B-Lexi-Uncensored-GGUF
+-m bartowski/Phi-3.5-mini-instruct_Uncensored-GGUF
+-m Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2-GGUF
 -m TheBloke/Unholy-v2-13B-GGUF
--m Undi95/Utopia-13B-GGUF
 Remote:
 -m openapi:http://localhost:5001
+-m openai:gpt-4
 -m anthropic:claude-3-5-sonnet-20240620
 -m bedrock:anthropic.claude-3-5-sonnet-20240620-v1
+-m kobaldcpp:http://localhost:5001
 """
 
 def models():
