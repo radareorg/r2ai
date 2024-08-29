@@ -38,7 +38,8 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
     let decaiDebug = false;
     let lastOutput = "";
     let decaiCache = false; // not implemented yet
-    let decprompt = "You are an assistant that outputs only simplified code with no explanations, replaces gotos with high level control flow statements like for/if/while rename variables and merges all given functions";
+    let decprompt = "Only show the code with no explanation or introductions. Simplify the code: - take function arguments from comment - remove dead assignments - refactor goto with for/if/while - use better names for variables";
+    // decprompt += ", comments in function calls may replace arguments and remove unnecessary early variable assignments that happen"
 
     function decaiEval(arg) {
         const [k, v] = arg.split("=");
@@ -224,7 +225,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         if (decaiApi === "r2" || decaiApi === "r2ai") {
             const fileName = "/tmp/.pdc.txt";
             fileDump(fileName, fileData);
-            const q = ["-i", fileName, queryText].join(" ");
+            const q = queryText.startsWith("-")? queryText: ["-i", fileName, queryText].join(" ");
             const host = decaiHost + ":" + decaiPort + "/cmd"; // "http://localhost:8080/cmd";
             const ss = q.replace(/ /g, "%20").replace(/'/g, "\\'");
             const cmd = '\'!curl -s "' + host + '/' + ss + '" > .pdc.txt || echo Cannot curl, use r2ai-server or r2ai -w #';
