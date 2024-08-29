@@ -114,8 +114,9 @@ def main(args, commands):
     elif args.bin:
         open_r2(vars(args)["bin"], flags=["-2"])
 
-    for c in commands:
-        runline(ai, c)
+    if commands is not None:
+        for c in commands:
+            runline(ai, c)
     r2ai_repl(ai)
     # elif HAVE_RLANG and HAVE_R2PIPE:
     #     r2ai_repl(ai)

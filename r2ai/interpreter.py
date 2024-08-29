@@ -753,7 +753,7 @@ class Interpreter:
             print(message)
 
         # print(message)
-        # Code-Llama
+        # Local model
         if (
             not self.model.startswith("openai:") and
             not self.model.startswith("openapi:") and
@@ -766,7 +766,7 @@ class Interpreter:
                 ctxwindow = int(self.env["llm.window"])
                 debug_mode = False # maybe true when debuglevel=2 ?
                 self.llama_instance = new_get_hf_llm(self, self.model, debug_mode, ctxwindow)
-                if self.llama_instance is not None:
+                if self.llama_instance is None:
                     builtins.print("Cannot find the model")
                     return
             except Exception:
@@ -1009,7 +1009,7 @@ class Interpreter:
         else:
             # non-openai aka local-llama model
             if self.llama_instance == None:
-                print("Cannot find the model")
+                print("Llama is not instantiated")
                 return
             try:
                 # Convert messages to prompt
