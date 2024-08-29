@@ -56,7 +56,7 @@ deps-global:
 
 user-install:
 	rm -f $(R2PM_BINDIR)/r2ai-server
-	ln -fs $(PWD)/r2ai-server $(R2PM_BINDIR)/r2ai-server
+	ln -fs $(PWD)/r2ai-server/r2ai-server $(R2PM_BINDIR)/r2ai-server
 	rm -f $(R2PM_BINDIR)/r2ai
 	ln -fs $(PWD)/r2ai.sh $(R2PM_BINDIR)/r2ai
 
