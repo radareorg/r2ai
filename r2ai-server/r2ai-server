@@ -21,7 +21,7 @@ main() {
 		koboldcpp -c 0 --port ${PORT} -m "${MODELDIR}/${MODEL}.gguf"
 		;;
 	r2ai)
-		r2ai "-e http.port=${PORT}" "-m ${MODEL}" "-w"
+		r2ai -c "-e http.port=${PORT}" -c "-m ${MODEL}" -c "-w"
 		;;
 	*)
 		echo "Invalid llama server selected."
