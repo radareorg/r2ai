@@ -111,19 +111,19 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
     }
     function usage() {
         console.error("Usage: " + command + " (-h) ...");
+        console.error(" " + command + " -H        - help setting up r2ai");
         console.error(" " + command + " -d        - decompile current function");
         console.error(" " + command + " -e        - display and change eval config vars");
-        console.error(" " + command + " -r        - change role prompt (same as: decai -e prompt)");
         console.error(" " + command + " -h        - show this help");
-        console.error(" " + command + " -H        - help setting up r2ai");
         console.error(" " + command + " -m        - model (api=r2ai only)");
         console.error(" " + command + " -M        - list most relevant models (api=r2ai only)");
-        console.error(" " + command + " -x        - eXplain current function");
         console.error(" " + command + " -n        - suggest better function name");
         console.error(" " + command + " -q [text] - query language model with given text");
         console.error(" " + command + " -Q [text] - query on top of the last output");
+        console.error(" " + command + " -r        - change role prompt (same as: decai -e prompt)");
         console.error(" " + command + " -v        - show local variables");
         console.error(" " + command + " -V        - find vulnerabilities");
+        console.error(" " + command + " -x        - eXplain current function");
     }
     function r2aiAnthropic(msg) {
        const claudeKey = r2.cmd("'cat ~/.r2ai.anthropic-key").trim()
@@ -265,7 +265,8 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
                 var considerations = r2.cmd("fd.").trim().split(/\n/).filter(x=>!x.startsWith("secti")).join(",");
                 // console.log(considerations);
                 r2ai("-R");
-                out = r2ai("give me a better name for this function. the output must be: 'afn NEWNAME'. consider: " + considerations, out);
+                out = r2ai("give me a better name for this function. the output must be: 'afn NEWNAME'. do not include the function code, only the afn line. consider: " + considerations, out).trim();
+		out += " @ " + r2.cmd("?v $FB").trim();
                 break;
             case "v": // "-v"
                 out = r2.cmd("afv;pdc");
