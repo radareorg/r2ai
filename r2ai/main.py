@@ -116,7 +116,10 @@ def main(args, commands):
 
     if commands is not None:
         for c in commands:
-            runline(ai, c)
+            if c.startswith("_"):
+                runline(ai, "-" + c[1:])
+            else:
+                runline(ai, c)
     r2ai_repl(ai)
     # elif HAVE_RLANG and HAVE_R2PIPE:
     #     r2ai_repl(ai)

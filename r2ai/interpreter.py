@@ -11,7 +11,6 @@ import tokentrim
 from rich.rule import Rule
 from signal import signal, SIGINT
 
-
 from .large import Large
 from .utils import merge_deltas
 from .message_block import MessageBlock
@@ -767,7 +766,7 @@ class Interpreter:
                 debug_mode = False # maybe true when debuglevel=2 ?
                 self.llama_instance = new_get_hf_llm(self, self.model, debug_mode, ctxwindow)
                 if self.llama_instance is None:
-                    builtins.print("Cannot find the model")
+                    builtins.print("Cannot find model " + self.model)
                     return
             except Exception:
                 traceback.print_exc()
