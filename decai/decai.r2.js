@@ -141,7 +141,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
                }
            ]
        });
-       const curlcmd = `'!curl -o .txt -s https://api.anthropic.com/v1/messages
+       const curlcmd = `curl -s https://api.anthropic.com/v1/messages
           -H "Content-Type: application/json"
           -H "anthropic-version: 2023-06-01"
           -H "x-api-key: ${claudeKey}"
@@ -149,8 +149,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         if (decaiDebug) {
             console.log(curlcmd);
         }
-        r2.cmd(curlcmd);
-        const res = r2.cmd("cat .txt");
+        const res = r2.syscmds(curlcmd);
         try {
             return JSON.parse(res).content[0].text;
         } catch(e) {
@@ -177,15 +176,14 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
                }
            ]
        });
-       const curlcmd = `'!curl -s -o .decai.txt https://api.openai.com/v1/chat/completions
+       const curlcmd = `curl -s https://api.openai.com/v1/chat/completions
           -H "Content-Type: application/json"
           -H "Authorization: Bearer ${openaiKey}"
           -d '${payload}' #`.replace(/\n/g, "");
         if (decaiDebug) {
             console.log(curlcmd);
         }
-        r2.cmd0(curlcmd);
-        const res = r2.cmd("cat .decai.txt");
+        const res = r2.syscmds(curlcmd);
         try {
             return JSON.parse(res).choices[0].message.content;
         } catch(e) {
@@ -196,14 +194,13 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
     }
     function r2aiOpenAPI(msg) {
         const payload = JSON.stringify({ "prompt": decprompt + ", Output in " + decaiLanguage + "\n" + msg });
-        const curlcmd = `'!curl -s -o .decai.txt ${decaiHost}:${decaiPort}/completion
+        const curlcmd = `curl -s ${decaiHost}:${decaiPort}/completion
           -H "Content-Type: application/json"
           -d '${payload}' #`.replace(/\n/g, "");
         if (decaiDebug) {
             console.log(curlcmd);
         }
-        r2.cmd0(curlcmd);
-        const res = r2.cmd("cat .decai.txt");
+        const res = r2.syscmds(curlcmd);
         try {
             return JSON.parse(res).content;
         } catch(e) {
@@ -228,12 +225,11 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
             const q = queryText.startsWith("-")? queryText: ["-i", fileName, queryText].join(" ");
             const host = decaiHost + ":" + decaiPort + "/cmd"; // "http://localhost:8080/cmd";
             const ss = q.replace(/ /g, "%20").replace(/'/g, "\\'");
-            const cmd = '\'!curl -s "' + host + '/' + ss + '" > .pdc.txt || echo Cannot curl, use r2ai-server or r2ai -w #';
+            const cmd = 'curl -s "' + host + '/' + ss + '" || echo Cannot curl, use r2ai-server or r2ai -w #';
             if (decaiDebug) {
                 console.error(cmd);
             }
-            r2.cmd0(cmd);
-            return r2.cmd('cat .pdc.txt');
+            return r2.syscmds(cmd);
         }
         if (fileData === "" || queryText.startsWith("-")) { // -i
             return "";
