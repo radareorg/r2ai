@@ -40,6 +40,7 @@ def mainmodels():
 Decai:
 -m ibm-granite/granite-20b-code-instruct-8k-GGUF
 -m cognitivecomputations/dolphin-2.9.3-mistral-nemo-12b-gguf
+-m bartowski/Gemma-2-9B-It-SPPO-Iter3-GGUF
 Local:
 -m cognitivecomputations/dolphin-2.9.4-llama3.1-8b-gguf
 -m FaradayDotDev/llama-3-8b-Instruct-GGUF
