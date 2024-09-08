@@ -21,6 +21,7 @@ If you want to run r2ai in local you should use granite, mistral, llama3, gemma 
 PD: Granite woeks quite well
 
   [r2ai:0x0000000]> -m ibm-granite/granite-20b-code-instruct-8k-GGUF
+  [r2ai:0x0000000]> -m QuantFactory/granite-8b-code-instruct-4k-GGUF
   [r2ai:0x0000000]> -m TheBloke/Mistral-7B-Instruct-v0.2-GGUF
   [r2ai:0x0000000]> -w
 

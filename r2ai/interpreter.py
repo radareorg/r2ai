@@ -169,7 +169,7 @@ def messages_to_prompt(self, messages):
     return formatted_messages
 
 def template_granite(self,messages):
-    self.terminator = "Question"
+    self.terminator = "Question:"
     msg = ""
     try:
         if self.system_message != "":

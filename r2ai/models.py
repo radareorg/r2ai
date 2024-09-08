@@ -39,6 +39,7 @@ def mainmodels():
     return """
 Decai:
 -m ibm-granite/granite-20b-code-instruct-8k-GGUF
+-m QuantFactory/granite-8b-code-instruct-4k-GGUF
 -m cognitivecomputations/dolphin-2.9.3-mistral-nemo-12b-gguf
 -m bartowski/Gemma-2-9B-It-SPPO-Iter3-GGUF
 Local:
