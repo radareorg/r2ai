@@ -64,6 +64,12 @@ install: user-install
 	-mkdir -p /usr/local/share/man/man1/r2ai.1
 	-cp doc/usage/r2ai.1 /usr/local/share/man/man1/r2ai.1
 
+install-decai:
+	$(MAKE) -C decai user-install
+
+install-server:
+	$(MAKE) -C r2ai-server user-install
+
 install-plugin user-install-plugin:
 	ln -fs $(PWD)/main.py $(R2_USER_PLUGINS)/r2ai.py
 

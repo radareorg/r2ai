@@ -16,10 +16,33 @@ Run a language model in local, without internet, to entertain you or help answer
   <img src="doc/r2clippy.jpg">
 </p>
 
+## Components
+
+R2AI is structured into four independent components:
+
+* r2ai (wip r2ai-native rewrite in C)
+  * r2-like repl using r2pipe to comunicate with r2
+  * supports auto solving mode
+  * client and server openapi protocol
+  * download and manage models from huggingface
+* decai
+  * lightweight r2js plugin
+  * focus on decompilation
+  * talks to r2ai, r2ai-server, openai, anthropic or ollama
+* r2ai-plugin
+  * requires r2lang-python
+  * adds r2ai command inside r2
+  * not recommended because of python versions pain
+* r2ai-server
+  * list and select models downloaded from r2ai
+  * simple cli tool to start local openapi webservers
+  * supports llamafile, llamacpp, r2ai-w and kobaldcpp
+
 ## Features
 
-* Prompt the language model without internet requirements
-* Use local GGUF or remote language models (via http)
+* Support Auto mode (see below) to solve tasks using function calling
+* Use local and remote language models (llama, ollama, openai, anthropic, ..)
+* Support OpenAI, Anthropic, Bedrock
 * Index large codebases or markdown books using a vector database
 * Slurp file and perform actions on that
 * Embed the output of an r2 command and resolve questions on the given data
@@ -39,10 +62,12 @@ The installation is now splitted into two different targets:
 
 * `make install` will place a symlink in `$BINDIR/r2ai`
 * `make install-plugin` will install the native r2 plugin into your home
+* `make install-decai` will install the decai r2js decompiler plugin
+* `make install-server` will install the decai r2js decompiler plugin
 
 ## Running
 
-When running installed via r2pm you can execute it like this:
+When installed via r2pm you can execute it like this:
 
 ```bash
 r2pm -r r2ai
