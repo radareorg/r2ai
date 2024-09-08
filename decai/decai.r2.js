@@ -18,6 +18,7 @@ The best model for decompiling is ClaudeAI from Anthropic:
   Webserver listening at port 8080
 
 If you want to run r2ai in local you should use granite, mistral, llama3, gemma or mistral
+PD: Granite woeks quite well
 
   [r2ai:0x0000000]> -m ibm-granite/granite-20b-code-instruct-8k-GGUF
   [r2ai:0x0000000]> -m TheBloke/Mistral-7B-Instruct-v0.2-GGUF
@@ -39,7 +40,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
     let decaiDebug = false;
     let lastOutput = "";
     let decaiCache = false; // not implemented yet
-    let decprompt = "Only show the code with no explanation or introductions. Simplify the code: - take function arguments from comment - remove dead assignments - refactor goto with for/if/while - use better names for variables";
+    let decprompt = "Only show the code with no explanation or introductions. Simplify the code: - take function arguments from comment - remove dead assignments - refactor goto with for/if/while - use better names for variables - simplify as much as possible";
     // decprompt += ", comments in function calls may replace arguments and remove unnecessary early variable assignments that happen"
 
     function decaiEval(arg) {

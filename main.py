@@ -16,11 +16,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("bin", nargs="?", type=str)
     parser.add_argument("-w", "--webserver", action="store_true",
-        help="Start the r2ai webserver. Same as r2ai -c=-w", type=bool)
+        help="Start the r2ai webserver. Same as r2ai -c=-w")
     parser.add_argument("-c", "--command", action="append",
         help="Command to be executed. Can be passed multiple times.")
     args =  parser.parse_args()
-    if args.w:
+    if args.webserver:
         args.command.append("-w")
 
     r2ai_main(args, args.command)
