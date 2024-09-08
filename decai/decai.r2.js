@@ -137,7 +137,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
            messages: [
                {
                    "role": "user",
-                   "content": decprompt + ", Output in " + decaiLanguage + "\n" + msg
+                   "content": decprompt + ", Explain this pseudocode in " + decaiLanguage + "\n" + msg
                }
            ]
        });
@@ -172,7 +172,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
            messages: [
                {"role": "system", "content": decprompt }, {
                    "role": "user",
-                   "content": decprompt + ", Output in " + decaiLanguage + "\n" + msg
+                   "content": decprompt + ", Explain this pseudocode in " + decaiLanguage + "\n" + msg
                }
            ]
        });
@@ -193,7 +193,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         return "error invalid response";
     }
     function r2aiOpenAPI(msg) {
-        const payload = JSON.stringify({ "prompt": decprompt + ", Output in " + decaiLanguage + "\n" + msg });
+        const payload = JSON.stringify({ "prompt": decprompt + ", Explain this pseudocode in " + decaiLanguage + "\n" + msg });
         const curlcmd = `curl -s ${decaiHost}:${decaiPort}/completion
           -H "Content-Type: application/json"
           -d '${payload}' #`.replace(/\n/g, "");
@@ -353,7 +353,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
                         break;
                     }
                     r2ai("-R");
-                    const query = (decprompt + " " + args).trim() + ". Output in " + decaiLanguage;
+                    const query = (decprompt + " " + args).trim() + ". Explain this pseudocode in " + decaiLanguage;
                     out = r2ai(query, text);
                     lastOutput = out;
                 } catch (e) {
