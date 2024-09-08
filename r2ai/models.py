@@ -37,12 +37,14 @@ def Markdown(x):
 
 def mainmodels():
     return """
+Decai:
+-m ibm-granite/granite-20b-code-instruct-8k-GGUF
+-m cognitivecomputations/dolphin-2.9.3-mistral-nemo-12b-gguf
 Local:
 -m cognitivecomputations/dolphin-2.9.4-llama3.1-8b-gguf
 -m FaradayDotDev/llama-3-8b-Instruct-GGUF
 -m second-state/Mistral-Nemo-Instruct-2407-GGUF
 -m bartowski/gemma-2-9b-it-GGUF
--m cognitivecomputations/dolphin-2.9.3-mistral-nemo-12b-gguf
 Functionary:
 -m meetkai/functionary-small-v3.2-GGUF
 Uncensored:

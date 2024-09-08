@@ -17,8 +17,9 @@ The best model for decompiling is ClaudeAI from Anthropic:
   [r2ai:0x0000000]> -w
   Webserver listening at port 8080
 
-If you want to run r2ai in local you should use llama3, gemma or mistral
+If you want to run r2ai in local you should use granite, mistral, llama3, gemma or mistral
 
+  [r2ai:0x0000000]> -m ibm-granite/granite-20b-code-instruct-8k-GGUF
   [r2ai:0x0000000]> -m TheBloke/Mistral-7B-Instruct-v0.2-GGUF
   [r2ai:0x0000000]> -w
 
