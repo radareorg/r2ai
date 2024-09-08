@@ -10,15 +10,21 @@ main() {
 		echo "Use -l and -m to select a model"
 		exit 1
 	fi
+	echo "${MODEL}" | grep -e ^/
+	if [ $? = 0 ]; then
+		MODELPATH="${MODEL}"
+	else
+		MODELPATH="${MODELDIR}/${MODEL}.gguf"
+	fi
 	case ${LLAMA} in
 	llamafile)
-		llamafile --server --nobrowser -c 0 --port ${PORT} -m "${MODELDIR}/${MODEL}.gguf"
+		llamafile --server --nobrowser -c 0 --port ${PORT} -m "${MODELPATH}"
 		;;
 	llamacpp)
-		llama-server -c 0 --port ${PORT} -m "${MODELDIR}/${MODEL}.gguf"
+		llama-server -c 0 --port ${PORT} -m "${MODELPATH}"
 		;;
 	koboldcpp)
-		koboldcpp -c 0 --port ${PORT} -m "${MODELDIR}/${MODEL}.gguf"
+		koboldcpp -c 0 --port ${PORT} -m "${MODELPATH}"
 		;;
 	r2ai)
 		r2ai -c="-e http.port=${PORT}" -c="-m ${MODEL}" -c="-w"
@@ -81,6 +87,7 @@ while : ; do
 		;;
 	"")
 		main
+		break
 		;;
 	esac
 	shift
