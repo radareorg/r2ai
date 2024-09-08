@@ -39,6 +39,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
     let decaiCommands = "pdc";
     let decaiLanguage = "C";
     let decaiDebug = false;
+    let decaiContextFile = "";
     let lastOutput = "";
     let decaiCache = false; // not implemented yet
     let decprompt = "Only show the code with no explanation or introductions. Simplify the code: - take function arguments from comment - remove dead assignments - refactor goto with for/if/while - use better names for variables - simplify as much as possible";
@@ -66,6 +67,9 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
             case "prompt":
                 console.log(decprompt);
                 break;
+            case "ctxfile":
+                console.log(decaiContextFile);
+                break;
             case "host":
                 console.log(decaiHost);
                 break;
@@ -91,6 +95,9 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
             break;
         case "cache":
             decaiCache = v;
+            break;
+        case "ctxfile":
+            decaiContextFile = v;
             break;
         case "lang":
             decaiLanguage = v;
@@ -309,6 +316,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
                     console.log("decai -e host=" + decaiHost);
                     console.log("decai -e port=" + decaiPort);
                     console.log("decai -e prompt=" + decprompt);
+                    console.log("decai -e ctxfile=" + decaiContextFile);
                     console.log("decai -e cmds=" + decaiCommands);
                     console.log("decai -e cache=" + decaiCache);
                     console.log("decai -e lang=" + decaiLanguage);
@@ -335,6 +343,12 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
                     r2.cmd("echo > " + file);
                     let count = 0;
                     let text = "";
+		    if (decaiContextFile !== "") {
+			    text += "Context:\n";
+			    text += "[RULES]\n";
+			    text += r2.cmd("cat " + decaiContextFile);
+			    text += "[/RULES]\n";
+		    }
                     const origColor = r2.cmd("e scr.color");
                     r2.cmd("e scr.color=0");
                     for (const c of decaiCommands.split(",")) {
