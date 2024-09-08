@@ -118,6 +118,8 @@ def messages_to_prompt(self, messages):
         formatted_messages = template_q4im(self, messages)
     elif "gemma" in lowermodel:
         formatted_messages = template_gemma(self, messages)
+    elif "granite" in lowermodel:
+        formatted_messages = template_granite(self, messages)
     elif "starcoder" in lowermodel:
         formatted_messages = template_starcoder(self, messages)
     elif "openchat" in lowermodel:
@@ -165,6 +167,27 @@ def messages_to_prompt(self, messages):
     if self.env["debug"] == "true":
         builtins.print(formatted_messages)
     return formatted_messages
+
+def template_granite(self,messages):
+    self.terminator = "Question"
+    msg = ""
+    try:
+        if self.system_message != "":
+            msg += f"System:\n{self.system_message}\n"
+        for index, item in enumerate(messages):
+            role = item['role']
+            content = item['content'].strip()
+            if not role:
+                role = "user"
+            elif role == "hint":
+                role = "user"
+                content = f"Use this information to respond the question:{content}"
+            if content != "":
+                msg += f"Question:\n{content}\n"
+        msg += f"Answer:\n"
+    except Exception:
+        traceback.print_exc()
+    return msg
 
 def template_gemma(self,messages):
     self.terminator = "<end_of_turn>"
