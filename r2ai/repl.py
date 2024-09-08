@@ -1,6 +1,7 @@
 import builtins
 from .models import set_default_model, models, mainmodels
 from .utils import slurp
+from .large import Large
 import traceback
 from .const import R2AI_HISTFILE, R2AI_HOMEDIR, R2AI_RCFILE, R2AI_USERDIR
 from .web import start_http_server
@@ -306,7 +307,7 @@ def runline(ai, usertext):
                     pass
     elif usertext.startswith("-l"):
         try:
-            l = Large()
+            l = Large(ai)
             t = slurp("doc/samples/qcw.txt")
             print(l.summarize_text(t))
         except Exception:
