@@ -875,7 +875,14 @@ class Interpreter:
             response = ""
             if ":" in self.model:
                 uri = self.model.split(":")[1:]
-                response = openapi.chat(m, ":".join(uri))
+                model = 'gpt-3.5-turbo'
+                openapiKey = syscmdstr('cat ~/.r2ai.openai-key').strip()
+                if not openapiKey:
+                    openapiKey = ''
+                if len(uri) > 2:
+                    model = uri[-1]
+                    uri = uri[:-1]
+                response = openapi.chat(m, ":".join(uri), model, openapiKey)
             else:
                 response = openapi.chat(m)
             if "content" in self.messages[-1]:
