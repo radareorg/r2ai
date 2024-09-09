@@ -899,9 +899,8 @@ class Interpreter:
             if self.model.startswith("openapi:"):
                 uri = self.model.split(":", 3)[1:]
                 if len(uri) > 2:
-                    self.model = uri[-1]
                     self.api_base = ":".join(uri[:-1])
-                    openai_model = self.model
+                    openai_model = uri[-1]
             else:
                 openai_model = self.model.rsplit(":")[-1]
             self.api_key = syscmdstr('cat ~/.r2ai.openai-key').strip();
