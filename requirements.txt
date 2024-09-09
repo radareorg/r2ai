@@ -15,3 +15,5 @@ openai
 anthropic
 boto3
 colorama
+himl==0.15.2
+dacite==1.8.1
