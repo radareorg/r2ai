@@ -604,7 +604,7 @@ class Interpreter:
         self.google_client = None
         self.google_chat = None
         self.bedrock_client = None
-        self.api_base = None # Will set it to whatever OpenAI wants
+        self.api_base = "https://api.openai.com/v1" # Default openai base url
         self.system_message = ""
         self.env["debug"] = "false"
         self.env["llm.model"] = self.model ## TODO: dup. must get rid of self.model
@@ -868,29 +868,24 @@ class Interpreter:
             response = auto.chat(self)
             return
 
-        elif self.model.startswith("openapi"):
-            m = messages
-            if self.system_message != "":
-                m.insert(0, {"role": "system", "content": self.system_message})
-            response = ""
-            if ":" in self.model:
-                uri = self.model.split(":")[1:]
-                model = 'gpt-3.5-turbo'
-                openapiKey = syscmdstr('cat ~/.r2ai.openai-key').strip()
-                if not openapiKey:
-                    openapiKey = ''
-                if len(uri) > 2:
-                    model = uri[-1]
-                    uri = uri[:-1]
-                response = openapi.chat(m, ":".join(uri), model, openapiKey)
-            else:
-                response = openapi.chat(m)
-            if "content" in self.messages[-1]:
-                last_message = self.messages[-1]["content"]
-            if self.env["chat.reply"] == "true":
-                self.messages.append({"role": "assistant", "content": response})
-            print(response)
-            return
+        # elif self.model.startswith("openapi"):
+        #     m = messages
+        #     if self.system_message != "":
+        #         m.insert(0, {"role": "system", "content": self.system_message})
+        #     response = ""
+        #     if ":" in self.model:
+        #         uri = self.model.split(":")[1:]
+        #         model = 'gpt-3.5-turbo'
+        #         openapiKey = syscmdstr('cat ~/.r2ai.openai-key').strip()
+        #         if not openapiKey:
+        #             openapiKey = ''
+        #         if len(uri) > 2:
+        #             model = uri[-1]
+        #             uri = uri[:-1]
+        #         response = openapi.chat(m, ":".join(uri), model, openapiKey)
+        #     else:
+        #         response = openapi.chat(m)
+        #     return
 
         elif self.model.startswith("kobaldcpp"):
             if self.system_message != "":
@@ -918,16 +913,24 @@ class Interpreter:
             print(response)
             return
 
-        elif self.model.startswith("openai:"):
+        elif self.model.startswith("openai:") or self.model.startswith("openapi:"):
             # [
             #  {"role": "system", "content": "You are a poetic assistant, be creative."},
             #  {"role": "user", "content": "Compose a poem that explains the concept of recursion in programming."}
             # ]
-            openai_model = self.model[7:]
+            if self.model.startswith("openapi:"):
+                uri = self.model.split(":", 3)[1:]
+                if len(uri) > 2:
+                    self.model = uri[-1]
+                    self.api_base = ":".join(uri[:-1])
+                    openai_model = self.model
+            else:
+                openai_model = self.model.rsplit(":")[-1]
+            self.api_key = syscmdstr('cat ~/.r2ai.openai-key').strip();
             if have_openai:
                 # https://platform.openai.com/docs/assistants/overview
                 if self.openai_client is None:
-                    self.openai_client = OpenAI()
+                    self.openai_client = OpenAI(base_url=self.api_base)
                 if self.system_message != "":
                     self.messages.append({"role": "system", "content": self.system_message})
                 completion = self.openai_client.chat.completions.create(
@@ -935,7 +938,11 @@ class Interpreter:
                     model=openai_model,
                     max_tokens=maxtokens,
                     temperature=float(self.env["llm.temperature"]),
-                    messages=self.messages
+                    messages=self.messages,
+                    extra_headers={
+                        "HTTP-Referer": "https://rada.re", # openrouter specific: Optional, for including your app on openrouter.ai rankings.
+                        "X-Title": "radare2", # openrouter specific: Optional. Shows in rankings on openrouter.ai.
+                    }
                 )
                 response = completion.choices[0].message.content
                 if "content" in self.messages[-1]:
@@ -943,11 +950,18 @@ class Interpreter:
                 if self.env["chat.reply"] == "true":
                     self.messages.append({"role": "assistant", "content": response})
                 print(response)
-                return
             else:
+                print("OpenAi python not found. Falling back to requests library", file=sys.stderr)
+                response = openapi.chat(self.messages, self.api_base, openai_model, self.api_key) 
+                if "content" in self.messages[-1]:
+                    last_message = self.messages[-1]["content"]
+                if self.env["chat.reply"] == "true":
+                    self.messages.append({"role": "assistant", "content": response})
+                print(response)
+                print("For a better experience install openai python", file=sys.stderr)
                 print("pip install -U openai", file=sys.stderr)
                 print("export OPENAI_API_KEY=...", file=sys.stderr)
-                return
+            return
 
         elif self.model.startswith('anthropic:'):
             anthropic_model = self.model[10:]
