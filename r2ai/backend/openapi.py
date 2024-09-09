@@ -12,7 +12,7 @@ def chat(messages, uri='http://localhost:5001', model='gpt-3.5-turbo', openapiKe
     if uri.endswith("/"):
         uri = uri[0:len(uri)-1]
 #    url = f'{uri}/v1/completions'
-    url = f'{uri}/v1/chat/completions'
+    url = f'{uri}/chat/completions'
     data = {
       "model": model,
       "messages": messages
@@ -20,7 +20,8 @@ def chat(messages, uri='http://localhost:5001', model='gpt-3.5-turbo', openapiKe
     headers = {
         "HTTP-Referer": "https://rada.re", # openrouter specific: Optional, for including your app on openrouter.ai rankings.
         "X-Title": "radare2", # openrouter specific: Optional. Shows in rankings on openrouter.ai.
-        "Authorization": f"Bearer {openapiKey}"
+        "Authorization": f"Bearer {openapiKey}",
+        "Content-Type": "application/json"
     }
 
     r = requests.post(url=url, data=json.dumps(data), timeout=600, headers=headers)
