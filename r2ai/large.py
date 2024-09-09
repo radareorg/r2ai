@@ -1,4 +1,5 @@
 from .models import get_hf_llm, new_get_hf_llm, get_default_model
+from . import LOGGER
 import re
 import json
 
@@ -10,6 +11,7 @@ class Large:
         self.maxtokens = 5000
         # self.model = "TheBloke/Mistral-7B-Instruct-v0.2-GGUF"
         self.model = "FaradayDotDev/llama-3-8b-Instruct-GGUF"
+        self.logger = LOGGER.getChild(f"large[{self.model}]")
         if ai is not None:
             self.ai = ai
         else:
@@ -62,8 +64,7 @@ class Large:
         msg = f"Considering the sentence \"{text}\" as input, Take the KEYWORDS or combination of TWO words from the given text and respond ONLY a comma separated list of the most relevant words. DO NOT introduce your response, ONLY show the words"
         msg = f"Take \"{text}\" as input, and extract the keywords and combination of keywords to make a search online, the output must be a comma separated list" #Take the KEYWORDS or combination of TWO words from the given text and respond ONLY a comma separated list of the most relevant words. DO NOT introduce your response, ONLY show the words"
         response = mm(msg, stream=False, temperature=0.001, stop="</s>", max_tokens=1750)
-        if self.ai.env["debug"] == "true":
-            print("KWSPLITRESPONSE", response)
+        self.logger.debug(response)
         text0 = response["choices"][0]["text"]
         text0 = text0.replace('"', ",")
         if text0.startswith("."):

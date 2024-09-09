@@ -1,6 +1,7 @@
 """Implementation for kobaldcpp http api call using openai endpoint."""
 import json
 import requests
+from .. import LOGGER
 
 # MODEL="~/.r2ai.models/Lexi-Llama-3-8B-Uncensored_Q4_K_M.gguf"
 # ./llama-server --in-prefix '### User: ' --prompt 5001 \
@@ -31,4 +32,7 @@ def chat(messages, uri='http://localhost:5001', model='gpt-3.5-turbo', openapiKe
         if "text" in choice:
             return j["choices"][0]["text"]
         return choice["message"]["content"]
+    if "error" in j:
+        error = j["error"]
+        LOGGER.getChild("openapi").error("OpenAIError[%s], %s", error['code'], error['message'])
     return "No response"
