@@ -125,7 +125,6 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         console.error(" " + command + " -d        - decompile current function");
         console.error(" " + command + " -e        - display and change eval config vars");
         console.error(" " + command + " -h        - show this help");
-        console.error(" " + command + " -m        - model (api=r2ai only)");
         console.error(" " + command + " -M        - list most relevant models (api=r2ai only)");
         console.error(" " + command + " -n        - suggest better function name");
         console.error(" " + command + " -q [text] - query language model with given text");
@@ -285,23 +284,6 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
                     decprompt = args
                 } else {
                     console.log(decprompt);
-                }
-                break;
-            case "M": // "-M"
-                console.log("decai -m openai:gpt-4o");
-                console.log("decai -m anthropic:claude-3-5-sonnet-20240620");
-                console.log("decai -m FaradayDotDev/llama-3-8b-Instruct-GGUF");
-                console.log("decai -m bartowski/gemma-2-9b-it-GGUF");
-                console.log("decai -m cognitivecomputations/dolphin-2.9.3-mistral-nemo-12b-gguf");
-                console.log("decai -m second-state/Mistral-Nemo-Instruct-2407-GGUF");
-                console.log("decai -m Undi95/Utopia-13B-GGUF");
-                break;
-            case "m": // "-m"
-                args = args.slice(2).trim();
-                if (args) {
-                    console.log(r2ai("-m " + args));
-                } else {
-                    console.log(r2ai("-m"));
                 }
                 break;
             case "V": // "-V"
