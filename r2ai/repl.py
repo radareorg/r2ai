@@ -13,7 +13,7 @@ import os
 from .tab import tab_init, tab_hist, tab_write, tab_evals
 from .interpreter import Interpreter
 from .pipe import have_rlang, r2lang, r2singleton
-from r2ai import bubble
+from r2ai import bubble, LOGGER
 
 tab_init()
 
@@ -79,7 +79,11 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai -t [temp]         from 0.0001 to 10 your scale to randomness in my replies
  r2ai -v                show r2ai version (same as ?V)
  r2ai -w ([port])       start webserver (curl -D hello http://localhost:8000)
- r2ai -W ([port])       start webserver in background"""
+ r2ai -W ([port])       start webserver in background
+ r2ai -V (num)          set log level for this session
+                        0: NOTSET, 1: DEBUG, 2: INFO,
+                        3: WARNING, 4: ERROR, 5: CRITICAL
+r2ai -V                 get current log level"""
 
 def myprint(msg, file=None):
     global print_buffer
@@ -444,6 +448,12 @@ def runline(ai, usertext):
             print("r2 is not available", file=sys.stderr)
         else:
             builtins.print(r2_cmd(usertext[1:]))
+    elif usertext.startswith("-V"):
+        arguments = usertext.split()
+        if len(arguments) > 1:
+            LOGGER.setLevel(int(arguments[-1]) * 10)
+        else:
+            print("{0:.0f}".format(LOGGER.level / 10))
     elif usertext.startswith("-"):
         print("Unknown flag. See 'r2ai -h' for help", file=sys.stderr)
     else:

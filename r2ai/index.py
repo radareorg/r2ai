@@ -8,6 +8,7 @@ import traceback
 import chromadb
 from unidecode import unidecode
 import sys
+from r2ai import LOGGER
 try:
     from .utils import slurp, syscmdstr
     from .const import R2AI_HISTFILE
@@ -336,8 +337,7 @@ class compute_rarity():
             else:
                 self.words[a] = 1
     def pull_realtime_lines(self, text, keywords, use_vectordb):
-        if self.env["debug"] == "true":
-            print(f"Pulling from mastodon {text}")
+        LOGGER.debug(f"Pulling from mastodon {text}")
         return mastodon_lines(text, keywords, use_vectordb)
 
     def find_matches(self, text, keywords):

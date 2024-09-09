@@ -21,10 +21,10 @@ from .backend import openapi
 from .models import get_hf_llm, new_get_hf_llm, get_default_model
 from .voice import tts
 from .const import R2AI_HOMEDIR
-from . import auto
+from . import auto, LOGGER, logging
 
 try:
-    from openai import OpenAI
+    from openai import OpenAI, OpenAIError
     have_openai = True
 except Exception:
     have_openai = False
@@ -164,8 +164,7 @@ def messages_to_prompt(self, messages):
         formatted_messages = template_tinyllama(self, messages)
     else:
         formatted_messages = template_llama(self, messages)
-    if self.env["debug"] == "true":
-        builtins.print(formatted_messages)
+    LOGGER.debug(formatted_messages)
     return formatted_messages
 
 def template_granite(self,messages):
@@ -589,6 +588,7 @@ def template_llama(self,messages):
 
 class Interpreter:
     def __init__(self):
+        self.logger = LOGGER
         self.mistral = None
         self.messages = []
         self.terminator = "</s>" ## taken from the model using the llama api
@@ -606,7 +606,6 @@ class Interpreter:
         self.bedrock_client = None
         self.api_base = "https://api.openai.com/v1" # Default openai base url
         self.system_message = ""
-        self.env["debug"] = "false"
         self.env["llm.model"] = self.model ## TODO: dup. must get rid of self.model
         self.env["llm.gpu"] = "true"
         self.env["llm.window"] = "32768" # "4096" # context_window
@@ -713,8 +712,7 @@ class Interpreter:
         msg = f"Considering the sentence \"{text}\" as input, Take the KEYWORDS or combination of TWO words from the given text and respond ONLY a comma separated list of the most relevant words. DO NOT introduce your response, ONLY show the words"
         msg = f"Take \"{text}\" as input, and extract the keywords and combination of keywords to make a search online, the output must be a comma separated list" #Take the KEYWORDS or combination of TWO words from the given text and respond ONLY a comma separated list of the most relevant words. DO NOT introduce your response, ONLY show the words"
         response = mm(msg, stream=False, temperature=0.1, stop="</s>", max_tokens=1750)
-        if self.env["debug"] == "true":
-            print("KWSPLITRESPONSE", response)
+        self.logger.debug(response)
         text0 = response["choices"][0]["text"]
         text0 = text0.replace('"', ",")
         if text0.startswith("."):
@@ -740,7 +738,7 @@ class Interpreter:
 
         if not message and self.env["chat.code"] == "true":
             self.end_active_block()
-            print("Missing message")
+            self.logger.error("Missing message")
             return
 
         if self.env["data.use"] == "true":
@@ -748,7 +746,7 @@ class Interpreter:
             use_wikit = self.env["data.wikit"] == "true"
             use_mastodon = self.env["data.mastodon"] == "true"
             use_vectordb = self.env["data.vectordb"] == "true"
-            use_debug = self.env["debug"] == "true"
+            use_debug = LOGGER.level == logging.DEBUG
             datadir = None
             keywords = None
             if use_mastodon:
@@ -767,12 +765,10 @@ class Interpreter:
 
             if len(matches) > 0:
                 for m in matches:
-                    if self.env["debug"] == "true":
-                        print("HINT: " + m)
+                    self.logger.debug("HINT: " + m)
                     self.messages.append({"role": "hint", "content": r2eval(m)})
 
-        if self.env["debug"] == "true":
-            print(message)
+        self.logger.debug(message)
 
         # print(message)
         # Local model
@@ -783,13 +779,14 @@ class Interpreter:
             not self.model.startswith("bedrock:") and
             self.llama_instance is None
         ):
+            self.logger = LOGGER.getChild(f"local:{self.model}")
             # Find or install Code-Llama
             try:
                 ctxwindow = int(self.env["llm.window"])
                 debug_mode = False # maybe true when debuglevel=2 ?
                 self.llama_instance = new_get_hf_llm(self, self.model, debug_mode, ctxwindow)
                 if self.llama_instance is None:
-                    builtins.print("Cannot find model " + self.model)
+                    self.logger.error("Cannot find model " + self.model)
                     return
             except Exception:
                 traceback.print_exc()
@@ -839,6 +836,7 @@ class Interpreter:
 
     def respond(self):
         global Ginterrupted
+        self.logger = LOGGER.getChild(self.model.split(":")[0])
         maxtokens = int(self.env["llm.maxtokens"])
         # Add relevant info to system_message
         # (e.g. current working directory, username, os, etc.)
@@ -859,33 +857,13 @@ class Interpreter:
         else:
             messages = self.large.compress_messages(self.messages)
 
-        if self.env["debug"] == "true":
-            print(messages)
+            self.logger.debug(messages)
 
         # builtins.print(prompt)
         response = None
         if self.auto_run:
             response = auto.chat(self)
             return
-
-        # elif self.model.startswith("openapi"):
-        #     m = messages
-        #     if self.system_message != "":
-        #         m.insert(0, {"role": "system", "content": self.system_message})
-        #     response = ""
-        #     if ":" in self.model:
-        #         uri = self.model.split(":")[1:]
-        #         model = 'gpt-3.5-turbo'
-        #         openapiKey = syscmdstr('cat ~/.r2ai.openai-key').strip()
-        #         if not openapiKey:
-        #             openapiKey = ''
-        #         if len(uri) > 2:
-        #             model = uri[-1]
-        #             uri = uri[:-1]
-        #         response = openapi.chat(m, ":".join(uri), model, openapiKey)
-        #     else:
-        #         response = openapi.chat(m)
-        #     return
 
         elif self.model.startswith("kobaldcpp"):
             if self.system_message != "":
@@ -933,17 +911,24 @@ class Interpreter:
                     self.openai_client = OpenAI(base_url=self.api_base)
                 if self.system_message != "":
                     self.messages.append({"role": "system", "content": self.system_message})
-                completion = self.openai_client.chat.completions.create(
-                    # TODO: instructions=self.system_message # instead of passing it in the query
-                    model=openai_model,
-                    max_tokens=maxtokens,
-                    temperature=float(self.env["llm.temperature"]),
-                    messages=self.messages,
-                    extra_headers={
-                        "HTTP-Referer": "https://rada.re", # openrouter specific: Optional, for including your app on openrouter.ai rankings.
-                        "X-Title": "radare2", # openrouter specific: Optional. Shows in rankings on openrouter.ai.
-                    }
-                )
+                try:
+                    completion = self.openai_client.chat.completions.create(
+                        # TODO: instructions=self.system_message # instead of passing it in the query
+                        model=openai_model,
+                        max_tokens=maxtokens,
+                        temperature=float(self.env["llm.temperature"]),
+                        messages=self.messages,
+                        extra_headers={
+                            "HTTP-Referer": "https://rada.re", # openrouter specific: Optional, for including your app on openrouter.ai rankings.
+                            "X-Title": "radare2", # openrouter specific: Optional. Shows in rankings on openrouter.ai.
+                        }
+                    )
+                except OpenAIError as e:
+                    self.logger.error("OpenAIError[%s]: %s", e.body['code'], e.body['message'])
+                    return
+                except Exception as e:
+                    self.logger.error("Exception %s", e)
+                    return
                 response = completion.choices[0].message.content
                 if "content" in self.messages[-1]:
                     last_message = self.messages[-1]["content"]
@@ -951,16 +936,16 @@ class Interpreter:
                     self.messages.append({"role": "assistant", "content": response})
                 print(response)
             else:
-                print("OpenAi python not found. Falling back to requests library", file=sys.stderr)
+                self.logger.warn("OpenAi python not found. Falling back to requests library")
                 response = openapi.chat(self.messages, self.api_base, openai_model, self.api_key) 
                 if "content" in self.messages[-1]:
                     last_message = self.messages[-1]["content"]
                 if self.env["chat.reply"] == "true":
                     self.messages.append({"role": "assistant", "content": response})
                 print(response)
-                print("For a better experience install openai python", file=sys.stderr)
-                print("pip install -U openai", file=sys.stderr)
-                print("export OPENAI_API_KEY=...", file=sys.stderr)
+                self.logger.warn("For a better experience install openai python")
+                self.load.warn("pip install -U openai")
+                self.logger.warn("export OPENAI_API_KEY=...")
             return
 
         elif self.model.startswith('anthropic:'):
@@ -992,8 +977,8 @@ class Interpreter:
                 print(completion.content[0].text)
                 return
             else:
-                print("pip install -U anthropic", file=sys.stderr)
-                print("export ANTHROPIC_API_KEY=...", file=sys.stderr)
+                self.logger.error("pip install -U anthropic")
+                self.logger.error("export ANTHROPIC_API_KEY=...")
                 return
 
         elif self.model.startswith("bedrock:"):
@@ -1052,7 +1037,7 @@ class Interpreter:
         else:
             # non-openai aka local-llama model
             if self.llama_instance == None:
-                print("Llama is not instantiated")
+                self.logger.critical("Llama is not instantiated")
                 return
             try:
                 # Convert messages to prompt
