@@ -6,7 +6,7 @@ import requests
 # ./llama-server --in-prefix '### User: ' --prompt 5001 \
 #	--in-suffix "### Assistant: " -m $MODEL
 
-def chat(messages, uri='http://localhost:5001'):
+def chat(messages, uri='http://localhost:5001', model='gpt-3.5-turbo', openapiKey=''):
     """Send a message to a kobaldcpp server and return the autocompletion response
     """
     if uri.endswith("/"):
@@ -14,12 +14,16 @@ def chat(messages, uri='http://localhost:5001'):
 #    url = f'{uri}/v1/completions'
     url = f'{uri}/v1/chat/completions'
     data = {
-      "model": "gpt-3.5-turbo",
+      "model": model,
       "messages": messages
     }
-    print(json.dumps(data))
-    r = requests.post(url=url, data=json.dumps(data), timeout=600)
-# print(r.text)
+    headers = {
+        "HTTP-Referer": "https://rada.re", # openrouter specific: Optional, for including your app on openrouter.ai rankings.
+        "X-Title": "radare2", # openrouter specific: Optional. Shows in rankings on openrouter.ai.
+        "Authorization": f"Bearer {openapiKey}"
+    }
+
+    r = requests.post(url=url, data=json.dumps(data), timeout=600, headers=headers)
     j = json.loads(r.text)
     if "choices" in j:
         choice = j["choices"][0]

@@ -68,6 +68,8 @@ KobaldCpp:
 -m kobaldcpp:http://localhost:5001
 OpenAPI:
 -m openapi:http://localhost:5001
+OpenAPI (custom model):
+-m openai:http://localhost:5001:gpt-4
 OpenAI:
 -m openai:gpt-3.5-turbo
 -m openai:gpt-4
