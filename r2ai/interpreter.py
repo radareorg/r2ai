@@ -22,6 +22,7 @@ from .models import get_hf_llm, new_get_hf_llm, get_default_model
 from .voice import tts
 from .const import R2AI_HOMEDIR
 from . import auto, LOGGER, logging
+from .web import stop_http_server, server_running
 
 try:
     from openai import OpenAI, OpenAIError
@@ -70,9 +71,11 @@ Ginterrupted = False
 def signal_handler(sig, frame):
     global Ginterrupted
     if Ginterrupted:
+        stop_http_server(force=True) # kill if in background
         sys.exit(0) # throws exception
     Ginterrupted = True
     print("^C 0", file=sys.stderr)
+    stop_http_server(force=False)
 signal(SIGINT, signal_handler)
 
 def exception_handler(self, sig, frame):
