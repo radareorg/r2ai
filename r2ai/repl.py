@@ -218,6 +218,8 @@ def runline(ai, usertext):
     elif usertext.startswith("-m"):
         words = usertext.split(" ")
         if len(words) > 1:
+            if ai.model is not words[1]:
+                ai.llama_instance = None
             ai.model = words[1]
             ai.env["llm.model"] = ai.model
             set_default_model(ai.model)
