@@ -18,7 +18,7 @@ r2ai = "r2ai:main"
 
 [tool.setuptools.packages.find]
 where = [".", "r2ai"]
-include = ["main", "r2ai"]
+include = ["main", "r2ai", "r2ai/ui"]
 namespaces = true
 
 [tool.setuptools.dynamic]
