@@ -23,6 +23,7 @@ from .voice import tts
 from .const import R2AI_HOMEDIR
 from . import auto, LOGGER, logging
 from .web import stop_http_server, server_running
+from .progress import progress_bar
 
 try:
     from openai import OpenAI, OpenAIError
@@ -729,10 +730,10 @@ class Interpreter:
         mm = None
         return [word.strip() for word in text0.split(',')]
 
+    @progress_bar("Thinking", color="yellow") 
     def chat(self, message=None):
         global print
         global Ginterrupted
-
         if self.print is not None:
             print = self.print
 
