@@ -1,6 +1,7 @@
 import os
 import traceback
 import r2pipe
+from .progress import progress_bar
 
 have_rlang = False
 r2lang = None
@@ -62,6 +63,7 @@ def get_r2_inst():
     global r2
     return r2
 
+@progress_bar("Loading", color="yellow")
 def open_r2(file, flags=[]):
     global r2
     r2 = r2pipe.open(file, flags=flags)
