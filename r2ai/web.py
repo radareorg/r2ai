@@ -1,10 +1,16 @@
-import _thread as thread
 import platform
 import json
 import re
+import time
+from threading import Thread, Event
 from .utils import get_timez
+from . import LOGGER
 
 ores = ""
+
+kill_event = None
+server = None
+server_thread = None
 
 # OpenAI API endpoint here
 def handle_v1_completions_default(self, ai, obj, runline2, method):
@@ -325,15 +331,50 @@ def start_http_server_now(ai, runline2):
                 self.send_response(404)
                 self.end_headers()
                 self.wfile.write(bytes(f'Invalid request. Use {BASEPATH}'))
-    print("[R2AI] Serving at port", PORT)
+    LOGGER.getChild("server").info("[R2AI] Serving at port", PORT)
     Handler.protocol_version = "HTTP/1.0"
+    global server
     server = socketserver.TCPServer(("", PORT), SimpleHTTPRequestHandler)
     server.allow_reuse_address = True
     server.allow_reuse_port = True
     server.serve_forever()
 
 def start_http_server(ai, runline2, background):
-    if background:
-        thread.start_new_thread(start_http_server_now, (ai, runline2))
-    else:
-        start_http_server_now(ai, runline2)
+    global server_thread
+    server_thread = Thread(target=start_http_server_now, args=(ai, runline2))
+    server_thread.start()
+    if not background:
+        global kill_event
+        kill_event = Event()
+        while not kill_event.is_set():
+            time.sleep(1)
+        kill_event = None
+
+def stop_http_server(force=False):
+    if not force and server_in_background():
+        return
+    LOGGER.getChild("server").info("Stopping server")
+    global server
+    if server:
+        _kill_server()
+        server = None
+    global server_thread
+    if server_thread:
+        server_thread.join()
+        server_thread = None
+    if not server_in_background():
+        kill_event.set()
+
+def server_running():
+    global server_thread
+    global server
+    return bool(server) and bool(server_thread)
+
+def server_in_background():
+    global kill_event
+    return server_running and not bool(kill_event)
+
+def _kill_server():
+    global server
+    server.shutdown()
+    Thread(target=server.server_close).start()
