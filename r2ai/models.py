@@ -42,7 +42,7 @@ Decai:
 -m QuantFactory/granite-8b-code-instruct-4k-GGUF
 -m cognitivecomputations/dolphin-2.9.3-mistral-nemo-12b-gguf
 -m bartowski/Gemma-2-9B-It-SPPO-Iter3-GGUF
-Local:
+Code:
 -m cognitivecomputations/dolphin-2.9.4-llama3.1-8b-gguf
 -m FaradayDotDev/llama-3-8b-Instruct-GGUF
 -m second-state/Mistral-Nemo-Instruct-2407-GGUF
@@ -53,6 +53,7 @@ Uncensored:
 -m bartowski/Phi-3.5-mini-instruct_Uncensored-GGUF
 -m Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2-GGUF
 -m TheBloke/Unholy-v2-13B-GGUF
+-m x383494/NSFW-3B-Q4_K_M-GGUF
 Remote:
 -m openapi:http://localhost:5001
 -m openai:gpt-4
@@ -360,6 +361,44 @@ def get_hf_llm(ai, repo_id, debug_mode, context_window):
         fd.close()
         print("Saved")
     return llama_cpp.Llama(model_path=model_path, n_gpu_layers=gpulayers(ai), verbose=debug_mode, n_ctx=context_window)
+
+def list_downloaded_models():
+    try:
+        fd = open(r2ai_model_json)
+        usermodels = json.load(fd)
+        fd.close()
+        for m in usermodels:
+            if m.find("/") != -1:
+                M = m.ljust(40)
+                try:
+                    size = round(os.path.getsize(usermodels[m]) / 1024 / 1024 / 1024, 2)
+                    size = f"{size}".rjust(6)
+                    print(f" {size}G {M}")
+                except Exception as e:
+                    print(f"     ??? {M}")
+    except Exception as e:
+        print(e)
+    return None
+
+def delete_downloaded_model(name):
+    fd = None
+    try:
+        fd = open(r2ai_model_json)
+        usermodels = json.load(fd)
+        fd.close()
+        fd = None
+        if name in usermodels:
+            modelpath = usermodels[name]
+            os.remove(modelpath)
+            del usermodels[name]
+            fd = open(r2ai_model_json, "w")
+            json.dump(usermodels, fd)
+            fd.close()
+    except Exception as e:
+        print(e)
+    if fd is not None:
+        fd.close()
+    return None
 
 def set_default_model(repo_id):
     usermodels = {"default": repo_id}

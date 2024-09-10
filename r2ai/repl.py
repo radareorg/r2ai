@@ -1,5 +1,5 @@
 import builtins
-from .models import set_default_model, models, mainmodels
+from .models import set_default_model, list_downloaded_models, delete_downloaded_model, models, mainmodels
 from .utils import slurp
 from .large import Large
 import traceback
@@ -65,6 +65,8 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai -i [file] ([q])   load the file contents and prompt it with the given optional query
  r2ai -j [query]        convert the user prompt into a meaningful json
  r2ai -m [file/repo]    select model from huggingface repository or local file
+ r2ai -m-[repo/model]   delete a local downloaded model (see -mm for listing them)
+ r2ai -mm               list all downloaded models
  r2ai -M                shorter list of models
  r2ai -MM               list supported and most common models from hf
  r2ai -n [num]          select the nth language model
@@ -207,7 +209,7 @@ def runline(ai, usertext):
         runline(ai, usertext[2:].strip())
         tend = datetime.now()
         print(tend - tstart)
-    elif usertext.startswith("?") or usertext.startswith("-h"):
+    elif usertext.startswith("?") or usertext.startswith("-h") or usertext.startswith("-?"):
         print(help_message)
     elif usertext.startswith("clear") or usertext.startswith("-k"):
         print("\x1b[2J\x1b[0;0H\r")
@@ -215,6 +217,10 @@ def runline(ai, usertext):
         print(models().strip())
     elif usertext.startswith("-M"):
         print(mainmodels().strip())
+    elif usertext.startswith("-mm"):
+        list_downloaded_models()
+    elif usertext.startswith("-m-"):
+        delete_downloaded_model(usertext[2:])
     elif usertext.startswith("-m"):
         words = usertext.split(" ")
         if len(words) > 1:
