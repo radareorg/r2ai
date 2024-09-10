@@ -612,6 +612,7 @@ class Interpreter:
         self.env["llm.maxtokens"] = "4096" # "1750"
         self.env["llm.maxmsglen"] = "8096" # "1750"
         self.env["llm.temperature"] = "0.002"
+        self.env["llm.repeat_penalty"] = "1.0"
         self.env["llm.top_p"] = "0.95"
         self.env["llm.top_k"] = "50"
         self.env["user.name"] = "" # TODO auto fill?
@@ -916,6 +917,7 @@ class Interpreter:
                         model=openai_model,
                         max_tokens=maxtokens,
                         temperature=float(self.env["llm.temperature"]),
+                        repeat_penalty=float(self.env["llm.repeat_penalty"]),
                         messages=self.messages,
                         extra_headers={
                             "HTTP-Referer": "https://rada.re", # openrouter specific: Optional, for including your app on openrouter.ai rankings.
@@ -969,6 +971,7 @@ class Interpreter:
                     model=anthropic_model,
                     max_tokens=maxtokens,
                     temperature=float(self.env["llm.temperature"]),
+                    repeat_penalty=float(self.env["llm.repeat_penalty"]),
                     messages=messages
                 )
                 if self.env["chat.reply"] == "true":
@@ -987,6 +990,7 @@ class Interpreter:
             request = {
                 "anthropic_version": "bedrock-2023-05-31",
                 "temperature": float(self.env["llm.temperature"]),
+                "repeat_penalty": float(self.env["llm.repeat_penalty"]),
                 "max_tokens": maxtokens,
                 "messages": [
                     {
@@ -1009,6 +1013,7 @@ class Interpreter:
                     model=self.model[5:],
                     max_tokens=maxtokens,
                     temperature=float(self.env["llm.temperature"]),
+                    repeat_penalty=float(self.env["llm.repeat_penalty"]),
                     messages=self.messages
                 )
                 if self.env["chat.reply"] == "true":
@@ -1025,7 +1030,8 @@ class Interpreter:
                     self.messages[-1]["content"],
                     generation_config={
                         "max_output_tokens": maxtokens,
-                        "temperature": float(self.env["llm.temperature"])
+                        "temperature": float(self.env["llm.temperature"]),
+                        "repeat_penalty": float(self.env["llm.repeat_penalty"])
                     }
                 )
                 if self.env["chat.reply"] == "true":
@@ -1050,6 +1056,7 @@ class Interpreter:
                     prompt,
                     stream=True,
                     temperature=float(self.env["llm.temperature"]),
+                    repeat_penalty=float(self.env["llm.repeat_penalty"]),
                     top_p=float(self.env["llm.top_p"]),
                     top_k=int(self.env["llm.top_k"]),
                     stop=terminator,
