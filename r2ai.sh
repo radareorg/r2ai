@@ -2,6 +2,7 @@
 unset DYLD_LIBRARY_PATH
 unset LD_LIBRARY_PATH
 PYTHON=python3
+R2AI_DIR="$(pwd)"
 if [ -h "$0" ]; then
 	F=`readlink $0`
 else
@@ -17,4 +18,4 @@ else
 	. venv/bin/activate
 fi
 # export PYTHONPATH=$PWD
-$PYTHON $D/main.py $@
+env R2AI_DIR="$R2AI_DIR" $PYTHON $D/main.py $@

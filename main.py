@@ -14,7 +14,7 @@ def is_valid_file(parser, arg):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("bin", nargs="?", type=str)
+    parser.add_argument("bin", nargs="?", type=lambda x: os.path.join(os.environ["R2AI_DIR"], x))
     parser.add_argument("-w", "--webserver", action="store_true",
         help="Start the r2ai webserver. Same as r2ai -c=-w")
     parser.add_argument("-c", "--command", action="append",
