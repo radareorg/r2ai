@@ -331,7 +331,7 @@ def start_http_server_now(ai, runline2):
                 self.send_response(404)
                 self.end_headers()
                 self.wfile.write(bytes(f'Invalid request. Use {BASEPATH}'))
-    LOGGER.getChild("server").info("[R2AI] Serving at port", PORT)
+    LOGGER.getChild("server").info("[R2AI] Serving at port %s", PORT)
     Handler.protocol_version = "HTTP/1.0"
     global server
     server = socketserver.TCPServer(("", PORT), SimpleHTTPRequestHandler)
