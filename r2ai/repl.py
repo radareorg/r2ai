@@ -82,6 +82,8 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai -v                show r2ai version (same as ?V)
  r2ai -w ([port])       start webserver (curl -D hello http://localhost:8000)
  r2ai -W ([port])       start webserver in background
+ r2ai -VV               visual mode
+ r2ai -W ([port])       start webserver in background
  r2ai -V (num)          set log level for this session
                         0: NOTSET, 1: DEBUG, 2: INFO,
                         3: WARNING, 4: ERROR, 5: CRITICAL
@@ -174,6 +176,12 @@ def slurp_until(endword):
       text += line
     return text
 
+def set_model(model):
+    ai = ais[0].ai
+    ai.model = model
+    ai.env["llm.model"] = ai.model
+    set_default_model(ai.model)
+
 def runline(ai, usertext):
     global print
     global autoai
@@ -197,6 +205,10 @@ def runline(ai, usertext):
             return r2ai_vars(ai, usertext[2:].strip())
         except Exception:
             traceback.print_exc()
+    if usertext.startswith("-VV"):
+        from ui.app import R2AIApp
+        R2AIApp().run()
+        return
     if usertext.startswith("?V") or usertext.startswith("-v"):
         r2ai_version()
     elif usertext.startswith("<<"):
@@ -224,11 +236,7 @@ def runline(ai, usertext):
     elif usertext.startswith("-m"):
         words = usertext.split(" ")
         if len(words) > 1:
-            if ai.model is not words[1]:
-                ai.llama_instance = None
-            ai.model = words[1]
-            ai.env["llm.model"] = ai.model
-            set_default_model(ai.model)
+            set_model(words[1])
         else:
             print(ai.model)
     elif usertext == "reset" or usertext.startswith("-R"):

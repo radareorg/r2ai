@@ -1,0 +1,90 @@
+Placeholder {
+    height: 100%;
+}
+
+#sidemenu {
+  dock: left;
+  width: 15;
+  height: 100;
+}
+
+Screen {
+    background: $surface;
+}
+
+#content {
+    height: 1fr;
+    margin: 1 2;
+}
+
+#chat-scroll {
+    height: 1fr;
+    border: solid $primary;
+    background: $surface-darken-1;
+}
+
+#chat-container {
+    padding: 1;
+}
+
+ChatMessage {
+    margin-bottom: 1;
+}
+
+#input-area {
+    height: auto;
+    margin-top: 1;
+}
+
+#input-container {
+    height: 3;
+    background: $boost;
+    border: solid $primary;
+}
+
+#chat-input {
+    dock: left;
+    width: 1fr;
+    background: $boost;
+    border: none;
+}
+
+#send-button {
+    width: 10;
+    margin-left: 1;
+}
+
+/* ... existing styles ... */
+
+#binary-select-dialog {
+    align: center middle;
+    width: 60;
+    height: 35;
+    background: $surface;
+    border: solid $primary;
+}
+
+#binary-select-dialog Label {
+    padding: 1 2;
+}
+
+#binary-select-dialog #path-input {
+    margin: 0 2 1 2;
+}
+
+#binary-select-dialog #path-header {
+    height: 3;
+    margin-bottom: 1;
+}
+
+#binary-select-dialog #up-button {
+    width: 3;
+    min-width: 3;
+    margin-left: 1;
+}
+
+DirectoryTree {
+    background: $surface;
+    height: 1fr;
+    border: none;
+}

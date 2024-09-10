@@ -67,3 +67,4 @@ def get_r2_inst():
 def open_r2(file, flags=[]):
     global r2
     r2 = r2pipe.open(file, flags=flags)
+    return r2

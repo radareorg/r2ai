@@ -798,8 +798,9 @@ class Interpreter:
 
         # If it was, we respond non-interactively
         self.messages.append({"role": "user", "content": message})
+        response = None
         try:
-            self.respond()
+            response = self.respond()
             self.clear_hints()
         except Exception:
             if Ginterrupted:
@@ -807,7 +808,8 @@ class Interpreter:
             else:
                 traceback.print_exc()
         self.end_active_block()
-
+        return response
+    
     def end_active_block(self):
         # if self.env["chat.code"] == "false":
         # return
@@ -939,6 +941,7 @@ class Interpreter:
                 if self.env["chat.reply"] == "true":
                     self.messages.append({"role": "assistant", "content": response})
                 print(response)
+                return response
             else:
                 self.logger.warn("OpenAi python not found. Falling back to requests library")
                 response = openapi.chat(self.messages, self.api_base, openai_model, self.api_key) 
