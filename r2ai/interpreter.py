@@ -920,7 +920,6 @@ class Interpreter:
                         model=openai_model,
                         max_tokens=maxtokens,
                         temperature=float(self.env["llm.temperature"]),
-                        repeat_penalty=float(self.env["llm.repeat_penalty"]),
                         messages=self.messages,
                         extra_headers={
                             "HTTP-Referer": "https://rada.re", # openrouter specific: Optional, for including your app on openrouter.ai rankings.
