@@ -9,14 +9,16 @@ from llama_cpp import Llama
 from llama_cpp.llama_tokenizer import LlamaHFTokenizer
 from transformers import AutoTokenizer
 from anthropic import Anthropic
+from openai import OpenAI, OpenAIError
 
-from . import index
+from . import index, LOGGER
 from .anthropic import construct_tool_use_system_prompt, extract_claude_tool_calls
 from .backend.bedrock import (
     BEDROCK_TOOLS_CONFIG, build_messages_for_bedrock, extract_bedrock_tool_calls,
     process_bedrock_tool_calls, print_bedrock_response
 )
 from .pipe import have_rlang, r2lang, get_r2_inst
+LOGGER = LOGGER.getChild("auto")
 
 ANSI_REGEX = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
@@ -239,12 +241,21 @@ def chat(interpreter):
 
     platform, modelid = None, None
     if ":" in interpreter.model:
-        platform = interpreter.model.split(":")[0]
-        modelid  = ":".join(interpreter.model.split(":")[1:])
+        if interpreter.model.startswith("openai:") or interpreter.model.startswith("openapi:"):
+            if interpreter.model.startswith("openapi:"):
+                uri = interpreter.model.split(":", 3)[1:]
+                if len(uri) > 2:
+                    interpreter.api_base = ":".join(uri[:-1])
+                    modelid = uri[-1]
+            else:
+                modelid = interpreter.model.rsplit(":")[-1]
+            platform = interpreter.model.split(":")[0]
+        else:
+            platform = interpreter.model.split(":")[0]
+            modelid  = ":".join(interpreter.model.split(":")[1:])
     elif "/" in interpreter.model:
         platform = interpreter.model.split("/")[0]
         modelid  = "/".join(interpreter.model.split("/")[1:])
-
     auto_chat_handler_fn = None
     if modelid in auto_chat_handlers.get(platform, {}):
         auto_chat_handler_fn = auto_chat_handlers[platform][modelid]
@@ -259,18 +270,33 @@ def chat(interpreter):
 
 def auto_chat_openai(interpreter):
     if not interpreter.openai_client:
-        interpreter.openai_client = OpenAI()
-
-    response = interpreter.openai_client.chat.completions.create(
-        model=interpreter.model[7:],
-        max_tokens=int(interpreter.env["llm.maxtokens"]),
-        tools=tools,
-        messages=interpreter.messages,
-        tool_choice="auto",
-        stream=True,
-        temperature=float(interpreter.env["llm.temperature"]),
-    )
-    process_streaming_response(interpreter, response)
+        interpreter.openai_client = OpenAI(base_url=interpreter.api_base)
+    response = "No response"
+    if interpreter.model.startswith("openapi:"):
+        uri = interpreter.model.split(":", 3)[1:]
+        if len(uri) > 2:
+            interpreter.api_base = ":".join(uri[:-1])
+            interpreter.model = uri[-1]
+    else:
+        interpreter.model = interpreter.model.rsplit(":")[-1]
+    try:
+        response = interpreter.openai_client.chat.completions.create(
+            model=interpreter.model,
+            max_tokens=int(interpreter.env["llm.maxtokens"]),
+            tools=tools,
+            messages=interpreter.messages,
+            tool_choice="auto",
+            stream=True,
+            temperature=float(interpreter.env["llm.temperature"]),
+        )
+        process_streaming_response(interpreter, response)
+    
+    except OpenAIError as e:
+        LOGGER.error("OpenAIError[%s]: %s", e.body['code'], e.body['message'])
+        return
+    except Exception as e:
+        LOGGER.error("Exception %s", e)
+        return
     return response
 
 def auto_chat_anthropic(interpreter):
@@ -423,6 +449,9 @@ def auto_chat_llama(interpreter):
 
 auto_chat_handlers = {
     "openai": {
+        "default": auto_chat_openai,
+    },
+    "openapi": {
         "default": auto_chat_openai,
     },
     "anthropic": {
