@@ -4,12 +4,14 @@ import sys
 import re
 import os
 import boto3
+import logging
 
 from llama_cpp import Llama
 from llama_cpp.llama_tokenizer import LlamaHFTokenizer
 from transformers import AutoTokenizer
 from anthropic import Anthropic
 from openai import OpenAI, OpenAIError
+from rich.console import Console
 
 from . import index, LOGGER
 from .anthropic import construct_tool_use_system_prompt, extract_claude_tool_calls
@@ -18,7 +20,8 @@ from .backend.bedrock import (
     process_bedrock_tool_calls, print_bedrock_response
 )
 from .pipe import have_rlang, r2lang, get_r2_inst
-LOGGER = LOGGER.getChild("auto")
+from .utils import syscmdstr
+logger = LOGGER.getChild("auto")
 
 ANSI_REGEX = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
@@ -170,6 +173,11 @@ def process_streaming_response(interpreter, resp):
             pass
         delta = None
         choice = dict(chunk["choices"][0])
+        finish_reason = chunk["choices"][-1].finish_reason
+        if finish_reason == "stop":
+            tool_calls = []
+            msgs = []
+            break
         if "delta" in choice:
             delta = dict(choice["delta"])
         else:
@@ -178,7 +186,7 @@ def process_streaming_response(interpreter, resp):
             delta_tool_calls = dict(delta["tool_calls"][0])
             index = 0 if "index" not in delta_tool_calls else delta_tool_calls["index"]
             fn_delta = dict(delta_tool_calls["function"])
-            tool_call_id = delta_tool_calls["id"]
+            tool_call_id = delta_tool_calls["id"] or f"r2cmd"
             if len(tool_calls) < index + 1:
                 tool_calls.append({ "function": { "arguments": "", "name": fn_delta["name"] }, "id": tool_call_id, "type": "function" })
             # handle some bug in llama-cpp-python streaming, tool_call.arguments is sometimes blank, but function_call has it.
@@ -269,33 +277,38 @@ def chat(interpreter):
     return auto_chat_handler_fn(interpreter)
 
 def auto_chat_openai(interpreter):
+    api_key = syscmdstr('cat ~/.r2ai.openai-key').strip();
     if not interpreter.openai_client:
-        interpreter.openai_client = OpenAI(base_url=interpreter.api_base)
+        interpreter.openai_client = OpenAI(base_url=interpreter.api_base, api_key=api_key)
     response = "No response"
     if interpreter.model.startswith("openapi:"):
         uri = interpreter.model.split(":", 3)[1:]
         if len(uri) > 2:
             interpreter.api_base = ":".join(uri[:-1])
-            interpreter.model = uri[-1]
+            model = uri[-1]
     else:
-        interpreter.model = interpreter.model.rsplit(":")[-1]
+        model = interpreter.model.rsplit(":")[-1]
     try:
         response = interpreter.openai_client.chat.completions.create(
-            model=interpreter.model,
+            model=model,
             max_tokens=int(interpreter.env["llm.maxtokens"]),
             tools=tools,
             messages=interpreter.messages,
-            tool_choice="auto",
+            tool_choice="required",
             stream=True,
             temperature=float(interpreter.env["llm.temperature"]),
         )
         process_streaming_response(interpreter, response)
     
     except OpenAIError as e:
-        LOGGER.error("OpenAIError[%s]: %s", e.body['code'], e.body['message'])
+        logger.error("OpenAIError[%s]: %s", e.body['code'], e.body['message'])
+        if LOGGER.level == logging.DEBUG:
+            Console().print_exception()
         return
     except Exception as e:
-        LOGGER.error("Exception %s", e)
+        logger.error("Exception %s", e)
+        if LOGGER.level == logging.DEBUG:
+            Console().print_exception()
         return
     return response
 
@@ -366,7 +379,7 @@ def auto_chat_groq(interpreter):
         max_tokens=int(interpreter.env["llm.maxtokens"]),
         tools=tools,
         messages=interpreter.messages,
-        tool_choice="auto",
+        tool_choice="required",
         temperature=float(interpreter.env["llm.temperature"]),
     )
     process_streaming_response(interpreter, [response])
@@ -433,7 +446,7 @@ def auto_chat_llama(interpreter):
         max_tokens=int(interpreter.env["llm.maxtokens"]),
         tools=tools,
         messages=interpreter.messages,
-        tool_choice="auto",
+        tool_choice="required",
         # tool_choice={
         #   "type": "function",
         #   "function": {
