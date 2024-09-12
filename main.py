@@ -21,6 +21,8 @@ def main():
         help="Command to be executed. Can be passed multiple times.")
     args =  parser.parse_args()
     if args.webserver:
+        if args.command is None:
+            args.command = []
         args.command.append("-w")
 
     r2ai_main(args, args.command)
