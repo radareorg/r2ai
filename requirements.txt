@@ -11,9 +11,10 @@ transformers
 pydantic
 tokentrim
 chromadb
-openai
+openai==1.44.1
 anthropic
 boto3
 colorama
 textual
 litellm
+instructor

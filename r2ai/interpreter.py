@@ -11,6 +11,7 @@ import tokentrim
 from rich.rule import Rule
 from signal import signal, SIGINT
 
+from .interprete_base import BaseInterpreter
 from .large import Large
 from .utils import merge_deltas
 from .message_block import MessageBlock
@@ -21,7 +22,8 @@ from .backend import openapi
 from .models import get_hf_llm, new_get_hf_llm, get_default_model
 from .voice import tts
 from .const import R2AI_HOMEDIR
-from . import auto, LOGGER, logging
+from . import LOGGER, logging
+from . import r2clippy as auto
 from .web import stop_http_server, server_running
 from .progress import progress_bar
 
@@ -590,7 +592,7 @@ def template_llama(self,messages):
             formatted_messages += f"{content}</s><s>[INST]"
     return formatted_messages
 
-class Interpreter:
+class Interpreter(BaseInterpreter):
     def __init__(self):
         self.logger = LOGGER
         self.mistral = None
