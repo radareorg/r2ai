@@ -143,9 +143,7 @@ Other:
 def gpulayers(ai):
     if "llm.gpu" in ai.env:
         if ai.env["llm.gpu"] == "true":
-            print("[r2ai] Using GPU")
             return -1
-    print("[r2ai] Using CPU")
     return 0
 
 def get_hf_llm(ai, repo_id, debug_mode, context_window):
