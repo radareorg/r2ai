@@ -1,10 +1,9 @@
 from openai import OpenAI
 
-from ..decorators import context, system_message
-from ..functions import get_ai_tools
-from ..models import parse_model_str
-from .processors import process_streaming_response
-
+from r2ai.r2clippy.decorators import context, system_message
+from r2ai.r2clippy.functions import get_ai_tools
+from r2ai.r2clippy.models import parse_model_str
+from r2ai.r2clippy.ais.processors import process_streaming_response
 
 @system_message
 @context

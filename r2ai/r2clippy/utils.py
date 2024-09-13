@@ -1,4 +1,4 @@
-from .. import index
+from r2ai import index
 
 
 def context_from_msg(msg: dict):

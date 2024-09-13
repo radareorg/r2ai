@@ -4,8 +4,7 @@ from instructor.function_calls import OpenAISchema
 from pydantic import Field, computed_field
 from pydantic_core import ValidationError
 
-from ..pipe import get_r2_inst, r2lang
-
+from r2ai.pipe import get_r2_inst, r2lang
 
 class _FunctionStorage:
     def __init__(self):

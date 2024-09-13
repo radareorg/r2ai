@@ -4,9 +4,9 @@ import sys
 from openai.types.chat import ChatCompletionChunk
 from pydantic_core import ValidationError
 
-from ... import LOGGER
-from ..constants import ANSI_REGEX
-from ..functions import PythonCmd, R2Cmd, validate_ai_tool
+from r2ai import LOGGER
+from r2ai.r2clippy.constants import ANSI_REGEX
+from r2ai.r2clippy.functions import PythonCmd, R2Cmd, validate_ai_tool
 
 _retries = 0
 _chunks = []  # workaround for  retrying

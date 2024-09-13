@@ -2,9 +2,9 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
-from ..anthropic import construct_tool_parameters_prompt
-from . import constants
-from .functions import get_ai_tools
+from r2ai.anthropic import construct_tool_parameters_prompt
+from r2ai.r2clippy import constants
+from r2ai.r2clippy.functions import get_ai_tools
 
 
 # Use dataclasses maybe, to customize each modeel?
