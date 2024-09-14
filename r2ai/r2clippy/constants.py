@@ -26,5 +26,5 @@ Break down the task into steps and execute the necessary `radare2` commands in o
 LITELMM_PROVIDERS = [
     'perplexity', 'friendliai', 'together_ai', 'groq', 'fireworks_ai', 'ai21_chat', 
     'deepinfra', 'anyscale', 'deepseek', 'codestral', 'mistral', 'nvidia_nim', 'ai21', 
-    'empower', 'azure_ai', 'cerebras', 'volcengine', 'voyage', 'github', 'openapi'
+    'empower', 'azure_ai', 'cerebras', 'volcengine', 'voyage', 'github', 'openapi', 'openai'
 ]

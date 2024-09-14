@@ -39,9 +39,9 @@ def _auto_chat(interpreter: BaseInterpreter, model):
             messages=interpreter.messages,
             tool_choice="auto",
             stream=True,
-            temperature=float(interpreter.env["llm.temperature"],
-            **extra_args)
-        )
+            temperature=float(interpreter.env["llm.temperature"]),
+            **extra_args
+            )
         call = process_streaming_response(
             interpreter, response)
     return response
