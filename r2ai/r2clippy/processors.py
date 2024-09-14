@@ -1,65 +1,23 @@
 import json
 import sys
 
-from openai.types.chat import ChatCompletionChunk
+from typing import Union
+from openai.types.chat import ChatCompletion
+from litellm.types.utils import ModelResponse
 from pydantic_core import ValidationError
 
 from r2ai import LOGGER
 from r2ai.r2clippy.constants import ANSI_REGEX
 from r2ai.r2clippy.functions import PythonCmd, R2Cmd, validate_ai_tool
 
-_retries = 0
-_chunks = []  # workaround for  retrying
-
-
-def process_streaming_response(interpreter, response, max_retries=0):
-    try:
-        return _process_streaming_response(interpreter, response)
-    except Exception as e:
-        global _retries
-        if _retries == max_retries:
-            raise e
-        if not _chunks:
-            raise e
-        _retries += 1
-        LOGGER.getChild("r2clippy").info("Got invalid response %s Retrying", e)
-        choice = _chunks[-1].choices[0]
-        if hasattr(choice, "delta"):
-            delta = choice.delta
-            if hasattr(delta, "tool_calls") and delta.tool_calls:
-                delta_tool_calls = delta.tool_calls[0]
-                fn_delta = delta_tool_calls.function
-                tool_call_id = delta_tool_calls.id
-                if tool_call_id is not None:
-                    interpreter.messages.append(
-                        {
-                            "role": "tool",
-                            "content": f"Validation Error found:\n{e}\nRecall the function correctly, fix the errors".strip(),
-                            "name": fn_delta.name,
-                            "tool_call_id": tool_call_id
-                        }
-                    )
-                    return True
-        interpreter.messages.append(
-            {
-                "role": "user",
-                "content": f"Validation Error found:\n{e}\nRecall the function correctly, fix the errors".strip()
-            }
-        )
-        return True
-
-
-def _process_streaming_response(interpreter, response) -> bool:
+def process_streaming_response(interpreter, response) -> bool:
     """Process streaming response.
     Returns True if a chat call should be done
     """
     tool_calls = []
     msgs = []
-    chunk: ChatCompletionChunk
-    global _chunks
-    _chunks = []
+    chunk: Union[ModelResponse, ChatCompletion]
     for chunk in response:
-        _chunks.append(chunk)
         delta = None
         choice = chunk.choices[0]
         if hasattr(choice, "delta"):
@@ -77,7 +35,7 @@ def _process_streaming_response(interpreter, response) -> bool:
                 tool_calls.append({
                     "function": {
                         "arguments": "",
-                        "name": fn_delta.name,
+                        "name": fn_delta.name.split(".")[-1], # For some reason, sometimes the nameas are set as: function.FunctionName
                     },
                     "id": tool_call_id,
                     "type": "function"
@@ -128,6 +86,8 @@ def process_tool_calls(interpreter, tool_calls):
             raise ValueError("Tool name must not be null")
         if not tool_id:
             raise ValueError("Tool id must not be null")
+        
+        tool_name = tool_name.split(".")[-1] # For some reason, sometimes the nameas are set as: function.FunctionName
 
         msg = {
             "role": "tool",

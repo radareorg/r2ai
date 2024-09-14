@@ -22,3 +22,9 @@ FUNCTIONARY_PROMPT_AUTO = """
 Think step by step.
 Break down the task into steps and execute the necessary `radare2` commands in order to complete the task.
 """
+
+LITELMM_PROVIDERS = [
+    'perplexity', 'friendliai', 'together_ai', 'groq', 'fireworks_ai', 'ai21_chat', 
+    'deepinfra', 'anyscale', 'deepseek', 'codestral', 'mistral', 'nvidia_nim', 'ai21', 
+    'empower', 'azure_ai', 'cerebras', 'volcengine', 'voyage', 'github'
+]

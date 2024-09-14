@@ -23,7 +23,7 @@ def progress_bar(text, color=None, total=None, infinite=False):
             if server_running() and not server_in_background():
                 return func(*args, **kwargs)
 
-            with Progress(SpinnerColumn(), *Progress.get_default_columns(), console=Console(no_color=not bool(color)), transient=False) as p:
+            with Progress(SpinnerColumn(), *Progress.get_default_columns(), console=Console(no_color=not bool(color)), transient=True) as p:
                 task_text = f"[{color}]{text}" if color else text
                 task = p.add_task(
                     task_text, total=None if is_infinite else total)
@@ -58,7 +58,7 @@ class ProgressBar:
             console=Console(
                 no_color=not bool(
                     self.color)),
-            transient=False)
+            transient=True)
         if self.color:
             self.task = self.progress.add_task(
                 f"[{self.color}]{self.text}", total=None if self.infinite else self.total)

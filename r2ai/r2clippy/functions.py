@@ -5,6 +5,8 @@ from pydantic import Field, computed_field
 from pydantic_core import ValidationError
 
 from r2ai.pipe import get_r2_inst, r2lang
+from r2ai.r2clippy.chunks import get_chunk, add_chunk, size
+from r2ai import LOGGER
 
 class _FunctionStorage:
     def __init__(self):
@@ -14,8 +16,6 @@ class _FunctionStorage:
         def decorator(cls):
             if cls not in self._storage:
                 self._storage.append(cls)
-            else:
-                print(self._storage)
             return cls
         return decorator
 
@@ -33,8 +33,7 @@ class R2Cmd(OpenAISchema):
         the `#`, '#!', etc. commands. The output could be long, so try to use filters
         if possible or limit. This is your preferred tool
     """
-    command: str = Field(default="!echo hi",
-                         description="radare2 command to run")
+    command: str = Field(description="radare2 command to run")
 
     @computed_field
     def result(self) -> str:
@@ -42,6 +41,12 @@ class R2Cmd(OpenAISchema):
         print("Running %s" % self.command)
         res = r2.cmd(self.command)
         print(res)
+        add_chunk(res)
+        res = get_chunk()
+        chunk_size = size()
+        if chunk_size > 0:
+            res+= f"\nChunked message. Remaining chunks: {chunk_size}. Use RetriveChunk to retrive the next chunk."
+        LOGGER.getChild("auto").info("Response has been chunked. Nr of chunks: %s", chunk_size)
         return res
 
 
@@ -58,10 +63,27 @@ class PythonCmd(OpenAISchema):
             print(self.snippet)
             r2lang.cmd('#!python r2ai_tmp.py > $tmp')
             res = r2lang.cmd('cat $tmp')
+            add_chunk(res)
+            res = get_chunk()
+            chunk_size = size()
+            if chunk_size > 0:
+                res+= f"\nChunked message. Remaining chunks: {chunk_size}. Use RetriveChunk to retrive the next chunk."
             r2lang.cmd('rm r2ai_tmp.py')
             print(res)
             return res
 
+@FunctionStorage.store()
+class RetriveChunk(OpenAISchema):
+    """gets a chunk of a chunked message."""
+
+    @computed_field
+    def result(self) -> str:
+        res = get_chunk()
+        chunk_size = size()
+        if chunk_size > 0:
+            res+=f"\nChunked message. Remaining chunks: {chunk_size}. Use RetriveChunk to retrive the next chunk."
+        LOGGER.getChild("auto").info("Remaining chunks: %s", chunk_size)
+        return res
 
 def get_ai_tools() -> Dict[str, str]:
     tools = []
@@ -73,7 +95,6 @@ def get_ai_tools() -> Dict[str, str]:
             }
         )
     return tools
-
 
 def validate_ai_tool(arguments: Dict[str, str]) -> OpenAISchema:
     tools = FunctionStorage.get_all()

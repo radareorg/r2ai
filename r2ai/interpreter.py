@@ -11,7 +11,7 @@ import tokentrim
 from rich.rule import Rule
 from signal import signal, SIGINT
 
-from .interprete_base import BaseInterpreter
+from .interpreter_base import BaseInterpreter
 from .large import Large
 from .utils import merge_deltas
 from .message_block import MessageBlock
@@ -732,7 +732,7 @@ class Interpreter(BaseInterpreter):
         mm = None
         return [word.strip() for word in text0.split(',')]
 
-    @progress_bar("Thinking", color="yellow") 
+    #@progress_bar("Thinking", color="yellow") 
     def chat(self, message=None):
         global print
         global Ginterrupted

@@ -1,11 +1,10 @@
 from functools import wraps
 
-from r2ai.interprete_base import BaseInterpreter
+from r2ai.interpreter_base import BaseInterpreter
 from r2ai.r2clippy.models import get_model_by_str
 from r2ai.r2clippy.utils import context_from_msg
 
 # TODO: context for each model
-
 
 def context(func):
     @wraps(func)
