@@ -76,6 +76,8 @@ def parse_model_str(model: str) -> Optional[Metadata]:
         )
     if all(x == "" for x in [platform, id, uri]):
         return None
+    if platform == "openapi":
+        platform = "openai" # custom openai like server support for litellm
     return Metadata(
         platform=platform,
         id=id,
