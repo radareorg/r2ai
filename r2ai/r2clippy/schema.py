@@ -14,14 +14,15 @@ class OpenAISchema(BaseModel):
     def openai_schema(cls):
         schema = cls.model_json_schema()
         doc = cls.__doc__ or ""
-        parameters = {k: v for k, v in schema.items(
-        ) if k not in ("title", "description")}
+        parameters = {k: v for k, v in schema.items() if k not in ("title", "description")}
+        parameters['properties'] = {k: {key: value for key, value in v.items() if key != 'title'} for k, v in parameters['properties'].items()}
         parameters["required"] = sorted(
             k for k, v in parameters["properties"].items() if "default" not in v)
         if "description" not in schema:
             schema["description"] = doc
         return {
-            "name": schema["title"],
+            "name": schema["title"].lower(),
             "description": schema["description"],
             "parameters": parameters,
         }
+
