@@ -1,7 +1,8 @@
 import os
 import logging
 from rich.logging import RichHandler
-
+from r2ai.databases.repository import DBRepository
+from r2ai.databases.sqlite_db import SqliteDB
 
 VERSION = "0.8.2"
 
@@ -21,4 +22,8 @@ if LOG_FILE:
 LOGGER = logging.getLogger(__name__)
 logging.basicConfig(format="%(name)s - %(levelname)s - %(message)s",
                     handlers=handlers)
+
 LOGGER.setLevel(LOG_LEVEL)
+
+MEMORY = DBRepository()
+MEMORY.add_db(SqliteDB(LOGGER)) # Memory.add_db(SqliteDB(LOGGER), LocalDB(LOGGER), ...)

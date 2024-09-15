@@ -6,7 +6,7 @@ from pydantic_core import ValidationError
 
 from r2ai.pipe import get_r2_inst, r2lang
 from r2ai.r2clippy.chunks import get_chunk, add_chunk, size
-from r2ai import LOGGER
+from r2ai import LOGGER, MEMORY
 
 class _FunctionStorage:
     def __init__(self):
@@ -24,7 +24,6 @@ class _FunctionStorage:
 
 
 FunctionStorage = _FunctionStorage()
-
 
 @FunctionStorage.store()
 class R2Cmd(OpenAISchema):
@@ -84,6 +83,25 @@ class RetriveChunk(OpenAISchema):
             res+=f"\nChunked message. Remaining chunks: {chunk_size}. Use RetriveChunk to retrive the next chunk."
         LOGGER.getChild("auto").info("Remaining chunks: %s", chunk_size)
         return res
+
+@FunctionStorage.store()
+class SaveMemory(OpenAISchema):
+    """saves useful information in memory which could be used in other sessions"""
+    summary: str = Field(description="a summary to save as a memory")
+
+    @computed_field
+    def result(self) -> str:
+        MEMORY.save_memory(self.summary)
+        return "Memory updated"
+    
+@FunctionStorage.store()
+class QueryMemory(OpenAISchema):
+    """queries the memory for extract any information memorized relevant to the task."""
+    query: str = Field(description="Query to use when searching for a memory")
+
+    @computed_field
+    def result(self) -> str:
+        MEMORY.load_memory(self.query)
 
 def get_ai_tools() -> Dict[str, str]:
     tools = []

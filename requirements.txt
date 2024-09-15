@@ -16,4 +16,5 @@ boto3
 colorama
 textual
 litellm
+flashrank
 instructor
