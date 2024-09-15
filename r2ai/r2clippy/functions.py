@@ -40,12 +40,12 @@ class R2Cmd(OpenAISchema):
         print("Running %s" % self.command)
         res = r2.cmd(self.command)
         print(res)
-        add_chunk(res)
-        res = get_chunk()
-        chunk_size = size()
-        if chunk_size > 0:
-            res+= f"\nChunked message. Remaining chunks: {chunk_size}. Use RetriveChunk to retrive the next chunk."
-        LOGGER.getChild("auto").info("Response has been chunked. Nr of chunks: %s", chunk_size)
+        # add_chunk(res)
+        # r        # res = get_chunk()es = get_chunk()
+        # chunk_size = size()
+        # if chunk_size > 0:
+        #     res+= f"\nChunked message. Remaining chunks: {chunk_size}. Use RetriveChunk to retrive the next chunk."
+        # LOGGER.getChild("auto").info("Response has been chunked. Nr of chunks: %s", chunk_size)
         return res
 
 
@@ -62,27 +62,29 @@ class PythonCmd(OpenAISchema):
             print(self.snippet)
             r2lang.cmd('#!python r2ai_tmp.py > $tmp')
             res = r2lang.cmd('cat $tmp')
-            add_chunk(res)
-            res = get_chunk()
-            chunk_size = size()
-            if chunk_size > 0:
-                res+= f"\nChunked message. Remaining chunks: {chunk_size}. Use RetriveChunk to retrive the next chunk."
+            # add_chunk(res)
+            # res = get_chunk()
+            # chunk_size = size()
+            # if chunk_size > 0:
+            #     res+= f"\nChunked message. Remaining chunks: {chunk_size}. Use RetriveChunk to retrive the next chunk."
             r2lang.cmd('rm r2ai_tmp.py')
             print(res)
             return res
 
-@FunctionStorage.store()
-class RetriveChunk(OpenAISchema):
-    """gets a chunk of a chunked message."""
+#TODO: better choice is to make it so it replaces the previous chunk with a summary
+# from the ai. disabled for now
+# @FunctionStorage.store()
+# class RetriveChunk(OpenAISchema):
+#     """gets a chunk of a chunked message."""
 
-    @computed_field
-    def result(self) -> str:
-        res = get_chunk()
-        chunk_size = size()
-        if chunk_size > 0:
-            res+=f"\nChunked message. Remaining chunks: {chunk_size}. Use RetriveChunk to retrive the next chunk."
-        LOGGER.getChild("auto").info("Remaining chunks: %s", chunk_size)
-        return res
+#     @computed_field
+#     def result(self) -> str:
+#         res = get_chunk()
+#         chunk_size = size()
+#         if chunk_size > 0:
+#             res+=f"\nChunked message. Remaining chunks: {chunk_size}. Use RetriveChunk to retrive the next chunk."
+#         LOGGER.getChild("auto").info("Remaining chunks: %s", chunk_size)
+#         return res
 
 @FunctionStorage.store()
 class SaveMemory(OpenAISchema):

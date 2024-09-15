@@ -66,13 +66,13 @@ def process_streaming_response(interpreter, response) -> bool:
 def process_tool_calls(interpreter, tool_calls):
     interpreter.messages.append(
         {
-            "content": "Continue with task",
+            "content": None,
             "tool_calls": tool_calls,
             "role": "assistant"
         }
     )
-    content = ""
     for tool in tool_calls:
+        content = ""
         args = tool["function"]["arguments"]
         tool_name = tool["function"]["name"]
         tool_id = tool["id"] if "id" in tool else None
@@ -81,7 +81,7 @@ def process_tool_calls(interpreter, tool_calls):
                 args = json.loads(args)
             except json.JSONDecodeError:
                 print(f"Error parsing json: {args}", file=sys.stderr)
-        content = validate_ai_tool(args).result
+        content = validate_ai_tool(args).result or "Continue with task"
         if not tool_name:
             raise ValueError("Tool name must not be null")
         if not tool_id:
