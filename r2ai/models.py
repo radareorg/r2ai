@@ -49,6 +49,8 @@ Code:
 -m bartowski/gemma-2-9b-it-GGUF
 Functionary:
 -m meetkai/functionary-small-v3.2-GGUF
+-m mradermacher/granite-20b-functioncalling-i1-GGUF
+-m mradermacher/LocalAI-Llama3.1-8b-Function-Call-v0.3-i1-GGUF
 Uncensored:
 -m bartowski/Phi-3.5-mini-instruct_Uncensored-GGUF
 -m Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2-GGUF
