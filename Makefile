@@ -44,6 +44,11 @@ deps: venv
 	. venv/bin/activate && export CMAKE_ARGS="-DLLAMA_METAL=on -DLLAMA_METAL_EMBED_LIBRARY=ON" && \
 		pip install --force-reinstall -U -r requirements.txt --no-cache-dir
 
+deps-cuda: venv
+	#test -n "${VIRTUAL_ENV}" || (echo "Run: . venv/bin/activate" ; exit 1)
+	. venv/bin/activate && export CMAKE_ARGS="-DGGML_CUDA=on -DLLAMA_METAL=on -DLLAMA_METAL_EMBED_LIBRARY=ON" && \
+		pip install --force-reinstall -U -r requirements.txt --no-cache-dir
+
 clean:
 	rm -rf venv
 
