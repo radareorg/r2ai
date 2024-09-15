@@ -1,6 +1,6 @@
 from typing import Dict, List
 
-from instructor.function_calls import OpenAISchema
+from r2ai.r2clippy.schema import OpenAISchema
 from pydantic import Field, computed_field
 from pydantic_core import ValidationError
 

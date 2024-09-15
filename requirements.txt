@@ -17,4 +17,3 @@ colorama
 textual
 litellm
 flashrank
-instructor
