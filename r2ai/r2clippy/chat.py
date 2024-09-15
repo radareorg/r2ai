@@ -26,6 +26,7 @@ def _auto_chat(interpreter: BaseInterpreter, model):
         if model.platform not in LITELMM_PROVIDERS:
             if not interpreter.llama_instance:
                 interpreter.llama_instance = new_get_hf_llm(interpreter, f"{model.platform}/{model.id}", (LOGGER.level / 10) == 1, int(interpreter.env["llm.window"]))
+            interpreter.llama_instance.chat_format = interpreter.env["llm.chat_format"]
             completion = interpreter.llama_instance.create_chat_completion_openai_v1
             extra_args = {}
         else:
@@ -34,7 +35,7 @@ def _auto_chat(interpreter: BaseInterpreter, model):
                           "base_url": model.uri}
         response = completion(
             model=f"{model.platform}/{model.id}",
-            max_tokens=4000, #int(interpreter.env["llm.maxtokens"]),
+            max_tokens=int(interpreter.env["llm.maxtokens"]),
             tools=get_ai_tools(),
             messages=interpreter.messages,
             tool_choice="auto",

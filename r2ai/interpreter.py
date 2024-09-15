@@ -621,6 +621,7 @@ class Interpreter(BaseInterpreter):
         self.env["llm.repeat_penalty"] = "1.0"
         self.env["llm.top_p"] = "0.95"
         self.env["llm.top_k"] = "50"
+        self.env["llm.chat_format"] = "chatml-function-calling"
         self.env["user.name"] = "" # TODO auto fill?
         self.env["user.os"] = ""
         self.env["user.arch"] = ""

@@ -120,6 +120,7 @@ $ . env/bin/activate
 [0x00000000]> $r2ai "' draw me a donut"
 [0x00000000]> $r2ai "' decompile current function and explain it"
 ```
+For **some** local models using a custom [chat format](https://github.com/abetlen/llama-cpp-python/tree/c032fc65b0873337ed39e5d63e15468a5d797646?tab=readme-ov-file#function-calling) might be required. You can do that using the env `-e llm.chat_format=chatml-function-calling` (default).
 
 ## Examples
 

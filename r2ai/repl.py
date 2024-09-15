@@ -290,35 +290,39 @@ def runline(ai, usertext):
         if input() == "y":
             run_script(ai, R2AI_RCFILE)
     elif usertext.startswith("-e"):
-        if len(usertext) == 2:
-            for k in ai.env.keys():
-                v = ai.env[k]
-                print(f"-e {k}={v}")
-        elif usertext.endswith("."):
-            kp = usertext[2:].strip()
-            for k in ai.env.keys():
-                if k.startswith(kp):
-                    v = ai.env[k]
+        running_ais = [ai]
+        if autoai:
+            running_ais.append(autoai)
+        for ra in running_ais:
+            if len(usertext) == 2:
+                for k in ra.env.keys():
+                    v = ra.env[k]
                     print(f"-e {k}={v}")
-        else:
-            line = usertext[2:].strip().split("=")
-            k = line[0]
-            if len(line) > 1:
-                v = line[1]
-                if v == "":
-                    ai.env[k] = ""
-                elif k in ai.env:
-                    ai.env[k] = v
-                    if k.startswith("llm."):
-                        ai.llama_instance = None
-                else:
-                    print("Invalid config key", file=sys.stderr)
+            elif usertext.endswith("."):
+                kp = usertext[2:].strip()
+                for k in ra.env.keys():
+                    if k.startswith(kp):
+                        v = ra.env[k]
+                        print(f"-e {k}={v}")
             else:
-                try:
-                    print(ai.env[k])
-                except Exception:
-                    print("Invalid config key", file=sys.stderr)
-                    pass
+                line = usertext[2:].strip().split("=")
+                k = line[0]
+                if len(line) > 1:
+                    v = line[1]
+                    if v == "":
+                        ra.env[k] = ""
+                    elif k in ai.env:
+                        ra.env[k] = v
+                        if k.startswith("llm."):
+                            ra.llama_instance = None
+                    else:
+                        print("Invalid config key", file=sys.stderr)
+                else:
+                    try:
+                        print(ra.env[k])
+                    except Exception:
+                        print("Invalid config key", file=sys.stderr)
+                        pass
     elif usertext.startswith("-l"):
         try:
             l = Large(ai)
