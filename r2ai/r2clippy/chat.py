@@ -21,7 +21,7 @@ def auto_chat(interpreter: BaseInterpreter):
 def _auto_chat(interpreter: BaseInterpreter, model):
     call = True
     while call:
-        extra_args = {} 
+        extra_args = {"tool_choice": interpreter.env["llm.tool_choice"]} 
         completion = None
         response_wrapper = lambda r: r
         if model.platform not in LITELMM_PROVIDERS:
@@ -30,7 +30,12 @@ def _auto_chat(interpreter: BaseInterpreter, model):
             interpreter.llama_instance.chat_format = interpreter.env["llm.chat_format"]
             completion = interpreter.llama_instance.create_chat_completion_openai_v1
             response_wrapper = lambda r: iter([r])  # sadly we can't stream with auto tool choice: https://github.com/abetlen/llama-cpp-python/discussions/1615
-            extra_args = {}
+            extra_args = {"tool_choice": interpreter.env["llm.tool_choice"]}
+            if extra_args["tool_choice"] not in "auto":
+                extra_args["stream"] = True
+                response_wrapper = lambda r: r
+            else:
+                extra_args["stream"] = False
         else:
             completion = litellm_completion
             extra_args = {"num_retries": 3,
@@ -42,7 +47,6 @@ def _auto_chat(interpreter: BaseInterpreter, model):
             max_tokens=int(interpreter.env["llm.maxtokens"]),
             tools=get_ai_tools(),
             messages=interpreter.messages,
-            tool_choice="auto",
             temperature=float(interpreter.env["llm.temperature"]),
             **extra_args
             )

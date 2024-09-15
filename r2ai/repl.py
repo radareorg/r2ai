@@ -291,7 +291,8 @@ def runline(ai, usertext):
             run_script(ai, R2AI_RCFILE)
     elif usertext.startswith("-e"):
         running_ais = [ai]
-        if autoai:
+        if not autoai:
+            autoai = Interpreter()
             running_ais.append(autoai)
         for ra in running_ais:
             if len(usertext) == 2:
@@ -453,7 +454,7 @@ def runline(ai, usertext):
     elif usertext.startswith("' "):
         if not autoai:
             autoai = Interpreter()
-            autoai.auto_run = True
+        autoai.auto_run = True
 
         autoai.chat(usertext[2:])
 
