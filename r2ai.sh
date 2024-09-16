@@ -17,4 +17,4 @@ else
 	. venv/bin/activate
 fi
 # export PYTHONPATH=$PWD
-$PYTHON $D/main.py $@
+exec $PYTHON $D/main.py "$@"

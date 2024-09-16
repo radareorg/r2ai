@@ -4,10 +4,11 @@ MODEL=""
 PORT=8080
 MODELDIR=~/.r2ai.models
 LLAMA=llamafile
+[ -z "${R2AI}" ] && R2AI=r2ai
 
 main() {
 	if [ -z "${MODEL}" ]; then
-		echo "Use -l and -m to select a model"
+		echo "Use -l and -m to select a model" >&2
 		exit 1
 	fi
 	echo "${MODEL}" | grep -e ^/
@@ -27,7 +28,7 @@ main() {
 		koboldcpp -c 0 --port ${PORT} -m "${MODELPATH}"
 		;;
 	r2ai)
-		r2ai -c="-e http.port=${PORT}" -c="-m ${MODEL}" -c="-w"
+		${R2AI} -c="-e http.port=${PORT}" -m "${MODEL}" -w
 		;;
 	*)
 		echo "Invalid llama server selected."
@@ -75,11 +76,11 @@ while : ; do
 		models
 		break
 		fi
-		MODEL=$2
+		MODEL="$2"
 		shift
 		;;
 	-p)
-		PORT=$2
+		PORT="$2"
 		shift
 		;;
 	-h)
