@@ -45,8 +45,7 @@ def main():
         if args.port == "default":
             print("8080")
             return
-        else:
-            args.command.append(f"-e http.port={args.port}")
+        args.command.append(f"-e http.port={args.port}")
     if args.model:
         if args.command is None:
             args.command = []
