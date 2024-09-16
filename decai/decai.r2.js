@@ -326,10 +326,12 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
                     let count = 0;
                     let text = "";
 		    if (decaiContextFile !== "") {
+                        if (r2.cmd2("test -f " + decaiContextFile).value === 0) {
 			    text += "Context:\n";
-			    text += "[RULES]\n";
-			    text += r2.cmd("cat " + decaiContextFile);
-			    text += "[/RULES]\n";
+                            text += "[RULES]\n";
+                            text += r2.cmd("cat " + decaiContextFile);
+                            text += "[/RULES]\n";
+                        }
 		    }
                     const origColor = r2.cmd("e scr.color");
                     r2.cmd("e scr.color=0");
