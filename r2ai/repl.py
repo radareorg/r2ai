@@ -471,7 +471,7 @@ def runline(ai, usertext):
         else:
             print("{0:.0f}".format(LOGGER.level / 10))
     elif usertext.startswith("-"):
-        print("Unknown flag. See 'r2ai -h' for help", file=sys.stderr)
+        print(f"Unknown flag '{usertext}'. See 'r2ai -h' for help", file=sys.stderr)
     else:
         ai.chat(usertext)
 

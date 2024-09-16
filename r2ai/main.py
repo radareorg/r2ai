@@ -68,7 +68,7 @@ def run_rcfile_once():
         RCFILE_LOADED = True
 
 
-def main(args, commands):
+def main(args, commands, dorepl=True):
     global within_r2
 
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -120,7 +120,8 @@ def main(args, commands):
                 runline(ai, "-" + c[1:])
             else:
                 runline(ai, c)
-    r2ai_repl(ai)
+    if dorepl:
+        r2ai_repl(ai)
     # elif HAVE_RLANG and HAVE_R2PIPE:
     #     r2ai_repl(ai)
     #     os.exit(0)

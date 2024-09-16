@@ -22,13 +22,13 @@ main() {
 		llamafile --server --nobrowser -c 0 --port ${PORT} -m "${MODELPATH}"
 		;;
 	llamacpp)
-		llama-server -c 0 --port ${PORT} -m "${MODELPATH}"
+		llama-server -c 0 --port "${PORT}" -m "${MODELPATH}"
 		;;
 	koboldcpp)
-		koboldcpp -c 0 --port ${PORT} -m "${MODELPATH}"
+		koboldcpp -c 0 --port "${PORT}" -m "${MODELPATH}"
 		;;
 	r2ai)
-		${R2AI} -c="-e http.port=${PORT}" -m "${MODEL}" -w
+		${R2AI} --port "${PORT}" -m "${MODEL}" -w
 		;;
 	*)
 		echo "Invalid llama server selected."
@@ -55,6 +55,7 @@ models() {
 }
 
 llamas() {
+	# TODO check for those bins in path before suggesting them
 	echo r2ai
 	echo llamafile
 	echo llamacpp
@@ -65,16 +66,16 @@ while : ; do
 	case "$1" in
 	-l)
 		if [ -z "$2" ]; then
-		llamas
-		break
+			llamas
+			break
 		fi
 		LLAMA="$2"
 		shift
 		;;
 	-m)
 		if [ -z "$2" ]; then
-		models
-		break
+			models
+			break
 		fi
 		MODEL="$2"
 		shift
