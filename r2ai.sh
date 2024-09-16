@@ -7,7 +7,9 @@ if [ -h "$0" ]; then
 else
 	F="$0"
 fi
-D=`dirname $F`
+D=`dirname "$F"`
+RD=`realpath "$D"`
+[ -n "${RD}" ] && D="$RD"
 [ -n "$D" ] && cd "$D"
 if [ ! -d venv ]; then
 	$PYTHON -m venv venv
