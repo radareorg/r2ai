@@ -78,7 +78,6 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai -r2               enter the r2clippy assistant mode
  r2ai -rf [doc/role/.f] load contents of a file to define the role
  r2ai -R                reset the chat conversation context
- r2ai -t [temp]         from 0.0001 to 10 your scale to randomness in my replies
  r2ai -v                show r2ai version (same as ?V)
  r2ai -w ([port])       start webserver (curl -D hello http://localhost:8000)
  r2ai -W ([port])       start webserver in background
@@ -245,11 +244,6 @@ def runline(ai, usertext):
         q = usertext[2:].strip()
         query = f"Please respond using ONLY in JSON with the following fields if relevant: topic, array of key words, location, url, name, description, target, amounts and other details if necessary without providing any response. Question: \"{q}\""
         ai.chat(query)
-    elif usertext.startswith("-t"):
-        if usertext == "-t":
-            print(ai.env["llm.temperature"])
-        else:
-            ai.env["llm.temperature"] = usertext[2:].strip()
     elif usertext == "-A":
         from .voice import stt
         ai.env["chat.voice"] = "true"
