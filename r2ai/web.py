@@ -353,9 +353,9 @@ def start_http_server(ai, runline2, background):
 def stop_http_server(force=False):
     if not force and server_in_background():
         return
-    LOGGER.getChild("server").info("Stopping server")
     global server
     if server:
+        LOGGER.getChild("server").info("Stopping server")
         _kill_server()
         server = None
     global server_thread
