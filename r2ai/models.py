@@ -145,7 +145,7 @@ Other:
 def gpulayers(ai):
     if "llm.gpu" in ai.env:
         if ai.env["llm.gpu"] == "true":
-            return -1
+            return int(ai.env["llm.layers"])
     return 0
 
 def get_hf_llm(ai, repo_id, debug_mode, context_window):
