@@ -11,6 +11,7 @@ ores = ""
 kill_event = None
 server = None
 server_thread = None
+server_loading = False
 
 # OpenAI API endpoint here
 def handle_v1_completions_default(self, ai, obj, runline2, method):
@@ -300,6 +301,7 @@ def handle_custom_request(self, ai, msg, runline2, method):
     return True
 
 def start_http_server_now(ai, runline2):
+    global server_loading
     import http.server
     import socketserver
     WANTCTX = ai.env["http.chatctx"] == "true"
@@ -334,20 +336,36 @@ def start_http_server_now(ai, runline2):
     LOGGER.getChild("server").info("[R2AI] Serving at port %s", PORT)
     Handler.protocol_version = "HTTP/1.0"
     global server
-    server = socketserver.TCPServer(("", PORT), SimpleHTTPRequestHandler)
-    server.allow_reuse_address = True
-    server.allow_reuse_port = True
-    server.serve_forever()
+    if server is not None:
+        server_loading = False
+        print("Already running")
+        return
+    server = None
+    try:
+        server = socketserver.TCPServer(("", PORT), SimpleHTTPRequestHandler)
+        server.allow_reuse_address = True
+        server.allow_reuse_port = True
+        server.serve_forever()
+    except Exception as e:
+        print(e)
+    server_loading = False
 
 def start_http_server(ai, runline2, background):
-    global server_thread
+    global server_thread, server_loading
+    server_loading = True
     server_thread = Thread(target=start_http_server_now, args=(ai, runline2))
     server_thread.start()
+    while server_loading:
+        time.sleep(0.1)
+    global server
+    if server is None:
+        server_thread.join()
+        return
     if not background:
         global kill_event
         kill_event = Event()
         while not kill_event.is_set():
-            time.sleep(1)
+            time.sleep(0.2)
         kill_event = None
 
 def stop_http_server(force=False):
