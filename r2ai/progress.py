@@ -20,8 +20,8 @@ def progress_bar(text, color=None, total=None, infinite=False):
                 sig, *args, **kwargs)
             is_infinite = infinite or not has_total
 
-            if server_running() and not server_in_background():
-                return func(*args, **kwargs)
+#            if server_running() and not server_in_background():
+            return func(*args, **kwargs)
 
             with Progress(SpinnerColumn(), *Progress.get_default_columns(), console=Console(no_color=not bool(color)), transient=False) as p:
                 task_text = f"[{color}]{text}" if color else text
