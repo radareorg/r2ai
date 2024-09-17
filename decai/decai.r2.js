@@ -125,7 +125,6 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         console.error(" " + command + " -d        - decompile current function");
         console.error(" " + command + " -e        - display and change eval config vars");
         console.error(" " + command + " -h        - show this help");
-        console.error(" " + command + " -M        - list most relevant models (api=r2ai only)");
         console.error(" " + command + " -n        - suggest better function name");
         console.error(" " + command + " -q [text] - query language model with given text");
         console.error(" " + command + " -Q [text] - query on top of the last output");
