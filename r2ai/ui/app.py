@@ -4,7 +4,6 @@ from textual.widgets import Header, Footer, Input, Button, Static, DirectoryTree
 from textual.command import CommandPalette, Command, Provider, Hits, Hit
 from textual.screen import Screen
 from textual.message import Message
-from textual.timer import Timer  # Add this import
 from textual.reactive import reactive
 from .model_select import ModelSelect
 from r2ai.pipe import open_r2
@@ -97,7 +96,8 @@ class R2AIApp(App):
         self.notify(f"Selected model: {event.model}")
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
-        await self.send_message()
+        if event.input.id == "chat-input":
+            await self.send_message()
 
     def on_message(self, type: str, message: any) -> None:
         if type == 'message':
@@ -119,11 +119,7 @@ class R2AIApp(App):
         if message:
             self.add_message(None, "User", message)
             input_widget.value = ""
-            # Process the message and get AI response
-            # await chat(message, self.on_message)
-            resp = chat(message)
-            self.add_message(None, "AI", resp)
-            # self.add_message("AI", response)
+            await chat(message, self.on_message)
 
     def add_message(self, id: str, sender: str, content: str) -> None:
         chat_container = self.query_one("#chat-container", VerticalScroll)
@@ -156,7 +152,7 @@ class BinarySelectDialog(Screen):
     BINDINGS = [
         ("up", "cursor_up", "Move cursor up"),
         ("down", "cursor_down", "Move cursor down"),
-        ("enter", "select", "Select item"),
+        ("enter", "select_cursor", "Select item"),
         ("escape", "app.pop_screen", "Close"),
         ("backspace", "go_up", "Go up one level"),  # Add this binding
     ]
@@ -164,11 +160,6 @@ class BinarySelectDialog(Screen):
     def compose(self) -> ComposeResult:
         yield Grid(
             Vertical(
-                Horizontal(
-                    Label("Enter path:"),
-                    Button("⬆️", id="up-button", variant="primary"),
-                    id="path-header"
-                ),
                 Input(placeholder="Enter path here...", id="path-input"),
                 DirectoryTree(Path.home(), id="file-browser"),
             ),
@@ -178,7 +169,6 @@ class BinarySelectDialog(Screen):
     def on_mount(self) -> None:
         self.path_input = self.query_one("#path-input", Input)
         self.file_browser = self.query_one("#file-browser", DirectoryTree)
-        self.up_button = self.query_one("#up-button", Button)
         self.set_focus(self.file_browser)
         self.watch(self.path_input, "value", self.update_tree)
 
@@ -223,20 +213,9 @@ class BinarySelectDialog(Screen):
 
     def action_select(self) -> None:
         node = self.file_browser.cursor_node
-        if node.data.is_file:
+        if hasattr(node.data, 'is_file') and node.data.is_file:
+            self.open_and_analyze_binary(str(node.data.path))
             self.dismiss(str(node.data.path))
-        else:
-            self.file_browser.toggle_node(node)
-
-    # def on_tree_node_highlighted(self, event: Tree.NodeHighlighted) -> None:
-    #     self.path_input.value = str(event.node.data.path)
-    #     self.path_input.cursor_position = len(self.path_input.value)
-
-    # def filter_paths(self, paths: Iterable[Path]) -> Iterable[Path]:
-    #     return [path for path in paths if not path.name.startswith(".")]
-
-
 
 app = R2AIApp()
 app.run()
-
