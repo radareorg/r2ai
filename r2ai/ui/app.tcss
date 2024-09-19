@@ -25,10 +25,8 @@ Screen {
 
 #chat-container {
     padding: 1;
-}
-
-ChatMessage {
-    margin-bottom: 1;
+    overflow-y: scroll;
+    layout: vertical;
 }
 
 #input-area {
@@ -87,4 +85,9 @@ ChatMessage {
   height: 100%;
   width: 100%;
   align: center middle;
+}
+
+.chat-message-container {
+  height: auto;
+  width: 100%;
 }
