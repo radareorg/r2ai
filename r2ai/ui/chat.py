@@ -48,7 +48,7 @@ tools = [{
   "type": "function",
   "function": {
     "name": "r2cmd",
-    "description": "runs commands in radare2. You can run it multiple times or chain commands with pipes/semicolons. You can also use r2 interpreters to run scripts using the `#`, '#!', etc. commands. The output could be long, so try to use filters if possible or limit. This is your preferred tool",
+    "description": "runs commands in radare2. You can run it multiple times or chain commands with pipes/semicolons. You can also use r2 interpreters to run scripts using the `#`, '#!', etc. commands. The output could be long, so try to use filters if possible or limit. This is your preferred tool.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -78,6 +78,7 @@ tools = [{
   }
 }]
 messages = [{"role": "system", "content": SYSTEM_PROMPT_AUTO}]
+tool_end_message = '\nNOTE: The user saw this output, do not repeat it.'
 async def process_tool_calls(tool_calls, cb):
     if tool_calls:
         for tool_call in tool_calls:
@@ -85,12 +86,12 @@ async def process_tool_calls(tool_calls, cb):
             tool_args = json.loads(tool_call["function"]["arguments"])
             if tool_name == "r2cmd":
                 res = r2cmd(tool_args["command"])
-                messages.append({"role": "tool", "name": tool_name, "content": res, "tool_call_id": tool_call["id"]})
+                messages.append({"role": "tool", "name": tool_name, "content": res + tool_end_message, "tool_call_id": tool_call["id"]})
                 if cb:
                     cb('tool_response', { "id": tool_call["id"] + '_response', "content": res })
             elif tool_name == "run_python":
                 res = run_python(tool_args["command"])
-                messages.append({"role": "tool", "name": tool_name, "content": res, "tool_call_id": tool_call["id"]})
+                messages.append({"role": "tool", "name": tool_name, "content": res + tool_end_message, "tool_call_id": tool_call["id"]})
                 if cb:
                     cb('tool_response', { "id": tool_call["id"] + '_response', "content": res })
             
