@@ -13,7 +13,7 @@ from pathlib import Path
 from textual import work
 from textual.widget import Widget
 from textual.css.query import NoMatches
-
+from textual import log
 # from ..repl import set_model, r2ai_singleton
 # ai = r2ai_singleton()
 from .chat import chat, messages
@@ -33,15 +33,34 @@ class ModelSelectDialog(Screen):
         self.dismiss(event.model)
 
 
-class ChatMessage(Markdown):
-    markdown = ""
-    def __init__(self, id: str, sender: str, content: str, ) -> None:
-        self.markdown = f"*{sender}:* {content}"
-        super().__init__(id=id, markdown=self.markdown)
+class ChatMessage(Widget):
+    markdown: reactive[str] = reactive("", recompose=True)
+    sender = "User"
+
+    def __init__(self, id: str, sender: str, content: str, **kwargs) -> None:
+        super().__init__(id=id, classes='chat-message-container', **kwargs)
+        # self.markdown = f"*{sender}*: {content}"
+        self.markdown = content
+        self.sender = sender
+
+    async def watch_markdown(self, markdown: str) -> None:
+        mkd = self.query_one(".text1", Markdown)
+        print(self.markdown)
+        text = self.markdown
+        await mkd.update(text)
+
     def add_text(self, markdown: str) -> None:
         self.markdown += markdown
-        self.update(self.markdown)
 
+    def compose(self) -> ComposeResult:
+
+        if self.sender == "User":
+            yield Static(f"[bold green]{self.sender}", markup=True)
+        else:
+            yield Static(f"[bold magenta]{self.sender}", markup=True)
+        yield Markdown(self.markdown, classes='text1')
+        
+            
 
 class R2AIApp(App):
     CSS_PATH = "app.tcss"
@@ -104,10 +123,9 @@ class R2AIApp(App):
             existing = None
             try:
                 existing = self.query_one(f"#{message['id']}")
+                existing.add_text(message["content"])
             except NoMatches:
-                existing = self.add_message(message["id"], "AI", "")
-            print(existing)
-            existing.add_text(message["content"])
+                existing = self.add_message(message["id"], "AI", message["content"])
         elif type == 'tool_call':
             self.add_message(message["id"], "AI", f"*Tool Call:* {message['function']['name']}")
         elif type == 'tool_response':
