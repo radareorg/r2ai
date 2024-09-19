@@ -34,7 +34,7 @@ class ModelSelectDialog(Screen):
 
 
 class ChatMessage(Widget):
-    markdown: reactive[str] = reactive("", recompose=True)
+    markdown: reactive[str] = reactive("")
     sender = "User"
 
     def __init__(self, id: str, sender: str, content: str, **kwargs) -> None:
@@ -44,10 +44,15 @@ class ChatMessage(Widget):
         self.sender = sender
 
     async def watch_markdown(self, markdown: str) -> None:
-        mkd = self.query_one(".text1", Markdown)
+        mkd = self.query_exactly_one(".text1")
         print(self.markdown)
         text = self.markdown
-        await mkd.update(text)
+        if hasattr(mkd, 'update') and callable(mkd.update):
+            update_method = mkd.update
+            if asyncio.iscoroutinefunction(update_method):
+                await update_method(text)
+            else:
+                update_method(text)
 
     def add_text(self, markdown: str) -> None:
         self.markdown += markdown
@@ -56,9 +61,18 @@ class ChatMessage(Widget):
 
         if self.sender == "User":
             yield Static(f"[bold green]{self.sender}", markup=True)
-        else:
+            yield Markdown(self.markdown, classes='text1')
+        elif self.sender == 'AI':
             yield Static(f"[bold magenta]{self.sender}", markup=True)
-        yield Markdown(self.markdown, classes='text1')
+            yield Markdown(self.markdown, classes='text1')
+        elif self.sender == 'Tool Call':
+            yield Static(f"[bold blue]{self.sender}", markup=True)
+            yield Static(self.markdown, classes='text1', markup=True)
+        elif self.sender == 'Tool Response':
+            yield Static(f"[bold blue]{self.sender}", markup=True)
+            yield Static(self.markdown, classes='text1', markup=True)
+        
+        
         
             
 
@@ -124,12 +138,13 @@ class R2AIApp(App):
             try:
                 existing = self.query_one(f"#{message['id']}")
                 existing.add_text(message["content"])
+                self.scroll_to_bottom()
             except NoMatches:
                 existing = self.add_message(message["id"], "AI", message["content"])
         elif type == 'tool_call':
-            self.add_message(message["id"], "AI", f"*Tool Call:* {message['function']['name']}")
+            self.add_message(message["id"], "Tool Call", message['function']['name'])
         elif type == 'tool_response':
-            self.add_message(message["id"], "AI", f"*Tool Response:* {message['content']}")
+            self.add_message(message["id"], "Tool Response", message['content'])
 
     async def send_message(self) -> None:
         input_widget = self.query_one("#chat-input", Input)
