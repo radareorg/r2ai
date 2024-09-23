@@ -59,5 +59,5 @@ if __name__ == "__main__":
     try:
         import r2lang # pylint: disable=import-error
         register_r2plugin()
-    except Exception:
+    except ImportError:
         main()
