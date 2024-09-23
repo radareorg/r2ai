@@ -957,7 +957,7 @@ class Interpreter:
                     self.messages.append({"role": "assistant", "content": response})
                 print(response)
                 self.logger.warn("For a better experience install openai python")
-                self.load.warn("pip install -U openai")
+                self.logger.warn("pip install -U openai")
                 self.logger.warn("export OPENAI_API_KEY=...")
             return
 

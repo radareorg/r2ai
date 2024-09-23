@@ -7,6 +7,7 @@ import os
 import argparse
 
 from r2ai.main import main as r2ai_main
+from r2ai.main import register_r2plugin
 
 def is_valid_file(parser, arg):
     if not os.path.isfile(arg):
@@ -54,5 +55,9 @@ def main():
     runrepl, args = massage_args(parser.parse_args())
     r2ai_main(args, args.command, runrepl)
 
-if __name__ == "__main__":
-    main()
+try:
+    import r2lang
+    register_r2plugin()
+except:
+    if __name__ == "__main__":
+        main()
