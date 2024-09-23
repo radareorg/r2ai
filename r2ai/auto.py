@@ -3,19 +3,32 @@ import json
 import sys
 import re
 import os
-import boto3
+
+have_bedrock = True
+
+try:
+    import boto3
+    from .backend.bedrock import (
+        BEDROCK_TOOLS_CONFIG, build_messages_for_bedrock, extract_bedrock_tool_calls,
+        process_bedrock_tool_calls, print_bedrock_response
+    )
+except Exception:
+    have_bedrock = False
+    print("Cannot import boto3. No bedrock for now")
 
 from llama_cpp import Llama
 from llama_cpp.llama_tokenizer import LlamaHFTokenizer
 from transformers import AutoTokenizer
-from anthropic import Anthropic
+
+have_anthropic = True
+try:
+    from anthropic import Anthropic
+    from .anthropic import construct_tool_use_system_prompt, extract_claude_tool_calls
+except Exception:
+    have_anthorpic = False
+    print("Cannot import anthropic. No bedrock for now")
 
 from . import index
-from .anthropic import construct_tool_use_system_prompt, extract_claude_tool_calls
-from .backend.bedrock import (
-    BEDROCK_TOOLS_CONFIG, build_messages_for_bedrock, extract_bedrock_tool_calls,
-    process_bedrock_tool_calls, print_bedrock_response
-)
 from .pipe import have_rlang, r2lang, get_r2_inst
 
 ANSI_REGEX = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')

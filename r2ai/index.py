@@ -5,7 +5,11 @@ import builtins
 import requests
 import json
 import traceback
-import chromadb
+have_chrome = True
+try:
+    import chromadb
+except Exception:
+    have_chrome = False
 from unidecode import unidecode
 import sys
 from r2ai import LOGGER
