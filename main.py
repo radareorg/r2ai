@@ -55,9 +55,9 @@ def main():
     runrepl, args = massage_args(parser.parse_args())
     r2ai_main(args, args.command, runrepl)
 
-try:
-    import r2lang
-    register_r2plugin()
-except:
-    if __name__ == "__main__":
+if __name__ == "__main__":
+    try:
+        import r2lang
+        register_r2plugin()
+    except:
         main()

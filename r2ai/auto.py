@@ -14,7 +14,6 @@ try:
     )
 except Exception:
     have_bedrock = False
-    print("Cannot import boto3. No bedrock for now")
 
 from llama_cpp import Llama
 from llama_cpp.llama_tokenizer import LlamaHFTokenizer
@@ -26,7 +25,6 @@ try:
     from .anthropic import construct_tool_use_system_prompt, extract_claude_tool_calls
 except Exception:
     have_anthorpic = False
-    print("Cannot import anthropic. No bedrock for now")
 
 from . import index
 from .pipe import have_rlang, r2lang, get_r2_inst
