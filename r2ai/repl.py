@@ -205,7 +205,7 @@ def runline(ai, usertext):
         except Exception:
             traceback.print_exc()
     if usertext.startswith("-VV"):
-        from ui.app import R2AIApp
+        from ui.app import R2AIApp # pylint: disable=import-error
         R2AIApp().run()
         return
     if usertext.startswith("?V") or usertext.startswith("-v"):

@@ -5,8 +5,13 @@ import sys
 import traceback
 import json
 import platform
+have_local = True
 import getpass
-import tokentrim
+
+try:
+    import tokentrim
+except Exception:
+    have_local = False
 
 from rich.rule import Rule
 from signal import signal, SIGINT
@@ -952,7 +957,7 @@ class Interpreter:
                     self.messages.append({"role": "assistant", "content": response})
                 print(response)
                 self.logger.warn("For a better experience install openai python")
-                self.load.warn("pip install -U openai")
+                self.logger.warn("pip install -U openai")
                 self.logger.warn("export OPENAI_API_KEY=...")
             return
 
@@ -991,7 +996,11 @@ class Interpreter:
                 return
 
         elif self.model.startswith("bedrock:"):
-            import boto3
+            try:
+                import boto3
+            except Exception:
+                self.logger.error("Cannot import boto3. No bedrock for now")
+                return
             bedrock_model = self.model.split(":")[1] + ":0"
             self.bedrock_client = boto3.client("bedrock-runtime")
             request = {

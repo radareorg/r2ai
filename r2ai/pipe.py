@@ -41,7 +41,7 @@ except Exception:
             r2lang = FakeLang(r2pipe.open())
             r2lang.cmd("?V") # r2pipe throws only here
         else:
-            raise Error("must spawn")
+            raise Exception("must spawn")
     except Exception:
         try:
             have_rlang = False

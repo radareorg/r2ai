@@ -1,4 +1,5 @@
 import os
+import sys
 from .const import R2AI_HISTFILE, R2AI_HOMEDIR, R2AI_RCFILE, R2AI_USERDIR
 from .models import models
 
@@ -67,7 +68,7 @@ class MyCompleter(object):  # Custom completer
 
     def display_matches(self, substitution, matches, longest_match_length):
         line_buffer = readline.get_line_buffer()
-        columns = environ.get("COLUMNS", 80)
+        columns = os.environ.get("COLUMNS", 80)
         print()
         tpl = "{:<" + str(int(max(map(len, matches)) * 1.2)) + "}"
         buffer = ""

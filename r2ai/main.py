@@ -23,12 +23,12 @@ if "R2CORE" in os.environ:
     within_r2 = True
 
 def r2ai_rlang_plugin(unused_but_required_argument):
-    global ai
+    ai = r2ai_singleton()
     def _call(s):
         if not s.startswith("r2ai"):
             return False
         try:
-            run_rcfile_once()
+            run_rcfile_once(ai)
             if len(s) == 4:
                 builtins.print(help_message)
             else:
@@ -47,7 +47,7 @@ def r2ai_rlang_plugin(unused_but_required_argument):
     }
 
 # TODO: see repl.run_script as replacement
-def run_rcfile():
+def run_rcfile(ai):
     try:
         lines = slurp(R2AI_RCFILE)
         
@@ -61,12 +61,16 @@ def run_rcfile():
     if ai is None:
         ai = r2ai_singleton()
 
-def run_rcfile_once():
+def run_rcfile_once(ai):
     global RCFILE_LOADED
     if not RCFILE_LOADED:
-        run_rcfile()
+        run_rcfile(ai)
         RCFILE_LOADED = True
 
+
+def register_r2plugin():
+    import r2lang
+    r2lang.plugin("core", r2ai_rlang_plugin)
 
 def main(args, commands, dorepl=True):
     global within_r2
@@ -133,7 +137,7 @@ def main(args, commands, dorepl=True):
     #         print("[R2AI] Please: r2pm -ci rlang-python")
     #         sys.exit(0)
         
-    #     run_rcfile()
+    #     run_rcfile(ai)
     #     if len(sys.argv) > 1:
     #         for arg in sys.argv[1:]:
     #             if arg.endswith(".py"):
