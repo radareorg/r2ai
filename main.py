@@ -2,9 +2,14 @@
 # pylint: disable=import-outside-toplevel
 # pylint: disable=unused-import
 # pylint: disable=missing-function-docstring
+
 import sys
 import os
 import argparse
+
+script_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(script_dir)
+
 
 from r2ai.main import main as r2ai_main
 from r2ai.main import register_r2plugin
