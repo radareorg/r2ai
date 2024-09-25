@@ -10,9 +10,8 @@ import argparse
 script_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(script_dir)
 
-
-from r2ai.main import main as r2ai_main
-from r2ai.main import register_r2plugin
+from r2ai.main import main as r2ai_main # pylint: disable=wrong-import-position
+from r2ai.main import register_r2plugin # pylint: disable=wrong-import-position
 
 def is_valid_file(parser, arg):
     if not os.path.isfile(arg):
