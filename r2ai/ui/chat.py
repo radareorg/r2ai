@@ -84,6 +84,8 @@ async def process_tool_calls(tool_calls, cb):
         for tool_call in tool_calls:
             tool_name = tool_call["function"]["name"]
             tool_args = json.loads(tool_call["function"]["arguments"])
+            if cb:
+                cb('tool_call', { "id": tool_call["id"], "function": { "name": tool_name, "arguments": tool_args } })
             if tool_name == "r2cmd":
                 res = r2cmd(tool_args["command"])
                 messages.append({"role": "tool", "name": tool_name, "content": res + tool_end_message, "tool_call_id": tool_call["id"]})
@@ -121,9 +123,6 @@ async def process_streaming_response(resp, cb):
                         }
                     }
                 )
-                if cb:
-                    cb('tool_call', tool_calls[index])
-                print(tool_calls)
               
             # handle some bug in llama-cpp-python streaming, tool_call.arguments is sometimes blank, but function_call has it.
             # if fn_delta.arguments == '':
@@ -160,5 +159,7 @@ async def get_completion(cb):
 
 async def chat(message: str, cb) -> str:
     messages.append({"role": "user", "content": message})
+    if not get_env("model"):
+        raise Exception("No model selected")
     response = await get_completion(cb)
     return response
