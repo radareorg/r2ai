@@ -38,6 +38,7 @@ def Markdown(x):
 def mainmodels():
     return """
 Decai:
+-m hugging-quants/Llama-3.2-3B-Instruct-Q8_0-GGUF
 -m ibm-granite/granite-20b-code-instruct-8k-GGUF
 -m QuantFactory/granite-8b-code-instruct-4k-GGUF
 -m cognitivecomputations/dolphin-2.9.3-mistral-nemo-12b-gguf
@@ -54,6 +55,7 @@ Functionary:
 Uncensored:
 -m bartowski/Phi-3.5-mini-instruct_Uncensored-GGUF
 -m Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2-GGUF
+-m LWDCLS/DarkIdol-Llama-3.1-8B-Instruct-1.2-Uncensored-GGUF-IQ-Imatrix-Request
 -m TheBloke/Unholy-v2-13B-GGUF
 -m x383494/NSFW-3B-Q4_K_M-GGUF
 Remote:

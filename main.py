@@ -9,6 +9,8 @@ import argparse
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(script_dir)
+pv = f"{sys.version_info.major}.{sys.version_info.minor}"
+sys.path.append(script_dir + f"/venv/lib/python{pv}/site-packages/")
 
 from r2ai.main import main as r2ai_main # pylint: disable=wrong-import-position
 from r2ai.main import register_r2plugin # pylint: disable=wrong-import-position
