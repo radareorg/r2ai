@@ -15,7 +15,7 @@ from textual.widget import Widget
 from textual.css.query import NoMatches
 from textual import log
 from litellm import validate_environment
-
+from markdown_it import MarkdownIt
 # from ..repl import set_model, r2ai_singleton
 # ai = r2ai_singleton()
 from .chat import chat, messages
@@ -52,13 +52,14 @@ class ModelConfigDialog(ModalScreen):
 class ChatMessage(Widget):
     markdown: reactive[str] = reactive("")
     sender = "User"
+    is_done = reactive(False, layout=True, recompose=True)
 
-    def __init__(self, id: str, sender: str, content: str, **kwargs) -> None:
+    def __init__(self, id: str, sender: str, content: str, is_done: bool = False, **kwargs) -> None:
         super().__init__(id=id, classes='chat-message-container', **kwargs)
         # self.markdown = f"*{sender}*: {content}"
         self.markdown = content
         self.sender = sender
-    
+        self.is_done = is_done
     async def watch_markdown(self, markdown: str) -> None:
         try:
             mkd = self.query_exactly_one(".text1")
@@ -71,24 +72,27 @@ class ChatMessage(Widget):
                     update_method(text)
         except NoMatches:
             pass
-    
+
     def add_text(self, markdown: str) -> None:
         self.markdown += markdown
 
     def compose(self) -> ComposeResult:
 
         if self.sender == "User":
-            yield Static(f"[bold green]{self.sender}", markup=True)
-            yield Markdown(self.markdown, classes='text1')
+            yield Static(f"[bold green]{self.sender}", classes='label_sender', markup=True)
+            yield Static(self.markdown, classes='text1', markup=True)
         elif self.sender == 'AI':
             yield Static(f"[bold magenta]{self.sender}", markup=True)
-            yield Markdown(self.markdown, classes='text1')
+            if self.is_done:
+                yield Markdown(self.markdown, classes='text1', parser_factory=lambda: MarkdownIt('gfm-like'))
+            else:
+                yield Static(self.markdown, classes='text1', markup=True)
         elif self.sender == 'Tool Call':
             yield Static(f"[bold blue]{self.sender}", markup=True)
             yield Static(self.markdown, classes='text1', markup=True)
         elif self.sender == 'Tool Response':
             yield Static(f"[bold blue]{self.sender}", markup=True)
-            yield Static(self.markdown, classes='text1', markup=True)
+            yield VerticalScroll(Static(self.markdown, classes='text1', markup=True), classes='tool_response_container')
         
         
         
@@ -184,7 +188,10 @@ class R2AIApp(App):
             existing = None
             try:
                 existing = self.query_one(f"#{message['id']}")
-                existing.add_text(message["content"])
+                if message["content"] is not None:
+                    existing.add_text(message["content"])
+                if message['done']:
+                    existing.is_done = True
                 self.scroll_to_bottom()
             except NoMatches:
                 existing = self.add_message(message["id"], "AI", message["content"])

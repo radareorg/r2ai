@@ -91,3 +91,23 @@ Screen {
   height: auto;
   width: 100%;
 }
+MarkdownFence {
+    height: auto;
+    overflow: auto;
+    max-height: 9999;
+}
+Static.text1 {
+    padding-left: 2;
+    padding-bottom: 1;
+}
+Static.label_sender {
+    width: auto;
+}
+
+.tool_response_container {
+    max-height: 50;
+    height: auto;
+    overflow: auto;
+    padding-bottom: 1;
+    border: solid white; 
+}
