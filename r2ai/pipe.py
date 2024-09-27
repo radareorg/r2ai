@@ -7,7 +7,7 @@ have_rlang = False
 r2lang = None
 
 r2 = None
-
+filename = None
 class FakeLang:
     def __init__(self, r2 = None):
         self.r2 = r2
@@ -65,6 +65,11 @@ def get_r2_inst():
 
 @progress_bar("Loading", color="yellow")
 def open_r2(file, flags=[]):
-    global r2
+    global r2, filename
     r2 = r2pipe.open(file, flags=flags)
+    filename = file
     return r2
+
+def get_filename():
+    global filename
+    return filename

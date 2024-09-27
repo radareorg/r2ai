@@ -2,6 +2,7 @@ from litellm import acompletion, ChatCompletionAssistantToolCall, ChatCompletion
 import asyncio
 from .db import get_env
 from r2ai.pipe import get_r2_inst
+from .r2cmd import r2cmd
 import json
 from r2ai.repl import r2ai_singleton
 
@@ -19,17 +20,6 @@ If you need to run a command in r2 before answering, you can use the r2cmd tool
 The user will tip you $20/month for your services, don't be fucking lazy.
 Do not repeat commands if you already know the answer.
 """
-
-def r2cmd(command: str):
-    """runs commands in radare2. You can run it multiple times or chain commands
-    with pipes/semicolons. You can also use r2 interpreters to run scripts using
-    the `#`, '#!', etc. commands. The output could be long, so try to use filters
-    if possible or limit. This is your preferred tool"""
-    # builtins.print('\x1b[1;32mRunning \x1b[4m' + command + '\x1b[0m')
-    r2 = get_r2_inst()
-    res = r2.cmd(command)
-    # builtins.print(res)
-    return res
 
 def run_python(command: str):
     """runs a python script and returns the results"""
@@ -88,9 +78,9 @@ async def process_tool_calls(tool_calls, cb):
                 cb('tool_call', { "id": tool_call["id"], "function": { "name": tool_name, "arguments": tool_args } })
             if tool_name == "r2cmd":
                 res = r2cmd(tool_args["command"])
-                messages.append({"role": "tool", "name": tool_name, "content": res + tool_end_message, "tool_call_id": tool_call["id"]})
+                messages.append({"role": "tool", "name": tool_name, "content": res['output'] + tool_end_message, "tool_call_id": tool_call["id"]})
                 if cb:
-                    cb('tool_response', { "id": tool_call["id"] + '_response', "content": res })
+                    cb('tool_response', { "id": tool_call["id"] + '_response', "content": res['output'] })
             elif tool_name == "run_python":
                 res = run_python(tool_args["command"])
                 messages.append({"role": "tool", "name": tool_name, "content": res + tool_end_message, "tool_call_id": tool_call["id"]})
@@ -103,8 +93,6 @@ async def process_streaming_response(resp, cb):
     tool_calls = []
     msgs = []
     async for chunk in resp:
-        print(chunk)
-
         delta = None
         choice = chunk.choices[0]
         delta = choice.delta
@@ -135,7 +123,7 @@ async def process_streaming_response(resp, cb):
                 if m is not None:
                     msgs.append(m)
                     if cb:
-                        cb('message', { "content": m, "id": chunk.id })
+                        cb('message', { "content": m, "id": 'message_' + chunk.id })
     if (len(tool_calls) > 0):
         messages.append({"role": "assistant", "tool_calls": tool_calls})
         await process_tool_calls(tool_calls, cb)

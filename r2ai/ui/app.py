@@ -6,7 +6,7 @@ from textual.screen import Screen, ModalScreen
 from textual.message import Message
 from textual.reactive import reactive
 from .model_select import ModelSelect
-from r2ai.pipe import open_r2
+from r2ai.pipe import open_r2, get_filename, r2
 from typing import Iterable
 import os
 from pathlib import Path 
@@ -21,7 +21,7 @@ from litellm import validate_environment
 from .chat import chat, messages
 import asyncio
 from .db import get_env
-r2 = None
+import json
 class ModelSelectProvider(Provider):
     async def search(self, query: str) -> Hits:
         yield Hit("Select Model", "Select Model", self.action_select_model)
@@ -102,7 +102,11 @@ class R2AIApp(App):
         ("ctrl+o", "load_binary", "Load Binary")
     ]
     TITLE = "r2ai"
-    SUB_TITLE = reactive(get_env('model'))
+    SUB_TITLE = None
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.update_sub_title(get_filename())
 
     def update_sub_title(self, binary: str = None) -> str:
         sub_title = None
@@ -188,6 +192,7 @@ class R2AIApp(App):
             self.add_message(message["id"], "Tool Call", f"{message['function']['name']} > {message['function']['arguments']['command']}")
         elif type == 'tool_response':
             self.add_message(message["id"], "Tool Response", message['content'])
+        
 
     async def send_message(self) -> None:
         input_widget = self.query_one("#chat-input", Input)
@@ -214,8 +219,11 @@ class R2AIApp(App):
 
     def add_message(self, id: str, sender: str, content: str) -> None:
         chat_container = self.query_one("#chat-container", VerticalScroll)
-        msg = ChatMessage(id, sender, content)
-        chat_container.mount(msg)
+        try:
+            msg = ChatMessage(id, sender, content)
+            chat_container.mount(msg)
+        except Exception as e:
+            pass
         self.scroll_to_bottom()
         return msg
 
@@ -290,7 +298,9 @@ class BinarySelectDialog(ModalScreen):
     def open_and_analyze_binary(self, path: str) -> None:
         global r2
         r2 = open_r2(path)
-        r2.cmd("aaa")
+        res = json.loads(r2.cmd('{ "cmd":"aaa" }'))
+        if 'error' in res and res['error'] is True:
+            self.notify(res['error'], severity="error")
 
     def on_directory_tree_directory_selected(self, event: DirectoryTree.DirectorySelected) -> None:
         self.path_input.value = str(event.path)
