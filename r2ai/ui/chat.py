@@ -118,12 +118,16 @@ async def process_streaming_response(resp, cb):
             # else:
                 # tool_calls[index]["function"]["arguments"] += fn_delta.arguments
         else:
+            m = None
             if delta.content is not None:
                 m = delta.content
                 if m is not None:
                     msgs.append(m)
-                    if cb:
-                        cb('message', { "content": m, "id": 'message_' + chunk.id })
+                if cb:
+                    cb('message', { "content": m, "id": 'message_' + chunk.id, 'done': False })
+            if 'finish_reason' in choice and choice['finish_reason'] is 'stop':
+                if cb:
+                    cb('message', { "content": "", "id": 'message_' + chunk.id, 'done': True })
     if (len(tool_calls) > 0):
         messages.append({"role": "assistant", "tool_calls": tool_calls})
         await process_tool_calls(tool_calls, cb)
