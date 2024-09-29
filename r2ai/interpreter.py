@@ -16,6 +16,7 @@ except Exception:
 from rich.rule import Rule
 from signal import signal, SIGINT
 
+from .interpreter_base import BaseInterpreter
 from .large import Large
 from .utils import merge_deltas
 from .message_block import MessageBlock
@@ -26,7 +27,8 @@ from .backend import openapi
 from .models import get_hf_llm, new_get_hf_llm, get_default_model
 from .voice import tts
 from .const import R2AI_HOMEDIR
-from . import auto, LOGGER, logging
+from . import LOGGER, logging
+from . import r2clippy as auto
 from .web import stop_http_server, server_running
 from .progress import progress_bar
 
@@ -595,7 +597,7 @@ def template_llama(self,messages):
             formatted_messages += f"{content}</s><s>[INST]"
     return formatted_messages
 
-class Interpreter:
+class Interpreter(BaseInterpreter):
     def __init__(self):
         self.logger = LOGGER
         self.mistral = None
@@ -625,6 +627,8 @@ class Interpreter:
         self.env["llm.repeat_penalty"] = "1.0"
         self.env["llm.top_p"] = "0.95"
         self.env["llm.top_k"] = "50"
+        self.env["llm.chat_format"] = "chatml-function-calling"
+        self.env["llm.tool_choice"] = "auto"
         self.env["user.name"] = "" # TODO auto fill?
         self.env["user.os"] = ""
         self.env["user.arch"] = ""
@@ -736,7 +740,7 @@ class Interpreter:
         mm = None
         return [word.strip() for word in text0.split(',')]
 
-    @progress_bar("Thinking", color="yellow") 
+    #@progress_bar("Thinking", color="yellow") 
     def chat(self, message=None):
         global print
         global Ginterrupted

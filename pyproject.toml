@@ -38,7 +38,8 @@ dependencies = [
   "unidecode",
   "jsonref",
   "transformers",
-  "pydantic"
+  "pydantic",
+  "instructor"
 ]
 
 [project.optional-dependencies]

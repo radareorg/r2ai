@@ -7,13 +7,13 @@ huggingface_hub==0.22.2
 appdirs
 unidecode
 jsonref
-transformers
 pydantic
 tokentrim
 chromadb
-openai
+openai==1.44.1
 anthropic
 boto3
 colorama
 textual
 litellm
+flashrank
