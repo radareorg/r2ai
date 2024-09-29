@@ -16,6 +16,7 @@ except Exception:
 from rich.rule import Rule
 from signal import signal, SIGINT
 
+from .env import R2AiEnv
 from .large import Large
 from .utils import merge_deltas
 from .message_block import MessageBlock
@@ -606,7 +607,7 @@ class Interpreter:
         self.auto_run = False
         self.model = get_default_model()
         self.last_model = ""
-        self.env = {}
+        self.env = R2AiEnv()
         self.openai_client = None
         self.anthropic_client = None
         self.groq_client = None
@@ -648,6 +649,7 @@ class Interpreter:
         self.env["http.path"] = ""
         self.env["http.verbose"] = "true" # not used yet
         self.env["http.chatctx"] = "false"
+        self.env["debug_level"] = "1"
         if have_rlang:
             self.env["chat.live"] = "false"
         else:
@@ -658,6 +660,8 @@ class Interpreter:
         self.env["chat.bubble"] = "false"
         self.env["chat.reply"] = "false"
         self.env["chat.code"] = "true"
+        
+        self.env.add_callback("debug_level", lambda val: LOGGER.setLevel(int(val) * 10))
 
         # No active block to start
         # (blocks are visual representation of messages on the terminal)

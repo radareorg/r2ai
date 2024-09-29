@@ -82,11 +82,7 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai -w ([port])       start webserver (curl -D hello http://localhost:8000)
  r2ai -W ([port])       start webserver in background
  r2ai -VV               visual mode
- r2ai -W ([port])       start webserver in background
- r2ai -V (num)          set log level for this session
-                        0: NOTSET, 1: DEBUG, 2: INFO,
-                        3: WARNING, 4: ERROR, 5: CRITICAL
-r2ai -V                 get current log level"""
+ r2ai -W ([port])       start webserver in background"""
 
 def myprint(msg, file=None):
     global print_buffer
@@ -449,7 +445,7 @@ def runline(ai, usertext):
     elif usertext.startswith("' "):
         if not autoai:
             autoai = Interpreter()
-            autoai.auto_run = True
+            autoai.auto_run = True 
 
         autoai.chat(usertext[2:])
 
@@ -458,12 +454,6 @@ def runline(ai, usertext):
             print("r2 is not available", file=sys.stderr)
         else:
             builtins.print(r2_cmd(usertext[1:]))
-    elif usertext.startswith("-V"):
-        arguments = usertext.split()
-        if len(arguments) > 1:
-            LOGGER.setLevel(int(arguments[-1]) * 10)
-        else:
-            print("{0:.0f}".format(LOGGER.level / 10))
     elif usertext.startswith("-"):
         print(f"Unknown flag '{usertext}'. See 'r2ai -h' for help", file=sys.stderr)
     else:
