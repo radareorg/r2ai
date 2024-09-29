@@ -40,3 +40,30 @@ def syscmdstr(cmd):
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     output, error = process.communicate()
     return output.decode().strip()
+
+
+def filter_print(*args, **kwargs):
+    _args = []
+    filter = None
+    if "filter" in kwargs:
+        filter = kwargs["filter"]
+        del kwargs["filter"]
+    for a in args:
+        new = ""
+        lines = str(a).splitlines()
+        if len(lines) > 1:
+            for line in lines:
+                if filter is not None:
+                    if filter in line:
+                        new += line + "\n"
+                else:
+                    new += line + "\n"
+        else:
+            if filter is not None:
+                if filter in str(a):
+                    new += str(a)
+            else:
+                new += str(a)
+        _args.append(new)
+    
+    print(*_args, **kwargs)
