@@ -378,6 +378,20 @@ def list_downloaded_models():
                     print(f" {size}G {M}")
                 except Exception as e:
                     print(f"     ??? {M}")
+        user_data_dir = appdirs.user_data_dir("r2ai")
+        models_path = os.path.join(user_data_dir, "models")
+        files = os.listdir(models_path)
+        for file in files:
+            found = False
+            for m in usermodels:
+                last_part = usermodels[m].split("/")[-1]
+                if last_part == file:
+                    found = True
+            if not found:
+                M = f"{models_path}/{file}"
+                size = round(os.path.getsize(M) / 1024 / 1024 / 1024, 2)
+                size = f"{size}".rjust(6)
+                print(f" {size}G {M}")
     except Exception as e:
         print(e)
     return None
