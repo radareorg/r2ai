@@ -983,11 +983,11 @@ class Interpreter:
                 if self.anthropic_client is None:
                     self.anthropic_client = Anthropic()
                 completion = self.anthropic_client.messages.create(
-                    system=system_message,
+                    system=system_message.strip(),
                     model=anthropic_model,
                     max_tokens=maxtokens,
                     temperature=float(self.env["llm.temperature"]),
-                    repeat_penalty=float(self.env["llm.repeat_penalty"]),
+#    repeat_penalty=float(self.env["llm.repeat_penalty"]),
                     messages=messages
                 )
                 if self.env["chat.reply"] == "true":
