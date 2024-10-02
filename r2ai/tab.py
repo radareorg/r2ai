@@ -104,7 +104,7 @@ except Exception:
     have_readline = True
     pass # readline not available
 
-def tab_hist(text):
+def tab_hist():
     if not have_readline:
         print("Cannot find readline", file=sys.stderr)
         return False
@@ -118,6 +118,17 @@ def tab_write():
         print("Cannot find readline", file=sys.stderr)
         return False
     readline.write_history_file(R2AI_HISTFILE)
+
+def tab_list():
+    global readline
+    if not have_readline:
+        return []
+    amount = readline.get_current_history_length()
+    res = []
+    for i in range(1, amount):
+        item = readline.get_history_item(i)
+        res.append(f"{i}  {item}")
+    return res
 
 def tab_init():
     if not have_readline:

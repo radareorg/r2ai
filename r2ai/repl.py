@@ -10,7 +10,7 @@ from datetime import datetime
 import sys
 import os
 
-from .tab import tab_init, tab_hist, tab_write, tab_evals
+from .tab import tab_init, tab_hist, tab_write, tab_evals, tab_list
 from .interpreter import Interpreter
 from .pipe import have_rlang, r2lang, r2singleton
 from r2ai import bubble, LOGGER
@@ -53,6 +53,7 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai ?e [msg]          echo a message
  r2ai ?t [query]        run an query and show it's timing
  r2ai !ls               run a system command
+ r2ai !                 show prompt history
  r2ai -a                query with audio voice
  r2ai -A                enter the voice chat loop
  r2ai -k                clear the screen
@@ -426,7 +427,25 @@ def runline(ai, usertext):
         tag = "```\n" # TEXT, INPUT ..
         ai.chat(f"{que}:\n{tag}\n{res}\n{tag}\n")
     elif usertext[0] == "!":
-        os.system(usertext[1:])
+        import shutil
+        columns, rows = shutil.get_terminal_size()
+        if len(usertext) == 1:
+            count = 0
+            for item in tab_list():
+                print(item, file=sys.stderr)
+                count = count + 1
+                if count == rows - 1:
+                    print("-- More -- (q)")
+                    count = 0
+                    if input() == 'q':
+                        break
+        else:
+            n = int(usertext[1:])
+            if n > 0:
+                items = tab_list()
+                runline(ai, items[n - 1])
+            else:
+                os.system(usertext[1:])
     elif usertext[0] == ".":
         #if len(usertext) > 1 and usertext[1] == ".": # ".." - run user plugins
         #    runplugin(ai, usertext[2:].strip())
