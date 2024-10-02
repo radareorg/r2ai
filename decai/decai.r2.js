@@ -284,7 +284,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         if (decaiApi === "anthropic" || decaiApi === "claude") {
             return r2aiAnthropic(q);
         }
-        if (decaiApi === "huggingface") {
+        if (decaiApi === "huggingface" || decaiApi === "hf") {
             return r2aiHuggingFace(q);
         }
         if (decaiApi === "openapi") {
@@ -293,7 +293,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         if (decaiApi === "openai") {
             return r2aiOpenAI(q);
         }
-        return "Unknown value for 'decai -e api'. Use r2ai, claude, huggingface, openapi or openai";
+        return "Unknown value for 'decai -e api'. Use r2ai, claude, hf, openapi or openai";
     }
     function r2aidec(args) {
         if (args === "") {
