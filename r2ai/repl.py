@@ -228,7 +228,7 @@ def runline(ai, usertext):
     elif usertext.startswith("-mm"):
         list_downloaded_models()
     elif usertext.startswith("-m-"):
-        delete_downloaded_model(usertext[2:])
+        delete_downloaded_model(usertext[3:])
     elif usertext.startswith("-m"):
         words = usertext.split(" ")
         if len(words) > 1:

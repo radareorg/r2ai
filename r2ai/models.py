@@ -382,6 +382,8 @@ def list_downloaded_models():
         models_path = os.path.join(user_data_dir, "models")
         files = os.listdir(models_path)
         for file in files:
+            if file.endswith(".gguf") == False:
+                continue
             found = False
             for m in usermodels:
                 last_part = usermodels[m].split("/")[-1]
@@ -399,6 +401,16 @@ def list_downloaded_models():
 def delete_downloaded_model(name):
     fd = None
     try:
+        name = name.strip()
+        if not os.path.exists(name):
+            print("Cannot find " + name)
+            return None
+        if name.startswith("/"):
+            if name.endswith(".gguf"):
+                os.remove(name)
+                return None
+            print("Cant delete non-gguf files")
+            return None
         fd = open(r2ai_model_json)
         usermodels = json.load(fd)
         fd.close()
