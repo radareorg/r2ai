@@ -167,6 +167,44 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         }
         return "error invalid response";
     }
+    function r2aiHuggingFace(msg) {
+        const hfKey = r2.cmd("'cat ~/.r2ai.huggingface-key").trim();
+        const hfModel = "deepseek-ai/DeepSeek-Coder-V2-Instruct";
+        //const hfModel = "meta-llama/Llama-3.1-8B-Instruct";
+        //const hfModel = "meta-llama/Llama-3.2-1B-Instruct";
+        //const hfModel = "Qwen/Qwen2.5-72B-Instruct";
+        if (hfKey === '') {
+            return "Cannot read ~/.r2ai.huggingface-key";
+        }
+        const payload = JSON.stringify({
+            inputs: decprompt + ", Explain this pseudocode in " + decaiLanguage + "\n" + msg,
+            parameters: {
+                max_new_tokens: 5128
+            }
+        });
+        const curlcmd = `curl -s https://api-inference.huggingface.co/models/${hfModel}
+            -H "Authorization: Bearer ${hfKey}"
+            -H "Content-Type: application/json"
+            -d '${payload}'`.replace(/\n/g, "");
+        //if (decaiDebug) {
+        //     console.log(curlcmd);
+        //}
+
+        const res = r2.syscmds(curlcmd);
+        // Debug response instead of request
+        if (decaiDebug) {
+            console.log(res)
+        }
+
+        try {
+            return JSON.parse(res).generated_text;
+        } catch (e) {
+            console.error(e);
+            console.log(res);
+        }
+        return "error invalid response";
+    }
+
     function r2aiOpenAI(msg) {
        const openaiKey = r2.cmd("'cat ~/.r2ai.openai-key").trim()
        // const openaiModel = "gpt-3.5-turbo";
@@ -246,13 +284,16 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         if (decaiApi === "anthropic" || decaiApi === "claude") {
             return r2aiAnthropic(q);
         }
+        if (decaiApi === "huggingface") {
+            return r2aiHuggingFace(q);
+        }
         if (decaiApi === "openapi") {
             return r2aiOpenAPI(q);
         }
         if (decaiApi === "openai") {
             return r2aiOpenAI(q);
         }
-        return "Unknown value for 'decai -e api'. Use r2ai, claude, openapi or openai";
+        return "Unknown value for 'decai -e api'. Use r2ai, claude, huggingface, openapi or openai";
     }
     function r2aidec(args) {
         if (args === "") {
