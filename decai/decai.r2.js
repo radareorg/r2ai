@@ -88,7 +88,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
             break;
         case "api":
             if (v === "?") {
-                console.error("r2ai\nclaude\nopenapi\nopenai");
+                console.error("r2ai\nclaude\nopenapi\nopenai\nhf");
             } else {
                 decaiApi = v;
             }
@@ -122,7 +122,8 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
     function usage() {
         console.error("Usage: " + command + " (-h) ...");
         console.error(" " + command + " -H         - help setting up r2ai");
-        console.error(" " + command + " -d         - decompile current function");
+        console.error(" " + command + " -d [f1 ..] - decompile given functions");
+        console.error(" " + command + " -D [query] - decompile current function with given extra query");
         console.error(" " + command + " -e         - display and change eval config vars");
         console.error(" " + command + " -h         - show this help");
         console.error(" " + command + " -i [f] [q] - include given file and query");
@@ -135,6 +136,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         console.error(" " + command + " -x         - eXplain current function");
     }
     function r2aiAnthropic(msg, hideprompt) {
+	    hideprompt = false;
        const claudeKey = r2.cmd("'cat ~/.r2ai.anthropic-key").trim()
        const claudeModel = "claude-3-5-sonnet-20240620";
        if (claudeKey === '') {
@@ -158,11 +160,14 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
           -H "x-api-key: ${claudeKey}"
           -d '${payload}'`.replace(/\n/g, "");
         if (decaiDebug) {
-            console.log(curlcmd);
+            console.error(curlcmd);
         }
         const res = r2.syscmds(curlcmd);
+            console.error(res);
         try {
-            return JSON.parse(res).content[0].text;
+            const code = JSON.parse(res).content[0].text;
+	    console.error(code);
+            return code;
         } catch(e) {
             console.error("ERROR");
             console.error(e);
@@ -259,6 +264,56 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         }
         return "error invalid response";
     }
+    function decaiDecompile(args, extraQuery) {
+        let out = "";
+        const appendQuery = extraQuery? " " + args: "";
+        const origColor = r2.cmd("e scr.color");
+        try {
+            args = args.slice(2).trim();
+            const file = "/tmp/.pdc.txt";
+            r2.call("rm .pdc.txt");
+            r2.call("rm " + file);
+            r2.cmd("echo > " + file);
+            let count = 0;
+            let text = "";
+            if (decaiContextFile !== "") {
+                if (r2.cmd2("test -f " + decaiContextFile).value === 0) {
+                    text += "Context:\n";
+                    text += "[RULES]\n";
+                    text += r2.cmd("cat " + decaiContextFile);
+                    text += "[/RULES]\n";
+                }
+            }
+            r2.cmd("e scr.color=0");
+            for (const c of decaiCommands.split(",")) {
+                if (c.trim() === "") {
+                    continue;
+                }
+                const oneliner = (extraQuery || args.trim().length === 0)? c : c + "@@= " + args;
+                const output = r2.cmd(oneliner);
+                if (output.length > 5) {
+                    text += "Output from " + c + ":\n";
+                    text += "[BEGIN]\n";
+                    text += output + "\n";
+                    text += "[END]\n";
+                    count++;
+                }
+            }
+            r2.cmd("e scr.color=" + origColor);
+            if (count === 0) {
+                console.error("Nothing to do.");
+                return;
+            }
+            r2ai("-R");
+            const query = (decprompt + appendQuery).trim() + ". Explain this pseudocode in " + decaiLanguage;
+            out = r2ai(query, text);
+            lastOutput = out;
+        } catch (e) {
+            r2.cmd("e scr.color=" + origColor);
+            console.error(e, e.stack);
+        }
+	return out;
+    }
     function fileDump(fileName, fileData) {
         const d = b64(fileData);
         r2.cmd("p6ds " + d + " > " + fileName);
@@ -279,7 +334,8 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
             if (decaiDebug) {
                 console.error(cmd);
             }
-            return r2.syscmds(cmd);
+            // return r2.syscmds(cmd);
+            return r2.cmd(cmd);
         }
         if (fileData === "" || queryText.startsWith("-")) { // -i
             return "";
@@ -303,7 +359,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         if (args === "") {
             usage();
         } else if (args[0] === "-") {
-            var out = "";
+            let out = "";
             switch (args[1]) {
             case "H": // "-H"
                 console.log(decaiHelp);
@@ -372,49 +428,10 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
                 out = r2ai("Explain whats this function doing in one sentence.", out)
                 break;
             case "d": // "-d"
-                try {
-                    args = args.slice(2).trim();
-                    const file = "/tmp/.pdc.txt";
-                    r2.call("rm .pdc.txt");
-                    r2.call("rm " + file);
-                    r2.cmd("echo > " + file);
-                    let count = 0;
-                    let text = "";
-		    if (decaiContextFile !== "") {
-                        if (r2.cmd2("test -f " + decaiContextFile).value === 0) {
-			    text += "Context:\n";
-                            text += "[RULES]\n";
-                            text += r2.cmd("cat " + decaiContextFile);
-                            text += "[/RULES]\n";
-                        }
-		    }
-                    const origColor = r2.cmd("e scr.color");
-                    r2.cmd("e scr.color=0");
-                    for (const c of decaiCommands.split(",")) {
-                        if (c.trim() === "") {
-                            continue;
-                        }
-                        const output = r2.cmd(c);
-                        if (output.length > 5) {
-                            text += "Output from " + c + ":\n";
-                            text += "[BEGIN]\n";
-                            text += output + "\n";
-                            text += "[END]\n";
-                            count++;
-                        }
-                    }
-                    r2.cmd("e scr.color=" + origColor);
-                    if (count === 0) {
-                        console.error("Nothing to do.");
-                        break;
-                    }
-                    r2ai("-R");
-                    const query = (decprompt + " " + args).trim() + ". Explain this pseudocode in " + decaiLanguage;
-                    out = r2ai(query, text);
-                    lastOutput = out;
-                } catch (e) {
-                    console.error(e);
-                }
+                out = decaiDecompile(args, false);
+                break;
+            case "D": // "-D"
+                out = decaiDecompile(args, true);
                 break;
             default:
                 usage();
