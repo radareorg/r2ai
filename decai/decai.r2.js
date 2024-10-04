@@ -121,19 +121,20 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
     }
     function usage() {
         console.error("Usage: " + command + " (-h) ...");
-        console.error(" " + command + " -H        - help setting up r2ai");
-        console.error(" " + command + " -d        - decompile current function");
-        console.error(" " + command + " -e        - display and change eval config vars");
-        console.error(" " + command + " -h        - show this help");
-        console.error(" " + command + " -n        - suggest better function name");
-        console.error(" " + command + " -q [text] - query language model with given text");
-        console.error(" " + command + " -Q [text] - query on top of the last output");
-        console.error(" " + command + " -r        - change role prompt (same as: decai -e prompt)");
-        console.error(" " + command + " -v        - show local variables");
-        console.error(" " + command + " -V        - find vulnerabilities");
-        console.error(" " + command + " -x        - eXplain current function");
+        console.error(" " + command + " -H         - help setting up r2ai");
+        console.error(" " + command + " -d         - decompile current function");
+        console.error(" " + command + " -e         - display and change eval config vars");
+        console.error(" " + command + " -h         - show this help");
+        console.error(" " + command + " -i [f] [q] - include given file and query");
+        console.error(" " + command + " -n         - suggest better function name");
+        console.error(" " + command + " -q [text]  - query language model with given text");
+        console.error(" " + command + " -Q [text]  - query on top of the last output");
+        console.error(" " + command + " -r         - change role prompt (same as: decai -e prompt)");
+        console.error(" " + command + " -v         - show local variables");
+        console.error(" " + command + " -V         - find vulnerabilities");
+        console.error(" " + command + " -x         - eXplain current function");
     }
-    function r2aiAnthropic(msg) {
+    function r2aiAnthropic(msg, hideprompt) {
        const claudeKey = r2.cmd("'cat ~/.r2ai.anthropic-key").trim()
        const claudeModel = "claude-3-5-sonnet-20240620";
        if (claudeKey === '') {
@@ -145,10 +146,12 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
            messages: [
                {
                    "role": "user",
-                   "content": decprompt + ", Explain this pseudocode in " + decaiLanguage + "\n" + msg
+                   "content": hideprompt ? msg
+                     : decprompt + ", Explain this pseudocode in " + decaiLanguage + "\n" + msg
                }
            ]
        });
+       console.log(payload);
        const curlcmd = `curl -s https://api.anthropic.com/v1/messages
           -H "Content-Type: application/json"
           -H "anthropic-version: 2023-06-01"
@@ -167,7 +170,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         }
         return "error invalid response";
     }
-    function r2aiHuggingFace(msg) {
+    function r2aiHuggingFace(msg, hideprompt) {
         const hfKey = r2.cmd("'cat ~/.r2ai.huggingface-key").trim();
         const hfModel = "deepseek-ai/DeepSeek-Coder-V2-Instruct";
         //const hfModel = "meta-llama/Llama-3.1-8B-Instruct";
@@ -176,8 +179,9 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         if (hfKey === '') {
             return "Cannot read ~/.r2ai.huggingface-key";
         }
+        const query = hideprompt? msg: decprompt + ", Explain this pseudocode in " + decaiLanguage + "\n" + msg;
         const payload = JSON.stringify({
-            inputs: decprompt + ", Explain this pseudocode in " + decaiLanguage + "\n" + msg,
+            inputs: query,
             parameters: {
                 max_new_tokens: 5128
             }
@@ -205,21 +209,20 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         return "error invalid response";
     }
 
-    function r2aiOpenAI(msg) {
+    function r2aiOpenAI(msg, hideprompt) {
        const openaiKey = r2.cmd("'cat ~/.r2ai.openai-key").trim()
        // const openaiModel = "gpt-3.5-turbo";
        const openaiModel = "gpt-4";
        if (openaiKey === '') {
            return "Cannot read ~/.r2ai.openai-key";
        }
+       const query = hideprompt? msg: decprompt + ", Explain this pseudocode in " + decaiLanguage + "\n" + msg;
        const payload = JSON.stringify({
            model: openaiModel,
            max_tokens: 5128,
            messages: [
-               {"role": "system", "content": decprompt }, {
-                   "role": "user",
-                   "content": decprompt + ", Explain this pseudocode in " + decaiLanguage + "\n" + msg
-               }
+               {"role": "system", "content": decprompt },
+               { "role": "user", "content": query }
            ]
        });
        const curlcmd = `curl -s https://api.openai.com/v1/chat/completions
@@ -238,8 +241,9 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         }
         return "error invalid response";
     }
-    function r2aiOpenAPI(msg) {
-        const payload = JSON.stringify({ "prompt": decprompt + ", Explain this pseudocode in " + decaiLanguage + "\n" + msg });
+    function r2aiOpenAPI(msg, hideprompt) {
+	const query = hideprompt? msg: decprompt + ", Explain this pseudocode in " + decaiLanguage + "\n" + msg;
+        const payload = JSON.stringify({ "prompt": query });
         const curlcmd = `curl -s ${decaiHost}:${decaiPort}/completion
           -H "Content-Type: application/json"
           -d '${payload}' #`.replace(/\n/g, "");
@@ -259,7 +263,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         const d = b64(fileData);
         r2.cmd("p6ds " + d + " > " + fileName);
     }
-    function r2ai(queryText, fileData) {
+    function r2ai(queryText, fileData, hideprompt) {
         if (!fileData) {
             fileData = "";
         }
@@ -280,18 +284,18 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         if (fileData === "" || queryText.startsWith("-")) { // -i
             return "";
         }
-        const q = queryText + fileData;
+        const q = queryText + ":\n" + fileData;
         if (decaiApi === "anthropic" || decaiApi === "claude") {
-            return r2aiAnthropic(q);
+            return r2aiAnthropic(q, hideprompt);
         }
         if (decaiApi === "huggingface" || decaiApi === "hf") {
-            return r2aiHuggingFace(q);
+            return r2aiHuggingFace(q, hideprompt);
         }
         if (decaiApi === "openapi") {
-            return r2aiOpenAPI(q);
+            return r2aiOpenAPI(q, hideprompt);
         }
         if (decaiApi === "openai") {
-            return r2aiOpenAI(q);
+            return r2aiOpenAI(q, hideprompt);
         }
         return "Unknown value for 'decai -e api'. Use r2ai, claude, hf, openapi or openai";
     }
@@ -317,6 +321,17 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
                 out = r2.cmd("afv;pdc");
                 r2ai("-R");
                 out = r2ai("guess a better name and type for each local variable and function argument taking using. output an r2 script using afvn and afvt commands", out);
+                break;
+            case "i": // "-i"
+                args = args.slice(2).trim().split(/ /g, 2);
+                if (args.length === 2) {
+                    const file = args[0];
+                    const query = args[1];
+                    const fileData = r2.cmd("cat " + file);
+                    console.log(r2ai(query, fileData, true));
+                } else {
+                    console.log("Use: decai -i [file] [query ...]");
+                }
                 break;
             case "r": // "-r"
                 args = args.slice(2).trim();
