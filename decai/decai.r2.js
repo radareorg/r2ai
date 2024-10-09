@@ -41,7 +41,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
     let decaiDebug = false;
     let decaiContextFile = "";
     let lastOutput = "";
-    let decaiCache = false; // not implemented yet
+    let decaiCache = false;
     let decprompt = "Only show the code with no explanation or introductions. Simplify the code: - take function arguments from comment - remove dead assignments - refactor goto with for/if/while - use better names for variables - simplify as much as possible";
     // decprompt += ", comments in function calls may replace arguments and remove unnecessary early variable assignments that happen"
 
@@ -264,7 +264,13 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         }
         return "error invalid response";
     }
-    function decaiDecompile(args, extraQuery) {
+    function decaiDecompile(args, extraQuery, useCache) {
+        if (useCache) {
+           const cachedAnotation = r2.cmd("ano").trim();
+           if (cachedAnotation.length > 0) {
+               return cachedAnotation;
+	   }
+        }
         let out = "";
         const appendQuery = extraQuery? " " + args: "";
         const origColor = r2.cmd("e scr.color");
@@ -311,6 +317,9 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         } catch (e) {
             r2.cmd("e scr.color=" + origColor);
             console.error(e, e.stack);
+        }
+        if (useCache) {
+           r2.call("ano=" + b64(out));
         }
 	return out;
     }
@@ -428,10 +437,13 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
                 out = r2ai("Explain whats this function doing in one sentence.", out)
                 break;
             case "d": // "-d"
-                out = decaiDecompile(args, false);
+                out = decaiDecompile(args, false, decaiCache);
+                break;
+            case "dd": // "-dd"
+                out = decaiDecompile(args, false, false);
                 break;
             case "D": // "-D"
-                out = decaiDecompile(args, true);
+                out = decaiDecompile(args, true, false);
                 break;
             default:
                 usage();
