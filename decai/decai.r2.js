@@ -318,7 +318,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
             r2.cmd("e scr.color=" + origColor);
             console.error(e, e.stack);
         }
-        if (useCache) {
+        if (useCache && out.length > 1) {
            r2.call("ano=" + b64(out));
         }
 	return out;
@@ -339,7 +339,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
             const q = queryText.startsWith("-")? queryText: ["-i", fileName, queryText].join(" ");
             const host = decaiHost + ":" + decaiPort + "/cmd"; // "http://localhost:8080/cmd";
             const ss = q.replace(/ /g, "%20").replace(/'/g, "\\'");
-            const cmd = 'curl -s "' + host + '/' + ss + '" || echo Cannot curl, use r2ai-server or r2ai -w #';
+            const cmd = '!!curl -s "' + host + '/' + ss + '" || echo "Cannot curl, use r2ai-server or r2ai -w"';
             if (decaiDebug) {
                 console.error(cmd);
             }
