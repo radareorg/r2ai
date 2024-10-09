@@ -266,7 +266,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
     }
     function decaiDecompile(args, extraQuery, useCache) {
         if (useCache) {
-           const cachedAnotation = r2.cmd("ano").trim();
+           const cachedAnotation = r2.cmd("anos").trim();
            if (cachedAnotation.length > 0) {
                return cachedAnotation;
 	   }
