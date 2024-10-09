@@ -42,7 +42,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
     let decaiContextFile = "";
     let lastOutput = "";
     let decaiCache = false;
-    let decprompt = "Only show the code with no explanation or introductions. Simplify the code: - take function arguments from comment - remove dead assignments - refactor goto with for/if/while - use better names for variables - simplify as much as possible";
+    let decprompt = "Only respond with code. Dont use markdown or include any explanation. Simplify the code: - take function arguments from comment - remove dead assignments - refactor goto with for/if/while - use better names for variables - simplify as much as possible";
     // decprompt += ", comments in function calls may replace arguments and remove unnecessary early variable assignments that happen"
 
     function decaiEval(arg) {
