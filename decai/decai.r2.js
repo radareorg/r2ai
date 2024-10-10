@@ -78,6 +78,9 @@ You can write your custom decai commands in your ~/.radare2rc file.
         const [k, v] = arg.split("=");
         if (!v) {
             switch (k) {
+            case "model":
+                console.log(decaiModel);
+                break;
             case "debug":
                 console.log(decaiDebug);
                 break;
@@ -122,8 +125,11 @@ You can write your custom decai commands in your ~/.radare2rc file.
                 decaiApi = v;
             }
             break;
+        case "model":
+            decaiModel = v;
+            break;
         case "cache":
-            decaiCache = v;
+            decaiCache = v === "true" || v == 1;
             break;
         case "ctxfile":
             decaiContextFile = v;
