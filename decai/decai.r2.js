@@ -1,29 +1,40 @@
 (function () {
     const decaiHelp = `
-To use decai with commercial APIs run the following commands inside r2:
+# Using Decai
 
-* decai -e api=claude    # or api=openai
-* Write the keys in ~/.r2ai.openai-key or ~/.r2ai.anthropic-key
+You must run an r2ai-server in local or connect to a remote backend via api:
 
-You need r2ai webserver to be running, to do this run 'r2ai -w' in a separate terminal.
+## Local backends:
 
-  $ r2pm -ci r2ai
+### R2AI
 
-The best model for decompiling is ClaudeAI from Anthropic:
+Run 'decai -e api=r2ai' inside r2. Optimized for 'r2ai -w' as backend (see below)
 
-  $ r2pm -r r2ai
-  $ echo $CLAUDEAPIKEY > ~/.r2ai.anthropic
-  [r2ai:0x0000000]> -m anthropic:claude-3-5-sonnet-20240620
-  [r2ai:0x0000000]> -w
-  Webserver listening at port 8080
+### OpenAPI
 
-If you want to run r2ai in local you should use granite, mistral, llama3, gemma or mistral
-PD: Granite woeks quite well
+You can use ollama, llamacpp, r2ai-server, etc
 
-  [r2ai:0x0000000]> -m ibm-granite/granite-20b-code-instruct-8k-GGUF
-  [r2ai:0x0000000]> -m QuantFactory/granite-8b-code-instruct-4k-GGUF
-  [r2ai:0x0000000]> -m TheBloke/Mistral-7B-Instruct-v0.2-GGUF
-  [r2ai:0x0000000]> -w
+It connects to decai -e host/port via OpenAPI rest endpoints.
+
+### Setting up r2ai-server:
+
+Install r2ai or r2ai-server with r2pm:
+
+    r2pm -ci r2ai
+
+Choose one of the recommended models (after r2pm -r r2ai):
+
+    * -m ibm-granite/granite-20b-code-instruct-8k-GGUF
+    * -m QuantFactory/granite-8b-code-instruct-4k-GGUF
+    * -m TheBloke/Mistral-7B-Instruct-v0.2-GGUF
+
+Start the webserver:
+
+   $ r2pm -r r2ai
+   $ echo $CLAUDEAPIKEY > ~/.r2ai.anthropic
+   [r2ai:0x0000000]> -m anthropic:claude-3-5-sonnet-20240620
+   [r2ai:0x0000000]> -w
+   Webserver listening at port 8080
 
 You can also make r2ai -w talk to an 'r2ai-server' using this line:
 
@@ -31,6 +42,23 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
   [r2ai:0x0000000]> -e http.port=8082
 
   [0x0000000]> decai -e host=http://localhost:8082
+## Remote backends:
+
+Specify the service to use:
+  * decai -e api=openai
+  * decai -e api=claude
+  * decai -e api=hf
+
+Write the API keys in corresponding files:
+
+  * ~/.r2ai.openai-key
+  * ~/.r2ai.huggingface-key
+  * ~/.r2ai.anthropic-key
+
+## Make those changes permanent
+
+You can write your custom decai commands in your ~/.radare2rc file.
+
 `;
     const command = "decai";
     let decaiHost = "http://localhost";
@@ -40,6 +68,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
     let decaiLanguage = "C";
     let decaiDebug = false;
     let decaiContextFile = "";
+    let decaiModel = "";
     let lastOutput = "";
     let decaiCache = false;
     let decprompt = "Only respond with code. Dont use markdown or include any explanation. Simplify the code: - take function arguments from comment - remove dead assignments - refactor goto with for/if/while - use better names for variables - simplify as much as possible";
@@ -123,6 +152,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         console.error("Usage: " + command + " (-h) ...");
         console.error(" " + command + " -H         - help setting up r2ai");
         console.error(" " + command + " -d [f1 ..] - decompile given functions");
+        console.error(" " + command + " -dd [..]   - same as above, but ignoring cache");
         console.error(" " + command + " -D [query] - decompile current function with given extra query");
         console.error(" " + command + " -e         - display and change eval config vars");
         console.error(" " + command + " -h         - show this help");
@@ -136,9 +166,8 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         console.error(" " + command + " -x         - eXplain current function");
     }
     function r2aiAnthropic(msg, hideprompt) {
-	    hideprompt = false;
        const claudeKey = r2.cmd("'cat ~/.r2ai.anthropic-key").trim()
-       const claudeModel = "claude-3-5-sonnet-20240620";
+       const claudeModel = (decaiModel.length > 0)? decaiModel: "claude-3-5-sonnet-20240620";
        if (claudeKey === '') {
            return "Cannot read ~/.r2ai.anthropic-key";
        }
@@ -153,7 +182,6 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
                }
            ]
        });
-       console.log(payload);
        const curlcmd = `curl -s https://api.anthropic.com/v1/messages
           -H "Content-Type: application/json"
           -H "anthropic-version: 2023-06-01"
@@ -163,27 +191,32 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
             console.error(curlcmd);
         }
         const res = r2.syscmds(curlcmd);
+        if (decaiDebug) {
             console.error(res);
+        }
         try {
             const code = JSON.parse(res).content[0].text;
 	    console.error(code);
             return code;
         } catch(e) {
-            console.error("ERROR");
-            console.error(e);
-            console.log("RES((" + res + "))");
+            console.error("ERROR: " + e + "(" + res + ")");
         }
         return "error invalid response";
     }
     function r2aiHuggingFace(msg, hideprompt) {
         const hfKey = r2.cmd("'cat ~/.r2ai.huggingface-key").trim();
-        const hfModel = "deepseek-ai/DeepSeek-Coder-V2-Instruct";
-        //const hfModel = "meta-llama/Llama-3.1-8B-Instruct";
-        //const hfModel = "meta-llama/Llama-3.2-1B-Instruct";
-        //const hfModel = "Qwen/Qwen2.5-72B-Instruct";
         if (hfKey === '') {
-            return "Cannot read ~/.r2ai.huggingface-key";
+            return "ERROR: Cannot read ~/.r2ai.huggingface-key";
         }
+        let hfModel = "deepseek-ai/DeepSeek-Coder-V2-Instruct";
+        if (decaiModel.length > 0) {
+            hfModel = decaiModel;
+	}
+        // const hfModel = "instructlab/granite-7b-lab"
+        // const hfModel = "TheBloke/Llama-2-7B-GGML"
+        // const hfModel = "meta-llama/Llama-3.1-8B-Instruct";
+        // const hfModel = "meta-llama/Llama-3.2-1B-Instruct";
+        // const hfModel = "Qwen/Qwen2.5-72B-Instruct";
         const query = hideprompt? msg: decprompt + ", Explain this pseudocode in " + decaiLanguage + "\n" + msg;
         const payload = JSON.stringify({
             inputs: query,
@@ -206,6 +239,10 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
         }
 
         try {
+            const o = JSON.parse(res);
+            if (o.error) {
+                return "ERROR: " + o.error;
+            }
             return JSON.parse(res).generated_text;
         } catch (e) {
             console.error(e);
@@ -216,11 +253,10 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
 
     function r2aiOpenAI(msg, hideprompt) {
        const openaiKey = r2.cmd("'cat ~/.r2ai.openai-key").trim()
-       // const openaiModel = "gpt-3.5-turbo";
-       const openaiModel = "gpt-4";
        if (openaiKey === '') {
            return "Cannot read ~/.r2ai.openai-key";
        }
+       const openaiModel = (decaiModel.length > 0)? decaiModel: "gpt-4";
        const query = hideprompt? msg: decprompt + ", Explain this pseudocode in " + decaiLanguage + "\n" + msg;
        const payload = JSON.stringify({
            model: openaiModel,
@@ -423,6 +459,7 @@ You can also make r2ai -w talk to an 'r2ai-server' using this line:
                     console.log("decai -e cache=" + decaiCache);
                     console.log("decai -e lang=" + decaiLanguage);
                     console.log("decai -e debug=" + decaiDebug);
+                    console.log("decai -e model=" + decaiModel);
                 }
                 break;
             case "q": // "-q"
