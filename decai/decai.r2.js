@@ -366,7 +366,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
             console.error(e, e.stack);
         }
         if (useCache && out.length > 1) {
-           r2.call("ano=" + b64(out));
+           r2.call("ano=base64:" + b64(out));
         }
 	return out;
     }
