@@ -66,6 +66,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
     let decaiApi = "r2"; // uses /cmd endpoint
     let decaiCommands = "pdc";
     let decaiLanguage = "C";
+    let decaiHumanLanguage = "English";
     let decaiDebug = false;
     let decaiContextFile = "";
     let decaiModel = "";
@@ -86,6 +87,9 @@ You can write your custom decai commands in your ~/.radare2rc file.
                 break;
             case "api":
                 console.log(decaiApi);
+                break;
+            case "hlang":
+                console.log(decaiHumanLanguage);
                 break;
             case "lang":
                 console.log(decaiLanguage);
@@ -133,6 +137,9 @@ You can write your custom decai commands in your ~/.radare2rc file.
             break;
         case "ctxfile":
             decaiContextFile = v;
+            break;
+        case "hlang":
+            decaiHumanLanguage = v;
             break;
         case "lang":
             decaiLanguage = v;
@@ -462,6 +469,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
                     console.log("decai -e cmds=" + decaiCommands);
                     console.log("decai -e cache=" + decaiCache);
                     console.log("decai -e lang=" + decaiLanguage);
+                    console.log("decai -e hlang=" + decaiHumanLanguage);
                     console.log("decai -e debug=" + decaiDebug);
                     console.log("decai -e model=" + decaiModel);
                 }
@@ -479,7 +487,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
                 out = "[BEGIN]" + cmds.split(",").map(r2.cmd).join("\n") + "[END]";
                 r2.cmd("e scr.color=" + origColor);
                 r2ai("-R");
-                out = r2ai("Analyze function calls, comments and strings, ignore registers and memory accesess. Considering the references and involved loops make explain the purpose of this function in one or two short sentences.", out, true);
+                out = r2ai("Analyze function calls, comments and strings, ignore registers and memory accesess. Considering the references and involved loops make explain the purpose of this function in one or two short sentences. Output must be only the translation of the explanation in " + decaiHumanLanguage, out, true);
                 break;
             case "d": // "-d"
                 out = decaiDecompile(args, false, decaiCache);
