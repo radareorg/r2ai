@@ -201,9 +201,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
             console.error(res);
         }
         try {
-            const code = JSON.parse(res).content[0].text;
-	    console.error(code);
-            return code;
+            return JSON.parse(res).content[0].text;
         } catch(e) {
             console.error("ERROR: " + e + "(" + res + ")");
         }
@@ -268,7 +266,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
            model: openaiModel,
            max_tokens: 5128,
            messages: [
-               {"role": "system", "content": decprompt },
+               // { "role": "system", "content": hideprompt? decprompt: "" },
                { "role": "user", "content": query }
            ]
        });
@@ -475,9 +473,13 @@ You can write your custom decai commands in your ~/.radare2rc file.
                 out = r2ai(args.slice(2).trim(), lastOutput);
                 break;
             case "x": // "-x"
-                out = r2.cmd("pdsf@e:scr.color=0");
+                var origColor = r2.cmd("e scr.color");
+                r2.cmd("e scr.color=0");
+                var cmds = decaiCommands; // +",axt";
+                out = "[BEGIN]" + cmds.split(",").map(r2.cmd).join("\n") + "[END]";
+                r2.cmd("e scr.color=" + origColor);
                 r2ai("-R");
-                out = r2ai("Explain whats this function doing in one sentence.", out)
+                out = r2ai("Analyze function calls, comments and strings, ignore registers and memory accesess. Considering the references and involved loops make explain the purpose of this function in one or two short sentences.", out, true);
                 break;
             case "d": // "-d"
                 out = decaiDecompile(args, false, decaiCache);
