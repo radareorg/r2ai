@@ -1,4 +1,4 @@
-(function () {
+function () {
     const decaiHelp = `
 # Using Decai
 
@@ -216,29 +216,38 @@ You can write your custom decai commands in your ~/.radare2rc file.
     }
     function r2aiHuggingFace(msg, hideprompt) {
         const hfKey = r2.cmd("'cat ~/.r2ai.huggingface-key").trim();
+
         if (hfKey === '') {
             return "ERROR: Cannot read ~/.r2ai.huggingface-key";
         }
-        let hfModel = "deepseek-ai/DeepSeek-Coder-V2-Instruct";
+
+        // Supported models on the PRO subscription: https://github.com/huggingface/hub-docs/blob/main/docs/api-inference/supported-models.md#what-do-i-get-with-a-pro-subscription
+        // ... or perhaps those are supported now?: https://huggingface.co/blog/inference-pro#supported-models ... confusing (outdated/contradicting) docs
+        //const hfModel = "deepseek-ai/DeepSeek-Coder-V2-Instruct";  // Never loads the model, it's always "cold"
+        //const hfModel = "meta-llama/Llama-3.1-8B-Instruct";        // Hallucinates with things like: "BlueFin Bluetooth 5.0 Low Energy Chip from Nordic Semiconductor"
+        //const hfModel = "meta-llama/Llama-3.2-1B-Instruct";        // Not right
+        //const hfModel = "Qwen/Qwen2.5-72B-Instruct";               // Stops halfway a seemingly correct-ish output?
+        const hfModel = "codellama/CodeLlama-13b-hf";
+        //const hfModel = "codellama/CodeLlama-34b-Instruct-hf";     // Absolute rubbish
+        //const hfModel = "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO"; // Lazy, doesn't even try to produce code, just describes it vaguely in prose
+
         if (decaiModel.length > 0) {
             hfModel = decaiModel;
-	}
-        // const hfModel = "instructlab/granite-7b-lab"
-        // const hfModel = "TheBloke/Llama-2-7B-GGML"
-        // const hfModel = "meta-llama/Llama-3.1-8B-Instruct";
-        // const hfModel = "meta-llama/Llama-3.2-1B-Instruct";
-        // const hfModel = "Qwen/Qwen2.5-72B-Instruct";
-        const query = hideprompt? msg: decprompt + ", Explain this pseudocode in " + decaiLanguage + "\n" + msg;
+        }
+
+        const query = hideprompt
+            ? msg
+            : `${decprompt}, Explain this pseudocode in ${decaiLanguage}\n${msg}`;
+
         const payload = JSON.stringify({
-            inputs: query,
-            parameters: {
-                max_new_tokens: 5128
-            }
+            inputs: query
         });
-        const curlcmd = `curl -s https://api-inference.huggingface.co/models/${hfModel}
-            -H "Authorization: Bearer ${hfKey}"
-            -H "Content-Type: application/json"
+        const curlcmd = `curl -X POST -s https://api-inference.huggingface.co/models/${hfModel} \
+            -H "Authorization: Bearer ${hfKey}" \
+            -H "Content-Type: application/json" \
+            -H "x-wait-for-model: true" \
             -d '${payload}'`.replace(/\n/g, "");
+
         //if (decaiDebug) {
         //     console.log(curlcmd);
         //}
