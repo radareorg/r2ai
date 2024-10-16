@@ -1,4 +1,4 @@
-function () {
+(function () {
     const decaiHelp = `
 # Using Decai
 
