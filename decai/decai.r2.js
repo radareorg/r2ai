@@ -227,13 +227,10 @@ You can write your custom decai commands in your ~/.radare2rc file.
         //const hfModel = "meta-llama/Llama-3.1-8B-Instruct";        // Hallucinates with things like: "BlueFin Bluetooth 5.0 Low Energy Chip from Nordic Semiconductor"
         //const hfModel = "meta-llama/Llama-3.2-1B-Instruct";        // Not right
         //const hfModel = "Qwen/Qwen2.5-72B-Instruct";               // Stops halfway a seemingly correct-ish output?
-        const hfModel = "codellama/CodeLlama-13b-hf";
         //const hfModel = "codellama/CodeLlama-34b-Instruct-hf";     // Absolute rubbish
         //const hfModel = "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO"; // Lazy, doesn't even try to produce code, just describes it vaguely in prose
-
-        if (decaiModel.length > 0) {
-            hfModel = decaiModel;
-        }
+        //const hfModel = "codellama/CodeLlama-13b-hf";
+        const hfModel = "nvidia/Llama-3.1-Nemotron-70B-Instruct-HF";
 
         const query = hideprompt
             ? msg
