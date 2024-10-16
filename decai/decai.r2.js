@@ -230,7 +230,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
         //const hfModel = "codellama/CodeLlama-34b-Instruct-hf";     // Absolute rubbish
         //const hfModel = "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO"; // Lazy, doesn't even try to produce code, just describes it vaguely in prose
         //const hfModel = "codellama/CodeLlama-13b-hf";
-        const hfModel = "nvidia/Llama-3.1-Nemotron-70B-Instruct-HF";
+        const hfModel = "nvidia/Llama-3.1-Nemotron-70B-Instruct-HF"; // Generates only partial outputs (begginning of decompilation)
 
         const query = hideprompt
             ? msg
