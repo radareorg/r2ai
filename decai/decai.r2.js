@@ -252,7 +252,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
         const res = r2.syscmds(curlcmd);
         // Debug response instead of request
         if (decaiDebug) {
-            console.log(res)
+            console.log(JSON.stringify(res, null, 4));
         }
 
         try {
@@ -261,6 +261,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
                 return "ERROR: " + o.error;
             }
             return JSON.parse(res).generated_text;
+            //return JSON.stringify(res, null, 4);
         } catch (e) {
             console.error(e);
             console.log(res);
