@@ -2,7 +2,7 @@ from textual.app import App, ComposeResult, SystemCommand
 from textual.containers import ScrollableContainer, Container, Horizontal, VerticalScroll, Grid, Vertical  # Add Vertical to imports
 from textual.widgets import Header, Footer, Input, Button, Static, DirectoryTree, Label, Tree, Markdown
 from textual.command import CommandPalette, Command, Provider, Hits, Hit
-from textual.screen import Screen, ModalScreen
+from textual.screen import Screen, ModalScreen, SystemModalScreen
 from textual.message import Message
 from textual.reactive import reactive
 from .model_select import ModelSelect
@@ -18,23 +18,11 @@ from litellm import validate_environment
 from markdown_it import MarkdownIt
 # from ..repl import set_model, r2ai_singleton
 # ai = r2ai_singleton()
-from .chat import chat, messages
+from .chat import chat
 import asyncio
-from .db import get_env
 import json
-class ModelSelectProvider(Provider):
-    async def search(self, query: str) -> Hits:
-        yield Hit("Select Model", "Select Model", self.action_select_model)
 
-
-class ModelSelectDialog(ModalScreen):
-    def compose(self) -> ComposeResult:
-        yield Grid(ModelSelect(), id="model-select-dialog")
-
-    def on_model_select_model_selected(self, event: ModelSelect.ModelSelected) -> None:
-        self.dismiss(event.model)
-
-class ModelConfigDialog(ModalScreen):
+class ModelConfigDialog(SystemModalScreen):
     def __init__(self, keys: list[str]) -> None:
         super().__init__()
         self.keys = keys
@@ -109,12 +97,19 @@ class R2AIApp(App):
     SUB_TITLE = None
 
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__()
+        if 'ai' in kwargs:
+            self.ai = kwargs['ai']
+        else:
+            class FakeAI:
+                model = 'gpt-4o'
+                messages = []
+            self.ai = FakeAI()
         self.update_sub_title(get_filename())
 
     def update_sub_title(self, binary: str = None) -> str:
         sub_title = None
-        model = get_env('model')
+        model = self.ai.model
         if binary and model:
             binary = Path(binary).name
             sub_title = f"{model} | {binary}"
@@ -145,6 +140,7 @@ class R2AIApp(App):
 
     def on_mount(self) -> None:
         self.install_screen(CommandPalette(), name="command_palette")
+        self.query_one("#chat-input", Input).focus()
         # self.install_screen(BinarySelectDialog(), name="binary_select_dialog")
 
     def action_show_command_palette(self) -> None:
@@ -152,10 +148,11 @@ class R2AIApp(App):
     
     
     async def select_model(self) -> None:
-        model = await self.push_screen_wait(ModelSelectDialog())
+        model = await self.push_screen_wait(ModelSelect())
         if model:
             await self.validate_model()
-            self.notify(f"Selected model: {get_env('model')}")
+            self.ai.model = model
+            self.notify(f"Selected model: {self.ai.model}")
         self.update_sub_title()
 
     @work
@@ -209,15 +206,15 @@ class R2AIApp(App):
             input_widget.value = ""
             try:
                 await self.validate_model()
-                await chat(message, self.on_message)
+                await chat(self.ai, message, self.on_message)
             except Exception as e:
                 self.notify(str(e), severity="error")
 
     async def validate_model(self) -> None:
-        model = get_env("model")
+        model = self.ai.model
         if not model:
             await self.select_model()
-        model = get_env("model")
+        model = self.ai.model
         keys = validate_environment(model)
         if keys['keys_in_environment'] is False:
             await self.push_screen_wait(ModelConfigDialog(keys['missing_keys']))
@@ -229,10 +226,12 @@ class R2AIApp(App):
         try:
             msg = ChatMessage(id, sender, content)
             chat_container.mount(msg)
+            return msg
         except Exception as e:
             pass
-        self.scroll_to_bottom()
-        return msg
+        finally:
+            self.scroll_to_bottom()
+        
 
     def scroll_to_bottom(self) -> None:
         chat_scroll = self.query_one("#chat-container", VerticalScroll)
@@ -252,8 +251,14 @@ class Messages(Container):
         for message in self.messages:
             yield Message(message)
 
+class FilteredDirectoryTree(DirectoryTree):
+    input_path: reactive[Path] = reactive(Path.home())
 
-class BinarySelectDialog(ModalScreen):
+    def filter_paths(self, paths: Iterable[Path]) -> Iterable[Path]:
+        ps = [path for path in paths if str(path).startswith(str(self.input_path))]
+        return ps
+
+class BinarySelectDialog(SystemModalScreen):
     BINDINGS = [
         ("up", "cursor_up", "Move cursor up"),
         ("down", "cursor_down", "Move cursor down"),
@@ -263,27 +268,26 @@ class BinarySelectDialog(ModalScreen):
     ]
 
     def compose(self) -> ComposeResult:
-        yield Grid(
-            Vertical(
-                Input(placeholder="Enter path here...", id="path-input"),
-                DirectoryTree(Path.home(), id="file-browser"),
-            ),
-            id="binary-select-dialog"
-        )
+        with Vertical():
+            yield Input(placeholder="Enter path here...", id="path-input")
+            yield FilteredDirectoryTree(Path.home(), id="file-browser")
 
     def on_mount(self) -> None:
         self.path_input = self.query_one("#path-input", Input)
         self.file_browser = self.query_one("#file-browser", DirectoryTree)
-        self.set_focus(self.file_browser)
+        self.path_input.value = str(get_filename() or Path.home())
+        self.path_input.focus()
         self.watch(self.path_input, "value", self.update_tree)
 
     @work(thread=True)
     def update_tree(self) -> None:
         path = Path(self.path_input.value)
+        
         if path.exists():
             self.file_browser.path = str(path)
         elif path.parent.exists():
             self.file_browser.path = str(path.parent)
+        self.file_browser.input_path = str(path)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "up-button":
@@ -316,6 +320,7 @@ class BinarySelectDialog(ModalScreen):
         self.file_browser.action_cursor_up()
 
     def action_cursor_down(self) -> None:
+        self.file_browser.focus()
         self.file_browser.action_cursor_down()
 
     def action_select(self) -> None:
@@ -324,5 +329,5 @@ class BinarySelectDialog(ModalScreen):
             self.open_and_analyze_binary(str(node.data.path))
             self.dismiss(str(node.data.path))
 
-app = R2AIApp()
-app.run()
+# app = R2AIApp()
+# app.run()
