@@ -90,7 +90,7 @@ On Windows you may follow the same instructions, just ensure you have the right 
 git clone https://github.com/radareorg/r2ai
 cd r2ai
 set PATH=C:\Users\YOURUSERNAME\Local\Programs\Python\Python39\;%PATH%
-python3 -m pip -r requirements.txt
+python3 -m pip install .
 python3 main.py
 ```
 
