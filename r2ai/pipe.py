@@ -34,7 +34,7 @@ class FakeLang:
 try:
     import r2lang
     have_rlang = True
-except Exception as e:
+except Exception:
     import r2pipe
     try:
         if r2pipe.in_r2():
@@ -48,7 +48,8 @@ except Exception as e:
             if os.environ.get('R2AI') is None:
                 ppid = os.getppid()
                 os.environ["R2AI"] = "1"
-                r2lang = FakeLang(r2pipe.open("/bin/ls"))
+                filename = "/bin/ls"
+                r2lang = FakeLang(r2pipe.open(filename))
             else:
                 r2lang = FakeLang(None)
         except Exception:
@@ -64,10 +65,11 @@ def get_r2_inst():
 
 @progress_bar("Loading", color="yellow")
 def open_r2(file, flags=[]):
-    global r2, filename
+    global r2, filename, r2lang
     r2 = r2pipe.open(file, flags=flags)
+    r2lang = FakeLang(r2)
     filename = file
-    return r2
+    return r2lang
 
 def get_filename():
     global filename
