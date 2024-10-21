@@ -517,7 +517,7 @@ def template_gpt4all(self,messages):
     return formatted_messages
 
 def template_llama3(self,messages):
-    formatted_messages = f"<|begin_of_text|>"
+    formatted_messages = "" # f"<|begin_of_text|>"
     if self.system_message != "":
         formatted_messages += f"<|start_header_id|>system<{self.system_message}<|end_header_id|>"
         formatted_messages += f"<{self.system_message}<|eot_id|>"
