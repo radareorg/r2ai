@@ -72,8 +72,10 @@ You can write your custom decai commands in your ~/.radare2rc file.
     let decaiModel = "";
     let lastOutput = "";
     let decaiCache = false;
-    let decprompt = "Only respond with code. Dont use markdown or include any explanation. Simplify the code: - take function arguments from comment - remove dead assignments - refactor goto with for/if/while - use better names for variables - simplify as much as possible";
+    // let decprompt = "Only respond with code. Dont use markdown or include any explanation. Simplify the code: - take function arguments from comment - remove dead assignments - refactor goto with for/if/while - use better names for variables - simplify as much as possible";
+    // let decprompt = "Respond ONLY using code. Do not use markdown or include any explanation. Simplify the code: - take function arguments from comment - remove dead assignments - refactor goto with for/if/while - use better names for variables - simplify as much as possible but do not omit important details - refactor for readability";
     // decprompt += ", comments in function calls may replace arguments and remove unnecessary early variable assignments that happen"
+    let decprompt = "Respond ONLY using code. Do not use markdown or include any explanation. Simplify the code: use 'string:' and call arguments from comments, remove dead assignments, refactor goto with for/if/while statements, use better names for variables, simplify as much as possible focus on readability";
 
     function decaiEval(arg) {
         const [k, v] = arg.split("=");
@@ -191,7 +193,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
                {
                    "role": "user",
                    "content": hideprompt ? msg
-                     : decprompt + ", Explain this pseudocode in " + decaiLanguage + "\n" + msg
+                     : decprompt + ", Rewrite this pseudocode into " + decaiLanguage + "\n" + msg
                }
            ]
        });
@@ -386,12 +388,12 @@ You can write your custom decai commands in your ~/.radare2rc file.
             const q = queryText.startsWith("-")? queryText: ["-i", fileName, queryText].join(" ");
             const host = decaiHost + ":" + decaiPort + "/cmd"; // "http://localhost:8080/cmd";
             const ss = q.replace(/ /g, "%20").replace(/'/g, "\\'");
-            const cmd = '!!curl -s "' + host + '/' + ss + '" || echo "Cannot curl, use r2ai-server or r2ai -w"';
+            const cmd = 'curl -s "' + host + '/' + ss + '" || echo "Cannot curl, use r2ai-server or r2ai -w"';
             if (decaiDebug) {
                 console.error(cmd);
             }
-            // return r2.syscmds(cmd);
-            return r2.cmd(cmd);
+            return r2.syscmds(cmd);
+            // return r2.cmd(cmd);
         }
         if (fileData === "" || queryText.startsWith("-")) { // -i
             return "";
