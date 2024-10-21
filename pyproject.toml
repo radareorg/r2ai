@@ -25,7 +25,8 @@ dependencies = [
   "boto3",
   "colorama",
   "textual",
-  "litellm"
+  "litellm",
+  "numpydoc"
 ]
 
 [project.optional-dependencies]

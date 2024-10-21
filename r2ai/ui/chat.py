@@ -2,7 +2,7 @@ from litellm import acompletion, ChatCompletionAssistantToolCall, ChatCompletion
 import asyncio
 from .db import get_env
 from r2ai.pipe import get_r2_inst
-from .r2cmd import r2cmd
+from r2ai.tools import r2cmd
 import json
 from r2ai.repl import r2ai_singleton
 
