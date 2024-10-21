@@ -14,8 +14,7 @@ RD=`realpath "$D"`
 if [ ! -d venv ]; then
 	$PYTHON -m venv venv
 	./venv/bin/pip3 install -e .
-else
-	PYTHON=venv/bin/python3
+PYTHON=venv/bin/python3
 fi
 
 exec $PYTHON -m r2ai.cli "$@"

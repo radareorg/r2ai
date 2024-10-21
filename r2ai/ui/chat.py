@@ -1,9 +1,11 @@
 from litellm import acompletion, ChatCompletionAssistantToolCall, ChatCompletionToolCallFunctionChunk
 import asyncio
-from r2ai.pipe import get_r2_inst
-from r2ai.auto import ChatAuto, SYSTEM_PROMPT_AUTO
+import json
 import signal
+from r2ai.pipe import get_r2_inst
 from r2ai.tools import run_python, r2cmd
+from r2ai.repl import r2ai_singleton
+from r2ai.auto import ChatAuto, SYSTEM_PROMPT_AUTO
 
 def signal_handler(signum, frame):
     raise KeyboardInterrupt
