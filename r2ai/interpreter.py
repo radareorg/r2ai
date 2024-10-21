@@ -571,6 +571,8 @@ def template_llama(self,messages):
 def is_litellm_model(model):
     provider = None
     model_name = None
+    if model.startswith ("/"):
+        return False
     if ":" in model:
         provider, model_name = model.split(":")
     elif "/" in model:
