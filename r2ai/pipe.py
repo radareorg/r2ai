@@ -34,7 +34,7 @@ class FakeLang:
 try:
     import r2lang
     have_rlang = True
-except Exception:
+except Exception as e:
     import r2pipe
     try:
         if r2pipe.in_r2():
@@ -56,12 +56,11 @@ except Exception:
             r2lang = FakeLang(None)
 
 def r2singleton():
-    global r2lang
-    return r2lang
+    global r2lang, r2
+    return r2lang or r2
 
 def get_r2_inst():
-    global r2
-    return r2
+    return r2singleton()
 
 @progress_bar("Loading", color="yellow")
 def open_r2(file, flags=[]):

@@ -9,16 +9,46 @@ authors = [
   {name = "pancake", email = "pancake@nopcode.org"}
 ]
 
+dependencies = [
+  "rich",
+  "r2pipe",
+  "inquirer",
+  "llama-cpp-python",
+  "huggingface_hub",
+  "appdirs",
+  "unidecode",
+  "jsonref",
+  "transformers",
+  "pydantic",
+  "pyreadline3",
+  "tokentrim",
+  "boto3",
+  "colorama",
+  "textual",
+  "litellm"
+]
+
+[project.optional-dependencies]
+extras = [
+  "chromadb",
+  "openai",
+  "anthropic",
+  "groq",
+  "google-generativeai",
+  "google-cloud-aiplatform"
+]
+
+
 [project.urls]
 homepage = "https://www.radare.org/"
 repository = "https://github.com/radareorg/r2ai"
 
 [project.scripts]
-r2ai = "r2ai:main"
+r2ai = "r2ai.main:run" 
 
 [tool.setuptools.packages.find]
-where = [".", "r2ai"]
-include = ["main", "r2ai", "r2ai/ui"]
+where = ["."]
+include = ["r2ai*"]
 namespaces = true
 
 [tool.setuptools.dynamic]
@@ -27,25 +57,3 @@ readme = {file = "README.md", content-type = "text/markdown"}
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
-
-dependencies = [
-  "rich",
-  "r2pipe",
-  "inquirer",
-  "llama-cpp-python",
-  "huggingface_hub==0.22.0",
-  "appdirs",
-  "unidecode",
-  "jsonref",
-  "transformers",
-  "pydantic"
-]
-
-[project.optional-dependencies]
-extras = [
-  "openai",
-  "anthropic",
-  "groq",
-  "google-generativeai",
-  "google-cloud-aiplatform"
-]
