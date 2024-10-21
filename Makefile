@@ -28,7 +28,7 @@ all: venv
 	@./r2ai.sh
 
 large:
-	. venv/bin/activate ; $(PYTHON) main.py -l
+	source venv/bin/activate ; $(PYTHON) -m r2ai.cli -l
 
 all.old:
 	@test -n "${VIRTUAL_ENV}" || (echo "Run:"; echo ". venv/bin/activate" ; exit 1)
@@ -36,15 +36,17 @@ all.old:
 
 venv:
 	$(PYTHON) -m venv venv
-	if [ -z "`find venv | grep llama_cpp`" ]; then . venv/bin/activate ; pip install . ; fi
+	if [ -z "`find venv | grep llama_cpp`" ]; then source venv/bin/activate ; pip install . ; fi
 
 deps: venv
 	#test -n "${VIRTUAL_ENV}" || (echo "Run: . venv/bin/activate" ; exit 1)
-	. venv/bin/activate && export CMAKE_ARGS="-DLLAMA_METAL=on -DLLAMA_METAL_EMBED_LIBRARY=ON" && \
+	source venv/bin/activate && export CMAKE_ARGS="-DLLAMA_METAL=on -DLLAMA_METAL_EMBED_LIBRARY=ON" && \
 		pip install --force-reinstall -U --no-cache-dir .
 
 clean:
 	rm -rf venv
+	rm -rf build
+	find . -name "*.egg-info" -exec rm -rf {} +
 
 mrproper:
 	$(MAKE) clean
@@ -70,7 +72,7 @@ install-server:
 	$(MAKE) -C r2ai-server user-install
 
 install-plugin user-install-plugin:
-	ln -fs $(PWD)/main.py $(R2_USER_PLUGINS)/r2ai.py
+	ln -fs $(PWD)/r2ai/plugin.py $(R2_USER_PLUGINS)/r2ai.py
 
 uninstall user-uninstall:
 	rm -f $(R2PM_BINDIR)/r2ai
@@ -80,7 +82,7 @@ user-uninstall-plugin uninstall-plugin:
 	rm -f $(R2_USER_PLUGINS)/r2ai.py
 
 pub:
-	$(PYTHON) setup.py build sdist
+	$(PYTHON) -m build
 	twine check dist/*
 	twine upload -u __token__ --repository-url https://upload.pypi.org/legacy/ --verbose dist/*
 

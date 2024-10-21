@@ -2,10 +2,10 @@
 
 import builtins
 import traceback
-
 import r2lang
+from r2ai.main import r2ai_singleton, run_rcfile_once, runline, help_message
+
 def r2ai_rlang_plugin(unused_but_required_argument):
-    from r2ai.main import run, r2ai_singleton, run_rcfile_once, runline, help_message # pylint: disable=wrong-import-position
     ai = r2ai_singleton()
     def _call(s):
         if not s.startswith("r2ai"):
