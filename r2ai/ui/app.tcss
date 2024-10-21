@@ -7,9 +7,9 @@ Placeholder {
   width: 15;
   height: 100;
 }
-
 Screen {
     background: $surface;
+    layers: base overlay;
 }
 
 #content {
@@ -27,9 +27,11 @@ Screen {
     padding: 1;
     overflow-y: scroll;
     layout: vertical;
+    layer: base;
 }
 
 #input-area {
+    layer: base;
     height: auto;
     margin-top: 1;
 }
@@ -54,13 +56,6 @@ Screen {
 
 /* ... existing styles ... */
 
-#binary-select-dialog {
-    align: center middle;
-    width: 100%;
-    height: 100%;
-    background: $surface;
-    border: solid $primary;
-}
 
 #binary-select-dialog Label {
     padding: 1 2;
@@ -81,11 +76,6 @@ Screen {
     margin-left: 1;
 }
 
-#file-browser {
-  height: 100%;
-  width: 100%;
-  align: center middle;
-}
 
 .chat-message-container {
   height: auto;
@@ -110,4 +100,30 @@ Static.label_sender {
     overflow: auto;
     padding-bottom: 1;
     border: solid white; 
+}
+
+ModelSelect {
+    display: none;
+    align: center middle;
+    Container {
+        margin: 0;
+
+        width: 60%;
+        height: 50%;
+        overflow: hidden;
+        display: block;
+        OptionList {
+            margin-bottom: 3;
+        }
+    }
+}
+
+BinarySelectDialog {
+    display: none;
+    align: center middle;
+    Vertical {
+        background: transparent;
+        height: 50%;
+        width: 50%;
+    }
 }
