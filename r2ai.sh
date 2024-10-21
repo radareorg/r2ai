@@ -13,10 +13,9 @@ RD=`realpath "$D"`
 [ -n "$D" ] && cd "$D"
 if [ ! -d venv ]; then
 	$PYTHON -m venv venv
-	. venv/bin/activate
-	pip3 install -r requirements.txt
+	./venv/bin/pip3 install -e .
 else
-	. venv/bin/activate
+	PYTHON=venv/bin/python3
 fi
-# export PYTHONPATH=$PWD
-exec $PYTHON $D/main.py "$@"
+
+exec $PYTHON -m r2ai.cli "$@"
