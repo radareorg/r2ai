@@ -20,7 +20,6 @@ HAVE_R2PIPE = False
 RCFILE_LOADED = False
 
 def r2ai_rlang_plugin(unused_but_required_argument):
-    print('hello')
     ai = r2ai_singleton()
     def _call(s):
         if not s.startswith("r2ai"):
