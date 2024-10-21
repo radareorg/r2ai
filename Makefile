@@ -36,12 +36,12 @@ all.old:
 
 venv:
 	$(PYTHON) -m venv venv
-	if [ -z "`find venv | grep llama_cpp`" ]; then . venv/bin/activate ; pip install -r requirements.txt ; fi
+	if [ -z "`find venv | grep llama_cpp`" ]; then . venv/bin/activate ; pip install . ; fi
 
 deps: venv
 	#test -n "${VIRTUAL_ENV}" || (echo "Run: . venv/bin/activate" ; exit 1)
 	. venv/bin/activate && export CMAKE_ARGS="-DLLAMA_METAL=on -DLLAMA_METAL_EMBED_LIBRARY=ON" && \
-		pip install --force-reinstall -U -r requirements.txt --no-cache-dir
+		pip install --force-reinstall -U --no-cache-dir .
 
 clean:
 	rm -rf venv
@@ -51,7 +51,7 @@ mrproper:
 
 deps-global:
 	export CMAKE_ARGS="-DLLAMA_METAL=on -DLLAMA_METAL_EMBED_LIBRARY=ON" && \
-		$(PIP) install --force-reinstall -U -r requirements.txt --break-system-packages --no-cache-dir
+		$(PIP) install --force-reinstall -U --break-system-packages --no-cache-dir .
 
 user-install:
 	rm -f $(R2PM_BINDIR)/r2ai-server
