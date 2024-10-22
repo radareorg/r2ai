@@ -47,6 +47,9 @@ repository = "https://github.com/radareorg/r2ai"
 [project.scripts]
 r2ai = "r2ai.main:run" 
 
+[tool.setuptools]
+include-package-data = true
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["r2ai*"]
@@ -56,5 +59,6 @@ namespaces = true
 readme = {file = "README.md", content-type = "text/markdown"}
 
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
+
