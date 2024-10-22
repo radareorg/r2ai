@@ -456,7 +456,9 @@ class Interpreter:
                     prompt = messages_to_prompt(self, messages)
                     response = self.llama_instance(prompt, **chat_args)
                 else:
-                    response = self.llama_instance.create_chat_completion(messages, **chat_args)
+                    all_messages = messages.copy()
+                    all_messages.insert(0, {"role": "system", "content": self.system_message})
+                    response = self.llama_instance.create_chat_completion(all_messages, **chat_args)
             except Exception as err:
                 print(Exception, err)
                 if Ginterrupted:
