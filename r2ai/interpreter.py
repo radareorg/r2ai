@@ -857,7 +857,11 @@ class Interpreter:
         # builtins.print(prompt)
         response = None
         if self.auto_run:
-            response = auto.chat(self)
+            if(is_litellm_model(self.model)):
+                response = auto.chat(self)
+            else:
+                self.llama_instance = new_get_hf_llm(self, self.model, False, int(self.env["llm.window"]))
+                response = auto.chat(self, llama_instance=self.llama_instance)
             return
 
         elif self.model.startswith("kobaldcpp"):
