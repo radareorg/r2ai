@@ -67,7 +67,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
     let decaiCommands = "pdc";
     let decaiLanguage = "C";
     let decaiHumanLanguage = "English";
-    let decaiDebug = true;
+    let decaiDebug = false;
     let decaiContextFile = "";
     let decaiModel = "";
     let lastOutput = "";
