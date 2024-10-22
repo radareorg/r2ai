@@ -11,10 +11,11 @@ D=`dirname "$F"`
 RD=`realpath "$D"`
 [ -n "${RD}" ] && D="$RD"
 [ -n "$D" ] && cd "$D"
-if [ ! -d venv ]; then
+if [ -d venv ]; then
+	. venv/bin/activate
+else
 	$PYTHON -m venv venv
-	./venv/bin/pip3 install -e .
-PYTHON=venv/bin/python3
+	. venv/bin/activate
+	pip3 install -e .
 fi
-
 exec $PYTHON -m r2ai.cli "$@"
