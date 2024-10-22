@@ -72,7 +72,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
     let decaiModel = "";
     let lastOutput = "";
     let decaiCache = false;
-    let decprompt = "Do not explain, respond using ONLY code. Simplify and and make it more readable. Use better variable names, keep it simple and avoid unnecessary logic, rewrite 'goto' into higher level constructs, Use comments like 'string:' to resolve function call arguments";
+    let decprompt = "Only respond with code. Do not use markdown or include any explanation. Simplify the code: - take function arguments from comment - remove dead assignments - refactor goto with for/if/while - use better names for variables - simplify as much as possible. You MUST provide a complete answer, do not stop halfway nor elide important details";
 
     function decaiEval(arg) {
         const [k, v] = arg.split("=");
@@ -215,29 +215,35 @@ You can write your custom decai commands in your ~/.radare2rc file.
     }
     function r2aiHuggingFace(msg, hideprompt) {
         const hfKey = r2.cmd("'cat ~/.r2ai.huggingface-key").trim();
+
         if (hfKey === '') {
             return "ERROR: Cannot read ~/.r2ai.huggingface-key";
         }
-        let hfModel = "deepseek-ai/DeepSeek-Coder-V2-Instruct";
-        if (decaiModel.length > 0) {
-            hfModel = decaiModel;
-	}
-        // const hfModel = "instructlab/granite-7b-lab"
-        // const hfModel = "TheBloke/Llama-2-7B-GGML"
-        // const hfModel = "meta-llama/Llama-3.1-8B-Instruct";
-        // const hfModel = "meta-llama/Llama-3.2-1B-Instruct";
-        // const hfModel = "Qwen/Qwen2.5-72B-Instruct";
-        const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
+
+        // Supported models on the PRO subscription: https://github.com/huggingface/hub-docs/blob/main/docs/api-inference/supported-models.md#what-do-i-get-with-a-pro-subscription
+        // ... or perhaps those are supported now?: https://huggingface.co/blog/inference-pro#supported-models ... confusing (outdated/contradicting) docs
+        //const hfModel = "deepseek-ai/DeepSeek-Coder-V2-Instruct";  // Never loads the model, it's always "cold"
+        //const hfModel = "meta-llama/Llama-3.1-8B-Instruct";        // Hallucinates with things like: "BlueFin Bluetooth 5.0 Low Energy Chip from Nordic Semiconductor"
+        //const hfModel = "meta-llama/Llama-3.2-1B-Instruct";        // Not right
+        //const hfModel = "Qwen/Qwen2.5-72B-Instruct";               // Stops halfway a seemingly correct-ish output?
+        //const hfModel = "codellama/CodeLlama-34b-Instruct-hf";     // Absolute rubbish
+        //const hfModel = "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO"; // Lazy, doesn't even try to produce code, just describes it vaguely in prose
+        //const hfModel = "codellama/CodeLlama-13b-hf";
+        const hfModel = "nvidia/Llama-3.1-Nemotron-70B-Instruct-HF"; // Generates only partial outputs (begginning of decompilation)... can be bypassed in nvidia's NGC by prompting "provide a full answer, do not stop halfway".
+
+        const query = hideprompt
+            ? msg
+            : `${decprompt}, Explain this pseudocode in ${decaiLanguage}\n${msg}`;
+
         const payload = JSON.stringify({
-            inputs: query,
-            parameters: {
-                max_new_tokens: 5128
-            }
+            inputs: query
         });
-        const curlcmd = `curl -s https://api-inference.huggingface.co/models/${hfModel}
-            -H "Authorization: Bearer ${hfKey}"
-            -H "Content-Type: application/json"
+        const curlcmd = `curl -X POST -s https://api-inference.huggingface.co/models/${hfModel} \
+            -H "Authorization: Bearer ${hfKey}" \
+            -H "Content-Type: application/json" \
+            -H "x-wait-for-model: true" \
             -d '${payload}'`.replace(/\n/g, "");
+
         //if (decaiDebug) {
         //     console.log(curlcmd);
         //}
@@ -245,15 +251,12 @@ You can write your custom decai commands in your ~/.radare2rc file.
         const res = r2.syscmds(curlcmd);
         // Debug response instead of request
         if (decaiDebug) {
-            console.log(res)
+            console.log(JSON.stringify(res, null, 4));
         }
 
         try {
-            const o = JSON.parse(res);
-            if (o.error) {
-                return "ERROR: " + o.error;
-            }
             return JSON.parse(res).generated_text;
+            //return JSON.stringify(res, null, 4);
         } catch (e) {
             console.error(e);
             console.log(res);
