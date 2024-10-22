@@ -73,7 +73,6 @@ You can write your custom decai commands in your ~/.radare2rc file.
     let lastOutput = "";
     let decaiCache = false;
     let decprompt = "Only respond with code. Do not use markdown or include any explanation. Simplify the code: - take function arguments from comment - remove dead assignments - refactor goto with for/if/while - use better names for variables - simplify as much as possible. You MUST provide a complete answer, do not stop halfway nor elide important details";
-    // decprompt += ", comments in function calls may replace arguments and remove unnecessary early variable assignments that happen"
 
     function decaiEval(arg) {
         const [k, v] = arg.split("=");
@@ -191,7 +190,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
                {
                    "role": "user",
                    "content": hideprompt ? msg
-                     : decprompt + ", Explain this pseudocode in " + decaiLanguage + "\n" + msg
+                     : decprompt + ", Rewrite this pseudocode into " + decaiLanguage + "\n" + msg
                }
            ]
        });
@@ -271,7 +270,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
            return "Cannot read ~/.r2ai.openai-key";
        }
        const openaiModel = (decaiModel.length > 0)? decaiModel: "gpt-4";
-       const query = hideprompt? msg: decprompt + ", Explain this pseudocode in " + decaiLanguage + "\n" + msg;
+       const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
        const payload = JSON.stringify({
            model: openaiModel,
            max_tokens: 5128,
@@ -297,7 +296,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
         return "error invalid response";
     }
     function r2aiOpenAPI(msg, hideprompt) {
-	const query = hideprompt? msg: decprompt + ", Explain this pseudocode in " + decaiLanguage + "\n" + msg;
+	const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
         const payload = JSON.stringify({ "prompt": query });
         const curlcmd = `curl -s ${decaiHost}:${decaiPort}/completion
           -H "Content-Type: application/json"
@@ -389,12 +388,12 @@ You can write your custom decai commands in your ~/.radare2rc file.
             const q = queryText.startsWith("-")? queryText: ["-i", fileName, queryText].join(" ");
             const host = decaiHost + ":" + decaiPort + "/cmd"; // "http://localhost:8080/cmd";
             const ss = q.replace(/ /g, "%20").replace(/'/g, "\\'");
-            const cmd = '!!curl -s "' + host + '/' + ss + '" || echo "Cannot curl, use r2ai-server or r2ai -w"';
+            const cmd = 'curl -s "' + host + '/' + ss + '" || echo "Cannot curl, use r2ai-server or r2ai -w"';
             if (decaiDebug) {
                 console.error(cmd);
             }
-            // return r2.syscmds(cmd);
-            return r2.cmd(cmd);
+            return r2.syscmds(cmd);
+            // return r2.cmd(cmd);
         }
         if (fileData === "" || queryText.startsWith("-")) { // -i
             return "";

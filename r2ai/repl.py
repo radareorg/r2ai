@@ -30,15 +30,9 @@ def r2ai_singleton():
     return ais[0].ai
 
 def r2_cmd(x):
-    global have_rlang, ai, r2
-    have_rlang = True
-    res = x
-    if have_rlang:
-        oc = r2lang.cmd('e scr.color').strip()
-        r2lang.cmd('e scr.color=0')
-        res = r2lang.cmd(x)
-        r2lang.cmd('e scr.color=' + oc)
-    elif r2 is not None:
+    r2 = r2singleton()
+    res = None
+    if r2 is not None:
         oc = r2.cmd('e scr.color').strip()
         r2.cmd('e scr.color=0')
         res = r2.cmd(x)
@@ -203,7 +197,7 @@ def runline(ai, usertext):
             traceback.print_exc()
     if usertext.startswith("-VV"):
         from ui.app import R2AIApp # pylint: disable=import-error
-        R2AIApp().run()
+        R2AIApp(ai=ai).run()
         return
     if usertext.startswith("?V") or usertext.startswith("-v"):
         r2ai_version()

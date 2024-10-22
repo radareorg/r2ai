@@ -30,35 +30,7 @@ from .const import R2AI_HOMEDIR
 from . import auto, LOGGER, logging
 from .web import stop_http_server, server_running
 from .progress import progress_bar
-
-try:
-    from openai import OpenAI, OpenAIError
-    have_openai = True
-except Exception:
-    have_openai = False
-    pass
-
-try:
-    from anthropic import Anthropic
-    have_anthropic = True
-except Exception:
-    have_anthropic = False
-    pass
-
-try:
-    from groq import Groq
-    have_groq = True
-except Exception:
-    have_groq = False
-    pass
-
-try:
-    import google.generativeai as google
-    google.configure(api_key=os.environ['GOOGLE_API_KEY'])
-    have_google = True
-except Exception as e:
-    have_google = False
-    pass
+import litellm
 
 file_dir = os.path.dirname(__file__)
 sys.path.append(file_dir)
@@ -545,7 +517,7 @@ def template_gpt4all(self,messages):
     return formatted_messages
 
 def template_llama3(self,messages):
-    formatted_messages = f"<|begin_of_text|>"
+    formatted_messages = "" # f"<|begin_of_text|>"
     if self.system_message != "":
         formatted_messages += f"<|start_header_id|>system<{self.system_message}<|end_header_id|>"
         formatted_messages += f"<{self.system_message}<|eot_id|>"
@@ -596,6 +568,19 @@ def template_llama(self,messages):
             formatted_messages += f"{content}</s><s>[INST]"
     return formatted_messages
 
+def is_litellm_model(model):
+    provider = None
+    model_name = None
+    if model.startswith ("/"):
+        return False
+    if ":" in model:
+        provider, model_name = model.split(":")
+    elif "/" in model:
+        provider, model_name = model.split("/")
+    if provider in litellm.models_by_provider and model_name in litellm.models_by_provider[provider]:
+        return True
+    return False
+
 class Interpreter:
     def __init__(self):
         self.logger = LOGGER
@@ -608,13 +593,6 @@ class Interpreter:
         self.model = get_default_model()
         self.last_model = ""
         self.env = R2AiEnv()
-        self.openai_client = None
-        self.anthropic_client = None
-        self.groq_client = None
-        self.google_client = None
-        self.google_chat = None
-        self.bedrock_client = None
-        self.api_base = "https://api.openai.com/v1" # Default openai base url
         self.system_message = ""
         self.env["llm.model"] = self.model ## TODO: dup. must get rid of self.model
         self.env["llm.gpu"] = "true"
@@ -643,7 +621,6 @@ class Interpreter:
         self.env["data.vectordb"] = "false"
         self.env["data.hist"] = "false"
         self.env["key.mastodon"] = ""
-        self.env["key.openai"] = ""
         self.env["http.port"] = "8080"
         self.env["http.tabby"] = "false"
         self.env["http.path"] = ""
@@ -793,6 +770,7 @@ class Interpreter:
             not self.model.startswith("kobaldcpp") and
             not self.model.startswith("bedrock:") and
             self.llama_instance is None
+            and not is_litellm_model(self.model)
         ):
             self.logger = LOGGER.getChild(f"local:{self.model}")
             # Find or install Code-Llama
@@ -908,156 +886,26 @@ class Interpreter:
             print(response)
             return
 
-        elif self.model.startswith("openai:") or self.model.startswith("openapi:"):
+        elif is_litellm_model(self.model):
             # [
             #  {"role": "system", "content": "You are a poetic assistant, be creative."},
             #  {"role": "user", "content": "Compose a poem that explains the concept of recursion in programming."}
             # ]
-            if self.model.startswith("openapi:"):
-                uri = self.model.split(":", 3)[1:]
-                if len(uri) > 2:
-                    self.api_base = ":".join(uri[:-1])
-                    openai_model = uri[-1]
-            else:
-                openai_model = self.model.rsplit(":")[-1]
-            self.api_key = syscmdstr('cat ~/.r2ai.openai-key').strip();
-            if have_openai:
-                # https://platform.openai.com/docs/assistants/overview
-                if self.openai_client is None:
-                    self.openai_client = OpenAI(base_url=self.api_base)
-                if self.system_message != "":
-                    self.messages.append({"role": "system", "content": self.system_message})
-                try:
-                    completion = self.openai_client.chat.completions.create(
-                        # TODO: instructions=self.system_message # instead of passing it in the query
-                        model=openai_model,
-                        max_tokens=maxtokens,
-                        temperature=float(self.env["llm.temperature"]),
-                        messages=self.messages,
-                        extra_headers={
-                            "HTTP-Referer": "https://rada.re", # openrouter specific: Optional, for including your app on openrouter.ai rankings.
-                            "X-Title": "radare2", # openrouter specific: Optional. Shows in rankings on openrouter.ai.
-                        }
-                    )
-                except OpenAIError as e:
-                    self.logger.error("OpenAIError[%s]: %s", e.body['code'], e.body['message'])
-                    return
-                except Exception as e:
-                    self.logger.error("Exception %s", e)
-                    return
-                response = completion.choices[0].message.content
-                if "content" in self.messages[-1]:
-                    last_message = self.messages[-1]["content"]
+            completion = litellm.completion(
+                model=self.model.replace(":", "/"),
+                messages=self.messages,
+                max_completion_tokens=maxtokens,
+                temperature=float(self.env["llm.temperature"]),
+                top_p=float(self.env["llm.top_p"]),
+                stop=self.terminator,
+            )
+            response = completion.choices[0].message.content
+            if "content" in self.messages[-1]:
+                last_message = self.messages[-1]["content"]
                 if self.env["chat.reply"] == "true":
                     self.messages.append({"role": "assistant", "content": response})
                 print(response)
                 return response
-            else:
-                self.logger.warn("OpenAi python not found. Falling back to requests library")
-                response = openapi.chat(self.messages, self.api_base, openai_model, self.api_key) 
-                if "content" in self.messages[-1]:
-                    last_message = self.messages[-1]["content"]
-                if self.env["chat.reply"] == "true":
-                    self.messages.append({"role": "assistant", "content": response})
-                print(response)
-                self.logger.warn("For a better experience install openai python")
-                self.logger.warn("pip install -U openai")
-                self.logger.warn("export OPENAI_API_KEY=...")
-            return
-
-        elif self.model.startswith('anthropic:'):
-            anthropic_model = self.model[10:]
-            messages = []
-            lastrole = ""
-            for m in self.messages:
-                if lastrole != "":
-                    if lastrole == "user" and m["role"] == "user":
-                        m2 = {"role": "assistant", "content": "."}
-                        messages.append(m2)
-                lastrole = m["role"]
-                if m["role"] == "system":
-                    system_message = m["content"]
-                else:
-                    messages.append(m)
-            if have_anthropic:
-                if self.anthropic_client is None:
-                    self.anthropic_client = Anthropic()
-                completion = self.anthropic_client.messages.create(
-                    system=system_message.strip(),
-                    model=anthropic_model,
-                    max_tokens=maxtokens,
-                    temperature=float(self.env["llm.temperature"]),
-#    repeat_penalty=float(self.env["llm.repeat_penalty"]),
-                    messages=messages
-                )
-                if self.env["chat.reply"] == "true":
-                    self.messages.append({"role": "assistant", "content": completion.content})
-                print(completion.content[0].text)
-                return
-            else:
-                self.logger.error("pip install -U anthropic")
-                self.logger.error("export ANTHROPIC_API_KEY=...")
-                return
-
-        elif self.model.startswith("bedrock:"):
-            try:
-                import boto3
-            except Exception:
-                self.logger.error("Cannot import boto3. No bedrock for now")
-                return
-            bedrock_model = self.model.split(":")[1] + ":0"
-            self.bedrock_client = boto3.client("bedrock-runtime")
-            request = {
-                "anthropic_version": "bedrock-2023-05-31",
-                "temperature": float(self.env["llm.temperature"]),
-                "repeat_penalty": float(self.env["llm.repeat_penalty"]),
-                "max_tokens": maxtokens,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [{"type": "text", "text": m["content"]} for m in self.messages],
-                    }
-                ],
-            }
-            response = self.bedrock_client.invoke_model(
-                modelId=bedrock_model,
-                body=json.dumps(request)
-            )
-            model_response = json.loads(response["body"].read())
-            response = model_response["content"][0]["text"]
-
-        elif self.model.startswith('groq:'):
-            if have_groq:
-                self.groq_client = Groq()
-                completion = self.groq_client.completions.create(
-                    model=self.model[5:],
-                    max_tokens=maxtokens,
-                    temperature=float(self.env["llm.temperature"]),
-                    repeat_penalty=float(self.env["llm.repeat_penalty"]),
-                    messages=self.messages
-                )
-                if self.env["chat.reply"] == "true":
-                    self.messages.append({"role": "assistant", "content": completion.content})
-                    print(completion.content)
-
-        elif self.model.startswith('google:'):
-            if have_google:
-                if not self.google_client:
-                    self.google_client = google.GenerativeModel(self.model[7:])
-                if not self.google_chat:
-                    self.google_chat = self.google_client.start_chat()
-                completion = self.google_chat.send_message(
-                    self.messages[-1]["content"],
-                    generation_config={
-                        "max_output_tokens": maxtokens,
-                        "temperature": float(self.env["llm.temperature"]),
-                        "repeat_penalty": float(self.env["llm.repeat_penalty"])
-                    }
-                )
-                if self.env["chat.reply"] == "true":
-                    self.messages.append({"role": "assistant", "content": completion.text})
-                print(completion.text)
-            return
 
         else:
             # non-openai aka local-llama model

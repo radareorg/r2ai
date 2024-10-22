@@ -5,22 +5,19 @@ import sys
 import builtins
 import traceback
 import appdirs
+import argparse
 
 from r2ai.repl import r2ai_singleton
 from r2ai.utils import slurp
 from r2ai.repl import runline, r2ai_repl, help_message
 
-from r2ai.pipe import open_r2
-from .const import R2AI_RCFILE
+from r2ai.pipe import open_r2, get_r2_inst
+from r2ai.const import R2AI_RCFILE
 
 OPENAI_KEY = ""
 HAVE_RLANG = False
 HAVE_R2PIPE = False
 RCFILE_LOADED = False
-within_r2 = False
-
-if "R2CORE" in os.environ:
-    within_r2 = True
 
 def r2ai_rlang_plugin(unused_but_required_argument):
     ai = r2ai_singleton()
@@ -68,12 +65,7 @@ def run_rcfile_once(ai):
         RCFILE_LOADED = True
 
 
-def register_r2plugin():
-    import r2lang
-    r2lang.plugin("core", r2ai_rlang_plugin)
-
 def main(args, commands, dorepl=True):
-    global within_r2
 
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -113,8 +105,7 @@ def main(args, commands, dorepl=True):
     
     ai = r2ai_singleton()
     if "R2PIPE_IN" in os.environ:
-        open_r2(None)
-        within_r2 = True
+        pass
     elif args.bin:
         open_r2(vars(args)["bin"], flags=["-2"])
 
@@ -126,33 +117,45 @@ def main(args, commands, dorepl=True):
                 runline(ai, c)
     if dorepl:
         r2ai_repl(ai)
-    # elif HAVE_RLANG and HAVE_R2PIPE:
-    #     r2ai_repl(ai)
-    #     os.exit(0)
 
-    #     r2lang.plugin("core", r2ai_rlang_plugin)
+def massage_args(args):
+    runrepl = True
+    if args.command is None:
+        args.command = []
+    if args.webserver:
+        args.command.append("-w")
+    if args.eval:
+        if args.eval == "default":
+            args.command.append("-e")
+            runrepl = False
+        else:
+            args.command.append(f"-e {args.eval}")
+    if args.port:
+        if args.port == "default":
+            runrepl = False
+            args.command.append("-e http.port")
+        else:
+            args.command.append(f"-e http.port={args.port}")
+    if args.model:
+        if args.model == "default":
+            args.command.append("-mm")
+            runrepl = False
+        else:
+            args.command.append(f"-m {args.model}")
+    return runrepl, args
 
-    # else:
-    #     if "R2CORE" in os.environ:
-    #         print("[R2AI] Please: r2pm -ci rlang-python")
-    #         sys.exit(0)
-        
-    #     run_rcfile(ai)
-    #     if len(sys.argv) > 1:
-    #         for arg in sys.argv[1:]:
-    #             if arg.endswith(".py"):
-    #                 exec(slurp(arg), globals())
-    #                 sys.stderr.close()
-    #                 sys.exit(0)
-    #             elif not arg.startswith("/"):
-    #                 runline(ai, arg)
-    #             if arg == "-h" or arg == "-v":
-    #                 sys.exit(0)
-    #             elif arg == "-repl":
-    #                 r2ai_repl(ai)
-    #     elif not within_r2:
-    #         r2ai_repl(ai)
-    #     elif HAVE_R2PIPE:
-    #         r2ai_repl(ai)
-    #     else:
-    #         print("r2ai plugin cannot be loaded. Run `r2pm -ci rlang-python`")
+def run():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("bin", nargs="?", type=str)
+    parser.add_argument("-w", "--webserver", action="store_true",
+        help="Start the r2ai webserver. Same as r2ai -c=-w")
+    parser.add_argument("-p", "--port", type=str, nargs="?", const="default",
+        help="Change listen port number")
+    parser.add_argument("-e", "--eval", type=str, nargs="?", const="default",
+        help="Change configuration variable")
+    parser.add_argument("-m", "--model", type=str, nargs="?", const="default",
+        help="Select model name")
+    parser.add_argument("-c", "--command", action="append",
+        help="Command to be executed. Can be passed multiple times.")
+    runrepl, args = massage_args(parser.parse_args())
+    main(args, args.command, runrepl)

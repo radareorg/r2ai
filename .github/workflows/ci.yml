@@ -28,7 +28,7 @@ jobs:
     - name: Install Python dependencies
       run: |
         . venv/bin/activate
-        pip install -r requirements.txt
+        pip install .
     - name: Linting
       run: |
         . venv/bin/activate
@@ -36,12 +36,12 @@ jobs:
     - name: Running r2ai from the shell
       run: |
         . venv/bin/activate
-        python main.py -h
+        python -m r2ai.cli -h
     - name: Running r2ai from r2pipe
       run: |
         . venv/bin/activate
-        r2 -q -c '#!pipe python main.py -h' /bin/ls
+        r2 -q -c '#!pipe python -m r2ai.cli -h' /bin/ls
     - name: Running r2ai from r2
       run: |
         . venv/bin/activate
-        r2 -q -i main.py -c r2ai /bin/ls
+        r2 -q -i r2ai/plugin.py -c r2ai /bin/ls
