@@ -268,18 +268,14 @@ def get_hf_llm(ai, repo_id, debug_mode, context_window):
                     hf_hub_download(
                         repo_id=repo_id,
                         filename=split_file,
-                        local_dir=default_path,
-                        local_dir_use_symlinks=False,
-                        resume_download=True)
+                        local_dir=default_path)
                 # Combine and delete splits
                 actually_combine_files(default_path, selected_model, split_files)
             else:
                 hf_hub_download(
                     repo_id=repo_id,
                     filename=selected_model,
-                    local_dir=default_path,
-                    local_dir_use_symlinks=False,
-                    resume_download=True)
+                    local_dir=default_path)
 
             model_path = download_path
         else:
