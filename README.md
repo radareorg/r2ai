@@ -77,7 +77,7 @@ Additionally you can get the `r2ai` command inside r2 to run as an rlang plugin 
 
 ```bash
 r2pm -i rlang-python
-make user-install
+r2pm -i r2ai-plugin
 ```
 
 After this you should get the `r2ai` command inside the radare2 shell. Set the `R2_DEBUG=1` environment to see the reasons why the plugin is not loaded if it's not there.
@@ -98,12 +98,12 @@ python3 main.py
 
 There are 4 different ways to run `r2ai`:
 
-* Standalone and interactive: `r2pm -r r2ai` or `python main.py`
-* Batch mode: `r2ai '-r act as a calculator' '3+3=?'`
-* As an r2 plugin: `r2 -i main.py /bin/ls`
-* From radare2 (requires `r2pm -ci rlang-python`): `r2 -c 'r2ai -h'`
-* Using r2pipe: `#!pipe python main.py`
-  * Define a macro command: `'$r2ai=#!pipe python main.py`
+* Standalone and interactive: `r2pm -r r2ai` or `python -m r2ai.cli`
+* Batch mode: `r2ai -c '-r act as a calculator' -c '3+3=?'`
+* As an r2 plugin: `r2 -i r2ai/plugin.py /bin/ls`
+* From radare2 (requires `r2pm -ci rlang-python r2ai-plugin`): `r2 -c 'r2ai -h'`
+* Using r2pipe: `#!pipe python -m r2ai.cli`
+* Define a macro command: `'$r2ai=#!pipe python -m r2ai.cli`
 
 ## Auto mode
 
@@ -112,13 +112,12 @@ When using OpenAI, Claude or any of the Functionary local models you can use the
 * Video https://infosec.exchange/@radareorg/111946255058894583
 
 ```bash
-$ . env/bin/activate
+$ r2pm -i r2ai-plugin
 (env)$ r2 /bin/ls
-[0x00000000]> '$r2ai=#!pipe python main.py
-[0x00000000]> $r2ai '-m openai:gpt-4'
-[0x00000000]> $r2ai "' list the imports for this program"
-[0x00000000]> $r2ai "' draw me a donut"
-[0x00000000]> $r2ai "' decompile current function and explain it"
+[0x00000000]> r2ai -m openai:gpt-4
+[0x00000000]> r2ai ' list the imports for this program
+[0x00000000]> r2ai ' draw me a donut
+[0x00000000]> r2ai ' decompile current function and explain it
 ```
 
 ## Examples
@@ -129,7 +128,7 @@ You can interact with r2ai from standalone python, from r2pipe via r2 keeping a 
 
 ### Development/Testing
 
-Just run `make` .. or well `python3 main.py`
+Just run `make` .. or well `python3 -m r2ai.cli`
 
 ### TODO
 
