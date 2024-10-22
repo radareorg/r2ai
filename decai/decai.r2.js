@@ -32,7 +32,7 @@ Start the webserver:
 
    $ r2pm -r r2ai
    $ echo $CLAUDEAPIKEY > ~/.r2ai.anthropic
-   [r2ai:0x0000000]> -m anthropic:claude-3-5-sonnet-20240620
+   [r2ai:0x0000000]> -m anthropic:claude-3-5-sonnet-20241022
    [r2ai:0x0000000]> -w
    Webserver listening at port 8080
 
@@ -179,7 +179,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
     }
     function r2aiAnthropic(msg, hideprompt) {
        const claudeKey = r2.cmd("'cat ~/.r2ai.anthropic-key").trim()
-       const claudeModel = (decaiModel.length > 0)? decaiModel: "claude-3-5-sonnet-20240620";
+       const claudeModel = (decaiModel.length > 0)? decaiModel: "claude-3-5-sonnet-20241022";
        if (claudeKey === '') {
            return "Cannot read ~/.r2ai.anthropic-key";
        }
