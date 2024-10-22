@@ -168,6 +168,8 @@ def slurp_until(endword):
 
 def set_model(model):
     ai = ais[0].ai
+    if ai.model != model:
+      ai.llama_instance = None
     ai.model = model
     ai.env["llm.model"] = ai.model
     set_default_model(ai.model)
