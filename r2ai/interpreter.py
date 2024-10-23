@@ -158,7 +158,7 @@ class Interpreter:
         self.env["chat.bubble"] = "false"
         self.env["chat.reply"] = "false"
         self.env["chat.code"] = "true"
-        self.env["chat.use_completion"] = "false"
+        self.env["chat.rawdog"] = "false"
         
         self.env.add_callback("debug_level", lambda val: LOGGER.setLevel(int(val) * 10))
 
@@ -452,7 +452,7 @@ class Interpreter:
                     "stop": terminator,
                     "max_tokens": maxtokens
                 }
-                if self.env["chat.use_completion"] == "true":
+                if self.env["chat.rawdog"] == "true":
                     prompt = messages_to_prompt(self, messages)
                     response = self.llama_instance(prompt, **chat_args)
                 else:
@@ -480,7 +480,7 @@ class Interpreter:
                 break
             text = ''
             delta = None
-            if self.env["chat.use_completion"] == "true":
+            if self.env["chat.rawdog"] == "true":
                 if "content" not in messages[-1]:
                     text = chunk["choices"][0]['text'].capitalize()
                     messages[-1] = { "content": '', "role": "assistant" }
