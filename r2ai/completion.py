@@ -26,6 +26,8 @@ def messages_to_prompt(self, messages):
         formatted_messages = template_alpaca(self, messages)
     elif "zephyr" in lowermodel:
         formatted_messages = template_zephyr(self, messages)
+    elif "astra" in lowermodel:
+        formatted_messages = template_granite(self, messages)
     elif "dolphin" in lowermodel:
         formatted_messages = template_ferret(self, messages)
     elif "phi" in lowermodel:
@@ -62,7 +64,7 @@ def messages_to_prompt(self, messages):
     return formatted_messages
 
 def template_granite(self,messages):
-    self.terminator = "Question:"
+    self.terminator = ["Question:", "Answer:"]
     msg = ""
     try:
         if self.system_message != "":
