@@ -39,11 +39,14 @@ def mainmodels():
     return """
 Decai:
 -m hugging-quants/Llama-3.2-3B-Instruct-Q8_0-GGUF
--m ibm-granite/granite-20b-code-instruct-8k-GGUF
 -m QuantFactory/granite-8b-code-instruct-4k-GGUF
 -m cognitivecomputations/dolphin-2.9.3-mistral-nemo-12b-gguf
 -m bartowski/Gemma-2-9B-It-SPPO-Iter3-GGUF
+-m Qwen/Qwen2.5-Coder-7B-Instruct-GGUF
+-m trufae/granite3-instruct-8b-gguf
 Code:
+-m unsloth/Llama-3.2-1B-Instruct-GGUF
+-m mradermacher/starcoder-i1-GGUF
 -m cognitivecomputations/dolphin-2.9.4-llama3.1-8b-gguf
 -m FaradayDotDev/llama-3-8b-Instruct-GGUF
 -m second-state/Mistral-Nemo-Instruct-2407-GGUF
@@ -53,11 +56,12 @@ Functionary:
 -m mradermacher/granite-20b-functioncalling-i1-GGUF
 -m mradermacher/LocalAI-Llama3.1-8b-Function-Call-v0.3-i1-GGUF
 Uncensored:
+-m Ttimofeyka/MistralRP-Noromaid-NSFW-Mistral-7B-GGUF
 -m bartowski/Phi-3.5-mini-instruct_Uncensored-GGUF
 -m Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2-GGUF
 -m LWDCLS/DarkIdol-Llama-3.1-8B-Instruct-1.2-Uncensored-GGUF-IQ-Imatrix-Request
--m TheBloke/Unholy-v2-13B-GGUF
--m x383494/NSFW-3B-Q4_K_M-GGUF
+-m Undi95/Llama-3-Unholy-8B-GGUF
+-m mradermacher/Llama-3.2-1B-Instruct-Uncensored-GGUF
 Remote:
 -m openapi:http://localhost:5001
 -m openai:gpt-4
