@@ -28,7 +28,7 @@ all: venv
 	@./r2ai.sh
 
 large:
-	source venv/bin/activate ; $(PYTHON) -m r2ai.cli -l
+	. venv/bin/activate ; $(PYTHON) -m r2ai.cli -l
 
 all.old:
 	@test -n "${VIRTUAL_ENV}" || (echo "Run:"; echo ". venv/bin/activate" ; exit 1)
@@ -36,11 +36,11 @@ all.old:
 
 venv:
 	$(PYTHON) -m venv venv
-	if [ -z "`find venv | grep llama_cpp`" ]; then source venv/bin/activate ; pip install . ; fi
+	if [ -z "`find venv | grep llama_cpp`" ]; then . venv/bin/activate ; pip install . ; fi
 
 deps: venv
 	#test -n "${VIRTUAL_ENV}" || (echo "Run: . venv/bin/activate" ; exit 1)
-	source venv/bin/activate && export CMAKE_ARGS="-DLLAMA_METAL=on -DLLAMA_METAL_EMBED_LIBRARY=ON" && \
+	. venv/bin/activate && export CMAKE_ARGS="-DLLAMA_METAL=on -DLLAMA_METAL_EMBED_LIBRARY=ON" && \
 		pip install --force-reinstall -U --no-cache-dir .
 
 clean:
