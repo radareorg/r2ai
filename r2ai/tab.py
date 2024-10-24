@@ -144,11 +144,7 @@ def tab_init():
     readline.set_completer(completer.complete)
     readline.set_completer_delims('\t\n;')
     readline.set_completion_display_matches_hook(completer.display_matches)
-    #readline.parse_and_bind("bind -e")
-    import platform
-    if platform.system() == "Darwin":
-        # macos tab (libedit)
-        readline.parse_and_bind("bind ^I rl_complete")
-    else:
-        # linux tab (gnu readline)
+    if readline.__doc__.find("GNU") != -1:
         readline.parse_and_bind('tab: complete')
+    else:
+        readline.parse_and_bind("bind ^I rl_complete")
