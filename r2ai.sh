@@ -1,6 +1,7 @@
 #!/bin/sh
 unset DYLD_LIBRARY_PATH
 unset LD_LIBRARY_PATH
+export TRANSFORMERS_NO_ADVISORY_WARNINGS=1
 PYTHON=python3
 if [ -h "$0" ]; then
 	F=`readlink $0`
