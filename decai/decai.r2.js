@@ -174,6 +174,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
         console.error(" " + command + " -q [text]  - query language model with given text");
         console.error(" " + command + " -Q [text]  - query on top of the last output");
         console.error(" " + command + " -r         - change role prompt (same as: decai -e prompt)");
+        console.error(" " + command + " -s         - function signature");
         console.error(" " + command + " -v         - show local variables");
         console.error(" " + command + " -V         - find vulnerabilities");
         console.error(" " + command + " -x         - eXplain current function");
@@ -452,6 +453,15 @@ You can write your custom decai commands in your ~/.radare2rc file.
                 } else {
                     console.log(decprompt);
                 }
+                break;
+            case "s": // "-s"
+                out = r2.cmd("afv;pdc");
+                out = "'afs " + r2ai("analyze the uses of the arguments and return valu to infer the signature, identify which is the correct type for the resturn. Do NOT print the function body, ONLY output the function signature, like if it was going to be used in a C header", out);
+                let brace = out.indexOf("{");
+                if (brace !== -1) {
+                    out = out.substring(0, brace);
+                }
+
                 break;
             case "V": // "-V"
                 r2aidec("-d find vulnerabilities, dont show the code, only show the response");
