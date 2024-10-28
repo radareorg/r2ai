@@ -147,7 +147,7 @@ class Interpreter:
         self.env["http.path"] = ""
         self.env["http.verbose"] = "true" # not used yet
         self.env["http.chatctx"] = "false"
-        self.env["debug_level"] = "1"
+        self.env["debug_level"] = os.getenv("R2AI_LOG", "2")
         if have_rlang:
             self.env["chat.live"] = "false"
         else:
@@ -222,7 +222,7 @@ class Interpreter:
         words = []
         mmname = "TheBloke/Mistral-7B-Instruct-v0.2-GGUF"
         ctxwindow = int(self.env["llm.window"])
-        mm = new_get_hf_llm(self, mmname, False, ctxwindow)
+        mm = new_get_hf_llm(self, mmname, ctxwindow)
         msg = f"Considering the sentence \"{text}\" as input, Take the KEYWORDS or combination of TWO words from the given text and respond ONLY a comma separated list of the most relevant words. DO NOT introduce your response, ONLY show the words"
         msg = f"Take \"{text}\" as input, and extract the keywords and combination of keywords to make a search online, the output must be a comma separated list" #Take the KEYWORDS or combination of TWO words from the given text and respond ONLY a comma separated list of the most relevant words. DO NOT introduce your response, ONLY show the words"
         response = mm(msg, stream=False, temperature=0.1, stop="</s>", max_tokens=1750)
@@ -298,8 +298,7 @@ class Interpreter:
             # Find or install Code-Llama
             try:
                 ctxwindow = int(self.env["llm.window"])
-                debug_mode = False # maybe true when debuglevel=2 ?
-                self.llama_instance = new_get_hf_llm(self, self.model, debug_mode, ctxwindow)
+                self.llama_instance = new_get_hf_llm(self, self.model, ctxwindow)
                 if self.llama_instance is None:
                     self.logger.error("Cannot find model " + self.model)
                     return
@@ -382,7 +381,7 @@ class Interpreter:
             if(is_litellm_model(self.model)):
                 response = auto.chat(self)
             else:
-                self.llama_instance = new_get_hf_llm(self, self.model, False, int(self.env["llm.window"]))
+                self.llama_instance = new_get_hf_llm(self, self.model, int(self.env["llm.window"]))
                 response = auto.chat(self, llama_instance=self.llama_instance)
             return
 
