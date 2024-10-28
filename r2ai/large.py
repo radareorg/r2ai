@@ -31,7 +31,7 @@ class Large:
 
     def compress_text(self, msg):
         if self.mistral == None:
-            self.mistral = new_get_hf_llm(self.ai, self.model, False, self.window)
+            self.mistral = new_get_hf_llm(self.ai, self.model, self.window)
         # q = f"Rewrite this code into shorter pseudocode (less than 500 tokens). keep the comments and essential logic:\n```\n{msg}\n```\n"
         #q = f"Rewrite this code into shorter pseudocode (less than 200 tokens). keep the relevant comments and essential logic:\n```\n{msg}\n```\n"
         q = f"Resumen y responde SOLO la información relevante del siguiente texto:\n{msg}"
@@ -60,7 +60,7 @@ class Large:
         # kws = self.keywords_ai("who is the author of radare?") => "author,radare2"
         words = []
         ctxwindow = int(self.ai.env["llm.window"])
-        mm = new_get_hf_llm(self.ai, self.model, False, ctxwindow)
+        mm = new_get_hf_llm(self.ai, self.model, ctxwindow)
         msg = f"Considering the sentence \"{text}\" as input, Take the KEYWORDS or combination of TWO words from the given text and respond ONLY a comma separated list of the most relevant words. DO NOT introduce your response, ONLY show the words"
         msg = f"Take \"{text}\" as input, and extract the keywords and combination of keywords to make a search online, the output must be a comma separated list" #Take the KEYWORDS or combination of TWO words from the given text and respond ONLY a comma separated list of the most relevant words. DO NOT introduce your response, ONLY show the words"
         response = mm(msg, stream=False, temperature=0.001, stop="</s>", max_tokens=1750)
@@ -112,7 +112,7 @@ class Large:
         words = []
         if self.mistral == None:
             ctxwindow = int(self.ai.env["llm.window"])
-            self.mistral = new_get_hf_llm(self.ai, self.model, False, ctxwindow)
+            self.mistral = new_get_hf_llm(self.ai, self.model, ctxwindow)
         # q = f"Rewrite this code into shorter pseudocode (less than 500 tokens). keep the comments and essential logic:\n```\n{msg}\n```\n"
         q = f"Rewrite this code into shorter pseudocode (less than 200 tokens). keep the relevant comments and essential logic:\n```\n{msg}\n```\n"
         response = self.mistral(q, stream=False, temperature=0.1, stop="</s>", max_tokens=4096)

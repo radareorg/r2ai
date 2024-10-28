@@ -12,6 +12,8 @@ import shutil
 import subprocess
 import sys
 import traceback
+from transformers import AutoTokenizer
+from llama_cpp.llama_tokenizer import LlamaHFTokenizer
 
 # DEFAULT_MODEL = "TheBloke/CodeLlama-34B-Instruct-GGUF"
 # DEFAULT_MODEL = "TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF"
@@ -172,7 +174,7 @@ def get_hf_llm(ai, repo_id, debug_mode, context_window):
         if usermodels is not None and repo_id in usermodels:
             model_path = usermodels[repo_id]
 #            print(f"[r2ai] Using {r2ai_model_json} {model_path}")
-            return llama_cpp.Llama(model_path=model_path, n_gpu_layers=gpulayers(ai), verbose=debug_mode, n_ctx=context_window)
+            return get_llama_inst(repo_id, model_path=model_path, n_gpu_layers=gpulayers(ai), verbose=debug_mode, n_ctx=context_window)
     except Exception:
         traceback.print_exc()
 
@@ -362,7 +364,7 @@ def get_hf_llm(ai, repo_id, debug_mode, context_window):
         json.dump(usermodels, fd)
         fd.close()
         print("Saved")
-    return llama_cpp.Llama(model_path=model_path, n_gpu_layers=gpulayers(ai), verbose=debug_mode, n_ctx=context_window)
+    return get_llama_inst(repo_id, model_path=model_path, n_gpu_layers=gpulayers(ai), verbose=debug_mode, n_ctx=context_window)
 
 def list_downloaded_models():
     try:
@@ -554,7 +556,8 @@ def enough_disk_space(size, path) -> bool:
 
     return False
 
-def new_get_hf_llm(ai, repo_id, debug_mode, context_window):
+def new_get_hf_llm(ai, repo_id, context_window):
+    debug_mode = True if ai.env["debug_level"] == "1" else False
     if repo_id.startswith("openai:") or repo_id.startswith("anthropic:") or repo_id.startswith("groq:") or repo_id.startswith("google:"):
         return repo_id
     if not os.path.exists(repo_id):
@@ -625,4 +628,13 @@ def new_get_hf_llm(ai, repo_id, debug_mode, context_window):
     # Initialize and return Code-Llama
     if not os.path.isfile(model_path):
         print("Model is not a file")
-    return llama_cpp.Llama(model_path=model_path, n_gpu_layers=gpulayers(ai), verbose=debug_mode, n_ctx=context_window)
+    return get_llama_inst(repo_id, model_path=model_path, n_gpu_layers=gpulayers(ai), verbose=debug_mode, n_ctx=context_window)
+
+
+def get_llama_inst(repo_id, **kwargs):
+    if 'functionary' in repo_id:
+        kwargs['tokenizer'] = LlamaHFTokenizer.from_pretrained(repo_id)
+        filename = os.path.basename(kwargs.pop('model_path'))
+        kwargs['echo'] = True
+        return llama_cpp.Llama.from_pretrained(**kwargs, repo_id=repo_id, filename=filename)
+    return llama_cpp.Llama(**kwargs)
