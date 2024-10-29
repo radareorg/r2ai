@@ -5,7 +5,7 @@
 |   :  \ \   .  ||   :   ||   |
 |   |___\ \__:__||___|   ||   |
 |___|        :       |___||___|
-             *       --pancake
+             *
 ```
 
 [![ci](https://github.com/radareorg/r2ai/actions/workflows/ci.yml/badge.svg)](https://github.com/radareorg/r2ai/actions/workflows/ci.yml)
