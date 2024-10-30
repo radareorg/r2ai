@@ -382,6 +382,8 @@ def list_downloaded_models():
                     print(f"     ??? {M}")
         user_data_dir = appdirs.user_data_dir("r2ai")
         models_path = os.path.join(user_data_dir, "models")
+        home_dir = os.path.expanduser("~")
+        sympath = os.path.join(home_dir, ".r2ai.models")
         files = os.listdir(models_path)
         for file in files:
             if file.endswith(".gguf") == False:
@@ -392,7 +394,7 @@ def list_downloaded_models():
                 if last_part == file:
                     found = True
             if not found:
-                M = f"{models_path}/{file}"
+                M = f"{sympath}/{file}"
                 size = round(os.path.getsize(M) / 1024 / 1024 / 1024, 2)
                 size = f"{size}".rjust(6)
                 print(f" {size}G {M}")
