@@ -7,13 +7,16 @@ from textual.message import Message
 from textual.binding import Binding
 from textual.screen import ModalScreen, SystemModalScreen
 from textual import log
-# from ..models import models
+from r2ai.models import models
 # from ..repl import set_model, r2ai_singleton
 # ai = r2ai_singleton()
 
 # MODELS = models().split("\n")
 from litellm import models_by_provider
 MODELS = []
+for model in models().split("\n"):
+    if model.startswith("-m "):
+        MODELS.append(model[3:])
 for provider in models_by_provider:
     for model in models_by_provider[provider]:
         MODELS.append(f"{provider}/{model}")
