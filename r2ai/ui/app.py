@@ -7,6 +7,7 @@ from textual.message import Message
 from textual.reactive import reactive
 from .model_select import ModelSelect
 from r2ai.pipe import open_r2, get_filename, r2
+from r2ai.interpreter import is_litellm_model
 from typing import Iterable
 import os
 from pathlib import Path 
@@ -214,10 +215,11 @@ class R2AIApp(App):
         model = self.ai.model
         if not model:
             await self.select_model()
-        model = self.ai.model
-        keys = validate_environment(model)
-        if keys['keys_in_environment'] is False:
-            await self.push_screen_wait(ModelConfigDialog(keys['missing_keys']))
+        if is_litellm_model(model):
+            model = self.ai.model
+            keys = validate_environment(model)
+            if keys['keys_in_environment'] is False:
+                await self.push_screen_wait(ModelConfigDialog(keys['missing_keys']))
             
         return True
 
