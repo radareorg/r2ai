@@ -176,7 +176,6 @@ class R2AIApp(App):
         if event.button.id == "send-button":
             self.send_message()
 
-    @work
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         if event.input.id == "chat-input":
             await self.send_message()
@@ -198,7 +197,6 @@ class R2AIApp(App):
         elif type == 'tool_response':
             self.add_message(message["id"], "Tool Response", message['content'])
         
-
     async def send_message(self) -> None:
         input_widget = self.query_one("#chat-input", Input)
         message = input_widget.value.strip()
@@ -207,9 +205,13 @@ class R2AIApp(App):
             input_widget.value = ""
             try:
                 await self.validate_model()
-                await chat(self.ai, message, self.on_message)
+                self.chat(message)
             except Exception as e:
                 self.notify(str(e), severity="error")
+    
+    @work(thread=True)
+    async def chat(self, message: str) -> None:
+        await chat(self.ai, message, lambda type, message: self.call_from_thread(self.on_message, type, message))
 
     async def validate_model(self) -> None:
         model = self.ai.model

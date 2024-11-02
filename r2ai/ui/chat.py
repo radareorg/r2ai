@@ -22,16 +22,4 @@ async def chat(ai, message, cb):
     
     chat_auto = ChatAuto(model, interpreter=ai, system=SYSTEM_PROMPT_AUTO, tools=tools, messages=messages, tool_choice=tool_choice, cb=cb)
     
-    original_handler = signal.getsignal(signal.SIGINT)
-
-    try:
-        signal.signal(signal.SIGINT, signal_handler)
-        return await chat_auto.achat(stream=True)
-    except KeyboardInterrupt:
-        tasks = asyncio.all_tasks()
-        for task in tasks:
-            task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
-        return None
-    finally:
-        signal.signal(signal.SIGINT, original_handler)
+    return await chat_auto.achat(stream=True)
