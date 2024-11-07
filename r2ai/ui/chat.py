@@ -22,4 +22,4 @@ async def chat(ai, message, cb):
     
     chat_auto = ChatAuto(model, interpreter=ai, system=SYSTEM_PROMPT_AUTO, tools=tools, messages=messages, tool_choice=tool_choice, cb=cb)
     
-    return await chat_auto.achat(stream=True)
+    return await chat_auto.achat()
