@@ -6,7 +6,8 @@ from . import LOGGER
 import litellm
 from litellm import _should_retry, acompletion, utils, ModelResponse
 import asyncio
-from .tools import r2cmd, run_python
+from .pipe import get_filename
+from .tools import r2cmd, run_python, execute_binary
 import json
 import signal
 from .spinner import spinner
@@ -259,11 +260,22 @@ def cb(type, data):
         if 'content' in data:
             sys.stdout.write(data['content'])
     elif type == 'tool_call':
+        builtins.print()
         if data['function']['name'] == 'r2cmd':
             builtins.print('\x1b[1;32m> \x1b[4m' + data['function']['arguments']['command'] + '\x1b[0m')
         elif data['function']['name'] == 'run_python':
             builtins.print('\x1b[1;32m> \x1b[4m' + "#!python" + '\x1b[0m')
             builtins.print(data['function']['arguments']['command'])
+        elif data['function']['name'] == 'execute_binary':
+            filename = get_filename()
+            stdin = data['function']['arguments']['stdin']
+            args = data['function']['arguments']['args']
+            cmd = filename
+            if len(args) > 0:
+                cmd += ' ' + ' '.join(args)
+            if stdin:
+                cmd += f' stdin={stdin}'
+            builtins.print('\x1b[1;32m> \x1b[4m' + cmd + '\x1b[0m')
     elif type == 'tool_response':
         if 'content' in data:
             sys.stdout.write(data['content'])
@@ -277,7 +289,7 @@ def signal_handler(signum, frame):
 
 def chat(interpreter, **kwargs):
     model = interpreter.model.replace(":", "/")
-    tools = [r2cmd, run_python]
+    tools = [r2cmd, run_python, execute_binary]
     messages = interpreter.messages
     tool_choice = 'auto'
 

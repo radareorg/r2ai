@@ -193,7 +193,17 @@ class R2AIApp(App):
             except NoMatches:
                 existing = self.add_message(message["id"], "AI", message["content"])
         elif type == 'tool_call':
-            self.add_message(message["id"], "Tool Call", f"{message['function']['name']} > {message['function']['arguments']['command']}")
+            if 'command' in message['function']['arguments']:
+                self.add_message(message["id"], "Tool Call", f"{message['function']['name']} > {message['function']['arguments']['command']}")
+            elif message['function']['name'] == 'execute_binary':
+                args = message['function']['arguments']
+                output = get_filename()
+                if 'args' in args and len(args['args']) > 0:
+                    output += f" {args['args'].join(' ')}\n"
+                if 'stdin' in args and len(args['stdin']) > 0:
+                    output += f" stdin={args['stdin']}\n"
+                
+                self.add_message(message["id"], "Tool Call", f"{message['function']['name']} > {output}")
         elif type == 'tool_response':
             self.add_message(message["id"], "Tool Response", message['content'])
         
@@ -218,7 +228,7 @@ class R2AIApp(App):
         if not model:
             await self.select_model()
         if is_litellm_model(model):
-            model = self.ai.model
+            model = self.ai.model.replace(':', '/')
             keys = validate_environment(model)
             if keys['keys_in_environment'] is False:
                 await self.push_screen_wait(ModelConfigDialog(keys['missing_keys']))
