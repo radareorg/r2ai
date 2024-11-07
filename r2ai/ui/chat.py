@@ -3,7 +3,7 @@ import asyncio
 import json
 import signal
 from r2ai.pipe import get_r2_inst
-from r2ai.tools import run_python, r2cmd
+from r2ai.tools import run_python, r2cmd, execute_binary
 from r2ai.repl import r2ai_singleton
 from r2ai.auto import ChatAuto, SYSTEM_PROMPT_AUTO
 from r2ai.interpreter import is_litellm_model
@@ -14,7 +14,7 @@ def signal_handler(signum, frame):
 
 async def chat(ai, message, cb):
     model = ai.model.replace(":", "/")
-    tools = [r2cmd, run_python]
+    tools = [r2cmd, run_python, execute_binary]
     messages = ai.messages + [{"role": "user", "content": message}]
     tool_choice = 'auto'
     if not is_litellm_model(model) and ai and not ai.llama_instance:

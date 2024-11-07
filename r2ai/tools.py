@@ -28,6 +28,8 @@ def r2cmd(command: str):
             return log_messages
         
         return res['res']
+    except json.JSONDecodeError:
+        return res
     except Exception as e:
         # return { 'type': 'error', 'output': f"Error running r2cmd: {e}\nCommand: {command}\nResponse: {res}" }
         return f"Error running r2cmd: {e}\nCommand: {command}\nResponse: {res}"
@@ -53,3 +55,28 @@ def run_python(command: str):
     res = r2.cmd('#!python r2ai_tmp.py')
     r2.cmd('rm r2ai_tmp.py')
     return res
+
+def execute_binary(args: list[str] = [], stdin: str = ""):
+    """
+    Execute a binary with the given arguments and stdin
+
+    Parameters
+    ----------
+    args: list[str]
+        The arguments to pass to the binary
+    stdin: str
+        The stdin to pass to the binary
+
+    Returns
+    -------
+    str
+        The output of the binary
+    """
+
+    r2 = get_r2_inst()
+    if len(args) > 0:
+        r2.cmd(f"dor {' '.join(args)}")
+    if stdin:
+        r2.cmd(f'dor stdin="{stdin}"')
+    r2.cmd("ood")
+    return r2cmd("dc")
