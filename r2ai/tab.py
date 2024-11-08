@@ -141,10 +141,13 @@ def tab_init():
         pass
     except Exception:
         pass
-    readline.set_completer(completer.complete)
-    readline.set_completer_delims('\t\n;')
-    readline.set_completion_display_matches_hook(completer.display_matches)
-    if readline.__doc__.find("GNU") != -1:
-        readline.parse_and_bind('tab: complete')
-    else:
-        readline.parse_and_bind("bind ^I rl_complete")
+    try:
+        readline.set_completer(completer.complete)
+        readline.set_completer_delims('\t\n;')
+        readline.set_completion_display_matches_hook(completer.display_matches)
+        if readline.__doc__.find("GNU") != -1:
+            readline.parse_and_bind('tab: complete')
+        else:
+            readline.parse_and_bind("bind ^I rl_complete")
+    except Exception as e:
+        pass

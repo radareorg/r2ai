@@ -69,6 +69,7 @@ def run_rcfile_once(ai):
 def main(args, commands, dorepl=True):
 
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
+    os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
 
     try:
         r2aihome = os.path.dirname(os.path.realpath(__file__))
