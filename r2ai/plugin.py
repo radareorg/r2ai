@@ -1,7 +1,22 @@
 """Entrypoint for the r2ai plugin and repl."""
-
+import sys
+import os
 import builtins
 import traceback
+
+current_dir = os.path.dirname(os.path.realpath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.insert(0, parent_dir)
+os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
+try:
+    venv_dir = os.path.join(parent_dir, 'venv')
+    if os.path.exists(venv_dir):
+        site_packages = os.path.join(venv_dir, 'lib', 'python{}.{}'.format(*sys.version_info[:2]), 'site-packages')
+        if os.path.exists(site_packages):
+            sys.path.insert(0, site_packages)
+except Exception:
+    pass
+
 import r2lang
 from r2ai.main import r2ai_singleton, run_rcfile_once, runline, help_message
 
