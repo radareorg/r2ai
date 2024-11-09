@@ -7,7 +7,7 @@ import litellm
 from litellm import _should_retry, acompletion, utils, ModelResponse
 import asyncio
 from .pipe import get_filename
-from .tools import r2cmd, run_python, execute_binary
+from .tools import r2cmd, run_python, execute_binary, schemas, print_tool_call
 import json
 import signal
 from .spinner import spinner
@@ -40,7 +40,7 @@ The user will ask questions about the binary and you will respond with the answe
 """
 
 class ChatAuto:
-    def __init__(self, model, max_tokens = 1024, top_p=0.95, temperature=0.0, interpreter=None, system=None, tools=None, messages=None, tool_choice='auto', llama_instance=None, timeout=None, stream=True, cb=None ):
+    def __init__(self, model, max_tokens = 1024, top_p=0.95, temperature=0.0, interpreter=None, system=None, tools=None, messages=None, tool_choice='auto', llama_instance=None, timeout=60, stream=True, cb=None ):
         self.logger = LOGGER
         self.functions = {}
         self.tools = []
@@ -63,9 +63,13 @@ class ChatAuto:
         self.tool_choice = None
         if tools:
             for tool in tools:
-                f = utils.function_to_dict(tool)
-                self.tools.append({ "type": "function", "function": f })
-                self.functions[f['name']] = tool
+                if tool.__name__ in schemas:
+                    schema = schemas[tool.__name__]
+                else:
+                    schema = utils.function_to_dict(tool)
+                
+                self.tools.append({ "type": "function", "function": schema })
+                self.functions[tool.__name__] = tool
             self.tool_choice = tool_choice
         self.llama_instance = llama_instance or interpreter.llama_instance if interpreter else None
         #self.tool_end_message = '\nNOTE: The user saw this output, do not repeat it.'
@@ -143,7 +147,9 @@ class ChatAuto:
                     self.cb('message', { "content": "", "id": 'message_' + chunk.id, 'done': True })
                 self.cb('message_stream', { "content": m if m else '', "id": 'message_' + chunk.id, 'done': done })
         self.messages.append(current_message)
-        if len(current_message['tool_calls']) > 0:
+        if len(current_message['tool_calls']) == 0:
+            del current_message['tool_calls']
+        else:
             await self.process_tool_calls(current_message['tool_calls'])
         return current_message
 
@@ -247,8 +253,8 @@ class ChatAuto:
     async def achat(self, messages=None) -> str:
         if messages:
             self.messages = messages
+        self.logger.debug(self.messages)
         response = await self.get_completion()
-        self.logger.debug(f'chat complete')
         return response
     
     def chat(self, **kwargs) -> str:
@@ -261,25 +267,12 @@ def cb(type, data):
             sys.stdout.write(data['content'])
     elif type == 'tool_call':
         builtins.print()
-        if data['function']['name'] == 'r2cmd':
-            builtins.print('\x1b[1;32m> \x1b[4m' + data['function']['arguments']['command'] + '\x1b[0m')
-        elif data['function']['name'] == 'run_python':
-            builtins.print('\x1b[1;32m> \x1b[4m' + "#!python" + '\x1b[0m')
-            builtins.print(data['function']['arguments']['command'])
-        elif data['function']['name'] == 'execute_binary':
-            filename = get_filename()
-            stdin = data['function']['arguments']['stdin']
-            args = data['function']['arguments']['args']
-            cmd = filename
-            if len(args) > 0:
-                cmd += ' ' + ' '.join(args)
-            if stdin:
-                cmd += f' stdin={stdin}'
-            builtins.print('\x1b[1;32m> \x1b[4m' + cmd + '\x1b[0m')
+        print_tool_call(data)
     elif type == 'tool_response':
         if 'content' in data:
             sys.stdout.write(data['content'])
             sys.stdout.flush()
+            builtins.print()
         # builtins.print(data['content'])
     elif type == 'message' and data['done']:
         builtins.print()
@@ -324,11 +317,4 @@ def chat(interpreter, **kwargs):
     finally:
         signal.signal(signal.SIGINT, original_handler)
         spinner.stop()
-        try:
-            pending = asyncio.all_tasks(loop=loop)
-            for task in pending:
-                task.cancel()
-            loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-            loop.run_until_complete(loop.shutdown_asyncgens())
-        finally:
-            loop.close()
+        litellm.in_memory_llm_clients_cache.clear()

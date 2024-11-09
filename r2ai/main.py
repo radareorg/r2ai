@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
 import sys
 import builtins
 import traceback

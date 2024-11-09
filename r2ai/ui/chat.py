@@ -15,11 +15,11 @@ def signal_handler(signum, frame):
 async def chat(ai, message, cb):
     model = ai.model.replace(":", "/")
     tools = [r2cmd, run_python, execute_binary]
-    messages = ai.messages + [{"role": "user", "content": message}]
+    ai.messages.append({"role": "user", "content": message})
     tool_choice = 'auto'
     if not is_litellm_model(model) and ai and not ai.llama_instance:
         ai.llama_instance = new_get_hf_llm(ai, model, int(ai.env["llm.window"]))
     
-    chat_auto = ChatAuto(model, interpreter=ai, system=SYSTEM_PROMPT_AUTO, tools=tools, messages=messages, tool_choice=tool_choice, cb=cb)
-    
+    chat_auto = ChatAuto(model, interpreter=ai, system=SYSTEM_PROMPT_AUTO, tools=tools, messages=ai.messages, tool_choice=tool_choice, cb=cb)
+
     return await chat_auto.achat()
