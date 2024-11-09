@@ -22,6 +22,9 @@ from markdown_it import MarkdownIt
 from .chat import chat
 import asyncio
 import json
+import re
+ANSI_REGEX = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
 
 class ModelConfigDialog(SystemModalScreen):
     def __init__(self, keys: list[str]) -> None:
@@ -197,15 +200,15 @@ class R2AIApp(App):
                 self.add_message(message["id"], "Tool Call", f"{message['function']['name']} > {message['function']['arguments']['command']}")
             elif message['function']['name'] == 'execute_binary':
                 args = message['function']['arguments']
-                output = get_filename()
+                output = get_filename() or "bin"
                 if 'args' in args and len(args['args']) > 0:
-                    output += f" {args['args'].join(' ')}\n"
+                    output += f" {' '.join(args['args'])}\n"
                 if 'stdin' in args and len(args['stdin']) > 0:
                     output += f" stdin={args['stdin']}\n"
                 
                 self.add_message(message["id"], "Tool Call", f"{message['function']['name']} > {output}")
         elif type == 'tool_response':
-            self.add_message(message["id"], "Tool Response", message['content'])
+            self.add_message(message["id"], "Tool Response", ANSI_REGEX.sub('', message['content']))
         
     async def send_message(self) -> None:
         input_widget = self.query_one("#chat-input", Input)

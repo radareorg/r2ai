@@ -14,7 +14,7 @@ from .tab import tab_init, tab_hist, tab_write, tab_evals, tab_list
 from .interpreter import Interpreter
 from .pipe import have_rlang, r2lang, r2singleton
 from r2ai import bubble, LOGGER
-
+from .test import run_test
 tab_init()
 
 print_buffer = ""
@@ -217,6 +217,10 @@ def runline(ai, usertext):
         print(help_message)
     elif usertext.startswith("clear") or usertext.startswith("-k"):
         print("\x1b[2J\x1b[0;0H\r")
+        if ai.messages:
+            ai.messages = []
+        if autoai and autoai.messages:
+            autoai.messages = []
     elif usertext.startswith("-MM"):
         print(models().strip())
     elif usertext.startswith("-M"):
@@ -469,6 +473,8 @@ def runline(ai, usertext):
             print("r2 is not available", file=sys.stderr)
         else:
             builtins.print(r2_cmd(usertext[1:]))
+    elif usertext.startswith("--test"):
+        run_test(usertext[7:])
     elif usertext.startswith("-"):
         print(f"Unknown flag '{usertext}'. See 'r2ai -h' for help", file=sys.stderr)
     else:
