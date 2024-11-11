@@ -1,20 +1,14 @@
 from .utils import slurp, dump
-from huggingface_hub import hf_hub_download, login
-from huggingface_hub import HfApi, list_repo_tree, get_paths_info
 from typing import Dict, List, Union
 import appdirs
 import builtins
 import inquirer
 import json
-import llama_cpp
 import os
 import shutil
 import subprocess
 import sys
 import traceback
-from transformers import AutoTokenizer
-from llama_cpp.llama_tokenizer import LlamaHFTokenizer
-
 # DEFAULT_MODEL = "TheBloke/CodeLlama-34B-Instruct-GGUF"
 # DEFAULT_MODEL = "TheBloke/llama2-7b-chat-codeCherryPop-qLoRA-GGUF"
 # DEFAULT_MODEL = "-m TheBloke/dolphin-2_6-phi-2-GGUF"
@@ -263,6 +257,7 @@ def get_hf_llm(ai, repo_id, debug_mode, context_window):
 
             # Check if model was originally split
             split_files = [model["filename"] for model in raw_models if selected_model in model["filename"]]
+            from huggingface_hub import hf_hub_download
             if len(split_files) > 1:
                 # Download splits
                 for split_file in split_files:
@@ -466,6 +461,7 @@ def list_gguf_files(repo_id: str) -> List[Dict[str, Union[str, float]]]:
     """
 
     try:
+      from huggingface_hub import HfApi
       api = HfApi()
       tree = list(api.list_repo_tree(repo_id))
       files_info = [file for file in tree if file.path.endswith('.gguf')]
@@ -634,7 +630,9 @@ def new_get_hf_llm(ai, repo_id, context_window):
 
 
 def get_llama_inst(repo_id, **kwargs):
+    import llama_cpp
     if 'functionary' in repo_id:
+        from llama_cpp.llama_tokenizer import LlamaHFTokenizer
         kwargs['tokenizer'] = LlamaHFTokenizer.from_pretrained(repo_id)
         filename = os.path.basename(kwargs.pop('model_path'))
         kwargs['echo'] = True
