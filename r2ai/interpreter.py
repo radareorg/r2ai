@@ -26,11 +26,9 @@ from .backend import kobaldcpp
 from .models import get_hf_llm, new_get_hf_llm, get_default_model
 from .voice import tts
 from .const import R2AI_HOMEDIR
-from . import auto, LOGGER, logging
+from . import LOGGER, logging
 from .web import stop_http_server, server_running
 from .progress import progress_bar
-import litellm
-from .completion import messages_to_prompt
 
 file_dir = os.path.dirname(__file__)
 sys.path.append(file_dir)
@@ -90,6 +88,7 @@ def ddg(m):
     return f"Considering:\n```{res}\n```\n"
 
 def is_litellm_model(model):
+    from litellm import models_by_provider
     provider = None
     model_name = None
     if model.startswith ("/"):
@@ -98,7 +97,7 @@ def is_litellm_model(model):
         provider, model_name = model.split(":")
     elif "/" in model:
         provider, model_name = model.split("/")
-    if provider in litellm.models_by_provider and model_name in litellm.models_by_provider[provider]:
+    if provider in models_by_provider and model_name in models_by_provider[provider]:
         return True
     return False
 
@@ -378,6 +377,7 @@ class Interpreter:
         # builtins.print(prompt)
         response = None
         if self.auto_run:
+            from . import auto
             if(is_litellm_model(self.model)):
                 response = auto.chat(self)
             else:
@@ -416,7 +416,8 @@ class Interpreter:
             #  {"role": "system", "content": "You are a poetic assistant, be creative."},
             #  {"role": "user", "content": "Compose a poem that explains the concept of recursion in programming."}
             # ]
-            completion = litellm.completion(
+            from litellm import completion as litellm_completion
+            completion = litellm_completion(
                 model=self.model.replace(":", "/"),
                 messages=self.messages,
                 max_completion_tokens=maxtokens,
@@ -452,6 +453,7 @@ class Interpreter:
                     "max_tokens": maxtokens
                 }
                 if self.env["chat.rawdog"] == "true":
+                    from .completion import messages_to_prompt
                     prompt = messages_to_prompt(self, messages)
                     response = self.llama_instance(prompt, **chat_args)
                 else:
