@@ -202,7 +202,7 @@ class ChatAuto:
                 "max_tokens": self.max_tokens,
                 "stream": stream,
             }
-            res = create_chat_completion(self.interpreter, messages=self.messages, tools=[self.tools[0]], **args)
+            res = create_chat_completion(self.interpreter, messages=self.messages, tools=self.tools, **args)
             if args['stream']:
                 return self.async_response_generator(res)
             else:
