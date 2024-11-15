@@ -382,7 +382,7 @@ class Interpreter:
                 response = auto.chat(self)
             else:
                 self.llama_instance = new_get_hf_llm(self, self.model, int(self.env["llm.window"]))
-                response = auto.chat(self, llama_instance=self.llama_instance)
+                response = auto.chat(self)
             return
 
         elif self.model.startswith("kobaldcpp"):
