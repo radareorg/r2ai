@@ -464,7 +464,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
 
                 break;
             case "V": // "-V"
-                r2aidec("-d find vulnerabilities, dont show the code, only show the response");
+                r2aidec("-Q find vulnerabilities, dont show the code, only show the response, provide a sample exploit
                 break;
             case "e": // "-e"
                 args = args.slice(2).trim();
