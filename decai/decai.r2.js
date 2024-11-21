@@ -130,7 +130,13 @@ You can write your custom decai commands in your ~/.radare2rc file.
             }
             break;
         case "model":
-            decaiModel = v;
+            if (v === "?") {
+                if (decaiApi.startsWith("openapi")) {
+                    openApiListModels();
+                }
+            } else {
+                decaiModel = v;
+            }
             break;
         case "cache":
             decaiCache = v === "true" || v == 1;
@@ -306,6 +312,22 @@ You can write your custom decai commands in your ~/.radare2rc file.
         const res = r2.syscmds(curlcmd);
         try {
             return JSON.parse(res).content;
+        } catch(e) {
+            console.error(e);
+            console.log(res);
+        }
+        return "error invalid response";
+    }
+    function openApiListModels(msg, hideprompt) {
+        const curlcmd = `curl -s ${decaiHost}:${decaiPort}/tags`
+        const res = r2.syscmds(curlcmd);
+        try {
+            const models = JSON.parse(res).models;
+            const res = [];
+            for (const model of models) {
+                res.push(model.name);
+	    }
+            return res.join("\n");
         } catch(e) {
             console.error(e);
             console.log(res);
