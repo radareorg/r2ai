@@ -132,7 +132,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
         case "model":
             if (v === "?") {
                 if (decaiApi.startsWith("openapi")) {
-                    openApiListModels();
+                    console.log(openApiListModels());
                 }
             } else {
                 decaiModel = v;
@@ -229,7 +229,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
         let hfModel = "deepseek-ai/DeepSeek-Coder-V2-Instruct";
         if (decaiModel.length > 0) {
             hfModel = decaiModel;
-	}
+        }
         // const hfModel = "instructlab/granite-7b-lab"
         // const hfModel = "TheBloke/Llama-2-7B-GGML"
         // const hfModel = "meta-llama/Llama-3.1-8B-Instruct";
@@ -301,7 +301,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
         return "error invalid response";
     }
     function r2aiOpenAPI(msg, hideprompt) {
-	const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
+        const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
         const payload = JSON.stringify({ "prompt": query });
         const curlcmd = `curl -s ${decaiHost}:${decaiPort}/completion
           -H "Content-Type: application/json"
@@ -319,15 +319,15 @@ You can write your custom decai commands in your ~/.radare2rc file.
         return "error invalid response";
     }
     function openApiListModels(msg, hideprompt) {
-        const curlcmd = `curl -s ${decaiHost}:${decaiPort}/tags`
+        const curlcmd = `curl -s ${decaiHost}:${decaiPort}/api/tags`
         const res = r2.syscmds(curlcmd);
         try {
             const models = JSON.parse(res).models;
-            const res = [];
+            const out = [];
             for (const model of models) {
-                res.push(model.name);
-	    }
-            return res.join("\n");
+                out.push(model.name);
+            }
+            return out.join("\n");
         } catch(e) {
             console.error(e);
             console.log(res);
@@ -335,7 +335,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
         return "error invalid response";
     }
     function r2aiOpenAPI2(msg, hideprompt) {
-	const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
+        const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
         const payload = JSON.stringify({ "prompt": query, "model": "qwen2.5_Coder_1.5B_4bit" });
         const curlcmd = `curl -s ${decaiHost}:${decaiPort}/api/generate
           -H "Content-Type: application/json"
@@ -357,7 +357,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
            const cachedAnotation = r2.cmd("anos").trim();
            if (cachedAnotation.length > 0) {
                return cachedAnotation;
-	   }
+           }
         }
         let out = "";
         const appendQuery = extraQuery? " " + args: "";
@@ -409,7 +409,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
         if (useCache && out.length > 1) {
            r2.call("ano=base64:" + b64(out));
         }
-	return out;
+        return out;
     }
     function fileDump(fileName, fileData) {
         const d = b64(fileData);
@@ -471,7 +471,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
                 // console.log(considerations);
                 r2ai("-R");
                 out = r2ai("give me a better name for this function. the output must be: 'afn NEWNAME'. do not include the function code, only the afn line. consider: " + considerations, out).trim();
-		out += " @ " + r2.cmd("?v $FB").trim();
+                out += " @ " + r2.cmd("?v $FB").trim();
                 break;
             case "v": // "-v"
                 out = r2.cmd("afv;pdc");
@@ -555,9 +555,9 @@ You can write your custom decai commands in your ~/.radare2rc file.
                 usage();
                 break;
             }
-	    if (out) {
+            if (out) {
                 r2.log(out);
-	    }
+            }
         } else {
             usage();
         }
