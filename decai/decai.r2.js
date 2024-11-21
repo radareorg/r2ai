@@ -312,6 +312,24 @@ You can write your custom decai commands in your ~/.radare2rc file.
         }
         return "error invalid response";
     }
+    function r2aiOpenAPI2(msg, hideprompt) {
+	const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
+        const payload = JSON.stringify({ "prompt": query, "model": "qwen2.5_Coder_1.5B_4bit" });
+        const curlcmd = `curl -s ${decaiHost}:${decaiPort}/api/generate
+          -H "Content-Type: application/json"
+          -d '${payload}' #`.replace(/\n/g, "");
+        if (decaiDebug) {
+            console.log(curlcmd);
+        }
+        const res = r2.syscmds(curlcmd);
+        try {
+            return JSON.parse(res).response;
+        } catch(e) {
+            console.error(e);
+            console.log(res);
+        }
+        return "error invalid response";
+    }
     function decaiDecompile(args, extraQuery, useCache) {
         if (useCache) {
            const cachedAnotation = r2.cmd("anos").trim();
@@ -407,6 +425,9 @@ You can write your custom decai commands in your ~/.radare2rc file.
         if (decaiApi === "openapi") {
             return r2aiOpenAPI(q, hideprompt);
         }
+        if (decaiApi === "openapi2") {
+            return r2aiOpenAPI2(q, hideprompt);
+        }
         if (decaiApi === "openai") {
             return r2aiOpenAI(q, hideprompt);
         }
@@ -464,7 +485,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
 
                 break;
             case "V": // "-V"
-                r2aidec("-Q find vulnerabilities, dont show the code, only show the response, provide a sample exploit
+                r2aidec("-Q find vulnerabilities, dont show the code, only show the response, provide a sample exploit");
                 break;
             case "e": // "-e"
                 args = args.slice(2).trim();
