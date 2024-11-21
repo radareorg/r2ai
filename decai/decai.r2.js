@@ -278,7 +278,8 @@ You can write your custom decai commands in your ~/.radare2rc file.
        const query = hideprompt? msg: decprompt + ", Output in " + decaiLanguage + " language\n" + msg;
        const payload = JSON.stringify({
            model: openaiModel,
-           max_tokens: 5128,
+           // max_tokens: 5128,
+           max_completion_tokens: 5128, // make this configurable or depend on model, o1 supports more than 8K
            messages: [
                // { "role": "system", "content": hideprompt? decprompt: "" },
                { "role": "user", "content": query }
