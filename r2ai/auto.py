@@ -317,4 +317,4 @@ def chat(interpreter, **kwargs):
     finally:
         signal.signal(signal.SIGINT, original_handler)
         spinner.stop()
-        litellm.in_memory_llm_clients_cache.clear()
+        litellm.in_memory_llm_clients_cache.flush_cache()

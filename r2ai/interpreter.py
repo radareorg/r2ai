@@ -88,7 +88,8 @@ def ddg(m):
     return f"Considering:\n```{res}\n```\n"
 
 def is_litellm_model(model):
-    from litellm import models_by_provider
+    import litellm
+    litellm.drop_params = True
     provider = None
     model_name = None
     if model.startswith ("/"):
@@ -97,7 +98,7 @@ def is_litellm_model(model):
         provider, model_name = model.split(":")
     elif "/" in model:
         provider, model_name = model.split("/")
-    if provider in models_by_provider and model_name in models_by_provider[provider]:
+    if provider in litellm.models_by_provider and (model_name in litellm.models_by_provider[provider] or model in litellm.models_by_provider[provider]):
         return True
     return False
 
@@ -423,8 +424,8 @@ class Interpreter:
                 max_completion_tokens=maxtokens,
                 temperature=float(self.env["llm.temperature"]),
                 top_p=float(self.env["llm.top_p"]),
-                stop=self.terminator,
             )
+
             response = completion.choices[0].message.content
             if "content" in self.messages[-1]:
                 last_message = self.messages[-1]["content"]
