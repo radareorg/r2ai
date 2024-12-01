@@ -1,12 +1,48 @@
 #!/bin/sh
+OPENAPI_HOST=localhost
+OPENAPI_PORT=8080
 OPENAI_KEY=""
 OPENAI_MODEL="gpt-4"
 if [ -f ~/.r2ai.openai-key ]; then
 	OPENAI_KEY=$(cat ~/.r2ai.openai-key)
 fi
 
+CLAUDE_KEY=""
+CLAUDE_MODEL="claude-3-5-sonnet-20241022"
+if [ -f ~/.r2ai.anthropic-key ]; then
+	CLAUDE_KEY=$(cat ~/.r2ai.anthropic-key)
+fi
+
+claude() {
+	INPUT=`(echo "$@" ; cat) | jq -R -s . | sed 's/\*/\\*/g'`
+	PAYLOAD="
+	{
+	\"model\": \"${CLAUDE_MODEL}\",
+	\"max_tokens\": 5128,
+	\"messages\": [ { \"role\": \"user\", \"content\": ${INPUT} } ]
+	}
+	"
+	echo "------------8<------------"
+	curl -s https://api.anthropic.com/v1/messages \
+		-H "Content-Type: application/json" \
+		-H "anthropic-version: 2023-06-01" \
+		-H "x-api-key: ${CLAUDE_KEY}" \
+		-d "`printf '%s\n' \"${PAYLOAD}\"`" | jq -r '.content[0].text'
+	echo "------------8<------------"
+}
+
+openapi() {
+	INPUT=`(echo "$1" ; cat) | jq -R -s . | sed 's/\*/\\*/g'`
+	PAYLOAD="{ \"prompt\": ${INPUT} }"
+	echo "------------8<------------"
+	curl -s "http://${OPENAPI_HOST}:${OPENAPI_PORT}/api/generate" \
+		-H "Content-Type: application/json" \
+		-d "`printf '%s\n' \"${PAYLOAD}\"`" | jq -r .response
+	echo "------------8<------------"
+}
+
 openai() {
-	INPUT=`(echo $@ ; cat) | jq -R -s . | sed 's/\*/\\*/g'`
+	INPUT=`(echo "$@" ; cat) | jq -R -s . | sed 's/\*/\\*/g'`
 	PAYLOAD="
 	{
 	\"model\": \"${OPENAI_MODEL}\",
@@ -22,4 +58,6 @@ openai() {
 	echo "------------8<------------"
 }
 
-openai "$@"
+# openapi "$@"
+claude "$@"
+# openai "$@"
