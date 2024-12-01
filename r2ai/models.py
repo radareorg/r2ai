@@ -73,7 +73,6 @@ KobaldCpp:
 -m kobaldcpp:http://localhost:5001
 OpenAPI:
 -m openapi:http://localhost:5001
-OpenAPI (custom model):
 -m openai:http://localhost:5001:gpt-4
 OpenAI:
 -m openai:gpt-3.5-turbo
@@ -91,6 +90,7 @@ groq:
 -m groq:mixtral-8x7b-32768
 Google:
 -m google:gemini-1.0-pro
+-m google:gemini-1.5-flash
 -m google:gemini-1.5-pro-latest
 Functionary:
 -m meetkai/functionary-7b-v1.4-GGUF

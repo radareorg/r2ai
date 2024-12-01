@@ -285,14 +285,14 @@ class Interpreter:
         self.logger.debug(message)
 
         # print(message)
-        # Local model
+        # Local model -- TODO: assume local models don't have : in the name?
         if (
             not self.model.startswith("openai:") and
             not self.model.startswith("openapi:") and
+            not self.model.startswith("google:") and
             not self.model.startswith("kobaldcpp") and
             not self.model.startswith("bedrock:") and
-            self.llama_instance is None
-            and not is_litellm_model(self.model)
+            not is_litellm_model(self.model)
         ):
             self.logger = LOGGER.getChild(f"local:{self.model}")
             # Find or install Code-Llama
@@ -462,6 +462,7 @@ class Interpreter:
                     all_messages.insert(0, {"role": "system", "content": self.system_message})
                     response = self.llama_instance.create_chat_completion(all_messages, **chat_args)
             except Exception as err:
+                traceback.print_exc()
                 print(Exception, err)
                 if Ginterrupted:
                     Ginterrupted = False
@@ -470,7 +471,7 @@ class Interpreter:
         if response is None:
             print("No response")
             ctxwindow = int(self.env["llm.window"])
-            self.llama_instance = new_get_hf_llm(self, self.model, False, ctxwindow)
+            self.llama_instance = new_get_hf_llm(self, self.model, ctxwindow)
             return
         # Initialize message, function call trackers, and active block
         self.messages.append({})

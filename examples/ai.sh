@@ -1,12 +1,17 @@
 #!/bin/sh
 OPENAPI_HOST=localhost
 OPENAPI_PORT=8080
+
+GEMINI_KEY=""
+GEMINI_MODEL="gpt-4"
+if [ -f ~/.r2ai.gemini-key ]; then
+	GEMINI_KEY=$(cat ~/.r2ai.gemini-key)
+fi
 OPENAI_KEY=""
 OPENAI_MODEL="gpt-4"
 if [ -f ~/.r2ai.openai-key ]; then
 	OPENAI_KEY=$(cat ~/.r2ai.openai-key)
 fi
-
 CLAUDE_KEY=""
 CLAUDE_MODEL="claude-3-5-sonnet-20241022"
 if [ -f ~/.r2ai.anthropic-key ]; then
@@ -58,6 +63,22 @@ openai() {
 	echo "------------8<------------"
 }
 
+gemini() {
+	INPUT=`(echo "$@" ; cat) | jq -R -s . | sed 's/\*/\\*/g'`
+	PAYLOAD=" {
+	\"contents\":[{
+          \"parts\":[
+            {\"text\": ${INPUT}}
+          ] }] }"
+	echo "------------8<------------"
+
+	curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}" \
+		-H "Content-Type: application/json" \
+		-d "`printf '%s\n' \"${PAYLOAD}\"`" | jq -r .candidates[0].content.parts[0].text
+	echo "------------8<------------"
+}
+
+gemini "$@"
 # openapi "$@"
-claude "$@"
+# claude "$@"
 # openai "$@"

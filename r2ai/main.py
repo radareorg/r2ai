@@ -97,6 +97,11 @@ def main(args, commands, dorepl=True):
         os.environ["OPENAI_API_KEY"] = apikey
         print("[R2AI] OpenAI API key loaded from ~/.r2ai.openai-key", file=sys.stderr)
 
+    r2_gemini_file = os.path.join(home_dir, ".r2ai.gemini-key")
+    if os.path.isfile(r2_gemini_file):
+        apikey = slurp(r2_gemini_file).strip()
+        os.environ["GEMINI_API_KEY"] = apikey
+        print("[R2AI] OpenAI API key loaded from ~/.r2ai.gemini-key", file=sys.stderr)
 
     r2_anthropic_file = os.path.join(home_dir, ".r2ai.anthropic-key")
     if os.path.isfile(r2_anthropic_file):
