@@ -269,6 +269,30 @@ You can write your custom decai commands in your ~/.radare2rc file.
         return "error invalid response";
     }
 
+    function r2aiGemini(msg, hideprompt) {
+       const geminiKey = r2.cmd("'cat ~/.r2ai.gemini-key").trim()
+       if (geminiKey === '') {
+           return "Cannot read ~/.r2ai.gemini-key";
+       }
+       const geminiModel = (decaiModel.length > 0)? decaiModel: "gemini-1.5-flash";
+       const query = hideprompt? msg: decprompt + ", Output in " + decaiLanguage + " language\n" + msg;
+       const payload = JSON.stringify({contents: [{parts:[{text: query}]}]});
+       const curlcmd = `curl -X POST -s https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:'generateContent?key='${geminiKey}
+          -H "Content-Type: application/json"
+          -d '${payload}'`.replace(/\n/g, "");
+        if (decaiDebug) {
+            console.log(curlcmd);
+        }
+        const res = r2.syscmds(curlcmd);
+	console.log(res);
+        try {
+            return JSON.parse(res).candidates[0].content.parts[0].text;
+        } catch(e) {
+            console.error(e);
+            console.log(res);
+        }
+        return "error invalid response";
+    }
     function r2aiOpenAI(msg, hideprompt) {
        const openaiKey = r2.cmd("'cat ~/.r2ai.openai-key").trim()
        if (openaiKey === '') {
@@ -441,6 +465,9 @@ You can write your custom decai commands in your ~/.radare2rc file.
         const q = queryText + ":\n" + fileData;
         if (decaiApi === "anthropic" || decaiApi === "claude") {
             return r2aiAnthropic(q, hideprompt);
+        }
+        if (decaiApi === "google" || decaiApi === "gemini") {
+            return r2aiGemini(q, hideprompt);
         }
         if (decaiApi === "huggingface" || decaiApi === "hf") {
             return r2aiHuggingFace(q, hideprompt);
