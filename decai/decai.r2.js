@@ -171,6 +171,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
         console.error("Usage: " + command + " (-h) ...");
         console.error(" " + command + " -H         - help setting up r2ai");
         console.error(" " + command + " -d [f1 ..] - decompile given functions");
+        console.error(" " + command + " -dr        - decompile function and its called ones (recursive)");
         console.error(" " + command + " -dd [..]   - same as above, but ignoring cache");
         console.error(" " + command + " -D [query] - decompile current function with given extra query");
         console.error(" " + command + " -e         - display and change eval config vars");
@@ -377,12 +378,24 @@ You can write your custom decai commands in your ~/.radare2rc file.
         }
         return "error invalid response";
     }
-    function decaiDecompile(args, extraQuery, useCache) {
+    function decaiDecompile(args, extraQuery, useCache, recursiveCalls) {
         if (useCache) {
            const cachedAnotation = r2.cmd("anos").trim();
            if (cachedAnotation.length > 0) {
                return cachedAnotation;
            }
+        }
+	let context = "";
+        if (recursiveCalls) {
+            const at = r2.cmd("s");
+            context += "## Context functions:\n";
+            // pdc@@=`axff~^C[2]~$$`
+            const funcs = r2.cmdAt('axff~^C[2]~$$', at);
+            // const funcs = r2.cmdAt('axff~[2]', at);
+            for (let at of funcs.split(/\n/g)) {
+                context += r2.cmd('pdc@'+ at);
+            }
+            r2.cmd("s " + at);
         }
         let out = "";
         const appendQuery = extraQuery? " " + args: "";
@@ -425,6 +438,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
             }
             r2ai("-R");
             const query = (decprompt + appendQuery).trim() + ". Transform this pseudocode into " + decaiLanguage;
+            text += context;
             out = r2ai(query, text);
             lastOutput = out;
         } catch (e) {
@@ -571,13 +585,15 @@ You can write your custom decai commands in your ~/.radare2rc file.
                 out = r2ai("Analyze function calls, comments and strings, ignore registers and memory accesess. Considering the references and involved loops make explain the purpose of this function in one or two short sentences. Output must be only the translation of the explanation in " + decaiHumanLanguage, out, true);
                 break;
             case "d": // "-d"
-                out = decaiDecompile(args, false, decaiCache);
-                break;
-            case "dd": // "-dd"
-                out = decaiDecompile(args, false, false);
-                break;
-            case "D": // "-D"
-                out = decaiDecompile(args, true, false);
+		if (args[2] == 'r') { // "dr"
+                    out = decaiDecompile(args.slice(2), true, decaiCache, true);
+		} else if (args[2] == 'd') { // "dd"
+                    out = decaiDecompile(args, false, false, false);
+		} else if (args[2] == 'D') { // "dD"
+                    out = decaiDecompile(args, true, false, false);
+		} else {
+                    out = decaiDecompile(args, false, decaiCache, false);
+		}
                 break;
             default:
                 usage();

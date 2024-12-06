@@ -78,7 +78,10 @@ gemini() {
 	echo "------------8<------------"
 }
 
-gemini "$@"
-# openapi "$@"
-# claude "$@"
-# openai "$@"
+case "${SHAI_API}" in
+gemini|google) gemini "$@" ; ;;
+openapi) openapi "$@" ; ;;
+claude) claude "$@" ; ;;
+openai) openai "$@" ; ;;
+*) claude "$@" ; ;;
+esac
