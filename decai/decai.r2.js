@@ -156,7 +156,7 @@ Response:
             break;
         case "api":
             if (v === "?") {
-                console.error("r2ai\nclaude\nopenapi\nopenai\ngemini\nhf");
+                console.error("r2ai\nclaude\nopenapi\nopenai\ngemini\nxai\nhf");
             } else {
                 decaiApi = v;
             }
@@ -392,6 +392,31 @@ Response:
         }
         return "error invalid response";
     }
+    function r2aiXai(msg, hideprompt) {
+       const xaiKey = r2.cmd("'cat ~/.r2ai.xai-key").trim()
+       if (xaiKey === '') {
+           return "Cannot read ~/.r2ai.xai-key";
+       }
+       const xaiModel = (decaiModel.length > 0)? decaiModel: "grok-beta";
+        const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
+        const payload = JSON.stringify({messages:[{ role:'user', "content": query}], "model": xaiModel, stream:false});
+        const curlcmd = `curl -s https://api.x.ai/v1/chat/completions
+          -H "Content-Type: application/json"
+          -H "Authorization: Bearer ${xaiKey}"
+          -d '${payload}' #`.replace(/\n/g, "");
+
+        if (decaiDebug) {
+            console.log(curlcmd);
+        }
+        const res = r2.syscmds(curlcmd);
+        try {
+            return JSON.parse(res).choices[0].message.content;
+        } catch(e) {
+            console.error(e);
+            console.log(res);
+        }
+        return "error invalid response";
+    }
     function r2aiOpenAPI2(msg, hideprompt) {
         const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
         const payload = JSON.stringify({ "prompt": query, "model": "qwen2.5_Coder_1.5B_4bit" });
@@ -562,6 +587,9 @@ Response:
         }
         if (decaiApi === "openapi") {
             return r2aiOpenAPI(q, hideprompt);
+        }
+        if (decaiApi === "xai") {
+            return r2aiXai(q, hideprompt);
         }
         if (decaiApi === "openapi2") {
             return r2aiOpenAPI2(q, hideprompt);
