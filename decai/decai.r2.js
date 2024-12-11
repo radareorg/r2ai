@@ -299,12 +299,12 @@ You can write your custom decai commands in your ~/.radare2rc file.
        if (openaiKey === '') {
            return "Cannot read ~/.r2ai.openai-key";
        }
-       const openaiModel = (decaiModel.length > 0)? decaiModel: "gpt-4";
+       const openaiModel = (decaiModel.length > 0)? decaiModel: "gpt-4-turbo"; // o-2024-11-20";
        const query = hideprompt? msg: decprompt + ", Output in " + decaiLanguage + " language\n" + msg;
        const payload = JSON.stringify({
            model: openaiModel,
            // max_tokens: 5128,
-           max_completion_tokens: 5128, // make this configurable or depend on model, o1 supports more than 8K
+           // max_completion_tokens: 5128, // make this configurable or depend on model, o1 supports more than 8K
            messages: [
                // { "role": "system", "content": hideprompt? decprompt: "" },
                { "role": "user", "content": query }
