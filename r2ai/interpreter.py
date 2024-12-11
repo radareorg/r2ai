@@ -96,10 +96,12 @@ def is_litellm_model(model):
         return False
     if ":" in model:
         provider, model_name = model.split(":")
+        if provider in [member.value for member in litellm.LlmProviders]:
+            return True
     elif "/" in model:
         provider, model_name = model.split("/")
-    if provider in litellm.models_by_provider and (model_name in litellm.models_by_provider[provider] or model in litellm.models_by_provider[provider]):
-        return True
+        if provider in litellm.models_by_provider and (model_name in litellm.models_by_provider[provider] or model in litellm.models_by_provider[provider]):
+            return True
     return False
 
 class Interpreter:
