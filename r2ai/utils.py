@@ -26,10 +26,8 @@ def merge_deltas(original, delta):
     return original
 
 def slurp(f):
-    fd = open(f, errors="ignore")
-    data = fd.read()
-    fd.close()
-    return str(data)
+    with open(f, errors="ignore") as fd:
+        return str(fd.read())
 
 def dump(f, x):
     fd = open(f, "w")

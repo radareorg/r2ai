@@ -60,6 +60,38 @@ Write the API keys in corresponding files:
 You can write your custom decai commands in your ~/.radare2rc file.
 
 `;
+    const autoPrompt = `
+# Function Calling
+
+Respond ONLY using JSON. You are a smart assistant designed to process user queries and decide if a local function needs to be executed. Follow these steps:
+1. Analyze the user input to determine if it requires invoking a local function or just returning a direct response.
+2. If it requires a function call:
+    - Use the key "action": "execute_function".
+    - Provide the "function_name" as a string.
+    - Include "parameters" as a dictionary of key-value pairs matching the required function arguments.
+    - Optionally, provide a "response" to summarize your intent.
+3. If no function is required:
+    - Use the key "action": "reply".
+    - Include "response" with the direct answer to the user query.
+
+Return the result as a JSON object.
+
+## Here is an example:
+
+User Query: "Count how many functions."
+Response:
+{
+    "action": "execute_function",
+    "function_name": "r2cmd",
+    "parameters": {
+        "r2cmd": "aflc",
+    }
+    "response": "Count how many functions do we have"
+}
+
+# Now, analyze the following user input:
+`;
+
     const command = "decai";
     let decaiHost = "http://localhost";
     let decaiPort = "8080";
@@ -124,7 +156,7 @@ You can write your custom decai commands in your ~/.radare2rc file.
             break;
         case "api":
             if (v === "?") {
-                console.error("r2ai\nclaude\nopenapi\nopenai\nhf");
+                console.error("r2ai\nclaude\nopenapi\nopenai\ngemini\nhf");
             } else {
                 decaiApi = v;
             }
@@ -454,6 +486,48 @@ You can write your custom decai commands in your ~/.radare2rc file.
         const d = b64(fileData);
         r2.cmd("p6ds " + d + " > " + fileName);
     }
+    function decaiAuto(queryText) {
+        r2ai("-R");
+        let autoQuery = autoPrompt;
+        const replies = [];
+        while (true) {
+            let q = autoPrompt;
+	    if (replies.length > 0) {
+                q += '## Executed function results\n';
+                q += replies.join("\n");
+	    }
+            q += '## User prompt\n' + queryText;
+	    /*
+	    console.log('#### input');
+	    console.log(q);
+	    console.log('#### /input');
+	    */
+            out = r2ai('', q, true);
+	    /*
+	    console.log('#### output');
+	    console.log(out);
+	    console.log('#### /output');
+	    */
+	    try {
+		    const o = JSON.parse(out);
+		    if (o.action === 'execute_function' && o.function_name === 'r2cmd') {
+			    const cmd = o.parameters.r2cmd;
+			    console.log("[r2cmd] Running: " + cmd)
+			    r2.cmd("e scr.color=0");
+			    res = r2.cmd(cmd);
+			    r2.cmd("e scr.color=3");
+			    replies.push(JSON.stringify({action:'function_response', function_name: r2cmd, response: res}));
+		    } else if (o.action === 'reply') {
+			    console.log(o.response);
+			    break;
+		    }
+	    } catch (e) {
+		    console.error(out);
+		    console.error(e);
+		    break;
+	    }
+        }
+    }
     function r2ai(queryText, fileData, hideprompt) {
         if (!fileData) {
             fileData = "";
@@ -505,6 +579,9 @@ You can write your custom decai commands in your ~/.radare2rc file.
             switch (args[1]) {
             case "H": // "-H"
                 console.log(decaiHelp);
+                break;
+            case "a": // "-a" // auto mode
+                decaiAuto(args.slice(2).trim());
                 break;
             case "n": // "-n"
             case "f": // "-f"

@@ -498,7 +498,7 @@ class Interpreter:
                     delta = {"content": text}
                 elif "content" in chunk['choices'][0]['delta']:
                     delta = {"content": chunk['choices'][0]['delta']['content']}
-            # Accumulate deltas into the last message in messages
+                # Accumulate deltas into the last message in messages
                 if delta:
                     self.messages[-1] = merge_deltas(self.messages[-1], delta)
             if self.env["chat.live"] != "true":
