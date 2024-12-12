@@ -9,11 +9,12 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"Usage:", "r2ai", "Use POST http://localhost:8000",
 	"r2ai", " -m", "show selected model, list suggested ones, choose one",
 	"r2ai", " -e", "Same as '-e r2ai.'",
+	"r2ai", " -h", "Show this help message",
 	"r2ai", " [arg]", "send a post request to talk to r2ai and print the output",
 	NULL
 };
 
-static char *r2ai_openai(const char *content, char **error) {
+static char *r2ai_openai(const char *content, const char *model, char **error) {
 	if (error) {
 		*error = NULL;
 	}
@@ -32,7 +33,7 @@ static char *r2ai_openai(const char *content, char **error) {
 	const char *openai_url = "https://api.openai.com/v1/chat/completions";
 	PJ *pj = pj_new ();
 	pj_o (pj);
-	pj_ks (pj, "model", "gpt-4o-mini");
+	pj_ks (pj, "model", model? model: "gpt-4o-mini");
 	pj_kb (pj, "stream", true);
 	pj_kn (pj, "max_completion_tokens", 5128);
 	pj_ka (pj, "messages");
@@ -107,7 +108,7 @@ static bool handle_openai_stream_chunk(const char *chunk) {
 	return false;
 }
 
-static char *r2ai_openai_stream(const char *content, char **error) {
+static char *r2ai_openai_stream(const char *content, const char *model_name, char **error) {
 	if (error) {
 		*error = NULL;
 	}
@@ -130,7 +131,7 @@ static char *r2ai_openai_stream(const char *content, char **error) {
 	const char *openai_url = "https://api.openai.com/v1/chat/completions";
 	PJ *pj = pj_new ();
 	pj_o (pj);
-	pj_ks (pj, "model", "gpt-4o-mini");
+	pj_ks (pj, "model", model_name? model_name: "gpt-4o-mini");
 	pj_kb (pj, "stream", true);
 	pj_kn (pj, "max_completion_tokens", 5128);
 	pj_ka (pj, "messages");
@@ -213,7 +214,9 @@ static bool handle_anthropic_stream_chunk(const char *chunk) {
 
 	if (r_str_startswith(chunk, "event:")) {
 		const char *event = chunk + 7;
-		while (*event == ' ') event++;
+		while (*event == ' ') {
+			event++;
+		}
 		return !strcmp(event, "message_stop");
 	}
 	
@@ -227,32 +230,32 @@ static bool handle_anthropic_stream_chunk(const char *chunk) {
 		return false;
 	}
 
-	char *data_copy = strdup(data);
-	RJson *jres = r_json_parse(data_copy);
+	char *data_copy = strdup (data);
+	RJson *jres = r_json_parse (data_copy);
 	if (!jres) {
-		free(data_copy);
+		free (data_copy);
 		return false;
 	}
 
 	const RJson *type = r_json_get(jres, "type");
 	if (!type || !type->str_value) {
-		r_json_free(jres);
-		free(data_copy);
+		r_json_free (jres);
+		free (data_copy);
 		return false;
 	}
 
 	if (!strcmp(type->str_value, "content_block_delta")) {
-		const RJson *delta = r_json_get(jres, "delta");
+		const RJson *delta = r_json_get (jres, "delta");
 		if (delta) {
 			const RJson *text = r_json_get(delta, "text");
 			if (text && text->str_value) {
-				eprintf("%s", text->str_value);
+				eprintf ("%s", text->str_value);
 			}
 		}
 	}
 
-	r_json_free(jres);
-	free(data_copy);
+	r_json_free (jres);
+	free (data_copy);
 	return false;
 }
 
@@ -261,26 +264,25 @@ static bool handle_anthropic_chunk_cb(void *user, const char *chunk, int len) {
 		return false;
 	}
 	
-	char *chunk_copy = malloc(len + 1);
-	memcpy(chunk_copy, chunk, len);
-	chunk_copy[len] = 0;
+	// len can be ignored, assuming chunk is null terminated
+	char *chunk_copy = strdup (chunk);
 
 	char *line = chunk_copy;
 	while (line) {
-		char *eol = strchr(line, '\n');
+		char *eol = strchr (line, '\n');
 		if (eol) {
 			*eol = 0;
-			handle_anthropic_stream_chunk(line);
+			handle_anthropic_stream_chunk (line);
 			line = eol + 1;
 		} else {
 			if (*line) {
-				handle_anthropic_stream_chunk(line);
+				handle_anthropic_stream_chunk (line);
 			}
 			break;
 		}
 	}
 
-	free(chunk_copy);
+	free (chunk_copy);
 	return true;
 }
 
@@ -288,21 +290,21 @@ static char *r2ai_anthropic_stream(const char *content, const char *model_name, 
 	if (error) {
 		*error = NULL;
 	}
-	char *apikey = r_sys_getenv("ANTHROPIC_API_KEY");
+	char *apikey = r_sys_getenv ("ANTHROPIC_API_KEY");
 	if (!apikey) {
-		char *apikey_file = r_file_new("~/.r2ai.anthropic-key", NULL);
+		char *apikey_file = r_file_new ("~/.r2ai.anthropic-key", NULL);
 		apikey = r_file_slurp(apikey_file, NULL);
 		free(apikey_file);
 		if (!apikey) {
 			if (error) {
-				*error = strdup("Failed to read Anthropic API key from ANTHROPIC_API_KEY env or ~/.r2ai.anthropic-key");
+				*error = strdup ("Failed to read Anthropic API key from ANTHROPIC_API_KEY env or ~/.r2ai.anthropic-key");
 			}
 			return NULL;
 		}
 		r_str_trim(apikey);
 	}
 
-	char *auth_header = r_str_newf("x-api-key: %s", apikey);
+	char *auth_header = r_str_newf ("x-api-key: %s", apikey);
 	char *anthropic_version = "anthropic-version: 2023-06-01";
 	char *accept_header = "Accept: text/event-stream";
 	const char *headers[] = {
@@ -313,11 +315,11 @@ static char *r2ai_anthropic_stream(const char *content, const char *model_name, 
 		NULL
 	};
 
-	const char *anthropic_url = "https://api.anthropic.com/v1/messages";
+	const char anthropic_url[] = "https://api.anthropic.com/v1/messages";
 
-	PJ *pj = pj_new();
+	PJ *pj = pj_new ();
 	pj_o(pj);
-	pj_ks(pj, "model", model_name);
+	pj_ks(pj, "model", model_name? model_name: "claude-3-5-sonnet-20241022");
 	pj_kn(pj, "max_tokens", 4096);
 	pj_kb(pj, "stream", true);
 	pj_ka(pj, "messages");
@@ -330,32 +332,32 @@ static char *r2ai_anthropic_stream(const char *content, const char *model_name, 
 
 	char *data = pj_drain(pj);
 	int code = 0;
-	char *res = r_socket_http_post(anthropic_url, headers, data, &code, NULL);
+	char *res = r_socket_http_post (anthropic_url, headers, data, &code, NULL);
 	
 	if (!res || code != 200) {
-		R_LOG_ERROR("Anthropic API error %d", code);
+		R_LOG_ERROR ("Anthropic API error %d", code);
 		if (error) {
-			*error = strdup("Failed to get response from Anthropic API");
+			*error = strdup ("Failed to get response from Anthropic API");
 		}
-		free(apikey);
-		free(auth_header);
-		free(data);
+		free (apikey);
+		free (auth_header);
+		free (data);
 		return NULL;
 	}
 
 	char *saveptr;
-	char *line = strtok_r(res, "\n", &saveptr);
+	char *line = strtok_r (res, "\n", &saveptr);
 	while (line) {
-		handle_anthropic_stream_chunk(line);
-		line = strtok_r(NULL, "\n", &saveptr);
+		handle_anthropic_stream_chunk (line);
+		line = strtok_r (NULL, "\n", &saveptr);
 	}
 
-	eprintf("\n");
+	eprintf ("\n");
 
-	free(apikey);
-	free(auth_header);
-	free(data);
-	free(res);
+	free (apikey);
+	free (auth_header);
+	free (data);
+	free (res);
 
 	return NULL;
 }
@@ -365,21 +367,21 @@ static char *r2ai_anthropic(const char *content, const char *model_name, char **
 		*error = NULL;
 	}
 
-	char *apikey = r_sys_getenv("ANTHROPIC_API_KEY");
+	char *apikey = r_sys_getenv ("ANTHROPIC_API_KEY");
 	if (!apikey) {
-		char *apikey_file = r_file_new("~/.r2ai.anthropic-key", NULL);
-		apikey = r_file_slurp(apikey_file, NULL);
-		free(apikey_file);
+		char *apikey_file = r_file_new ("~/.r2ai.anthropic-key", NULL);
+		apikey = r_file_slurp (apikey_file, NULL);
+		free (apikey_file);
 		if (!apikey) {
 			if (error) {
-				*error = strdup("Failed to read Anthropic API key from ANTHROPIC_API_KEY env or ~/.r2ai.anthropic-key");
+				*error = strdup ("Failed to read Anthropic API key from ANTHROPIC_API_KEY env or ~/.r2ai.anthropic-key");
 			}
 			return NULL;
 		}
-		r_str_trim(apikey);
+		r_str_trim (apikey);
 	}
 
-	char *auth_header = r_str_newf("x-api-key: %s", apikey);
+	char *auth_header = r_str_newf ("x-api-key: %s", apikey);
 	char *anthropic_version = "anthropic-version: 2023-06-01";
 	const char *headers[] = {
 		"Content-Type: application/json",
@@ -402,11 +404,11 @@ static char *r2ai_anthropic(const char *content, const char *model_name, char **
 	pj_end(pj);
 	pj_end(pj);
 
-	char *data = pj_drain(pj);
+	char *data = pj_drain (pj);
 	int code = 0;
-	char *res = r_socket_http_post(anthropic_url, headers, data, &code, NULL);
+	char *res = r_socket_http_post (anthropic_url, headers, data, &code, NULL);
 	if (!res || code != 200) {
-		R_LOG_ERROR("Anthropic API error %d", code);
+		R_LOG_ERROR ("Anthropic API error %d", code);
 		if (error) {
 			*error = strdup (res? res : "Failed to get response from Anthropic API");
 		}
@@ -444,31 +446,40 @@ static char *r2ai(RCore *core, const char *content, char **error) {
 		*error = strdup ("Usage: 'r2ai [query]'. See 'r2ai -h' for help");
 		return NULL;
 	}
-	const char *model = r_config_get (core->config, "r2ai.model");
+#if 0
 	if (!model) {
 		*error = strdup ("Model not configured. Use 'r2ai -m provider:model' to set it");
 		return NULL;
 	}
+#endif
 
+	char *model = strdup (r_config_get (core->config, "r2ai.model"));
 	char *provider = strdup (model);
-	char *model_name = strchr (provider, ':');
-	if (!model_name) {
+	char *colon = strchr (provider, ':');
+	if (colon) {
+		*colon = 0;
+		free (model);
+		model = strdup (colon + 1);
+	} else {
 		free (provider);
-		*error = strdup ("Invalid model format. Use 'provider:model_name'");
-		return NULL;
+		provider = strdup (r_config_get (core->config, "r2ai.api"));
 	}
-	*model_name = 0;
-	model_name++;
 	
 	bool stream = r_config_get_b (core->config, "r2ai.stream");
 	char *result = NULL;
+	if (R_STR_ISEMPTY (model)) {
+		R_FREE (model);
+	}
 	if (!strcmp (provider, "openai")) {
-		result = stream? r2ai_openai_stream (content, error) : r2ai_openai (content, error);
+		result = stream
+			? r2ai_openai_stream (content, model, error)
+			: r2ai_openai (content, model, error);
 	} else if (!strcmp (provider, "openapi")) {
 		result = r2ai_openapi (content, error);
-	} else if (!strcmp (provider, "anthropic")) {
-		result = stream? r2ai_anthropic_stream(content, model_name, error) : 
-		               r2ai_anthropic(content, model_name, error);
+	} else if (!strcmp (provider, "anthropic") || !strcmp (provider, "claude")) {
+		result = stream
+			? r2ai_anthropic_stream (content, model, error)
+			: r2ai_anthropic (content, model, error);
 	} else {
 		*error = strdup ("Unsupported provider. Use openai, openapi, anthropic");
 	}
@@ -521,7 +532,7 @@ static int r2ai_init(void *user, const char *input) {
 	r_config_set (core->config, "r2ai.api", "openapi");
 	r_config_set (core->config, "r2ai.model", ""); // qwen2.5-4km");
 	r_config_set (core->config, "r2ai.prompt", "");
-	r_config_set_i (core->config, "r2ai.stream", true);
+	r_config_set_b (core->config, "r2ai.stream", true);
 	r_config_lock (core->config, true);
 	return true;
 }
