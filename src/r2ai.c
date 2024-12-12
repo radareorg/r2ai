@@ -5,6 +5,14 @@
 #include <r_core.h>
 #include <r_util/r_json.h>
 
+static RCoreHelpMessage help_msg_r2ai = {
+	"Usage:", "r2ai", "Use POST http://localhost:8000",
+	"r2ai", " -m", "show selected model, list suggested ones, choose one",
+	"r2ai", " -e", "Same as '-e r2ai.'",
+	"r2ai", " [arg]", "send a post request to talk to r2ai and print the output",
+	NULL
+};
+
 static char *r2ai_openai(const char *content, char **error) {
 	if (error) {
 		*error = NULL;
@@ -400,36 +408,34 @@ static char *r2ai_anthropic(const char *content, const char *model_name, char **
 	if (!res || code != 200) {
 		R_LOG_ERROR("Anthropic API error %d", code);
 		if (error) {
-			*error = strdup(res ? res : "Failed to get response from Anthropic API");
+			*error = strdup (res? res : "Failed to get response from Anthropic API");
 		}
-		free(apikey);
-		free(auth_header);
-		
-		free(data);
-		free(res);
+		free (apikey);
+		free (auth_header);
+		free (data);
+		free (res);
 		return NULL;
 	}
 
 	char *res_content = NULL;
-	RJson *jres = r_json_parse(res);
+	RJson *jres = r_json_parse (res);
 	if (jres) {
-		const RJson *content_array = r_json_get(jres, "content");
+		const RJson *content_array = r_json_get (jres, "content");
 		if (content_array && content_array->type == R_JSON_ARRAY) {
-			const RJson *first_content = r_json_item(content_array, 0);
+			const RJson *first_content = r_json_item (content_array, 0);
 			if (first_content) {
-				const RJson *text = r_json_get(first_content, "text");
+				const RJson *text = r_json_get (first_content, "text");
 				if (text) {
-					res_content = strdup(text->str_value);
+					res_content = strdup (text->str_value);
 				}
 			}
 		}
-		r_json_free(jres);
+		r_json_free (jres);
 	}
-
-	free(apikey);
-	free(auth_header); 
-	free(data);
-	free(res);
+	free (apikey);
+	free (auth_header); 
+	free (data);
+	free (res);
 	return res_content;
 }
 
@@ -454,7 +460,7 @@ static char *r2ai(RCore *core, const char *content, char **error) {
 	*model_name = 0;
 	model_name++;
 	
-	bool stream = r_config_get_i (core->config, "r2ai.stream");
+	bool stream = r_config_get_b (core->config, "r2ai.stream");
 	char *result = NULL;
 	if (!strcmp (provider, "openai")) {
 		result = stream? r2ai_openai_stream (content, error) : r2ai_openai (content, error);
@@ -464,7 +470,7 @@ static char *r2ai(RCore *core, const char *content, char **error) {
 		result = stream? r2ai_anthropic_stream(content, model_name, error) : 
 		               r2ai_anthropic(content, model_name, error);
 	} else {
-		*error = strdup ("Unsupported provider");
+		*error = strdup ("Unsupported provider. Use openai, openapi, anthropic");
 	}
 	
 	free (provider);
@@ -472,6 +478,10 @@ static char *r2ai(RCore *core, const char *content, char **error) {
 }
 
 static void cmd_r2ai_m(RCore *core, const char *input) {
+	if (R_STR_ISEMPTY (input)) {
+		r_cons_printf ("%s\n", r_config_get (core->config, "r2ai.model"));
+		return;
+	}
 	r_config_lock (core->config, false);
 	r_config_set (core->config, "r2ai.model", input);
 	r_config_lock (core->config, true);
@@ -479,7 +489,16 @@ static void cmd_r2ai_m(RCore *core, const char *input) {
 }
 
 static void cmd_r2ai(RCore *core, const char *input) {
-	if (r_str_startswith (input, "-m")) {
+	if (r_str_startswith (input, "-h")) {
+		r_core_cmd_help (core, help_msg_r2ai);
+	} else if (r_str_startswith (input, "-e")) {
+		const char *arg = r_str_trim_head_ro (input + 2);
+		if (r_str_startswith (arg, "r2ai")) {
+			r_core_cmdf (core, "-e %s", arg);
+		} else {
+			r_core_cmdf (core, "-e r2ai.%s", arg);
+		}
+	} else if (r_str_startswith (input, "-m")) {
 		cmd_r2ai_m (core, r_str_trim_head_ro (input + 2));
 	} else {
 		char *err = NULL;
@@ -495,19 +514,32 @@ static void cmd_r2ai(RCore *core, const char *input) {
 	}
 }
 
-static int r_cmd_r2ai_client(void *user, const char *input) {
-	RCore *core = (RCore *) user;
-	static RCoreHelpMessage help_msg_a2f = {
-		"Usage:", "r2ai", "Use POST http://localhost:8000",
-		"r2ai", "-m", "show selected model, list suggested ones, choose one"
-		"r2ai", " [arg]", "send a post request to talk to r2ai and print the output",
-		NULL
-	};
+static int r2ai_init(void *user, const char *input) {
+	RCmd *cmd = (RCmd*)user;
+	RCore *core = cmd->data;
 	r_config_lock (core->config, false);
 	r_config_set (core->config, "r2ai.api", "openapi");
-	// r_config_set (core->config, "r2ai.model", "qwen2.5-4km");
+	r_config_set (core->config, "r2ai.model", ""); // qwen2.5-4km");
+	r_config_set (core->config, "r2ai.prompt", "");
 	r_config_set_i (core->config, "r2ai.stream", true);
 	r_config_lock (core->config, true);
+	return true;
+}
+
+static int r2ai_fini(void *user, const char *input) {
+	RCmd *cmd = (RCmd*)user;
+	RCore *core = cmd->data;
+	r_config_lock (core->config, false);
+	r_config_rm (core->config, "r2ai.api");
+	r_config_rm (core->config, "r2ai.model");
+	r_config_rm (core->config, "r2ai.prompt");
+	r_config_rm (core->config, "r2ai.stream");
+	r_config_lock (core->config, true);
+	return true;
+}
+
+static int r_cmd_r2ai_client(void *user, const char *input) {
+	RCore *core = (RCore *) user;
 	r_sys_setenv ("R2_CURL", "1");
 	if (r_str_startswith (input, "r2ai")) {
 		cmd_r2ai (core, r_str_trim_head_ro (input + 4));
@@ -524,6 +556,8 @@ RCorePlugin r_core_plugin_r2ai_client = {
 		.author = "pancake",
 		.license = "MIT",
 	},
+	.init = r2ai_init,
+	.fini = r2ai_fini,
 	.call = r_cmd_r2ai_client,
 };
 
