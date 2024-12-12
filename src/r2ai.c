@@ -34,7 +34,7 @@ static char *r2ai_openai(const char *content, const char *model, char **error) {
 	PJ *pj = pj_new ();
 	pj_o (pj);
 	pj_ks (pj, "model", model? model: "gpt-4o-mini");
-	pj_kb (pj, "stream", true);
+	pj_kb (pj, "stream", false);
 	pj_kn (pj, "max_completion_tokens", 5128);
 	pj_ka (pj, "messages");
 	pj_o (pj);
@@ -103,7 +103,7 @@ static bool handle_openai_stream_chunk(const char *chunk) {
 			}
 			r_json_free (jres);
 		}
-		free(chunk_copy);
+		free (chunk_copy);
 	}
 	return false;
 }
@@ -208,24 +208,26 @@ static char *r2ai_openapi(const char *content, char **error) {
 }
 
 static bool handle_anthropic_stream_chunk(const char *chunk) {
-	if (!chunk || !*chunk) {
+	if (R_STR_ISEMPTY (chunk)) {
 		return false;
 	}
 
-	if (r_str_startswith(chunk, "event:")) {
+	if (r_str_startswith (chunk, "event:")) {
 		const char *event = chunk + 7;
 		while (*event == ' ') {
 			event++;
 		}
-		return !strcmp(event, "message_stop");
+		return !strcmp (event, "message_stop");
 	}
 	
-	if (!r_str_startswith(chunk, "data:")) {
+	if (!r_str_startswith (chunk, "data:")) {
 		return false;
 	}
 
 	const char *data = chunk + 6;
-	while (*data == ' ') data++;
+	while (*data == ' ') {
+		data++;
+	}
 	if (!*data) {
 		return false;
 	}
@@ -237,7 +239,7 @@ static bool handle_anthropic_stream_chunk(const char *chunk) {
 		return false;
 	}
 
-	const RJson *type = r_json_get(jres, "type");
+	const RJson *type = r_json_get (jres, "type");
 	if (!type || !type->str_value) {
 		r_json_free (jres);
 		free (data_copy);
@@ -293,7 +295,7 @@ static char *r2ai_anthropic_stream(const char *content, const char *model_name, 
 	char *apikey = r_sys_getenv ("ANTHROPIC_API_KEY");
 	if (!apikey) {
 		char *apikey_file = r_file_new ("~/.r2ai.anthropic-key", NULL);
-		apikey = r_file_slurp(apikey_file, NULL);
+		apikey = r_file_slurp (apikey_file, NULL);
 		free(apikey_file);
 		if (!apikey) {
 			if (error) {
@@ -301,7 +303,7 @@ static char *r2ai_anthropic_stream(const char *content, const char *model_name, 
 			}
 			return NULL;
 		}
-		r_str_trim(apikey);
+		r_str_trim (apikey);
 	}
 
 	char *auth_header = r_str_newf ("x-api-key: %s", apikey);
@@ -392,7 +394,7 @@ static char *r2ai_anthropic(const char *content, const char *model_name, char **
 
 	const char *anthropic_url = "https://api.anthropic.com/v1/messages";
 
-	PJ *pj = pj_new();
+	PJ *pj = pj_new ();
 	pj_o(pj);
 	pj_ks(pj, "model", model_name);
 	pj_kn(pj, "max_tokens", 4096);
@@ -565,6 +567,7 @@ RCorePlugin r_core_plugin_r2ai_client = {
 		.name = "r2ai-client",
 		.desc = "remote r2ai client using http post",
 		.author = "pancake",
+		.version = "0.9.2",
 		.license = "MIT",
 	},
 	.init = r2ai_init,
