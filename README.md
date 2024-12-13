@@ -30,7 +30,7 @@ R2AI is structured into four independent components:
   * focus on decompilation
   * talks to r2ai, r2ai-server, openai, anthropic or ollama
 * *r2ai-plugin*
-  * **not recommended because of python versions pain**. Hopefully soon re-written in C.
+  * *not recommended because of python versions pain*. Hopefully soon re-written in C.
   * requires r2lang-python
   * adds r2ai command inside r2
 * r2ai-server
@@ -40,7 +40,7 @@ R2AI is structured into four independent components:
 
 ## Features
 
-* Support Auto mode (see below) to solve tasks using function calling
+* Support Auto mode to solve tasks using function calling
 * Use local and remote language models (llama, ollama, openai, anthropic, ..)
 * Support OpenAI, Anthropic, Bedrock
 * Index large codebases or markdown books using a vector database
@@ -49,10 +49,9 @@ R2AI is structured into four independent components:
 * Define different system-level assistant role
 * Set environment variables to provide context to the language model
 * Live with repl and batch mode from cli or r2 prompt
-* Accessible as an r2lang-python plugin, keeps session state inside radare2
 * Scriptable from python, bash, r2pipe, and javascript (r2papi)
 * Use different models, dynamically adjust query template
-  * Load multiple models and make them talk between them
+* Load multiple models and make them talk between them
 
 ## Installation
 
@@ -201,7 +200,7 @@ $ r2pm -r r2ai-server -l r2ai -m mistral-7b-instruct-v0.2.Q2_K
 
 ## Running decai
 
-Decai is used from `r2`. Get help with `decai -h`:
+Decai is used from `r2` (e.g `r2 ./mybinary`). Get help with `decai -h`:
 
 ```
 [0x00406cac]> decai -h
@@ -282,7 +281,7 @@ void daemonize() {
 ```
 
 
-## r2ai videos
+## Videos
 
 - https://infosec.exchange/@radareorg/111946255058894583
 
