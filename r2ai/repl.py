@@ -440,7 +440,8 @@ def runline(ai, usertext):
                     if input() == 'q':
                         break
         else:
-            n = int(usertext[1:])
+            safe_int = lambda x: int(x) if str(x).isdigit() else 0
+            n = safe_int(usertext[1:])
             if n > 0:
                 items = tab_list()
                 runline(ai, items[n - 1])
