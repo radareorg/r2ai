@@ -1,7 +1,6 @@
-#include <r_core.h>
-#include <r_util/r_json.h>
+#include "r2ai.h"
 
-static char *r2ai_openapi(const char *content, char **error) {
+R_IPI char *r2ai_openapi(const char *content, char **error) {
 	if (error) {
 		*error = NULL;
 	}

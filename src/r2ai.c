@@ -2,12 +2,7 @@
 
 #define R_LOG_ORIGIN "r2ai"
 
-#include <r_core.h>
-#include <r_util/r_json.h>
-#include "r2ai_openai.c"
-#include "r2ai_anthropic.c"
-#include "r2ai_openapi.c"
-#include "r2ai_gemini.c"
+#include "r2ai.h"
 
 static RCoreHelpMessage help_msg_r2ai = {
 	"Usage:", "r2ai", "Use POST http://localhost:8000",

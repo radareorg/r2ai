@@ -1,5 +1,4 @@
-#include <r_core.h>
-#include <r_util/r_json.h>
+#include "r2ai.h"
 
 static bool handle_anthropic_stream_chunk(const char *chunk) {
 	if (R_STR_ISEMPTY (chunk)) {
@@ -40,7 +39,7 @@ static bool handle_anthropic_stream_chunk(const char *chunk) {
 		return false;
 	}
 
-	if (!strcmp(type->str_value, "content_block_delta")) {
+	if (!strcmp (type->str_value, "content_block_delta")) {
 		const RJson *delta = r_json_get (jres, "delta");
 		if (delta) {
 			const RJson *text = r_json_get(delta, "text");
@@ -55,7 +54,7 @@ static bool handle_anthropic_stream_chunk(const char *chunk) {
 	return false;
 }
 
-static char *r2ai_anthropic(const char *content, const char *model_name, char **error) {
+R_IPI char *r2ai_anthropic(const char *content, const char *model_name, char **error) {
 	if (error) {
 		*error = NULL;
 	}
@@ -91,7 +90,7 @@ static char *r2ai_anthropic(const char *content, const char *model_name, char **
 	pj_kn(pj, "max_tokens", 4096);
 	pj_ka(pj, "messages");
 	pj_o(pj);
-	pj_ks(pj, "role", "user"); 
+	pj_ks(pj, "role", "user");
 	pj_ks(pj, "content", content);
 	pj_end(pj);
 	pj_end(pj);
@@ -128,13 +127,13 @@ static char *r2ai_anthropic(const char *content, const char *model_name, char **
 		r_json_free (jres);
 	}
 	free (apikey);
-	free (auth_header); 
+	free (auth_header);
 	free (data);
 	free (res);
 	return res_content;
 }
 
-static char *r2ai_anthropic_stream(const char *content, const char *model_name, char **error) {
+R_IPI char *r2ai_anthropic_stream(const char *content, const char *model_name, char **error) {
 	if (error) {
 		*error = NULL;
 	}

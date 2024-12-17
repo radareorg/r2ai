@@ -1,5 +1,4 @@
-#include <r_core.h>
-#include <r_util/r_json.h>
+#include "r2ai.h"
 
 static bool handle_gemini_stream_chunk(const char *chunk) {
 	if (R_STR_ISEMPTY (chunk)) {
@@ -50,7 +49,7 @@ static bool handle_gemini_stream_chunk(const char *chunk) {
 	return false;
 }
 
-static char *r2ai_gemini(const char *content, const char *model_name, char **error) {
+R_IPI char *r2ai_gemini(const char *content, const char *model_name, char **error) {
 	if (!content) {
 		if (error) {
 			*error = strdup("Content cannot be null");
@@ -86,7 +85,7 @@ static char *r2ai_gemini(const char *content, const char *model_name, char **err
 	if (model_name && r_str_startswith (model_name, "gemini:")) {
 		actual_model = model_name + 7;
 	}
-	char *url = r_str_newf ("%s/%s:generateContent?key=%s", 
+	char *url = r_str_newf ("%s/%s:generateContent?key=%s",
 		base_url,
 		actual_model? actual_model: "gemini-1.5-pro",
 		apikey);
@@ -164,7 +163,7 @@ static char *r2ai_gemini(const char *content, const char *model_name, char **err
 	return res_content;
 }
 
-static char *r2ai_gemini_stream(const char *content, const char *model_name, char **error) {
+R_IPI char *r2ai_gemini_stream(const char *content, const char *model_name, char **error) {
 	if (!content) {
 		if (error) {
 			*error = strdup("Content cannot be null");
@@ -259,4 +258,4 @@ static char *r2ai_gemini_stream(const char *content, const char *model_name, cha
 	free (data);
 	free (res);
 	return NULL;
-} 
+}

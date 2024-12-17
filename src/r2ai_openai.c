@@ -1,7 +1,7 @@
 #include <r_core.h>
 #include <r_util/r_json.h>
 
-static char *r2ai_openai(const char *content, const char *model, char **error) {
+R_IPI char *r2ai_openai(const char *content, const char *model, char **error) {
 	if (error) {
 		*error = NULL;
 	}
@@ -95,7 +95,7 @@ static bool handle_openai_stream_chunk(const char *chunk) {
 	return false;
 }
 
-static char *r2ai_openai_stream(const char *content, const char *model_name, char **error) {
+R_IPI char *r2ai_openai_stream(const char *content, const char *model_name, char **error) {
 	if (error) {
 		*error = NULL;
 	}
