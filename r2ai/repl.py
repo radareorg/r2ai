@@ -326,15 +326,23 @@ def runline(ai, usertext):
         sys.exit(0)
     elif usertext.startswith("-W"):
         if len(usertext) > 2:
-            port = int(usertext[2:])
-            if port > 0:
-                runline2(ai, f"-e http.port={port}")
+            try:
+                port = int(usertext[2:])
+                if port > 0:
+                    runline2(ai, f"-e http.port={port}")
+            except:
+                print("Use -w [port-number]")
+                return
         start_http_server(ai, runline2, True)
     elif usertext.startswith("-w"):
         if len(usertext) > 2:
-            port = int(usertext[2:])
-            if port > 0:
-                runline2(ai, f"-e http.port={port}")
+            try:
+                port = int(usertext[2:])
+                if port > 0:
+                    runline2(ai, f"-e http.port={port}")
+            except:
+                print("Use -w [port-number]")
+                return
         start_http_server(ai, runline2, False)
     elif usertext.startswith("-s"):
         ai.runline2 = runline2
