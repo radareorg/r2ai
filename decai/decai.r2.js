@@ -573,7 +573,7 @@ Response:
             return r2.syscmds(cmd);
             // return r2.cmd(cmd);
         }
-        if (fileData === "" || queryText.startsWith("-")) { // -i
+        if (queryText.startsWith("-")) { // -i
             return "";
         }
         const q = queryText + ":\n" + fileData;
@@ -614,7 +614,8 @@ Response:
                 break;
             case "n": // "-n"
             case "f": // "-f"
-                out = r2.cmd("pdc");
+                out = r2.cmd("axff~$$[3]");
+                // out = r2.cmd("axffq~$$"); // requires r2-5.9.9
                 var considerations = r2.cmd("fd.").trim().split(/\n/).filter(x=>!x.startsWith("secti")).join(",");
                 // console.log(considerations);
                 r2ai("-R");
@@ -679,7 +680,9 @@ Response:
                 }
                 break;
             case "q": // "-q"
-                out = r2ai(args.slice(2).trim());
+		try {
+                out = r2ai(args.slice(2).trim(), null, true);
+		} catch (e) {console.error(e, e.stack);}
                 break;
             case "Q": // "-Q"
                 out = r2ai(args.slice(2).trim(), lastOutput);
