@@ -9,11 +9,9 @@ OBJS+=r2ai_gemini.o
 OBJS+=r2ai_openai.o
 OBJS+=r2ai_openapi.o
 
-all: $(OBJS)
+all: $(OBJS) r2check
 	$(CC) -fPIC -shared -o r2ai.$(EXT) $(OBJS) $(CFLAGS) $(LDFLAGS)
 	cp -f r2ai.$(EXT) $(R2PLUGDIR)
-
-$(OBJS): r2check
 
 r2check:
 	@r2 -qcq --

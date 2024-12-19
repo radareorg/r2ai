@@ -9,6 +9,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -m", "show selected model, list suggested ones, choose one",
 	"r2ai", " -e", "Same as '-e r2ai.'",
 	"r2ai", " -h", "Show this help message",
+	"r2ai", " -d", "Decompile current function",
 	"r2ai", " [arg]", "send a post request to talk to r2ai and print the output",
 	NULL
 };
@@ -65,6 +66,37 @@ static char *r2ai(RCore *core, const char *content, char **error) {
 	return result;
 }
 
+static void cmd_r2ai_d(RCore *core, const char *input) {
+	const bool r2ai_stream = r_config_get_b (core->config, "r2ai.stream");
+	r_config_set_b (core->config, "r2ai.stream", false);
+	const char *prompt = r_config_get (core->config, "r2ai.prompt");
+	char *cmds = strdup (r_config_get (core->config, "r2ai.cmds"));
+	RStrBuf *sb = r_strbuf_new (prompt);
+	RList *cmdslist = r_str_split_list (cmds, ",", -1);
+	RListIter *iter;
+	const char *cmd;
+	r_list_foreach (cmdslist, iter, cmd) {
+		char *dec = r_core_cmd_str (core, cmd);
+		r_strbuf_append (sb, "\n[BEGIN]\n");
+		r_strbuf_append (sb, dec);
+		r_strbuf_append (sb, "[END]\n");
+		free (dec);
+	}
+	char *s = r_strbuf_drain (sb);
+	char *error = NULL;
+	char *res = r2ai (core, s, &error);
+	free (s);
+	if (error) {
+		R_LOG_ERROR (error);
+		free (error);
+	} else {
+		r_cons_printf ("%s\n", res);
+	}
+	free (res);
+	r_list_free (cmdslist);
+	r_config_set_b (core->config, "r2ai.stream", r2ai_stream);
+}
+
 static void cmd_r2ai_m(RCore *core, const char *input) {
 	if (R_STR_ISEMPTY (input)) {
 		r_cons_printf ("%s\n", r_config_get (core->config, "r2ai.model"));
@@ -86,8 +118,12 @@ static void cmd_r2ai(RCore *core, const char *input) {
 		} else {
 			r_core_cmdf (core, "-e r2ai.%s", arg);
 		}
+	} else if (r_str_startswith (input, "-d")) {
+		cmd_r2ai_d (core, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-m")) {
 		cmd_r2ai_m (core, r_str_trim_head_ro (input + 2));
+	} else if (r_str_startswith (input, "-")) {
+		r_core_cmd_help (core, help_msg_r2ai);
 	} else {
 		char *err = NULL;
 		char *res = r2ai (core, input, &err);
@@ -108,8 +144,9 @@ static int r2ai_init(void *user, const char *input) {
 	r_config_lock (core->config, false);
 	r_config_set (core->config, "r2ai.api", "openapi");
 	r_config_set (core->config, "r2ai.model", ""); // qwen2.5-4km");
-	r_config_set (core->config, "r2ai.prompt", "");
-	r_config_set_b (core->config, "r2ai.stream", true);
+	r_config_set (core->config, "r2ai.cmds", "pdc");
+	r_config_set (core->config, "r2ai.prompt", "Rewrite this function and respond ONLY with code, NO explanations, NO markdown, Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and and strings from comments like 'string:'");
+	r_config_set_b (core->config, "r2ai.stream", false);
 	r_config_lock (core->config, true);
 	return true;
 }
@@ -122,6 +159,7 @@ static int r2ai_fini(void *user, const char *input) {
 	r_config_rm (core->config, "r2ai.model");
 	r_config_rm (core->config, "r2ai.prompt");
 	r_config_rm (core->config, "r2ai.stream");
+	r_config_rm (core->config, "r2ai.cmds");
 	r_config_lock (core->config, true);
 	return true;
 }

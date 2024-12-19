@@ -1,5 +1,9 @@
 #include "r2ai.h"
 
+static const char *modelname(const char *model_name) {
+	return model_name? model_name: "claude-3-5-sonnet-20241022";
+}
+
 static bool handle_anthropic_stream_chunk(const char *chunk) {
 	if (R_STR_ISEMPTY (chunk)) {
 		return false;
@@ -85,16 +89,16 @@ R_IPI char *r2ai_anthropic(const char *content, const char *model_name, char **e
 	const char *anthropic_url = "https://api.anthropic.com/v1/messages";
 
 	PJ *pj = pj_new ();
-	pj_o(pj);
-	pj_ks(pj, "model", model_name);
-	pj_kn(pj, "max_tokens", 4096);
-	pj_ka(pj, "messages");
-	pj_o(pj);
-	pj_ks(pj, "role", "user");
-	pj_ks(pj, "content", content);
-	pj_end(pj);
-	pj_end(pj);
-	pj_end(pj);
+	pj_o (pj);
+	pj_ks (pj, "model", modelname (model_name));
+	pj_kn (pj, "max_tokens", 4096);
+	pj_ka (pj, "messages");
+	pj_o (pj);
+	pj_ks (pj, "role", "user");
+	pj_ks (pj, "content", content);
+	pj_end (pj);
+	pj_end (pj);
+	pj_end (pj);
 
 	char *data = pj_drain (pj);
 	int code = 0;
@@ -165,17 +169,17 @@ R_IPI char *r2ai_anthropic_stream(const char *content, const char *model_name, c
 	const char anthropic_url[] = "https://api.anthropic.com/v1/messages";
 
 	PJ *pj = pj_new ();
-	pj_o(pj);
-	pj_ks(pj, "model", model_name? model_name: "claude-3-5-sonnet-20241022");
-	pj_kn(pj, "max_tokens", 4096);
-	pj_kb(pj, "stream", true);
-	pj_ka(pj, "messages");
-	pj_o(pj);
-	pj_ks(pj, "role", "user");
-	pj_ks(pj, "content", content);
-	pj_end(pj);
-	pj_end(pj);
-	pj_end(pj);
+	pj_o (pj);
+	pj_ks (pj, "model", modelname (model_name));
+	pj_kn (pj, "max_tokens", 4096);
+	pj_kb (pj, "stream", true);
+	pj_ka (pj, "messages");
+	pj_o (pj);
+	pj_ks (pj, "role", "user");
+	pj_ks (pj, "content", content);
+	pj_end (pj);
+	pj_end (pj);
+	pj_end (pj);
 
 	char *data = pj_drain(pj);
 	int code = 0;
