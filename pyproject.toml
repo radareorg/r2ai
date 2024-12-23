@@ -13,7 +13,7 @@ dependencies = [
   "rich",
   "r2pipe",
   "inquirer",
-  "llama-cpp-python==0.3.2",
+  "llama-cpp-python==0.3.5",
   "huggingface_hub",
   "appdirs",
   "unidecode",
