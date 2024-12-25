@@ -1,5 +1,7 @@
 #include "r2ai.h"
 
+#if R2_VERSION_NUMBER >= 50909
+
 static const char *modelname(const char *model_name) {
 	return model_name? model_name: "claude-3-5-sonnet-20241022";
 }
@@ -212,3 +214,5 @@ R_IPI char *r2ai_anthropic_stream(const char *content, const char *model_name, c
 
 	return NULL;
 }
+
+#endif
