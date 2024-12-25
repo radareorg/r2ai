@@ -2,7 +2,7 @@
 name: ci
 
 env:
-  R2V: 5.9.0
+  R2V: 5.9.8
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
 
 jobs:
   build-linux:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
     - name: Installing radare2
@@ -20,6 +20,8 @@ jobs:
         wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2-dev_${R2V}_amd64.deb"
         sudo dpkg -i "radare2_${R2V}_amd64.deb"
         sudo dpkg -i "radare2-dev_${R2V}_amd64.deb"
+    - name: Building the C rewrite
+      run: make -C src
     - name: Setting up the Python virtual environment
       run: |
         python -m venv venv
