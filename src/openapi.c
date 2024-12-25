@@ -4,7 +4,6 @@ R_IPI char *r2ai_openapi(const char *content, char **error) {
 	if (error) {
 		*error = NULL;
 	}
-	const char *headers[] = { "Content-Type: application/json", NULL };
 	// const char *openapi_url = "http://127.0.0.1:8080/api/generate";
 	const char *openapi_url = "http://127.0.0.1:8080/completion";
 	PJ *pj = pj_new ();
@@ -14,7 +13,12 @@ R_IPI char *r2ai_openapi(const char *content, char **error) {
 	char *data = pj_drain (pj);
 	int code = 0;
 	int rlen = 0;
+#if R2_VERSION_NUMBER >= 50909
+	const char *headers[] = { "Content-Type: application/json", NULL };
 	char *res = r_socket_http_post (openapi_url, headers, data, &code, NULL);
+#else
+	char *res = r_socket_http_post (openapi_url, data, &code, NULL);
+#endif
 	if (!res || code != 200) {
 		R_LOG_ERROR ("Oops %d", code);
 		return NULL;

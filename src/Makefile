@@ -5,10 +5,10 @@ R2PLUGDIR=$(shell r2 -H R2_USER_PLUGINS)
 CFLAGS+=-I. -fPIC
 
 OBJS=r2ai.o
-OBJS+=r2ai_anthropic.o
-OBJS+=r2ai_gemini.o
-OBJS+=r2ai_openai.o
-OBJS+=r2ai_openapi.o
+OBJS+=anthropic.o
+OBJS+=gemini.o
+OBJS+=openai.o
+OBJS+=openapi.o
 
 all: $(OBJS) r2check
 	$(CC) -fPIC -shared -o r2ai.$(EXT) $(OBJS) $(CFLAGS) $(LDFLAGS)

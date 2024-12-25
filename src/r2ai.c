@@ -44,12 +44,13 @@ static char *r2ai(RCore *core, const char *content, char **error) {
 	if (R_STR_ISEMPTY (model)) {
 		R_FREE (model);
 	}
-	if (!strcmp (provider, "openai")) {
+	if (!strcmp (provider, "openapi")) {
+		result = r2ai_openapi (content, error);
+#if R2_VERSION_NUMBER >= 50909
+	} else if (!strcmp (provider, "openai")) {
 		result = stream
 			? r2ai_openai_stream (content, model, error)
 			: r2ai_openai (content, model, error);
-	} else if (!strcmp (provider, "openapi")) {
-		result = r2ai_openapi (content, error);
 	} else if (!strcmp (provider, "anthropic") || !strcmp (provider, "claude")) {
 		result = stream
 			? r2ai_anthropic_stream (content, model, error)
@@ -59,7 +60,11 @@ static char *r2ai(RCore *core, const char *content, char **error) {
 			? r2ai_gemini_stream (content, model, error)
 			: r2ai_gemini (content, model, error);
 	} else {
-		*error = strdup ("Unsupported provider. Use openai, openapi, anthropic");
+		*error = strdup ("Unsupported provider. Use openai, gemini, openapi, anthropic");
+#else
+	} else {
+		*error = strdup ("Unsupported provider. Use openapi");
+#endif
 	}
 	
 	free (provider);

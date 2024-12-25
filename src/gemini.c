@@ -1,5 +1,7 @@
 #include "r2ai.h"
 
+#if R2_VERSION_NUMBER >= 50909
+
 static bool handle_gemini_stream_chunk(const char *chunk) {
 	if (R_STR_ISEMPTY (chunk)) {
 		return false;
@@ -259,3 +261,4 @@ R_IPI char *r2ai_gemini_stream(const char *content, const char *model_name, char
 	free (res);
 	return NULL;
 }
+#endif
