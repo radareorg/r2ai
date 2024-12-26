@@ -229,6 +229,8 @@ def runline(ai, usertext):
         list_downloaded_models()
     elif usertext.startswith("-m-"):
         delete_downloaded_model(usertext[3:])
+    elif usertext.startswith("r2ai"):
+        print("ERROR: Cant run r2ai from r2ai, you must install the C plugin and run this command from radare2")
     elif usertext.startswith("-m"):
         words = usertext.split(" ")
         if len(words) > 1:
