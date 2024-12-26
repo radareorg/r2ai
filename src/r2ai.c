@@ -6,6 +6,7 @@
 
 static RCoreHelpMessage help_msg_r2ai = {
 	"Usage:", "r2ai", "Use POST http://localhost:8000",
+	"r2ai", " -M", "show suggested models for each api",
 	"r2ai", " -m", "show selected model, list suggested ones, choose one",
 	"r2ai", " -e", "Same as '-e r2ai.'",
 	"r2ai", " -h", "Show this help message",
@@ -49,7 +50,7 @@ static char *r2ai(RCore *core, const char *content, char **error) {
 	if (!strcmp (provider, "openapi")) {
 		result = r2ai_openapi (content, error);
 	} else if (!strcmp (provider, "ollama")) {
-		result = r2ai_ollama (content, model, error);
+		result = r2ai_ollama (core, content, model, error);
 #if R2_VERSION_NUMBER >= 50909
 	} else if (!strcmp (provider, "openai")) {
 		result = stream
@@ -106,6 +107,22 @@ static void cmd_r2ai_d(RCore *core, const char *input) {
 	r_config_set_b (core->config, "r2ai.stream", r2ai_stream);
 }
 
+static void cmd_r2ai_M(RCore *core) {
+	r_cons_printf ("r2ai -e api=anthropic\n");
+	r_cons_printf ("-m claude-3-5-sonnet-20241022\n");
+	r_cons_printf ("-m claude-3-haiku-20240307\n");
+	r_cons_printf ("r2ai -e api=gemini\n");
+	r_cons_printf ("-m gemini-1.5-flash\n");
+	r_cons_printf ("-m gemini-1.0-pro\n");
+	r_cons_printf ("r2ai -e api=openai\n");
+	r_cons_printf ("-m gpt-4\n");
+	r_cons_printf ("-m gpt-3.5-turbo\n");
+	r_cons_printf ("r2ai -e api=ollama\n");
+	r_cons_printf ("-m benevolentjoker/nsfwvanessa\n");
+	r_cons_printf ("-m llama3.2:1b\n");
+	r_cons_printf ("-m qwen2.5-coder:3b\n");
+}
+
 static void cmd_r2ai_m(RCore *core, const char *input) {
 	if (R_STR_ISEMPTY (input)) {
 		r_cons_printf ("%s\n", r_config_get (core->config, "r2ai.model"));
@@ -129,6 +146,8 @@ static void cmd_r2ai(RCore *core, const char *input) {
 		}
 	} else if (r_str_startswith (input, "-d")) {
 		cmd_r2ai_d (core, r_str_trim_head_ro (input + 2));
+	} else if (r_str_startswith (input, "-M")) {
+		cmd_r2ai_M (core);
 	} else if (r_str_startswith (input, "-m")) {
 		cmd_r2ai_m (core, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-")) {
@@ -151,9 +170,10 @@ static int r2ai_init(void *user, const char *input) {
 	RCmd *cmd = (RCmd*)user;
 	RCore *core = cmd->data;
 	r_config_lock (core->config, false);
-	r_config_set (core->config, "r2ai.api", "openapi");
-	r_config_set (core->config, "r2ai.model", ""); // qwen2.5-4km");
+	r_config_set (core->config, "r2ai.api", "ollama");
+	r_config_set (core->config, "r2ai.model", "qwen2.5-coder:3b"); // qwen2.5-4km");
 	r_config_set (core->config, "r2ai.cmds", "pdc");
+	r_config_set (core->config, "r2ai.system", "Your name is r2clippy");
 	r_config_set (core->config, "r2ai.prompt", "Rewrite this function and respond ONLY with code, NO explanations, NO markdown, Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and and strings from comments like 'string:'");
 	r_config_set_b (core->config, "r2ai.stream", false);
 	r_config_lock (core->config, true);
