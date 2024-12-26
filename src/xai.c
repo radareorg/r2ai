@@ -92,16 +92,21 @@ R_IPI char *r2ai_xai(RCore *core, const char *content, char **error) {
 
 	PJ *pj = pj_new ();
 	pj_o (pj);
-	pj_ka (pj, "contents");
-	pj_o (pj);
-	pj_ks (pj, "role", "user");
-	pj_ka (pj, "parts");
-	pj_o (pj);
-	pj_ks (pj, "text", content);
-	pj_end (pj);
-	pj_end (pj);
-	pj_end (pj);
-	pj_end (pj);
+		pj_ka (pj, "contents");
+			{
+				const char *s = r_config_get (core->config, "r2ai.system");
+				if (R_STR_ISNOTEMPTY (s)) {
+					pj_o (pj);
+					pj_ks (pj, "role", "system");
+					pj_ks (pj, "content", s);
+					pj_end (pj);
+				}
+			}
+			pj_o (pj);
+				pj_ks (pj, "role", "user");
+				pj_ks (pj, "content", content);
+			pj_end (pj);
+		pj_end (pj);
 	pj_end (pj);
 
 	char *data = pj_drain (pj);
