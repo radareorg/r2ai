@@ -27,18 +27,20 @@ static char *r2ai(RCore *core, const char *content, char **error) {
 #endif
 
 	char *model = strdup (r_config_get (core->config, "r2ai.model"));
-	char *provider = strdup (model);
-	char *colon = strchr (provider, ':');
-	if (colon) {
-		*colon = 0;
-		free (model);
-		model = strdup (colon + 1);
-	} else {
+	char *provider = strdup (r_config_get (core->config, "r2ai.api"));
+	if (!strstr (provider, "ollama")) {
 		free (provider);
-		provider = strdup (r_config_get (core->config, "r2ai.api"));
+		provider = strdup (model);
+		char *colon = strchr (provider, ':');
+		if (colon) {
+			*colon = 0;
+			free (model);
+			model = strdup (colon + 1);
+		}
 	}
 	R_LOG_DEBUG ("Model: %s", model);
 	R_LOG_DEBUG ("Provider: %s", provider);
+	// free (model);
 	bool stream = r_config_get_b (core->config, "r2ai.stream");
 	char *result = NULL;
 	if (R_STR_ISEMPTY (model)) {
@@ -46,6 +48,8 @@ static char *r2ai(RCore *core, const char *content, char **error) {
 	}
 	if (!strcmp (provider, "openapi")) {
 		result = r2ai_openapi (content, error);
+	} else if (!strcmp (provider, "ollama")) {
+		result = r2ai_ollama (content, model, error);
 #if R2_VERSION_NUMBER >= 50909
 	} else if (!strcmp (provider, "openai")) {
 		result = stream
@@ -60,10 +64,10 @@ static char *r2ai(RCore *core, const char *content, char **error) {
 			? r2ai_gemini_stream (content, model, error)
 			: r2ai_gemini (content, model, error);
 	} else {
-		*error = strdup ("Unsupported provider. Use openai, gemini, openapi, anthropic");
+		*error = strdup ("Unsupported provider. Use openapi, ollama, openai, gemini, anthropic");
 #else
 	} else {
-		*error = strdup ("Unsupported provider. Use openapi");
+		*error = strdup ("Unsupported provider. Use openapi, ollama");
 #endif
 	}
 	

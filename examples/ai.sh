@@ -40,9 +40,9 @@ openapi() {
 	INPUT=`(echo "$1" ; cat) | jq -R -s . | sed 's/\*/\\*/g'`
 	PAYLOAD="{ \"prompt\": ${INPUT} }"
 	echo "------------8<------------"
-	curl -s "http://${OPENAPI_HOST}:${OPENAPI_PORT}/api/generate" \
+	curl -s "http://${OPENAPI_HOST}:${OPENAPI_PORT}/completion" \
 		-H "Content-Type: application/json" \
-		-d "`printf '%s\n' \"${PAYLOAD}\"`" | jq -r .response
+		-d "`printf '%s\n' \"${PAYLOAD}\"`" | jq -r .content
 	echo "------------8<------------"
 }
 

@@ -1,14 +1,23 @@
 #include "r2ai.h"
 
+static char *prompt_for_llama(const char* s) {
+	const char *sysprompt = "<s><<SYS>>You are a helpful assistant named r2clippy. Respond few words<</SYS>></s>";
+	return r_str_newf ("%s<s>[INST]%s[/INST]", sysprompt, s);
+}
+
 R_IPI char *r2ai_openapi(const char *content, char **error) {
 	if (error) {
 		*error = NULL;
 	}
 	// const char *openapi_url = "http://127.0.0.1:8080/api/generate";
-	const char *openapi_url = "http://127.0.0.1:8080/completion";
+	// const char *openapi_url = "http://127.0.0.1:8080/completion";
+	const char *openapi_url = "http://127.0.0.1:11434/completion";
 	PJ *pj = pj_new ();
 	pj_o (pj);
-	pj_ks (pj, "prompt", content);
+	char *msg = prompt_for_llama (content);
+	pj_ks (pj, "prompt", msg);
+	// pj_kn (pj, "n_predict", 128);
+	free (msg);
 	pj_end (pj);
 	char *data = pj_drain (pj);
 	int code = 0;

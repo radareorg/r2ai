@@ -362,7 +362,7 @@ Response:
     function r2aiOpenAPI(msg, hideprompt) {
         const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
         const payload = JSON.stringify({ "prompt": query });
-        const curlcmd = `curl -s ${decaiHost}:${decaiPort}/completion
+        const curlcmd = `curl -s ${decaiHost}:${decaiPort}/api/generate
           -H "Content-Type: application/json"
           -d '${payload}' #`.replace(/\n/g, "");
         if (decaiDebug) {
