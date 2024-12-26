@@ -11,6 +11,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -e", "Same as '-e r2ai.'",
 	"r2ai", " -h", "Show this help message",
 	"r2ai", " -d", "Decompile current function",
+	"r2ai", " -dr", "Decompile current function (+ 1 level of recursivity)",
 	"r2ai", " [arg]", "send a post request to talk to r2ai and print the output",
 	NULL
 };
@@ -76,7 +77,7 @@ static char *r2ai(RCore *core, const char *content, char **error) {
 	return result;
 }
 
-static void cmd_r2ai_d(RCore *core, const char *input) {
+static void cmd_r2ai_d(RCore *core, const char *input, const bool recursive) {
 	const bool r2ai_stream = r_config_get_b (core->config, "r2ai.stream");
 	r_config_set_b (core->config, "r2ai.stream", false);
 	const char *prompt = r_config_get (core->config, "r2ai.prompt");
@@ -85,13 +86,35 @@ static void cmd_r2ai_d(RCore *core, const char *input) {
 	RList *cmdslist = r_str_split_list (cmds, ",", -1);
 	RListIter *iter;
 	const char *cmd;
+	RList *refslist = NULL;
+	if (recursive) {
+		char *refs = r_core_cmd_str (core, "axff~^C[2]~$$");
+		refslist = r_str_split_list (refs, ",", -1);
+		free (refs);
+	}
 	r_list_foreach (cmdslist, iter, cmd) {
 		char *dec = r_core_cmd_str (core, cmd);
 		r_strbuf_append (sb, "\n[BEGIN]\n");
 		r_strbuf_append (sb, dec);
 		r_strbuf_append (sb, "[END]\n");
 		free (dec);
+		if (recursive) {
+			RListIter *iter2;
+			char *at;
+			r_list_foreach (refslist, iter2, at) {
+				ut64 n = r_num_get (core->num, at);
+				if (core->num->nc.errors) {
+					continue;
+				}
+				char *dec = r_core_cmd_str_at (core, n, cmd);
+				r_strbuf_append (sb, "\n[BEGIN]\n");
+				r_strbuf_append (sb, dec);
+				r_strbuf_append (sb, "[END]\n");
+				free (dec);
+			}
+		}
 	}
+	r_list_free (refslist);
 	char *s = r_strbuf_drain (sb);
 	char *error = NULL;
 	char *res = r2ai (core, s, &error);
@@ -145,7 +168,9 @@ static void cmd_r2ai(RCore *core, const char *input) {
 			r_core_cmdf (core, "-e r2ai.%s", arg);
 		}
 	} else if (r_str_startswith (input, "-d")) {
-		cmd_r2ai_d (core, r_str_trim_head_ro (input + 2));
+		cmd_r2ai_d (core, r_str_trim_head_ro (input + 2), false);
+	} else if (r_str_startswith (input, "-dr")) {
+		cmd_r2ai_d (core, r_str_trim_head_ro (input + 2), true);
 	} else if (r_str_startswith (input, "-M")) {
 		cmd_r2ai_M (core);
 	} else if (r_str_startswith (input, "-m")) {
