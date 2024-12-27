@@ -205,6 +205,7 @@ static void cmd_r2ai_M(RCore *core) {
 	r_cons_printf ("r2ai -e api=ollama\n");
 	r_cons_printf ("-m llama3.2:1b\n");
 	r_cons_printf ("-m llama3\n");
+	r_cons_printf ("-m codegeex4\n");
 	r_cons_printf ("-m qwen2.5-coder:3b\n");
 	r_cons_printf ("-m benevolentjoker/nsfwvanessa\n");
 }
