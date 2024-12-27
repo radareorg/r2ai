@@ -3,7 +3,7 @@
 
 #if R2_VERSION_NUMBER >= 50909
 
-R_IPI char *r2ai_openai(const char *content, const char *model, char **error) {
+R_IPI char *r2ai_openai(RCore *core, const char *content, const char *model, char **error) {
 	if (error) {
 		*error = NULL;
 	}
@@ -26,10 +26,21 @@ R_IPI char *r2ai_openai(const char *content, const char *model, char **error) {
 	pj_kb (pj, "stream", false);
 	pj_kn (pj, "max_completion_tokens", 5128);
 	pj_ka (pj, "messages");
-	pj_o (pj);
-	pj_ks (pj, "role", "user");
-	pj_ks (pj, "content", content);
-	pj_end (pj);
+	{
+		const char *sysprompt = r_config_get (core->config, "r2ai.system");
+		if (R_STR_ISNOTEMPTY (sysprompt)) {
+			pj_o (pj);
+			pj_ks (pj, "role", "system");
+			pj_ks (pj, "content", sysprompt);
+			pj_end (pj);
+		}
+	}
+	{
+		pj_o (pj);
+		pj_ks (pj, "role", "user");
+		pj_ks (pj, "content", content);
+		pj_end (pj);
+	}
 	pj_end (pj);
 	pj_end (pj);
 	char *data = pj_drain (pj);
@@ -97,7 +108,7 @@ static bool handle_openai_stream_chunk(const char *chunk) {
 	return false;
 }
 
-R_IPI char *r2ai_openai_stream(const char *content, const char *model_name, char **error) {
+R_IPI char *r2ai_openai_stream(RCore *core, const char *content, const char *model_name, char **error) {
 	if (error) {
 		*error = NULL;
 	}
@@ -124,10 +135,21 @@ R_IPI char *r2ai_openai_stream(const char *content, const char *model_name, char
 	pj_kb (pj, "stream", true);
 	pj_kn (pj, "max_completion_tokens", 5128);
 	pj_ka (pj, "messages");
-	pj_o (pj);
-	pj_ks (pj, "role", "user");
-	pj_ks (pj, "content", content);
-	pj_end (pj);
+	{
+		const char *sysprompt = r_config_get (core->config, "r2ai.system");
+		if (R_STR_ISNOTEMPTY (sysprompt)) {
+			pj_o (pj);
+			pj_ks (pj, "role", "system");
+			pj_ks (pj, "content", sysprompt);
+			pj_end (pj);
+		}
+	}
+	{
+		pj_o (pj);
+		pj_ks (pj, "role", "user");
+		pj_ks (pj, "content", content);
+		pj_end (pj);
+	}
 	pj_end (pj);
 	pj_end (pj);
 	char *data = pj_drain (pj);

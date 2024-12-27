@@ -58,8 +58,8 @@ static char *r2ai(RCore *core, const char *content, char **error) {
 #if R2_VERSION_NUMBER >= 50909
 	} else if (!strcmp (provider, "openai")) {
 		result = stream
-			? r2ai_openai_stream (content, model, error)
-			: r2ai_openai (content, model, error);
+			? r2ai_openai_stream (core, content, model, error)
+			: r2ai_openai (core, content, model, error);
 	} else if (!strcmp (provider, "xai")) {
 		result = stream
 			? r2ai_xai_stream (core, content, error)
