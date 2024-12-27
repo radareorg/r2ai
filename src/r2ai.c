@@ -11,6 +11,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -e", "Same as '-e r2ai.'",
 	"r2ai", " -h", "Show this help message",
 	"r2ai", " -m", "show selected model, list suggested ones, choose one",
+	"r2ai", " -n", "suggest a better name for the current function",
 	"r2ai", " -M", "show suggested models for each api",
 	"r2ai", " -x", "explain current function",
 	"r2ai", " [arg]", "send a post request to talk to r2ai and print the output",
@@ -156,6 +157,22 @@ static void cmd_r2ai_x(RCore *core) {
 	free (explain_prompt);
 }
 
+static void cmd_r2ai_n(RCore *core) {
+	char *s = r_core_cmd_str (core, "r2ai -d");
+	char *q = r_str_newf ("output in plain text, no markdown. give me a better name for this function. the output must be: 'afn NEWNAME'. do not include the function code, only the afn line. consider: \n```c\n%s\n```", s);
+	char *error = NULL;
+	char *res = r2ai (core, q, &error);
+	free (s);
+	if (error) {
+		R_LOG_ERROR (error);
+		free (error);
+	} else {
+		r_cons_printf ("%s\n", res);
+	}
+	free (res);
+	free (q);
+}
+
 static void cmd_r2ai_M(RCore *core) {
 	r_cons_printf ("r2ai -e api=anthropic\n");
 	r_cons_printf ("-m claude-3-5-sonnet-20241022\n");
@@ -200,6 +217,8 @@ static void cmd_r2ai(RCore *core, const char *input) {
 		cmd_r2ai_d (core, r_str_trim_head_ro (input + 2), true);
 	} else if (r_str_startswith (input, "-x")) {
 		cmd_r2ai_x (core);
+	} else if (r_str_startswith (input, "-n")) {
+		cmd_r2ai_n (core);
 	} else if (r_str_startswith (input, "-M")) {
 		cmd_r2ai_M (core);
 	} else if (r_str_startswith (input, "-m")) {
