@@ -2,13 +2,17 @@
 OPENAPI_HOST=localhost
 OPENAPI_PORT=8080
 
+OLLAMA_HOST=localhost
+OLLAMA_PORT=11434
+OLLAMA_MODEL="llama3.2:1b"
+
 GEMINI_KEY=""
-GEMINI_MODEL="gpt-4"
+GEMINI_MODEL="gemini-1.5-flash"
 if [ -f ~/.r2ai.gemini-key ]; then
 	GEMINI_KEY=$(cat ~/.r2ai.gemini-key)
 fi
 OPENAI_KEY=""
-OPENAI_MODEL="gpt-4"
+OPENAI_MODEL="gpt-4o"
 if [ -f ~/.r2ai.openai-key ]; then
 	OPENAI_KEY=$(cat ~/.r2ai.openai-key)
 fi
@@ -33,6 +37,16 @@ claude() {
 		-H "anthropic-version: 2023-06-01" \
 		-H "x-api-key: ${CLAUDE_KEY}" \
 		-d "`printf '%s\n' \"${PAYLOAD}\"`" | jq -r '.content[0].text'
+	echo "------------8<------------"
+}
+
+ollama() {
+	INPUT=`(echo "$1" ; cat) | jq -R -s . | sed 's/\*/\\*/g'`
+	PAYLOAD="{ \"stream\":false, \"model\":\"${OLLAMA_MODEL}\", \"messages\": [{\"role\":\"user\", \"content\": ${INPUT} }]}"
+	echo "------------8<------------"
+	curl -s "http://${OLLAMA_HOST}:${OLLAMA_PORT}/api/chat" \
+		-H "Content-Type: application/json" \
+		-d "`printf '%s\n' \"${PAYLOAD}\"`" | jq -r .message.content
 	echo "------------8<------------"
 }
 
@@ -82,6 +96,7 @@ case "${SHAI_API}" in
 gemini|google) gemini "$@" ; ;;
 openapi) openapi "$@" ; ;;
 claude) claude "$@" ; ;;
+ollama) ollama "$@" ; ;;
 openai) openai "$@" ; ;;
 *) claude "$@" ; ;;
 esac
