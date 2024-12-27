@@ -230,7 +230,7 @@ static int r2ai_init(void *user, const char *input) {
 	r_config_set (core->config, "r2ai.lang", "C");
 	r_config_set (core->config, "r2ai.hlang", "english");
 	r_config_set (core->config, "r2ai.system", "Your name is r2clippy");
-	r_config_set (core->config, "r2ai.prompt", "Rewrite this function and respond ONLY with code, NO explanations, NO markdown, Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and and strings from comments like 'string:'");
+	r_config_set (core->config, "r2ai.prompt", "Rewrite this function and respond ONLY with code, replace goto/labels with if/else/for, use NO explanations, NO markdown, Simplify as much as possible, use better variable names, take function arguments and and strings from comments like 'string:'");
 	r_config_set_b (core->config, "r2ai.stream", false);
 	r_config_lock (core->config, true);
 	return true;
