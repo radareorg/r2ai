@@ -303,6 +303,27 @@ Response:
         return "error invalid response";
     }
 
+    function r2aiDeepseek(msg, hideprompt) {
+       const deepseekKey = r2.cmd("'cat ~/.r2ai.deepseek-key").trim()
+       if (deepseekKey === '') {
+           return "Cannot read ~/.r2ai.deepseek-key";
+       }
+       const deepseekModel = (decaiModel.length > 0)? decaiModel: "deepseek-coder";
+       const query = hideprompt? msg: decprompt + ", Output in " + decaiLanguage + " language\n" + msg;
+       const payload = JSON.stringify({model:deepseekModel, messages: [{role:"user", content: query}]});
+       const curlcmd = `curl -X POST "https://api.deepseek.com/v1/chat" -H "Authorization: Bearer ${deepseekKey}" -H "Content-Type: application/json" -d '${payload}'`; // .replace(/\n/g, "");
+        if (decaiDebug) {
+            console.log(curlcmd);
+        }
+        const res = r2.syscmds(curlcmd);
+        try {
+            return JSON.parse(res).choices[0].message.content;
+        } catch(e) {
+            console.error(e);
+            console.log(res);
+        }
+        return "error invalid response";
+    }
     function r2aiGemini(msg, hideprompt) {
        const geminiKey = r2.cmd("'cat ~/.r2ai.gemini-key").trim()
        if (geminiKey === '') {
@@ -579,6 +600,9 @@ Response:
         const q = queryText + ":\n" + fileData;
         if (decaiApi === "anthropic" || decaiApi === "claude") {
             return r2aiAnthropic(q, hideprompt);
+        }
+        if (decaiApi === "deepseek") {
+            return r2aiDeepseek(q, hideprompt);
         }
         if (decaiApi === "google" || decaiApi === "gemini") {
             return r2aiGemini(q, hideprompt);
