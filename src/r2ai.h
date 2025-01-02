@@ -3,6 +3,7 @@
 
 #include <r_core.h>
 #include <r_util/r_json.h>
+#include "r_vdb.h"
 
 // anthropic
 R_IPI char *r2ai_anthropic(const char *content, const char *model_name, char **error);

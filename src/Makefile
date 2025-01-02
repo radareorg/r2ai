@@ -6,6 +6,7 @@ CFLAGS+=-I. -fPIC
 CFLAGS+=-g
 
 OBJS=r2ai.o
+OBJS+=vdb.o
 OBJS+=anthropic.o
 OBJS+=gemini.o
 OBJS+=openai.o
@@ -16,6 +17,8 @@ OBJS+=xai.o
 all: $(OBJS) r2check
 	$(CC) -fPIC -shared -o r2ai.$(EXT) $(OBJS) $(CFLAGS) $(LDFLAGS)
 	$(MAKE) user-install
+
+vdb.o: vdb_embed.inc.c
 
 install user-install:
 	mkdir -p $(R2PLUGDIR)

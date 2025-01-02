@@ -1,4 +1,4 @@
-/* radare - Copyright 2023-2024 pancake */
+/* r2ai - Copyright 2023-2024 pancake */
 
 #define R_LOG_ORIGIN "r2ai"
 
@@ -13,6 +13,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -m", "show selected model, list suggested ones, choose one",
 	"r2ai", " -M", "show suggested models for each api",
 	"r2ai", " -n", "suggest a better name for the current function",
+	"r2ai", " -R ([text])", "refresh and query embeddings (see r2ai.data)",
 	"r2ai", " -x", "explain current function",
 	"r2ai", " -v", "suggest better variables names and types",
 	"r2ai", " [arg]", "send a post request to talk to r2ai and print the output",
@@ -158,6 +159,72 @@ static void cmd_r2ai_x(RCore *core) {
 	free (explain_prompt);
 }
 
+static R_TH_LOCAL RVDB *db = NULL;
+
+static void refresh_embeddings(RCore *core) {
+	// refresh embeddings database
+	if (db) {
+		r_vdb_free (db);
+	}
+	db = r_vdb_new (4);
+	RListIter *iter, *iter2;
+	char *line;
+	char *file;
+	// enumerate .txt files in directory
+	const char *path = r_config_get (core->config, "r2ai.data.path");
+	RList *files = r_sys_dir (path);
+	r_list_foreach (files, iter, file) {
+		if (!r_str_endswith (file, ".txt")) {
+			continue;
+		}
+		R_LOG_INFO ("Index %s", file);
+		char *filepath = r_file_new (path, file, NULL);
+		char *text = r_file_slurp (filepath, NULL);
+		if (text) {
+			RList *lines = r_str_split_list (text, "\n", -1);
+			r_list_foreach (lines, iter2, line) {
+				r_vdb_insert (db, line);
+				R_LOG_INFO ("Insert %s", line);
+			}
+			r_list_free (lines);
+		}
+		free (filepath);
+	}
+	r_list_free (files);
+}
+
+static void cmd_r2ai_R(RCore *core, const char *q) {
+	if (R_STR_ISEMPTY (q)) {
+		if (db) {
+			r_vdb_free (db);
+			db = NULL;
+		}
+		refresh_embeddings (core);
+	} else {
+		if (!db) {
+			refresh_embeddings (core);
+		}
+		const int K = r_config_get_i (core->config, "r2ai.data.nth");
+		RVDBResultSet *rs = r_vdb_query (db, q, K);
+
+		if (rs) {
+			printf("Query: \"%s\"\n", q);
+			printf("Found up to %d neighbors (actual found: %d).\n", K, rs->size);
+			for (int i = 0; i < rs->size; i++) {
+				RVDBResult *r = &rs->results[i];
+				KDNode *n = r->node;
+				float dist_sq = r->dist_sq;
+				float cos_sim = 1.0f - (dist_sq * 0.5f); // for normalized vectors
+				printf("%2d) dist_sq=%.4f cos_sim=%.4f text=\"%s\"\n",
+						i + 1, dist_sq, cos_sim, (n->text ? n->text : "(null)"));
+			}
+			r_vdb_result_free (rs);
+		} else {
+			printf("No results found (DB empty or error).\n");
+		}
+	}
+}
+
 static void cmd_r2ai_n(RCore *core) {
 	char *s = r_core_cmd_str (core, "r2ai -d");
 	char *q = r_str_newf ("output only the radare2 commands in plain text without markdown. Give me a better name for this function. the output must be: 'afn NEWNAME'. do not include the function code, only the afn line. consider: \n```c\n%s\n```", s);
@@ -241,6 +308,8 @@ static void cmd_r2ai(RCore *core, const char *input) {
 		cmd_r2ai_v (core);
 	} else if (r_str_startswith (input, "-n")) {
 		cmd_r2ai_n (core);
+	} else if (r_str_startswith (input, "-R")) {
+		cmd_r2ai_R (core, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-M")) {
 		cmd_r2ai_M (core);
 	} else if (r_str_startswith (input, "-m")) {
@@ -269,6 +338,9 @@ static int r2ai_init(void *user, const char *input) {
 	r_config_set (core->config, "r2ai.model", ""); // "qwen2.5-coder:3b"); // qwen2.5-4km");
 	r_config_set (core->config, "r2ai.cmds", "pdc");
 	r_config_set (core->config, "r2ai.lang", "C");
+	r_config_set_b (core->config, "r2ai.data", "false");
+	r_config_set (core->config, "r2ai.data.path", "/tmp/embeds");
+	r_config_set_i (core->config, "r2ai.data.nth", 10);
 	r_config_set (core->config, "r2ai.hlang", "english");
 	r_config_set (core->config, "r2ai.system", "Your name is r2clippy");
 	r_config_set (core->config, "r2ai.prompt", "Rewrite this function and respond ONLY with code, replace goto/labels with if/else/for, use NO explanations, NO markdown, Simplify as much as possible, use better variable names, take function arguments and and strings from comments like 'string:'");
@@ -287,6 +359,9 @@ static int r2ai_fini(void *user, const char *input) {
 	r_config_rm (core->config, "r2ai.prompt");
 	r_config_rm (core->config, "r2ai.stream");
 	r_config_rm (core->config, "r2ai.system");
+	r_config_rm (core->config, "r2ai.data");
+	r_config_rm (core->config, "r2ai.data.path");
+	r_config_rm (core->config, "r2ai.data.nth");
 	r_config_lock (core->config, true);
 	return true;
 }
