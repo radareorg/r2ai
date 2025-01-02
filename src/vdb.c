@@ -306,7 +306,7 @@ RVDBResultSet *r_vdb_query(RVDB *db, const char *text, int k) {
 	float *query_embedding = (float *)calloc (db->dimension, sizeof (float));
 	compute_embedding (text, query_embedding, db->dimension, DO_NORM);
 	vector_norm (&(Vector){.data=query_embedding, .dim=db->dimension});
-#if 1
+#if 0
 	printf ("%f %f %f %f\n",
 			query_embedding[0],
 			query_embedding[1],

@@ -3,6 +3,40 @@
 #define R_LOG_ORIGIN "r2ai"
 
 #include "r2ai.h"
+static R_TH_LOCAL RVDB *db = NULL;
+
+static void refresh_embeddings(RCore *core) {
+	// refresh embeddings database
+	if (db) {
+		r_vdb_free (db);
+	}
+	db = r_vdb_new (4);
+	RListIter *iter, *iter2;
+	char *line;
+	char *file;
+	// enumerate .txt files in directory
+	const char *path = r_config_get (core->config, "r2ai.data.path");
+	RList *files = r_sys_dir (path);
+	r_list_foreach (files, iter, file) {
+		if (!r_str_endswith (file, ".txt")) {
+			continue;
+		}
+		R_LOG_DEBUG ("Index %s", file);
+		char *filepath = r_file_new (path, file, NULL);
+		char *text = r_file_slurp (filepath, NULL);
+		if (text) {
+			RList *lines = r_str_split_list (text, "\n", -1);
+			r_list_foreach (lines, iter2, line) {
+				r_vdb_insert (db, line);
+				R_LOG_DEBUG ("Insert %s", line);
+			}
+			r_list_free (lines);
+		}
+		free (filepath);
+	}
+	r_list_free (files);
+}
+
 
 static RCoreHelpMessage help_msg_r2ai = {
 	"Usage:", "r2ai", " [-args] [...]",
@@ -20,8 +54,8 @@ static RCoreHelpMessage help_msg_r2ai = {
 	NULL
 };
 
-static char *r2ai(RCore *core, const char *content, char **error) {
-	if (R_STR_ISEMPTY (content)) {
+static char *r2ai(RCore *core, const char *input, char **error) {
+	if (R_STR_ISEMPTY (input)) {
 		*error = strdup ("Usage: 'r2ai [query]'. See 'r2ai -h' for help");
 		return NULL;
 	}
@@ -32,8 +66,31 @@ static char *r2ai(RCore *core, const char *content, char **error) {
 	}
 #endif
 
+	char *content = strdup (input);
 	char *model = strdup (r_config_get (core->config, "r2ai.model"));
 	char *provider = strdup (r_config_get (core->config, "r2ai.api"));
+	if (r_config_get_b (core->config, "r2ai.data")) {
+		if (!db) {
+			refresh_embeddings (core);
+		}
+		const int K = r_config_get_i (core->config, "r2ai.data.nth");
+		RVDBResultSet *rs = r_vdb_query (db, input, K);
+
+		if (rs) {
+			//printf("Found up to %d neighbors (actual found: %d).\n", K, rs->size);
+			RStrBuf *sb = r_strbuf_new (".\nConsider:\n");
+			for (int i = 0; i < rs->size; i++) {
+				RVDBResult *r = &rs->results[i];
+				KDNode *n = r->node;
+				r_strbuf_appendf (sb, "- %s\n", n->text);
+			}
+			char *s = r_strbuf_drain (sb);
+			free (content);
+			content = r_str_newf ("%s%s", input, s);
+			free (s);
+			r_vdb_result_free (rs);
+		}
+	}
 #if 0
 	if (!strstr (provider, "ollama")) {
 		free (provider);
@@ -54,6 +111,12 @@ static char *r2ai(RCore *core, const char *content, char **error) {
 	if (R_STR_ISEMPTY (model)) {
 		R_FREE (model);
 	}
+#if 0
+	// r2ai.debug
+	eprintf ("====\n");
+	eprintf ("%s\n", content);
+	eprintf ("====\n");
+#endif
 	if (!strcmp (provider, "openapi")) {
 		result = r2ai_openapi (content, error);
 	} else if (!strcmp (provider, "ollama")) {
@@ -157,40 +220,6 @@ static void cmd_r2ai_x(RCore *core) {
 	free (res);
 	free (q);
 	free (explain_prompt);
-}
-
-static R_TH_LOCAL RVDB *db = NULL;
-
-static void refresh_embeddings(RCore *core) {
-	// refresh embeddings database
-	if (db) {
-		r_vdb_free (db);
-	}
-	db = r_vdb_new (4);
-	RListIter *iter, *iter2;
-	char *line;
-	char *file;
-	// enumerate .txt files in directory
-	const char *path = r_config_get (core->config, "r2ai.data.path");
-	RList *files = r_sys_dir (path);
-	r_list_foreach (files, iter, file) {
-		if (!r_str_endswith (file, ".txt")) {
-			continue;
-		}
-		R_LOG_INFO ("Index %s", file);
-		char *filepath = r_file_new (path, file, NULL);
-		char *text = r_file_slurp (filepath, NULL);
-		if (text) {
-			RList *lines = r_str_split_list (text, "\n", -1);
-			r_list_foreach (lines, iter2, line) {
-				r_vdb_insert (db, line);
-				R_LOG_INFO ("Insert %s", line);
-			}
-			r_list_free (lines);
-		}
-		free (filepath);
-	}
-	r_list_free (files);
 }
 
 static void cmd_r2ai_R(RCore *core, const char *q) {
