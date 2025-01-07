@@ -14,6 +14,15 @@ CLIPPY_BEGIN = """
 
 CLIPPY_END = """`-----------------------------------------------------------------------"""
 
+PICO_BEGIN = """
+                                           __   __          
+                                          (o |_| o)_______    
+                                          |  _____________)  
+                                          \              / . 
+                                           \            /  |\\
+                                            \__________/   | \\
+.----------------------------------------------------------'  '---------"""
+
 USER_BEGIN = """   |\\
    | \\
 .--'  '--"""
@@ -47,6 +56,11 @@ def response_begin():
     """Print the beginning of the clippy response
     """
     print(CLIPPY_BEGIN + getpad() + ".")
+
+def pico_begin():
+    """Print the beginning of the Pico le Croco response
+    """
+    print(PICO_BEGIN + getpad() + ".")
 
 def response_end():
     """Print the end of the clippy response

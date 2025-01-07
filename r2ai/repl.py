@@ -68,6 +68,7 @@ help_message = """Usage: r2ai [-option] ([query] | [script.py])
  r2ai -q                quit/exit/^C
  r2ai -L                show chat logs (See -Lj for json)
  r2ai -L-[N]            delete the last (or N last messages from the chat history)
+ r2ai -p1c0             enter the Pico le Croco assistant mode
  r2ai -repl             enter the repl (only when running via r2pipe)
  r2ai -r [sysprompt]    define the role of the conversation
  r2ai -r2               enter the r2clippy assistant mode
@@ -278,6 +279,13 @@ def runline(ai, usertext):
         ai.env["data.path"] = f"{R2AI_HOMEDIR}/doc/"
         ai.env["chat.bubble"] = "true"
         runline(ai, f"-rf {R2AI_HOMEDIR}/doc/role/r2clippy.txt")
+    elif usertext == "-p1c0":
+        ai.env["data.use"] = "true"
+        ai.env["data.hist"] = "true"
+        ai.env["data.path"] = f"{R2AI_HOMEDIR}/doc/"
+        ai.env["chat.bubble"] = "true"
+        ai.env["chat.picolecroco"] = "true"
+        runline(ai, f"-rf {R2AI_HOMEDIR}/doc/role/picolecroco.txt")
     elif usertext.startswith("-ed"):
         editor = "vim" # Defaults to the only real editor
         if ai.env["user.editor"] != "":
@@ -527,7 +535,10 @@ def r2ai_repl(ai):
                         break
                 else:
                     bubble.query(usertext)
-                    bubble.response_begin()
+                    if ai.env["chat.picolecroco"] == "true":
+                        bubble.pico_begin()
+                    else:
+                        bubble.response_begin()
                     if runline(ai, usertext) == "q":
                         break
                     bubble.response_end()
