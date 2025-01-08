@@ -42,6 +42,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"Usage:", "r2ai", " [-args] [...]",
 	"r2ai", " -d", "Decompile current function",
 	"r2ai", " -dr", "Decompile current function (+ 1 level of recursivity)",
+	"r2ai", " -a [query]", "Resolve question using auto mode",
 	"r2ai", " -e", "Same as '-e r2ai.'",
 	"r2ai", " -h", "Show this help message",
 	"r2ai", " -m", "show selected model, list suggested ones, choose one",
@@ -54,7 +55,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 	NULL
 };
 
-static char *r2ai(RCore *core, const char *input, char **error) {
+R_IPI char *r2ai(RCore *core, const char *input, char **error) {
 	if (R_STR_ISEMPTY (input)) {
 		*error = strdup ("Usage: 'r2ai [query]'. See 'r2ai -h' for help");
 		return NULL;
@@ -327,6 +328,8 @@ static void cmd_r2ai(RCore *core, const char *input) {
 		} else {
 			r_core_cmdf (core, "-e r2ai.%s", arg);
 		}
+	} else if (r_str_startswith (input, "-a")) {
+		cmd_r2ai_a (core, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-d")) {
 		cmd_r2ai_d (core, r_str_trim_head_ro (input + 2), false);
 	} else if (r_str_startswith (input, "-dr")) {

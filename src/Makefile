@@ -6,6 +6,7 @@ CFLAGS+=-I. -fPIC
 CFLAGS+=-g
 
 OBJS=r2ai.o
+OBJS+=auto.o
 OBJS+=vdb.o
 OBJS+=anthropic.o
 OBJS+=gemini.o

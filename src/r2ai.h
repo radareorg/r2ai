@@ -21,4 +21,8 @@ R_IPI char *r2ai_ollama(RCore *core, const char *content, const char *model, cha
 R_IPI char *r2ai_gemini(const char *content, const char *model_name, char **error);
 R_IPI char *r2ai_gemini_stream(const char *content, const char *model_name, char **error);
 
+// auto mode
+R_IPI void cmd_r2ai_a(RCore *core, const char *e);
+R_IPI char *r2ai(RCore *core, const char *input, char **error);
+
 #endif
