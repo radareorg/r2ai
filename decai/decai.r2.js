@@ -675,7 +675,7 @@ Response:
                 break;
             case "s": // "-s"
                 out = r2.cmd("afv;pdc");
-                out = "'afs " + r2ai("analyze the uses of the arguments and return valu to infer the signature, identify which is the correct type for the resturn. Do NOT print the function body, ONLY output the function signature, like if it was going to be used in a C header", out);
+                out = "'afs " + r2ai("analyze the uses of the arguments and return value to infer the signature, identify which is the correct type for the resturn. Do NOT print the function body, ONLY output the function signature, like if it was going to be used in a C header", out);
                 let brace = out.indexOf("{");
                 if (brace !== -1) {
                     out = out.substring(0, brace);
