@@ -51,6 +51,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -R ([text])", "refresh and query embeddings (see r2ai.data)",
 	"r2ai", " -x", "explain current function",
 	"r2ai", " -v", "suggest better variables names and types",
+	"r2ai", " -V[r]", "find vulnerabilities in the decompiled code (-Vr uses -dr)",
 	"r2ai", " [arg]", "send a post request to talk to r2ai and print the output",
 	NULL
 };
@@ -289,6 +290,22 @@ static void cmd_r2ai_v(RCore *core) {
 	free (s);
 }
 
+static void cmd_r2ai_V(RCore *core, bool recursive) {
+	char *s = r_core_cmd_str (core, recursive? "r2ai -d": "r2ai -dr");
+	char *q = r_str_newf ("find vulnerabilities, dont show the code, only show the response, provide a sample exploit and suggest good practices:\n```\n%s```", s);
+	char *error = NULL;
+	char *res = r2ai (core, q, &error);
+	if (error) {
+		R_LOG_ERROR (error);
+		free (error);
+	} else {
+		r_cons_printf ("%s\n", res);
+	}
+	free (res);
+	free (q);
+	free (s);
+}
+
 static void cmd_r2ai_M(RCore *core) {
 	r_cons_printf ("r2ai -e api=anthropic\n");
 	r_cons_printf ("-m claude-3-5-sonnet-20241022\n");
@@ -338,6 +355,10 @@ static void cmd_r2ai(RCore *core, const char *input) {
 		cmd_r2ai_x (core);
 	} else if (r_str_startswith (input, "-v")) {
 		cmd_r2ai_v (core);
+	} else if (r_str_startswith (input, "-V")) {
+		cmd_r2ai_V (core, false);
+	} else if (r_str_startswith (input, "-Vr")) {
+		cmd_r2ai_V (core, true);
 	} else if (r_str_startswith (input, "-n")) {
 		cmd_r2ai_n (core);
 	} else if (r_str_startswith (input, "-R")) {
