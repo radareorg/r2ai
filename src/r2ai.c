@@ -45,6 +45,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -a [query]", "Resolve question using auto mode",
 	"r2ai", " -e", "Same as '-e r2ai.'",
 	"r2ai", " -h", "Show this help message",
+	"r2ai", " -i [file] [query]", "read file and ask the llm with the given query",
 	"r2ai", " -m", "show selected model, list suggested ones, choose one",
 	"r2ai", " -M", "show suggested models for each api",
 	"r2ai", " -n", "suggest a better name for the current function",
@@ -273,6 +274,34 @@ static void cmd_r2ai_n(RCore *core) {
 	free (q);
 }
 
+static void cmd_r2ai_i(RCore *core, const char *arg) {
+	char *fname = strdup (arg);
+	char *query = strchr (fname, ' ');
+	if (query) {
+		*query++ = 0;
+	}
+	char *s = r_file_slurp (fname, NULL);
+	if (R_STR_ISEMPTY (s)) {
+		free (fname);
+		R_LOG_ERROR ("Cannot open %s", fname);
+		return;
+	}
+	char *q = r_str_newf ("%s\n```\n%s\n```\n", query, s);
+	char *error = NULL;
+	char *res = r2ai (core, q, &error);
+	free (s);
+	if (error) {
+		R_LOG_ERROR (error);
+		free (error);
+	} else {
+		r_cons_printf ("%s\n", res);
+	}
+	free (fname);
+	free (s);
+	free (res);
+	free (q);
+}
+
 static void cmd_r2ai_s(RCore *core) {
 	char *afv = r_core_cmd_str (core, "afv");
 	r_str_trim (afv);
@@ -393,6 +422,8 @@ static void cmd_r2ai(RCore *core, const char *input) {
 		cmd_r2ai_x (core);
 	} else if (r_str_startswith (input, "-s")) {
 		cmd_r2ai_s (core);
+	} else if (r_str_startswith (input, "-i")) {
+		cmd_r2ai_i (core, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-v")) {
 		cmd_r2ai_v (core);
 	} else if (r_str_startswith (input, "-V")) {
