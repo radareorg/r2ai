@@ -88,8 +88,9 @@ def ddg(m):
     return f"Considering:\n```{res}\n```\n"
 
 def is_litellm_model(model):
+    import warnings
+    warnings.filterwarnings('ignore')
     import litellm
-    litellm.drop_params = True
     provider = None
     model_name = None
     if model.startswith ("/"):
@@ -161,7 +162,11 @@ class Interpreter:
         self.env["chat.reply"] = "false"
         self.env["chat.code"] = "true"
         self.env["chat.rawdog"] = "false"
-        
+        self.env["chat.reasoning_effort"] = "high"
+        self.env["chat.stream"] = "true"
+        self.env["chat.show_cost"] = "true"
+        self.env["chat.drop_params"] = "false"
+        self.env["chat.auto_max_runs"] = "100"
         self.env.add_callback("debug_level", lambda val: LOGGER.setLevel(int(val) * 10))
 
         # No active block to start
@@ -381,6 +386,12 @@ class Interpreter:
         response = None
         if self.auto_run:
             from . import auto
+            import litellm
+            if self.env["chat.drop_params"] == "true":
+                litellm.drop_params = True
+            else:
+                litellm.drop_params = False
+
             if(is_litellm_model(self.model)):
                 response = auto.chat(self)
             else:

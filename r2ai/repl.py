@@ -483,6 +483,7 @@ def runline(ai, usertext):
     elif usertext.startswith("' "):
         if not autoai:
             autoai = Interpreter()
+            autoai.env = ai.env
             autoai.auto_run = True 
 
         autoai.chat(usertext[2:])
