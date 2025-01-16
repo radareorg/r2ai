@@ -166,7 +166,11 @@ class Interpreter:
         self.env["chat.stream"] = "true"
         self.env["chat.show_cost"] = "true"
         self.env["chat.drop_params"] = "false"
-        self.env["chat.auto_max_runs"] = "100"
+        self.env["chat.openai_store"] = "false"
+        self.env["auto.max_runs"] = "100"
+        self.env["auto.hide_tool_output"] = "false"
+        self.env["auto.init_commands"] = "aaa;iI;afl"
+
         self.env.add_callback("debug_level", lambda val: LOGGER.setLevel(int(val) * 10))
 
         # No active block to start
