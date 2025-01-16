@@ -13,11 +13,13 @@ import signal
 from .spinner import spinner
 from .completion import create_chat_completion
 import uuid
+import time
 
 # litellm.drop_params = True
 # litellm.set_verbose=True
 
 ANSI_REGEX = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
 SYSTEM_PROMPT_AUTO = """
 You are a reverse engineer and you are using radare2 to analyze a binary.
 The user will ask questions about the binary and you will respond with the answer to the best of your ability.
@@ -40,9 +42,12 @@ The user will ask questions about the binary and you will respond with the answe
 - Make sure you call tools and functions correctly.
 """
 
-SYSTEM_PROMPT_AUTO_REASONING = """
-You are a reverse engineer and you are using radare2 to analyze a binary.
+SYSTEM_PROMPT_AUTO_REASONING = f"""
+You are an expert reverse engineer.
 The user will ask questions about the binary and you will respond with the answer to the best of your ability.
+You can use the available tools to help you answer the user's question.
+The binary has already been loaded. You can interact with the binary using the r2cmd tool.
+If you need to run a command in r2 before answering, you can use the r2cmd tool
 """
 
 class ChatAuto:
@@ -64,23 +69,32 @@ class ChatAuto:
         self.is_reasoning = False
         self.n_runs = 0
         self.max_runs = max_runs
-
-        print(f'model: {self.model}')
+        self._last_response = None
+        self._start_time = time.time()
+        self._last_run_time = time.time()
 
         model_info = litellm.get_model_info(self.model)
         self.max_tokens = min(self.max_tokens, model_info['max_tokens'])
 
         if self.model in ['openai/o1-mini-2024-09-12', 'openai/o1-mini', 'openai/o1-2024-12-17', 'openai/o1']:
             self.is_reasoning = True
-
-        
+            self.max_tokens = model_info['max_tokens']
+            self.timeout = 60 * 60
+        init_commands = self.interpreter.env["auto.init_commands"]
+        init_prompt = ""
+        if init_commands:
+            init_prompt = f"""
+Here is some information about the binary to get you started:
+> {init_commands}
+{r2cmd(init_commands)}
+"""
         if self.is_reasoning:
             if not system and not self.messages[0]['role'] == 'developer':
-                self.messages.insert(0, { "role": "developer", "content": SYSTEM_PROMPT_AUTO_REASONING })
+                self.messages.insert(0, { "role": "developer", "content": SYSTEM_PROMPT_AUTO_REASONING + init_prompt })
             self.stream = False
         else:
             if messages and messages[0]['role'] != 'system':
-                self.messages.insert(0, { "role": "system", "content": system or SYSTEM_PROMPT_AUTO })
+                self.messages.insert(0, { "role": "system", "content": system or SYSTEM_PROMPT_AUTO + init_prompt })
 
 
         if cb:
@@ -128,7 +142,8 @@ class ChatAuto:
                     tool_response = await self.functions[tool_name](**tool_args)
                 else:
                     tool_response = self.functions[tool_name](**tool_args)
-                self.cb('tool_response', { "id": tool_call["id"] + '_response', "content": tool_response })
+                if self.interpreter.env["auto.hide_tool_output"] == "false":
+                    self.cb('tool_response', { "id": tool_call["id"] + '_response', "content": tool_response })
                 self.messages.append({"role": "tool", "name": tool_name, "content": ANSI_REGEX.sub('', tool_response), "tool_call_id": tool_call["id"]})
 
         return await self.get_completion()
@@ -138,6 +153,7 @@ class ChatAuto:
         msgs = []
         parts = []
         current_message = { "role": "assistant", "content": "", "tool_calls": [] }
+        first_chunk = True
         async for chunk in resp:
             delta = None
             choice = chunk.choices[0]
@@ -165,6 +181,9 @@ class ChatAuto:
                 m = None
                 done = False
                 if delta.content is not None:
+                    if first_chunk:
+                        self.cb('message', { 'content': "\n\x1b[1;32massistant\x1b[0m\n", 'done': True })
+                        first_chunk = False
                     m = delta.content
                     if m is not None:
                         current_message['content'] += m
@@ -176,13 +195,15 @@ class ChatAuto:
         self.messages.append(current_message)
         if len(current_message['tool_calls']) == 0:
             del current_message['tool_calls']
+            self.show_cost()
         else:
+            self.show_cost()
             await self.process_tool_calls(current_message['tool_calls'])
         return current_message
 
     async def process_response(self, resp):
         content = resp.choices[0].message.content
-        tool_calls = []
+        
         current_message = { 'role': 'assistant', 'content': content or '', 'tool_calls': [] }
         for i, tool_call in enumerate(resp.choices[0].message.tool_calls or []):
             current_message['tool_calls'].append({
@@ -207,11 +228,17 @@ class ChatAuto:
                         current_message['tool_calls'].append({ "id": resp.id, "function": { "name": tool_call['name'], "arguments": json.dumps(args) } })
             except Exception:
                 pass
-        if len(current_message['tool_calls']) > 0:
-            self.messages.append(current_message)
-            await self.process_tool_calls(current_message['tool_calls'])
-        
         self.messages.append(current_message)
+        if current_message['content'] != "":
+            self.cb('message', { 'content': "\n\x1b[1;32massistant\x1b[0m\n", 'done': True })
+            self.cb('message', { "content": current_message['content'], "id": 'message_' + resp.id, 'done': True })
+
+        if len(current_message['tool_calls']) == 0:
+            del current_message['tool_calls']
+            self.show_cost()
+        else:
+            self.show_cost()
+            await self.process_tool_calls(current_message['tool_calls'])
 
         return current_message
         
@@ -234,32 +261,56 @@ class ChatAuto:
                 return self.async_response_generator(res)
             else:
                 return ModelResponse(**next(res))
-        self.logger.debug('chat completion')
         additional_args = {}
         if self.is_reasoning:
             additional_args['reasoning_effort'] = self.interpreter.env["chat.reasoning_effort"]
+        else:
+            additional_args['temperature'] = self.temperature
+        if self.interpreter.env["chat.openai_store"] == "true":
+            additional_args['store'] = True
+        if not self.check_max():
+            additional_args['tools'] = self.tools
+            additional_args['tool_choice'] = self.tool_choice
         compl = await acompletion(
             model=self.model,
             messages=self.messages,
             timeout=self.timeout,
-            tools=self.tools,
-            tool_choice=self.tool_choice,
-            temperature=self.temperature,
             max_tokens=self.max_tokens,
             **additional_args,
             stream=stream,
         )
         return compl
+
+    def check_max(self):
+        if self.max_runs > 0 and self.n_runs >= self.max_runs - 1:
+            return True
+        return False
     
-    def show_cost(self, response):
-        if self.interpreter.env["chat.show_cost"] == "true":   
-            self.cost += litellm.completion_cost(completion_response=response, messages=self.messages, model=self.model)
-            cb('usage', { "total_cost": self.cost, "n_runs": self.n_runs, "max_runs": self.max_runs })
+    def show_cost(self):
+        def format_time(seconds):
+            minutes = int(seconds // 60)
+            remaining_seconds = int(seconds % 60)
+            if minutes > 0:
+                return f"{minutes}m {remaining_seconds}s"
+            return f"{remaining_seconds}s"
+        self.n_runs += 1
+        run_time = format_time(time.time() - self._last_run_time)
+        self._last_run_time = time.time()
+        total_time = format_time(time.time() - self._start_time)
+        if self.interpreter.env["chat.show_cost"] == "true" and self.n_runs > 0:   
+            run_cost = litellm.completion_cost(completion_response=self._last_response, messages=self.messages, model=self.model)
+            self.cost += run_cost
+            cb('usage', { 
+                "model": self.model, 
+                "run_cost": run_cost, 
+                "total_cost": self.cost, 
+                "n_runs": self.n_runs, 
+                "max_runs": self.max_runs,
+                "run_time": run_time,
+                "total_time": total_time
+            })
 
     async def get_completion(self):
-        if self.max_runs > 0 and self.n_runs >= self.max_runs:
-            builtins.print(f"\n\x1b[91mMax runs ({self.max_runs}) reached. See `-e auto.max_runs`\x1b[0m\n")
-            return None
         stream = self.stream
         if self.llama_instance:
             response = await self.attempt_completion()
@@ -273,14 +324,13 @@ class ChatAuto:
         for retry_count in range(max_retries):
             try:
                 response = await self.attempt_completion()
+                self._last_response = response
                 self.logger.debug(f'chat completion {response}')
-                self.n_runs += 1
+                res = None
                 if stream:
-                    self.show_cost(response)
                     res = await self.process_streaming_response(response)
                 else:
-                    res = await self.process_response(response) 
-                    self.show_cost(response)
+                    res = await self.process_response(response)
 
                 return res
             except Exception as e:
@@ -319,11 +369,17 @@ def cb(type, data):
             builtins.print()
     elif type == 'usage':
         sys.stdout.flush()
-        sys.stdout.write(f'\r\x1b[1;34mtotal cost: ${float(data["total_cost"]):.10f} | run {data["n_runs"]} of max {data["max_runs"]}\x1b[0m')
+        builtins.print()
+        sys.stdout.write(f'\x1b[1;34m{data["model"]} | total: ${float(data["total_cost"]):.10f} | run: ${float(data["run_cost"]):.10f} | {data["n_runs"]} / {data["max_runs"]} | {data["run_time"]} / {data["total_time"]}\x1b[0m')
         sys.stdout.flush()
         builtins.print()
     elif type == 'message' and data['done']:
-        builtins.print()
+        if data['content']:
+            sys.stdout.flush()
+            sys.stdout.write(data['content'])
+            sys.stdout.flush()
+        else:
+            builtins.print()
 
 def signal_handler(signum, frame):
     raise KeyboardInterrupt
@@ -354,7 +410,7 @@ def chat(interpreter, **kwargs):
         tool_choice=tool_choice, 
         llama_instance=interpreter.llama_instance, 
         stream=interpreter.env["chat.stream"] == "true",
-        max_runs=int(interpreter.env["chat.auto_max_runs"]),
+        max_runs=int(interpreter.env["auto.max_runs"]),
         cb=cb
     )
     
