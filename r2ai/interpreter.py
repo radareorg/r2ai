@@ -472,7 +472,9 @@ class Interpreter:
                 }
                 if self.env["chat.rawdog"] == "true":
                     from .completion import messages_to_prompt
-                    prompt = messages_to_prompt(self, messages)
+                    allmsg = messages.copy()
+                    allmsg.insert(0, ChatMessage(role=MessageRole.SYSTEM, content=self.system_message))
+                    prompt = messages_to_prompt(self, allmsg)
                     response = self.llama_instance(prompt, **chat_args)
                 else:
                     all_messages = messages.copy()

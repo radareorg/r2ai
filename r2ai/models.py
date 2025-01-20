@@ -47,6 +47,7 @@ Code:
 -m FaradayDotDev/llama-3-8b-Instruct-GGUF
 -m second-state/Mistral-Nemo-Instruct-2407-GGUF
 -m bartowski/gemma-2-9b-it-GGUF
+-m mradermacher/salamandra-7b-instruct-aina-hack-GGUF
 Functionary:
 -m meetkai/functionary-small-v3.2-GGUF
 -m mradermacher/granite-20b-functioncalling-i1-GGUF
