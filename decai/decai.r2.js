@@ -380,6 +380,32 @@ Response:
         }
         return "error invalid response";
     }
+    function r2aiOllama(msg, hideprompt) {
+        const query = hideprompt? msg: decprompt + ", Convert this pseudocode into " + decaiLanguage + "\n" + msg;
+        const payload = JSON.stringify({
+            stream: false,
+            model: decaiModel,
+            messages: [{
+                role: "user",
+                content: query
+            }]});
+        const ollamaHost = "localhost";
+        const ollamaPort = 11434;
+        const curlcmd = `curl -s ${ollamaHost}:${ollamaPort}/api/chat
+          -H "Content-Type: application/json"
+          -d '${payload}' #`.replace(/\n/g, "");
+        if (decaiDebug) {
+            console.log(curlcmd);
+        }
+        const res = r2.syscmds(curlcmd);
+        try {
+            return JSON.parse(res).message.content;
+        } catch(e) {
+            console.error(e);
+            console.log(res);
+        }
+        return "error invalid response";
+    }
     function r2aiOpenAPI(msg, hideprompt) {
         const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
         const payload = JSON.stringify({ "prompt": query });
@@ -606,6 +632,9 @@ Response:
         }
         if (decaiApi === "google" || decaiApi === "gemini") {
             return r2aiGemini(q, hideprompt);
+        }
+        if (decaiApi === "ollama") {
+            return r2aiOllama(q, hideprompt);
         }
         if (decaiApi === "huggingface" || decaiApi === "hf") {
             return r2aiHuggingFace(q, hideprompt);
