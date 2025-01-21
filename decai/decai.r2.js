@@ -94,8 +94,8 @@ Response:
 
     const command = "decai";
     let decaiHost = "http://localhost";
-    let decaiPort = "8080";
-    let decaiApi = "r2"; // uses /cmd endpoint
+    let decaiPort = "11434";
+    let decaiApi = "ollama"; // uses /cmd endpoint
     let decaiCommands = "pdc";
     let decaiLanguage = "C";
     let decaiHumanLanguage = "English";
@@ -389,9 +389,7 @@ Response:
                 role: "user",
                 content: query
             }]});
-        const ollamaHost = "localhost";
-        const ollamaPort = 11434;
-        const curlcmd = `curl -s ${ollamaHost}:${ollamaPort}/api/chat
+        const curlcmd = `curl -s ${decaiHost}:${decaiPort}/api/chat
           -H "Content-Type: application/json"
           -d '${payload}' #`.replace(/\n/g, "");
         if (decaiDebug) {
