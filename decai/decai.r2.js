@@ -206,7 +206,7 @@ Response:
         console.error(" " + command + " -d [f1 ..] - decompile given functions");
         console.error(" " + command + " -dr        - decompile function and its called ones (recursive)");
         console.error(" " + command + " -dd [..]   - same as above, but ignoring cache");
-        console.error(" " + command + " -D [query] - decompile current function with given extra query");
+        console.error(" " + command + " -dD [query]- decompile current function with given extra query");
         console.error(" " + command + " -e         - display and change eval config vars");
         console.error(" " + command + " -h         - show this help");
         console.error(" " + command + " -i [f] [q] - include given file and query");
