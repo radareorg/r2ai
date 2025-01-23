@@ -214,6 +214,7 @@ Response:
         console.error(" " + command + " -q [text]  - query language model with given text");
         console.error(" " + command + " -Q [text]  - query on top of the last output");
         console.error(" " + command + " -r         - change role prompt (same as: decai -e prompt)");
+        console.error(" " + command + " -R         - reset role prompt to default prompt");
         console.error(" " + command + " -s         - function signature");
         console.error(" " + command + " -v         - show local variables");
         console.error(" " + command + " -V         - find vulnerabilities");
