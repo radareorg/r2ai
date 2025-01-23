@@ -104,6 +104,7 @@ Response:
     let decaiModel = "";
     let lastOutput = "";
     let decaiCache = false;
+    let maxInputTokens = -1; // -1 = disabled i.e fileData is not truncated up to this limit
     // let decprompt = "Do not explain, respond using ONLY code. Simplify and make it more readable. Use better variable names, keep it simple and avoid unnecessary logic, rewrite 'goto' into higher level constructs, Use comments like 'string:' to resolve function call arguments";
     const defaultPrompt = "Rewrite this function and respond ONLY with code, NO explanations, NO markdown, Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and and strings from comments like 'string:'";
     let decprompt = defaultPrompt;
@@ -144,6 +145,9 @@ Response:
                 break;
             case "port":
                 console.log(decaiPort);
+                break;
+            case "maxinputtokens":
+                console.log(maxInputTokens);
                 break;
             default:
                 console.error("Unknown key");
@@ -194,6 +198,9 @@ Response:
             break;
         case "port":
             decaiPort = v;
+            break;
+        case "maxinputtokens":
+            maxInputTokens = v;
             break;
         default:
             console.error("Unknown key");
@@ -622,7 +629,11 @@ Response:
         if (queryText.startsWith("-")) { // -i
             return "";
         }
-        const q = queryText + ":\n" + fileData;
+        let q = queryText + ":\n" + fileData;
+        if (maxInputTokens > 0 && q.length > maxInputTokens) {
+            // making sure we do not send more that the limit
+            q = q.slice(0, maxInputTokens);
+        }
         if (decaiApi === "anthropic" || decaiApi === "claude") {
             return r2aiAnthropic(q, hideprompt);
         }
@@ -729,6 +740,7 @@ Response:
                     console.log("decai -e hlang=" + decaiHumanLanguage);
                     console.log("decai -e debug=" + decaiDebug);
                     console.log("decai -e model=" + decaiModel);
+                    console.log("decai -e maxinputtokens=" + maxInputTokens);
                 }
                 break;
             case "q": // "-q"
