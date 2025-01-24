@@ -30,8 +30,13 @@ fi
 
 SCISSORS="------------8<------------"
 
+read_INPUT() {
+	export INPUT=`(echo "$ARG" ; echo "<INPUT>"; cat ; echo "</INPUT>" ) | jq -R -s .`
+		echo "$INPUT"
+}
+
 claude() {
-	INPUT=`(echo "$@" ; cat) | jq -R -s . | sed 's/\*/\\*/g'`
+	read_INPUT
 	PAYLOAD="
 	{
 	\"model\": \"${CLAUDE_MODEL}\",
@@ -49,7 +54,7 @@ claude() {
 }
 
 ollama() {
-	INPUT=`(echo "$1" ; cat) | jq -R -s . | sed 's/\*/\\*/g'`
+	read_INPUT
 	PAYLOAD="{ \"stream\":false, \"model\":\"${OLLAMA_MODEL}\", \"messages\": [{\"role\":\"user\", \"content\": ${INPUT} }]}"
 	echo "$SCISSORS"
 	curl -s "http://${OLLAMA_HOST}:${OLLAMA_PORT}/api/chat" \
@@ -59,7 +64,7 @@ ollama() {
 }
 
 openapi() {
-	INPUT=`(echo "$1" ; cat) | jq -R -s . | sed 's/\*/\\*/g'`
+	read_INPUT
 	PAYLOAD="{ \"prompt\": ${INPUT} }"
 	echo "$SCISSORS"
 	curl -s "http://${OPENAPI_HOST}:${OPENAPI_PORT}/completion" \
@@ -69,7 +74,7 @@ openapi() {
 }
 
 openai() {
-	INPUT=`(echo "$@" ; cat) | jq -R -s . | sed 's/\*/\\*/g'`
+	read_INPUT
 	PAYLOAD="
 	{
 	\"model\": \"${OPENAI_MODEL}\",
@@ -86,7 +91,7 @@ openai() {
 }
 
 gemini() {
-	INPUT=`(echo "$@" ; cat) | jq -R -s . | sed 's/\*/\\*/g'`
+	read_INPUT
 	PAYLOAD=" {
 	\"contents\":[{
           \"parts\":[
@@ -123,11 +128,12 @@ if [ "$1" = "--" ]; then
 	shift
 fi
 
+export ARG="$@"
 case "${SHAI_API}" in
-gemini|google) gemini "$@" ; ;;
-openapi) openapi "$@" ; ;;
-claude) claude "$@" ; ;;
-ollama) ollama "$@" ; ;;
-openai) openai "$@" ; ;;
-*) claude "$@" ; ;;
+gemini|google) gemini ; ;;
+openapi) openapi ; ;;
+claude) claude ; ;;
+ollama) ollama ; ;;
+openai) openai ; ;;
+*) claude ; ;;
 esac
