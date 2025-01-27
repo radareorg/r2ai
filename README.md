@@ -30,13 +30,15 @@ R2AI is structured into four independent components:
   * focus on decompilation
   * talks to r2ai, r2ai-server, openai, anthropic or ollama
 * *r2ai-plugin*
-  * *not recommended because of python versions pain*. Hopefully soon re-written in C.
+  * *not recommended because of python versions pain*. Hopefully soon re-written in C (WIP: `./src`)
   * requires r2lang-python
   * adds r2ai command inside r2
 * r2ai-server
+  * favour *ollama* instead
   * list and select models downloaded from r2ai
   * simple cli tool to start local openapi webservers
   * supports llamafile, llamacpp, r2ai-w and kobaldcpp
+  
 
 ## Features
 
@@ -87,40 +89,47 @@ python3 main.py
 
 ## Running r2ai
 
-Launch r2ai:
+**Launch r2ai:**
 
 - If you installed via r2pm, you can execute it like this: `r2pm -r r2ai`
-- Otherwise, `./r2ai.sh`
+- Otherwise, `./r2ai.sh [/absolute/path/to/binary]`
 
-Selecting the model:
+If you have an **API key**, put it in the adequate file:
 
-- List all downloaded models: `-m`
-- Get a short list of models: `-MM`
-- Help: `-h`
+| AI        | API key                    |
+| --------- | -------------------------- |
+| OpenAI    | `$HOME/.r2ai.openai-key` |
+| Gemini    | `$HOME/.r2ai.gemini-key` |
+| Anthropic | `$HOME/.r2ai.anthropic-key` |
 
-**Example using Claude 3.5 Sonnet 20241022:**
-
-First, put your API key in `~/.r2ai.anthropic-key`:
+Example using an Anthropic API key:
 
 ```
 $ cat ~/.r2ai.anthropic-key 
 sk-ant-api03-CENSORED
 ```
 
-Then, launch r2ai, select a model and ask questions to the AI:
+**Selecting the model:**
+
+- List all downloaded models: `-m`
+- Get a short list of models: `-MM`
+- Help: `-h`
+
+Example selecting models:
 
 ```
 [r2ai:0x00006aa0]> -m anthropic:claude-3-5-sonnet-20241022
+[r2ai:0x00006aa0]> -m openai:gpt-4
+```
+
+The standard mode is invoked by directly asking the question.
+For the Auto mode, the question must be prefixed by `' ` (quote + space).
+
+Example in "standard" mode:
+
+```
 [r2ai:0x00006aa0]> compute 4+5
 4 + 5 = 9
-```
-
-**Example using ChatGPT 4**
-
-Put your API key in `~/.r2ai.openai-key`. Then, launch r2ai, select the model and question the AI:
-
-```
-[r2ai:0x00006aa0]> -m openai:gpt-4
 [r2ai:0x00006aa0]> draw me a pancake in ASCII art
 Sure, here's a simple ASCII pancake:
 
@@ -130,7 +139,21 @@ Sure, here's a simple ASCII pancake:
   -----
 ```
 
-**Example using a free local AI: Mistral 7B v0.2**
+**Example in auto mode**
+
+```
+[r2ai:0x00006aa0]>' Decompile the main
+[..]
+```
+
+In **auto** mode, the AI may instruct r2ai to run various commands. Those commands are run on *your host*, so you are asked to review and agree or disagree to run them:
+
+```
+r2ai is going to execute: {'id': 'toolu_01LyMPMdN916mZRTG6gZKNL4', 'type': 'function', 'function': {'name': 'r2cmd', 'arguments': '{"command": "pdf @ fcn.000015d0"}'}}. Agree? (y/N) y
+```
+
+
+**Example downloading a free local AI: Mistral 7B v0.2**
 
 Launch r2ai, select the model and ask a question. If the model isn't downloaded yet, r2ai will ask you which precise version to download.
 
