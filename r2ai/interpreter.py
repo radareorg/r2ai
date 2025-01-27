@@ -170,6 +170,7 @@ class Interpreter:
         self.env["auto.max_runs"] = "100"
         self.env["auto.hide_tool_output"] = "false"
         self.env["auto.init_commands"] = "aaa;iI;afl"
+        self.env["auto.ask_to_execute"] = "true"  # ask to run tools such as r2cmd, run_python etc
 
         self.env.add_callback("debug_level", lambda val: LOGGER.setLevel(int(val) * 10))
 
