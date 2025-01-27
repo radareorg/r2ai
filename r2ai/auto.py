@@ -51,7 +51,7 @@ If you need to run a command in r2 before answering, you can use the r2cmd tool
 """
 
 class ChatAuto:
-    def __init__(self, model, max_tokens = 32000, top_p=0.95, temperature=0.0, interpreter=None, system=None, tools=None, messages=None, tool_choice='auto', llama_instance=None, timeout=60, stream=True, cb=None, max_runs=100):
+    def __init__(self, model, max_tokens = 32000, top_p=0.95, temperature=0.0, interpreter=None, system=None, tools=None, ask_to_execute=True, messages=None, tool_choice='auto', llama_instance=None, timeout=60, stream=True, cb=None, max_runs=100):
         self.logger = LOGGER
         self.functions = {}
         self.tools = []
@@ -72,6 +72,7 @@ class ChatAuto:
         self._last_response = None
         self._start_time = time.time()
         self._last_run_time = time.time()
+        self.ask_to_execute = ask_to_execute
 
         model_info = litellm.get_model_info(self.model)
         self.max_tokens = min(self.max_tokens, model_info['max_tokens'])
@@ -137,6 +138,15 @@ Here is some information about the binary to get you started:
                     self.messages.append({"role": "tool", "name": tool_name, "content": "Error: Tool not found" , "tool_call_id": tool_call["id"]})
                     continue
 
+                if self.ask_to_execute:
+                    answer = input(f"r2ai is going to execute: {tool_call}. Agree? (y/N) ")
+                    if answer.lower() != 'y':
+                        self.logger.info(f"Refused to run {tool_call}")
+                        self.messages.append({"role": "tool", "name": tool_name, "content": "User refused to execute the command" , "tool_call_id": tool_call["id"]})
+                        continue
+
+                    self.logger.debug(f'Agreed to run {tool_call}')
+
                 self.cb('tool_call', { "id": tool_call["id"], "function": { "name": tool_name, "arguments": tool_args } })
                 if asyncio.iscoroutinefunction(self.functions[tool_name]):
                     tool_response = await self.functions[tool_name](**tool_args)
@@ -199,6 +209,7 @@ Here is some information about the binary to get you started:
         else:
             self.show_cost()
             await self.process_tool_calls(current_message['tool_calls'])
+                    
         return current_message
 
     async def process_response(self, resp):
@@ -406,6 +417,7 @@ def chat(interpreter, **kwargs):
         temperature=float(interpreter.env["llm.temperature"]), 
         interpreter=interpreter, 
         tools=tools, 
+        ask_to_execute=interpreter.env["auto.ask_to_execute"] == "true",
         messages=messages, 
         tool_choice=tool_choice, 
         llama_instance=interpreter.llama_instance, 
