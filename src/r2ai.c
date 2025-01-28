@@ -55,6 +55,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -m", "show selected model, list suggested ones, choose one",
 	"r2ai", " -M", "show suggested models for each api",
 	"r2ai", " -n", "suggest a better name for the current function",
+	"r2ai", " -r", "enter the repl",
 	"r2ai", " -R ([text])", "refresh and query embeddings (see r2ai.data)",
 	"r2ai", " -s", "function signature",
 	"r2ai", " -x", "explain current function",
@@ -410,7 +411,7 @@ static void cmd_r2ai_m(RCore *core, const char *input) {
 }
 
 static void cmd_r2ai(RCore *core, const char *input) {
-	if (r_str_startswith (input, "-h")) {
+	if (*input == '?' || r_str_startswith (input, "-h")) {
 		r_core_cmd_help (core, help_msg_r2ai);
 	} else if (r_str_startswith (input, "-e")) {
 		const char *arg = r_str_trim_head_ro (input + 2);
@@ -439,6 +440,8 @@ static void cmd_r2ai(RCore *core, const char *input) {
 		cmd_r2ai_V (core, true);
 	} else if (r_str_startswith (input, "-n")) {
 		cmd_r2ai_n (core);
+	} else if (r_str_startswith (input, "-r")) {
+		cmd_r2ai_repl (core);
 	} else if (r_str_startswith (input, "-R")) {
 		cmd_r2ai_R (core, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-M")) {
