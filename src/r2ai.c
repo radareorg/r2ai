@@ -1,4 +1,4 @@
-/* r2ai - Copyright 2023-2024 pancake */
+/* r2ai - Copyright 2023-2025 pancake */
 
 #define R_LOG_ORIGIN "r2ai"
 
@@ -17,6 +17,9 @@ static void refresh_embeddings(RCore *core) {
 	// enumerate .txt files in directory
 	const char *path = r_config_get (core->config, "r2ai.data.path");
 	RList *files = r_sys_dir (path);
+	if (r_list_empty (files)) {
+		R_LOG_WARN ("Cannot find any file in r2ai.data.path");
+	}
 	r_list_foreach (files, iter, file) {
 		if (!r_str_endswith (file, ".txt")) {
 			continue;
@@ -27,6 +30,9 @@ static void refresh_embeddings(RCore *core) {
 		if (text) {
 			RList *lines = r_str_split_list (text, "\n", -1);
 			r_list_foreach (lines, iter2, line) {
+				if (r_str_trim_head_ro (line)[0] == 0) {
+					continue;
+				}
 				r_vdb_insert (db, line);
 				R_LOG_DEBUG ("Insert %s", line);
 			}
@@ -241,19 +247,20 @@ static void cmd_r2ai_R(RCore *core, const char *q) {
 		RVDBResultSet *rs = r_vdb_query (db, q, K);
 
 		if (rs) {
-			printf("Query: \"%s\"\n", q);
-			printf("Found up to %d neighbors (actual found: %d).\n", K, rs->size);
-			for (int i = 0; i < rs->size; i++) {
+			R_LOG_INFO ("Query: \"%s\"", q);
+			R_LOG_INFO ("Found up to %d neighbors (actual found: %d)", K, rs->size);
+			int i;
+			for (i = 0; i < rs->size; i++) {
 				RVDBResult *r = &rs->results[i];
 				KDNode *n = r->node;
 				float dist_sq = r->dist_sq;
 				float cos_sim = 1.0f - (dist_sq * 0.5f); // for normalized vectors
-				printf("%2d) dist_sq=%.4f cos_sim=%.4f text=\"%s\"\n",
+				printf ("%2d) dist_sq=%.4f cos_sim=%.4f text=\"%s\"\n",
 						i + 1, dist_sq, cos_sim, (n->text ? n->text : "(null)"));
 			}
 			r_vdb_result_free (rs);
 		} else {
-			printf("No results found (DB empty or error).\n");
+			R_LOG_ERROR ("No vdb results found");
 		}
 	}
 }

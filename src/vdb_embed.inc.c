@@ -1,4 +1,4 @@
-/* r2ai - Copyright 2024 pancake */
+/* r2ai - MIT - Copyright 2024-2025 pancake */
 
 static unsigned int token_hash(const char *token, unsigned int dim) {
 	// You can tweak constants in the polynomial rolling hash
@@ -22,12 +22,13 @@ static void tokenize_and_hash(const char *text, float *embedding, unsigned int d
 
 	// We'll treat non-alphanumeric as delimiters (spaces, punctuation, etc.).
 	// Convert them to spaces for easy splitting.
-	for (char *p = buffer; *p; p++) {
-		if (!isalnum((unsigned char)*p)) {
-			*p = ' ';
-		} else {
+	char *p;
+	for (p = buffer; *p; p++) {
+		if (isalnum ((unsigned char)*p)) {
 			// lower-case normalization helps consistent hashing of same words
 			*p = (char)tolower ((unsigned char)*p);
+		} else {
+			*p = ' ';
 		}
 	}
 
@@ -35,26 +36,31 @@ static void tokenize_and_hash(const char *text, float *embedding, unsigned int d
 	char *saveptr = NULL;
 	char *token = strtok_r (buffer, " ", &saveptr);
 
+	printf ("TOKENS (");
 	while (token) {
-		if (token[0] != '\0') {
+		if (*token) {
 			// Hash the token into an index
 			if (strlen (token) > 3) {
-				// printf ("TOKEN %s\n", token);
+				printf ("(%s)", token);
 				unsigned int idx = token_hash (token, dim);
 				// Increment that dimension
-				embedding[idx] += 1.0f;
+				embedding[idx] += 2.0f;
 			}
 		}
 		token = strtok_r (NULL, " ", &saveptr);
 	}
+	printf (")\n");
 	free (buffer);
 }
 
 static void compute_embedding(const char *text, float *embedding, unsigned int dim, int do_norm) {
-	if (!text || !embedding || dim == 0) return;
+	int i;
+	if (!text || !embedding || dim == 0) {
+		return;
+	}
 
 	// 1. Initialize embedding to 0
-	for (unsigned int i = 0; i < dim; i++) {
+	for (i = 0; i < dim; i++) {
 		embedding[i] = 0.0f;
 	}
 
@@ -63,13 +69,13 @@ static void compute_embedding(const char *text, float *embedding, unsigned int d
 
 	// 3. (Optional) L2 normalize
 	if (do_norm) {
-		double norm_sq = 0.1;
-		for (unsigned int i = 0; i < dim; i++) {
+		double norm_sq = 0.2;
+		for (i = 0; i < dim; i++) {
 			norm_sq += embedding[i] * embedding[i];
 		}
 		if (norm_sq > 0.0) {
-			double norm = sqrt(norm_sq);
-			for (unsigned int i = 0; i < dim; i++) {
+			double norm = sqrt (norm_sq);
+			for (i = 0; i < dim; i++) {
 				embedding[i] = (float)(embedding[i] / norm);
 			}
 		}
