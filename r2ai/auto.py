@@ -14,6 +14,11 @@ from .spinner import spinner
 from .completion import create_chat_completion
 import uuid
 import time
+import readline
+import subprocess
+import shlex
+import os
+import tempfile
 
 # litellm.drop_params = True
 # litellm.set_verbose=True
@@ -139,14 +144,63 @@ Here is some information about the binary to get you started:
                     continue
 
                 if self.ask_to_execute:
-                    answer = input(f"r2ai is going to execute: {tool_call}. Agree? (y/N) ")
-                    if answer.lower() != 'y':
-                        self.logger.info(f"Refused to run {tool_call}")
-                        self.messages.append({"role": "tool", "name": tool_name, "content": "User refused to execute the command" , "tool_call_id": tool_call["id"]})
+                    # tool_call typically contains:
+                    # { 'id': 'toolu_01Hr6XTatRtp7rX54iBu1voC', 'type': 'function', 'function': {'name': 'r2cmd', 'arguments': '{"command": "pdf @ main"}'}}
+                    answer = ''
+                    will_execute = True # a command (modified or not) will be executed
+                    while answer.lower() != 'y':
+                        try:
+                            command = tool_args.get('command', '')
+
+                            if len(command.splitlines()) > 1:
+                                print(f'r2ai is going to execute the following command on the host:')
+                                print(f'{command}')
+                                want_edit = input('Want to edit? (Y/n) ')
+                                if want_edit.lower() != 'n':
+                                    # open editor when several lines
+                                    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file:
+                                        temp_file.write(command) 
+                                        temp_filename = temp_file.name 
+
+                                    # Fallback to 'nano' if EDITOR is not set (I still prefer emacs)
+                                    editor = os.environ.get('EDITOR', 'nano')  
+                                    subprocess.run(shlex.split(editor + ' ' + temp_filename))
+                                    with open(temp_filename, "r") as f:
+                                        new_command = f.read().strip()
+                                    os.remove(temp_filename)
+                                else:
+                                    self.logger.debug(f'User agrees with not editing the command: {command}')
+                                    answer = 'y'
+
+                            else:
+                                # inline short edit
+                                print(f'r2ai is going to execute the following command on the host')
+                                readline.set_startup_hook(lambda: readline.insert_text(command))
+                                try:
+                                    new_command = input("Want to edit? (ENTER to validate) ")
+                                finally:
+                                    readline.set_startup_hook(None) 
+
+                            if answer.lower() != 'y':
+                                answer = input(f"\033[91mThis command will execute on this host: {new_command}. Agree? (y/N)\033[0m ")
+                                if answer.lower() == 'y':
+                                    # we need to refresh tool_call and tool_args with edited values
+                                    tool_args['command'] = new_command
+                                    tool_call['function']['arguments'] = json.dumps(tool_args)
+
+                        except (json.JSONDecodeError, TypeError, AttributeError) as e:
+                            # in case tool_call is not formatted as expected, like missing command, arguments, function...
+                            self.logger.error(f'Unexpected format for {tool_call}')
+                            self.messages.append({"role": "tool", "name": tool_name, "content": "User refused to execute the command" , "tool_call_id": tool_call["id"]})
+                            # error case: we'll skip the tool
+                            will_execute = False
+                            break
+
+                    if not will_execute:
+                        self.logger.debug(f'Skipping tool={tool_call}')
                         continue
 
-                    self.logger.debug(f'Agreed to run {tool_call}')
-
+                self.logger.debug(f'Executing tool id={tool_call["id"]}, name={tool_name}, arguments={tool_args}')
                 self.cb('tool_call', { "id": tool_call["id"], "function": { "name": tool_name, "arguments": tool_args } })
                 if asyncio.iscoroutinefunction(self.functions[tool_name]):
                     tool_response = await self.functions[tool_name](**tool_args)
