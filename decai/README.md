@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
 }
 ```
 
-```console
+```c
 $ r2 buffer-overflow/a.out
 [0x100003f58]> decai -d
 int main(int argc, char **argv, char **envp) {
