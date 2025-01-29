@@ -36,12 +36,12 @@ static void tokenize_and_hash(const char *text, float *embedding, unsigned int d
 	char *saveptr = NULL;
 	char *token = strtok_r (buffer, " ", &saveptr);
 
-	printf ("TOKENS (");
+//	printf ("TOKENS (");
 	while (token) {
 		if (*token) {
 			// Hash the token into an index
 			if (strlen (token) > 3) {
-				printf ("(%s)", token);
+//				printf ("(%s)", token);
 				unsigned int idx = token_hash (token, dim);
 				// Increment that dimension
 				embedding[idx] += 2.0f;
@@ -49,7 +49,7 @@ static void tokenize_and_hash(const char *text, float *embedding, unsigned int d
 		}
 		token = strtok_r (NULL, " ", &saveptr);
 	}
-	printf (")\n");
+//	printf (")\n");
 	free (buffer);
 }
 

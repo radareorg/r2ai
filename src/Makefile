@@ -18,6 +18,11 @@ OBJS+=xai.o
 all: $(OBJS) r2check
 	$(CC) -fPIC -shared -o r2ai.$(EXT) $(OBJS) $(CFLAGS) $(LDFLAGS)
 	$(MAKE) user-install
+	$(MAKE) doc-install
+
+doc-install:
+	mkdir -p /tmp/embeds
+	cp ../doc/data/quotes.txt /tmp/embeds
 
 vdb.o: vdb_embed.inc.c
 
