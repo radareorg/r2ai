@@ -73,7 +73,7 @@ The installation is now splitted into two different targets:
 
 * `make install` will place a symlink in `$BINDIR/r2ai`
 * `make install-decai` will install the decai r2js decompiler plugin
-* `make install-server` will install the decai r2js decompiler plugin
+* `make install-server` will install the r2ai-server
 
 ### Windows
 
