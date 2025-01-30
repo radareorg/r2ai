@@ -146,11 +146,15 @@ Sure, here's a simple ASCII pancake:
 [..]
 ```
 
-In **auto** mode, the AI may instruct r2ai to run various commands. Those commands are run on *your host*, so you are asked to review and agree or disagree to run them:
+In **auto** mode, the AI may instruct r2ai to run various commands. Those commands are run on *your host*, so you are asked to review them: 
 
 ```
-r2ai is going to execute: {'id': 'toolu_01LyMPMdN916mZRTG6gZKNL4', 'type': 'function', 'function': {'name': 'r2cmd', 'arguments': '{"command": "pdf @ fcn.000015d0"}'}}. Agree? (y/N) y
+r2ai is going to execute the following command on the host
+Want to edit? (ENTER to validate) pdf @ fcn.000015d0
+This command will execute on this host: pdf @ fcn.000015d0. Agree? (y/N) y
 ```
+
+If you wish to edit the command, you can do it inline for short one line commands, or an editor will pop up.
 
 
 **Example downloading a free local AI: Mistral 7B v0.2**
