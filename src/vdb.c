@@ -1,6 +1,5 @@
-/* r2ai - Copyright 2024 pancake */
+/* r2ai - MIT - Copyright 2024-2025 pancake */
 
-#include <stdio.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -11,18 +10,14 @@
 
 #define DO_NORM 0
 
-/*=============================
- * Vector Utility
- *=============================*/
-
-Vector vector_new(int dim) {
+static Vector vector_new(int dim) {
 	Vector v;
 	v.dim = dim;
-	v.data = (float *)calloc(dim, sizeof(float));
+	v.data = (float *)calloc (dim, sizeof (float));
 	return v;
 }
 
-void vector_free(Vector *v) {
+static void vector_free(Vector *v) {
 	if (v->data) {
 		free(v->data);
 		v->data = NULL;
@@ -30,7 +25,7 @@ void vector_free(Vector *v) {
 	v->dim = 0;
 }
 
-void vector_norm(Vector *v) {
+static void vector_norm(Vector *v) {
 	if (v->dim <= 0) {
 		return;
 	}
@@ -49,7 +44,7 @@ void vector_norm(Vector *v) {
 }
 
 /* We typically use squared Euclidean distance for k-d trees (no sqrt). */
-float squared_distance(const Vector *a, const Vector *b) {
+static float squared_distance(const Vector *a, const Vector *b) {
 	if (a->dim != b->dim) {
 		return 1e30f; // dimension mismatch
 	}
@@ -65,7 +60,7 @@ float squared_distance(const Vector *a, const Vector *b) {
  * KDNode Utility
  *=============================*/
 
-KDNode *create_kdnode(const Vector *v, const char *text, int split_dim) {
+static KDNode *create_kdnode(const Vector *v, const char *text, int split_dim) {
 	KDNode *node = (KDNode *)malloc (sizeof (KDNode));
 	node->point.dim = v->dim;
 	node->point.data = (float *)malloc (sizeof (float) * v->dim);
@@ -146,10 +141,7 @@ void r_vdb_insert(RVDB *db, const char *text) {
 	free(embedding);
 }
 
-/*=============================
- * K-NN Search Data Structures
- *=============================*/
-
+// K-NN Search Data Structures
 
 static RVDBResultSet *create_knn_result_set(int capacity) {
 	RVDBResultSet *rs = (RVDBResultSet *)malloc(sizeof(RVDBResultSet));
@@ -247,29 +239,28 @@ static int compare_knn_result(const void *a, const void *b) {
 	return 0;
 }
 
-/*=============================
- * K-NN Search
- *=============================*/
+// K-NN Search
 
 /* Recursive k-NN search in the kd-tree */
 static void kd_search_knn_recursive(KDNode *node, const Vector *query, RVDBResultSet *rs, int depth, int dim) {
-	if (!node) return;
-
-	/* 1. Insert the current node into the result set. */
+	if (!node) {
+		return;
+	}
+	// 1. Insert the current node into the result set
 	float dist_sq = squared_distance (query, &node->point);
 	knn_insert_result (rs, node, dist_sq);
 
-	/* 2. Check which side of the split to search first. */
+	// 2. Check which side of the split to search first
 	int axis = node->split_dim;
 	float diff = query->data[axis] - node->point.data[axis];
 
 	KDNode *first = (diff < 0) ? node->left : node->right;
 	KDNode *second = (diff < 0) ? node->right : node->left;
 
-	/* 3. Search the primary subtree. */
+	// 3. Search the primary subtree
 	kd_search_knn_recursive (first, query, rs, depth + 1, dim);
 
-	/* 4. Possibly search the other subtree if it could contain closer points. */
+	// 4. Possibly search the other subtree if it could contain closer points
 	float diff_sq = diff * diff;
 	float worst = knn_worst_dist (rs);
 	if (diff_sq < worst) {
@@ -287,7 +278,8 @@ RVDBResultSet *r_vdb_query_embedding(RVDB *db, const float *query_data, int k) {
 	}
 
 	Vector query_vec = vector_new (db->dimension);
-	for (int i = 0; i < db->dimension; i++) {
+	int i;
+	for (i = 0; i < db->dimension; i++) {
 		query_vec.data[i] = query_data[i];
 	}
 	vector_norm (&query_vec);
@@ -296,7 +288,7 @@ RVDBResultSet *r_vdb_query_embedding(RVDB *db, const float *query_data, int k) {
 	kd_search_knn_recursive (db->root, &query_vec, rs, 0, db->dimension);
 
 	/* (Optional) Sort results in ascending order of dist_sq. */
-	qsort (rs->results, rs->size, sizeof(RVDBResult), compare_knn_result);
+	qsort (rs->results, rs->size, sizeof (RVDBResult), compare_knn_result);
 
 	vector_free (&query_vec);
 	return rs;
@@ -305,7 +297,7 @@ RVDBResultSet *r_vdb_query_embedding(RVDB *db, const float *query_data, int k) {
 RVDBResultSet *r_vdb_query(RVDB *db, const char *text, int k) {
 	float *query_embedding = (float *)calloc (db->dimension, sizeof (float));
 	compute_embedding (text, query_embedding, db->dimension, DO_NORM);
-	vector_norm (&(Vector){.data=query_embedding, .dim=db->dimension});
+	vector_norm (&(Vector){.data = query_embedding, .dim = db->dimension});
 #if 0
 	printf ("%f %f %f %f\n",
 			query_embedding[0],
@@ -322,43 +314,3 @@ RVDBResultSet *r_vdb_query(RVDB *db, const char *text, int k) {
 	free (query_embedding);
 	return res;
 }
-
-#if 0
-int main(int argc, char *argv[]) {
-	if (argc < 2) {
-		fprintf(stderr, "Usage: %s <query text>\n", argv[0]);
-		return 1;
-	}
-
-	const char *query_text = argv[1];
-
-	int DIM = 8;
-	RVDB *db = r_vdb_new (DIM);
-
-#if 0
-	r_vdb_insert (db, "my favourite music is acid techno");
-#endif
-
-	const int K = 5;
-	RVDBResultSet *rs = r_vdb_query (db, query_text, K);
-
-	if (rs) {
-		printf("Query: \"%s\"\n", query_text);
-		printf("Found up to %d neighbors (actual found: %d).\n", K, rs->size);
-		for (int i = 0; i < rs->size; i++) {
-			RVDBResult *r = &rs->results[i];
-			KDNode *n = r->node;
-			float dist_sq = r->dist_sq;
-			float cos_sim = 1.0f - (dist_sq * 0.5f); // for normalized vectors
-			printf("%2d) dist_sq=%.4f cos_sim=%.4f text=\"%s\"\n",
-					i+1, dist_sq, cos_sim, (n->text ? n->text : "(null)"));
-		}
-		r_vdb_result_free (rs);
-	} else {
-		printf("No results found (DB empty or error).\n");
-	}
-
-	r_vdb_free (db);
-	return 0;
-}
-#endif

@@ -1,4 +1,4 @@
-/* r2ai - Copyright 2023-2024 pancake */
+/* r2ai - Copyright 2023-2025 pancake */
 
 #define R_LOG_ORIGIN "r2ai"
 
@@ -6,17 +6,18 @@
 static R_TH_LOCAL RVDB *db = NULL;
 
 static void refresh_embeddings(RCore *core) {
-	// refresh embeddings database
-	if (db) {
-		r_vdb_free (db);
-	}
-	db = r_vdb_new (4);
 	RListIter *iter, *iter2;
 	char *line;
 	char *file;
+	// refresh embeddings database
+	r_vdb_free (db);
+	db = r_vdb_new (4);
 	// enumerate .txt files in directory
 	const char *path = r_config_get (core->config, "r2ai.data.path");
 	RList *files = r_sys_dir (path);
+	if (r_list_empty (files)) {
+		R_LOG_WARN ("Cannot find any file in r2ai.data.path");
+	}
 	r_list_foreach (files, iter, file) {
 		if (!r_str_endswith (file, ".txt")) {
 			continue;
@@ -27,6 +28,9 @@ static void refresh_embeddings(RCore *core) {
 		if (text) {
 			RList *lines = r_str_split_list (text, "\n", -1);
 			r_list_foreach (lines, iter2, line) {
+				if (r_str_trim_head_ro (line)[0] == 0) {
+					continue;
+				}
 				r_vdb_insert (db, line);
 				R_LOG_DEBUG ("Insert %s", line);
 			}
@@ -49,6 +53,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -m", "show selected model, list suggested ones, choose one",
 	"r2ai", " -M", "show suggested models for each api",
 	"r2ai", " -n", "suggest a better name for the current function",
+	"r2ai", " -r", "enter the repl",
 	"r2ai", " -R ([text])", "refresh and query embeddings (see r2ai.data)",
 	"r2ai", " -s", "function signature",
 	"r2ai", " -x", "explain current function",
@@ -58,7 +63,38 @@ static RCoreHelpMessage help_msg_r2ai = {
 	NULL
 };
 
-R_IPI char *r2ai(RCore *core, const char *input, char **error) {
+static char *vdb_from(RCore *core, const char *prompt) {
+	char *q = r_str_newf (
+		"# Instruction\n"
+		"Deconstruct the prompt and respond ONLY with the list of multiple prompts necessary to resolve it\n"
+		"## Prompt\n%s\n", prompt);
+	char *error = NULL;
+	char *r = r2ai (core, q, &error, false);
+	if (error) {
+		free (q);
+		free (r);
+		return NULL;
+	}
+	return r;
+}
+static char *rag(RCore *core, const char *content, const char *prompt) {
+	char *q = r_str_newf (
+		"# Instruction\n"
+		"Filter the statements. Respond ONLY the subset of statements matching the prompt. Do not introduce the output. Do not use markdown\n"
+		"## Prompt\n%s\n"
+		"## Statements\n%s\n", prompt, content);
+	char *error = NULL;
+	char *r = r2ai (core, q, &error, false);
+	if (error) {
+		free (q);
+		free (r);
+		return NULL;
+	}
+	eprintf ("RESULT (%s)\n", r);
+	return r;
+}
+
+R_IPI char *r2ai(RCore *core, const char *input, char **error, bool dorag) {
 	if (R_STR_ISEMPTY (input)) {
 		*error = strdup ("Usage: 'r2ai [query]'. See 'r2ai -h' for help");
 		return NULL;
@@ -73,42 +109,84 @@ R_IPI char *r2ai(RCore *core, const char *input, char **error) {
 	char *content = strdup (input);
 	char *model = strdup (r_config_get (core->config, "r2ai.model"));
 	char *provider = strdup (r_config_get (core->config, "r2ai.api"));
-	if (r_config_get_b (core->config, "r2ai.data")) {
+	if (dorag && r_config_get_b (core->config, "r2ai.data")) {
 		if (!db) {
 			refresh_embeddings (core);
 		}
 		const int K = r_config_get_i (core->config, "r2ai.data.nth");
-		RVDBResultSet *rs = r_vdb_query (db, input, K);
-
-		if (rs) {
-			//printf("Found up to %d neighbors (actual found: %d).\n", K, rs->size);
-			RStrBuf *sb = r_strbuf_new (".\nConsider:\n");
-			for (int i = 0; i < rs->size; i++) {
-				RVDBResult *r = &rs->results[i];
-				KDNode *n = r->node;
-				r_strbuf_appendf (sb, "- %s\n", n->text);
-			}
-			char *s = r_strbuf_drain (sb);
-			free (content);
-			content = r_str_newf ("%s%s", input, s);
-			free (s);
-			r_vdb_result_free (rs);
-		}
-	}
+		const bool reason = r_config_get_b (core->config, "r2ai.data.reason");
+		if (reason) {
+			char *vdb_input = vdb_from (core, input);
+			RListIter *iter;
+			// eprintf ("---------------->VDB IPNPUT (%s)\n-------------<<<<\n", vdb_input);
+			RList *lines = r_str_split_list (vdb_input, "\n", 0);
+			RStrBuf *ctx = r_strbuf_new ("");
+			const char *line;
+			r_list_foreach (lines, iter, line) {
+				if (*line && (isdigit (*line) || *line == '-')) {
+					// accept line
+				} else {
+					continue;
+				}
+				RVDBResultSet *rs = r_vdb_query (db, line, K);
 #if 0
-	if (!strstr (provider, "ollama")) {
-		free (provider);
-		provider = strdup (model);
-		char *colon = strchr (provider, ':');
-		if (colon) {
-			*colon = 0;
-			free (model);
-			model = strdup (colon + 1);
+				eprintf ("-------------VDB\n");
+				eprintf ("%s\n", vdb_input);
+				eprintf ("-------------VDB\n");
+#endif
+				if (rs) {
+					// printf("Found up to %d neighbors (actual found: %d).\n", K, rs->size);
+#if 0
+					RStrBuf *sb = r_strbuf_new ("");
+					for (int i = 0; i < rs->size; i++) {
+						RVDBResult *r = &rs->results[i];
+						KDNode *n = r->node;
+						r_strbuf_appendf (sb, "- %s\n", n->text);
+					}
+					char *s = r_strbuf_drain (sb);
+#else
+					const char *path = r_config_get (core->config, "r2ai.data.path");
+					char *fn = r_str_newf ("%s/%s", path, "quotes.txt");
+					char *s = r_file_slurp (fn, NULL);
+#endif
+					r_vdb_result_free (rs);
+					char *res = rag (core, s, vdb_input);
+					if (res) {
+						free (s);
+						s = res;
+					}
+					r_strbuf_appendf (ctx, "%s\n", s);
+					free (s);
+				}
+				free (vdb_input);
+			}
+			r_list_free (lines);
+			free (content);
+			char *res = r_strbuf_drain (ctx);
+			content = r_str_newf ("## Prompt\n%s.\n## Context\n%s", input, res);
+			free (res);
+		} else {
+			RVDBResultSet *rs = r_vdb_query (db, content, K);
+#if 0
+			eprintf ("-------------VDB\n");
+			eprintf ("%s\n", vdb_input);
+			eprintf ("-------------VDB\n");
+#endif
+			if (rs) {
+				// printf("Found up to %d neighbors (actual found: %d).\n", K, rs->size);
+				RStrBuf *sb = r_strbuf_new ("");
+				int i;
+				for (i = 0; i < rs->size; i++) {
+					RVDBResult *r = &rs->results[i];
+					KDNode *n = r->node;
+					r_strbuf_appendf (sb, "- %s\n", n->text);
+				}
+				char *s = r_strbuf_drain (sb);
+				content = r_str_newf ("## Prompt\n%s.\n## Context\n%s", input, s);
+				free (s);
+			}
 		}
 	}
-	R_LOG_INFO ("Model: %s", model);
-	R_LOG_INFO ("Provider: %s", provider);
-#endif
 	// free (model);
 	bool stream = r_config_get_b (core->config, "r2ai.stream");
 	char *result = NULL;
@@ -194,7 +272,7 @@ static void cmd_r2ai_d(RCore *core, const char *input, const bool recursive) {
 	r_list_free (refslist);
 	char *s = r_strbuf_drain (sb);
 	char *error = NULL;
-	char *res = r2ai (core, s, &error);
+	char *res = r2ai (core, s, &error, true);
 	free (s);
 	if (error) {
 		R_LOG_ERROR (error);
@@ -213,7 +291,7 @@ static void cmd_r2ai_x(RCore *core) {
 	char *s = r_core_cmd_str (core, "r2ai -d");
 	char *error = NULL;
 	char *q = r_str_newf ("%s\n[CODE]\n%s\n[/CODE]\n", explain_prompt, s);
-	char *res = r2ai (core, q, &error);
+	char *res = r2ai (core, q, &error, true);
 	free (s);
 	if (error) {
 		R_LOG_ERROR (error);
@@ -226,7 +304,49 @@ static void cmd_r2ai_x(RCore *core) {
 	free (explain_prompt);
 }
 
+static void cmd_r2ai_repl(RCore *core) {
+	RStrBuf *sb = r_strbuf_new ("");
+	while (true) {
+		r_line_set_prompt (">>> ");
+		const char *ptr = r_line_readline ();
+		if (R_STR_ISEMPTY (ptr)) {
+			break;
+		}
+		if (*ptr == '/') {
+			if (ptr[1] == '?' || r_str_startswith (ptr, "/help")) {
+				r_cons_println ("/help    show this help");
+				r_cons_println ("/reset   reset conversation");
+				r_cons_println ("/quit    same as ^D, leave the repl");
+			} else if (r_str_startswith (ptr, "/reset")) {
+				r_strbuf_free (sb);
+				sb = r_strbuf_new ("");
+				continue;
+			} else if (r_str_startswith (ptr, "/quit")) {
+				break;
+			}
+		}
+		r_strbuf_appendf (sb, "User: %s\n", ptr);
+		const char *a = r_strbuf_tostring (sb);
+		char *error = NULL;
+		char *res = r2ai (core, a, &error, true);
+		if (error) {
+			R_LOG_ERROR ("%s", error);
+			free (error);
+		} else if (res) {
+			r_strbuf_appendf (sb, "Assistant: %s\n", res);
+			r_cons_println (res);
+			r_cons_flush ();
+		}
+		free (res);
+	}
+	r_strbuf_free (sb);
+}
+
 static void cmd_r2ai_R(RCore *core, const char *q) {
+	if (!r_config_get_b (core->config, "r2ai.data")) {
+		R_LOG_ERROR ("r2ai -e r2ai.data=true");
+		return;
+	}
 	if (R_STR_ISEMPTY (q)) {
 		if (db) {
 			r_vdb_free (db);
@@ -241,19 +361,20 @@ static void cmd_r2ai_R(RCore *core, const char *q) {
 		RVDBResultSet *rs = r_vdb_query (db, q, K);
 
 		if (rs) {
-			printf("Query: \"%s\"\n", q);
-			printf("Found up to %d neighbors (actual found: %d).\n", K, rs->size);
-			for (int i = 0; i < rs->size; i++) {
+			R_LOG_INFO ("Query: \"%s\"", q);
+			R_LOG_INFO ("Found up to %d neighbors (actual found: %d)", K, rs->size);
+			int i;
+			for (i = 0; i < rs->size; i++) {
 				RVDBResult *r = &rs->results[i];
 				KDNode *n = r->node;
 				float dist_sq = r->dist_sq;
 				float cos_sim = 1.0f - (dist_sq * 0.5f); // for normalized vectors
-				printf("%2d) dist_sq=%.4f cos_sim=%.4f text=\"%s\"\n",
+				printf ("%2d) dist_sq=%.4f cos_sim=%.4f text=\"%s\"\n",
 						i + 1, dist_sq, cos_sim, (n->text ? n->text : "(null)"));
 			}
 			r_vdb_result_free (rs);
 		} else {
-			printf("No results found (DB empty or error).\n");
+			R_LOG_ERROR ("No vdb results found");
 		}
 	}
 }
@@ -262,7 +383,7 @@ static void cmd_r2ai_n(RCore *core) {
 	char *s = r_core_cmd_str (core, "r2ai -d");
 	char *q = r_str_newf ("output only the radare2 commands in plain text without markdown. Give me a better name for this function. the output must be: 'afn NEWNAME'. do not include the function code, only the afn line. consider: \n```c\n%s\n```", s);
 	char *error = NULL;
-	char *res = r2ai (core, q, &error);
+	char *res = r2ai (core, q, &error, true);
 	free (s);
 	if (error) {
 		R_LOG_ERROR (error);
@@ -288,7 +409,7 @@ static void cmd_r2ai_i(RCore *core, const char *arg) {
 	}
 	char *q = r_str_newf ("%s\n```\n%s\n```\n", query, s);
 	char *error = NULL;
-	char *res = r2ai (core, q, &error);
+	char *res = r2ai (core, q, &error, true);
 	free (s);
 	if (error) {
 		R_LOG_ERROR (error);
@@ -314,7 +435,7 @@ static void cmd_r2ai_s(RCore *core) {
 	}
 	char *q = r_str_newf ("analyze the uses of the arguments and return value to infer the signature, identify which is the correct type for the resturn. Do NOT print the function body, ONLY output the function signature, ignore '@' in argument types because it must be used in a C header:\n```\n%s\n``` source code:\n```\n%s\n```\n", afv, s);
 	char *error = NULL;
-	char *res = r2ai (core, q, &error);
+	char *res = r2ai (core, q, &error, true);
 	if (error) {
 		R_LOG_ERROR (error);
 		free (error);
@@ -344,7 +465,7 @@ static void cmd_r2ai_v(RCore *core) {
 	char *afv = r_core_cmd_str (core, "afv");
 	char *q = r_str_newf ("Output only the radare2 command without markdown, guess a better name and type for each local variable and function argument taking using. output an r2 script using afvn and afvt commands:\n```\n%s```", afv);
 	char *error = NULL;
-	char *res = r2ai (core, q, &error);
+	char *res = r2ai (core, q, &error, true);
 	if (error) {
 		R_LOG_ERROR (error);
 		free (error);
@@ -361,7 +482,7 @@ static void cmd_r2ai_V(RCore *core, bool recursive) {
 	char *s = r_core_cmd_str (core, recursive? "r2ai -d": "r2ai -dr");
 	char *q = r_str_newf ("find vulnerabilities, dont show the code, only show the response, provide a sample exploit and suggest good practices:\n```\n%s```", s);
 	char *error = NULL;
-	char *res = r2ai (core, q, &error);
+	char *res = r2ai (core, q, &error, true);
 	if (error) {
 		R_LOG_ERROR (error);
 		free (error);
@@ -403,7 +524,7 @@ static void cmd_r2ai_m(RCore *core, const char *input) {
 }
 
 static void cmd_r2ai(RCore *core, const char *input) {
-	if (r_str_startswith (input, "-h")) {
+	if (*input == '?' || r_str_startswith (input, "-h")) {
 		r_core_cmd_help (core, help_msg_r2ai);
 	} else if (r_str_startswith (input, "-e")) {
 		const char *arg = r_str_trim_head_ro (input + 2);
@@ -432,6 +553,8 @@ static void cmd_r2ai(RCore *core, const char *input) {
 		cmd_r2ai_V (core, true);
 	} else if (r_str_startswith (input, "-n")) {
 		cmd_r2ai_n (core);
+	} else if (r_str_startswith (input, "-r")) {
+		cmd_r2ai_repl (core);
 	} else if (r_str_startswith (input, "-R")) {
 		cmd_r2ai_R (core, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-M")) {
@@ -442,7 +565,7 @@ static void cmd_r2ai(RCore *core, const char *input) {
 		r_core_cmd_help (core, help_msg_r2ai);
 	} else {
 		char *err = NULL;
-		char *res = r2ai (core, input, &err);
+		char *res = r2ai (core, input, &err, true);
 		if (err) {
 			R_LOG_ERROR ("%s", err);
 			R_FREE (err);
@@ -462,12 +585,13 @@ static int r2ai_init(void *user, const char *input) {
 	r_config_set (core->config, "r2ai.model", ""); // "qwen2.5-coder:3b"); // qwen2.5-4km");
 	r_config_set (core->config, "r2ai.cmds", "pdc");
 	r_config_set (core->config, "r2ai.lang", "C");
-	r_config_set_b (core->config, "r2ai.data", "false");
+	r_config_set_b (core->config, "r2ai.data", false);
+	r_config_set_b (core->config, "r2ai.data.reason", false);
 	r_config_set (core->config, "r2ai.data.path", "/tmp/embeds");
 	r_config_set_i (core->config, "r2ai.data.nth", 10);
 	r_config_set (core->config, "r2ai.hlang", "english");
 	r_config_set (core->config, "r2ai.system", "Your name is r2clippy");
-	r_config_set (core->config, "r2ai.prompt", "Rewrite this function and respond ONLY with code, replace goto/labels with if/else/for, use NO explanations, NO markdown, Simplify as much as possible, use better variable names, take function arguments and and strings from comments like 'string:'");
+	r_config_set (core->config, "r2ai.prompt", "Rewrite this function and respond ONLY with code, replace goto/labels with if/else/for, use NO explanations, NO markdown, Simplify as much as possible, use better variable names, take function arguments and strings from comments like 'string:'");
 	r_config_set_b (core->config, "r2ai.stream", false);
 	r_config_lock (core->config, true);
 	return true;

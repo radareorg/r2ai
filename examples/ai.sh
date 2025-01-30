@@ -27,6 +27,11 @@ CLAUDE_MODEL="claude-3-5-sonnet-20241022"
 if [ -f ~/.r2ai.anthropic-key ]; then
 	CLAUDE_KEY=$(cat ~/.r2ai.anthropic-key)
 fi
+DEEPSEEK_KEY=""
+DEEPSEEK_MODEL="claude-3-5-sonnet-20241022"
+if [ -f ~/.r2ai.deepseek-key ]; then
+	DEEPSEEK_KEY=$(cat ~/.r2ai.anthropic-key)
+fi
 
 SCISSORS="------------8<------------"
 
@@ -104,6 +109,22 @@ gemini() {
 	echo "$SCISSORS"
 }
 
+deepseek() {
+	read_INPUT
+	PAYLOAD=" {
+	\"model\":\"deepseek-chat\",
+	\"stream\":\"false\",
+	\"messages\":[{
+            {\"role\": \"user\", \"content\": ${INPUT}}
+          }]}"
+	echo "$SCISSORS"
+	curl -s -X POST "https://api.deepseek.com/chat/completions" \
+		-H "Authorization: Bearer ${DEEPSEEK_KEY}" \
+		-H "Content-Type: application/json" \
+		-d "`printf '%s\n' \"${PAYLOAD}\"`" | jq -r .choices[0].message.content
+	echo "$SCISSORS"
+}
+
 show_help() {
 	cat <<EOF
 $ ai [--] | [-h] | [prompt] < INPUT
@@ -116,6 +137,7 @@ OLLAMA_PORT=11434
 GEMINI_KEY=~/.r2ai-gemini.key
 OPENAI_KEY=~/.r2ai-openai.key
 CLAUDE_KEY=~/.r2ai-anthropic.key
+DEEPSEEK_KEY=~/.r2ai-deepseek.key
 CLAUDE_MODEL=claude-3-5-sonnet-20241022
 EOF
 	exit 0
@@ -131,6 +153,7 @@ fi
 export ARG="$@"
 case "${SHAI_API}" in
 gemini|google) gemini ; ;;
+deepseek) deepseek ; ;;
 openapi) openapi ; ;;
 claude) claude ; ;;
 ollama) ollama ; ;;

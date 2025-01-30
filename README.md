@@ -20,18 +20,17 @@ Run a language model to entertain you or help answering questions about radare2 
 
 R2AI is structured into four independent components:
 
-* r2ai (wip r2ai-native rewrite in C)
+* r2ai (python cli tool)
   * r2-like repl using r2pipe to comunicate with r2
   * supports auto solving mode
   * client and server openapi protocol
   * download and manage models from huggingface
-* decai
-  * lightweight r2js plugin
+* decai (r2js plugin focus on decompilation)
+  * adds 'decai' command to the r2 shell
+  * talks to local or remote services with curl
   * focus on decompilation
-  * talks to r2ai, r2ai-server, openai, anthropic or ollama
 * *r2ai-plugin*
-  * *not recommended because of python versions pain*. Hopefully soon re-written in C (WIP: `./src`)
-  * requires r2lang-python
+  * Native plugin written in C
   * adds r2ai command inside r2
 * r2ai-server
   * favour *ollama* instead
@@ -51,7 +50,7 @@ R2AI is structured into four independent components:
 * Define different system-level assistant role
 * Set environment variables to provide context to the language model
 * Live with repl and batch mode from cli or r2 prompt
-* Scriptable from python, bash, r2pipe, and javascript (r2papi)
+* Scriptable via r2pipe
 * Use different models, dynamically adjust query template
 * Load multiple models and make them talk between them
 
@@ -62,6 +61,7 @@ R2AI is structured into four independent components:
 Install the various components via `r2pm`:
 
 - `r2pm -ci r2ai`
+- `r2pm -ci r2ai-plugin`
 - `r2pm -ci decai`
 - `r2pm -ci r2ai-server`
 

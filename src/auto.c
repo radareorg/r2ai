@@ -48,7 +48,7 @@ R_IPI void cmd_r2ai_a(RCore *core, const char *user_query) {
 
 		char *q = r_strbuf_drain (sb);
 		char *error = NULL;
-		char *res = r2ai (core, q, &error);
+		char *res = r2ai (core, q, &error, true);
 		free (q);
 		{
 			RJson *jres = r_json_parse (res);

@@ -106,7 +106,7 @@ Response:
     let decaiCache = false;
     let maxInputTokens = -1; // -1 = disabled i.e fileData is not truncated up to this limit
     // let decprompt = "Do not explain, respond using ONLY code. Simplify and make it more readable. Use better variable names, keep it simple and avoid unnecessary logic, rewrite 'goto' into higher level constructs, Use comments like 'string:' to resolve function call arguments";
-    const defaultPrompt = "Rewrite this function and respond ONLY with code, NO explanations, NO markdown, Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and and strings from comments like 'string:'";
+    const defaultPrompt = "Rewrite this function and respond ONLY with code, NO explanations, NO markdown, Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and strings from comments like 'string:'";
     let decprompt = defaultPrompt;
 
     function decaiEval(arg) {
