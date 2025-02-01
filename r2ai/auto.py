@@ -82,7 +82,7 @@ class ChatAuto:
         model_info = litellm.get_model_info(self.model)
         self.max_tokens = min(self.max_tokens, model_info['max_tokens'])
 
-        if self.model in ['openai/o1-mini-2024-09-12', 'openai/o1-mini', 'openai/o1-2024-12-17', 'openai/o1']:
+        if self.model.startswith('openai/o'):
             self.is_reasoning = True
             self.max_tokens = model_info['max_tokens']
             self.timeout = 60 * 60
@@ -340,7 +340,7 @@ Here is some information about the binary to get you started:
             model=self.model,
             messages=self.messages,
             timeout=self.timeout,
-            max_tokens=self.max_tokens,
+            max_completion_tokens=self.max_tokens,
             **additional_args,
             stream=stream,
         )
