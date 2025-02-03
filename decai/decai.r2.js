@@ -161,7 +161,7 @@ Response:
             break;
         case "api":
             if (v === "?") {
-                console.error("r2ai\nclaude\nopenapi\nopenai\ngemini\nxai\nhf");
+                console.error("r2ai\nclaude\nollama\nopenapi\nopenapi2\nopenai\ngemini\nxai\nhf");
             } else {
                 decaiApi = v;
             }
@@ -471,6 +471,24 @@ Response:
         }
         return "error invalid response";
     }
+    function r2aiVLLM(msg, hideprompt) {
+        const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
+        const payload = JSON.stringify({ "prompt": query, "model": "lmsys/vicuna-7b-v1.3" });
+        const curlcmd = `curl -s ${decaiHost}:8000/v1/completions
+          -H "Content-Type: application/json"
+          -d '${payload}' #`.replace(/\n/g, "");
+        if (decaiDebug) {
+            console.log(curlcmd);
+        }
+        const res = r2.syscmds(curlcmd);
+        try {
+            return JSON.parse(res).choices[0].text;
+        } catch(e) {
+            console.error(e);
+            console.log(res);
+        }
+        return "error invalid response";
+    }
     function r2aiOpenAPI2(msg, hideprompt) {
         const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
         const payload = JSON.stringify({ "prompt": query, "model": "qwen2.5_Coder_1.5B_4bit" });
@@ -655,13 +673,16 @@ Response:
         if (decaiApi === "xai") {
             return r2aiXai(q, hideprompt);
         }
+        if (decaiApi === "vllm") {
+            return r2aiVLLM(q, hideprompt);
+        }
         if (decaiApi === "openapi2") {
             return r2aiOpenAPI2(q, hideprompt);
         }
         if (decaiApi === "openai") {
             return r2aiOpenAI(q, hideprompt);
         }
-        return "Unknown value for 'decai -e api'. Use r2ai, claude, hf, openapi or openai";
+        return "Unknown value for 'decai -e api'. Use r2ai, claude, ollama, hf, openapi, openapi2 or openai";
     }
     function r2aidec(args) {
         if (args === "") {
