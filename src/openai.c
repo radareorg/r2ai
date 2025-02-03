@@ -155,7 +155,6 @@ R_IPI char *r2ai_openai_stream(RCore *core, const char *content, const char *mod
 	char *data = pj_drain (pj);
 
 	int code = 0;
-	int rlen = 0;
 	char *res = r_socket_http_post (openai_url, headers, data, &code, NULL);
 	if (!res || code != 200) {
 		R_LOG_ERROR ("Oops %d", code);

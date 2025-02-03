@@ -41,7 +41,6 @@ static void refresh_embeddings(RCore *core) {
 	r_list_free (files);
 }
 
-
 static RCoreHelpMessage help_msg_r2ai = {
 	"Usage:", "r2ai", " [-args] [...]",
 	"r2ai", " -d", "Decompile current function",
@@ -523,6 +522,41 @@ static void cmd_r2ai_m(RCore *core, const char *input) {
 	r_cons_printf ("Model set to %s\n", input);
 }
 
+static void load_embeddings(RCore *core, RVDB *db) {
+	RListIter *iter, *iter2;
+	char *line;
+	char *file;
+	// refresh embeddings database
+	// db = r_vdb_new (4);
+	// enumerate .txt files in directory
+	const char *path = r_config_get (core->config, "r2ai.data.path");
+	RList *files = r_sys_dir (path);
+	if (r_list_empty (files)) {
+		R_LOG_WARN ("Cannot find any file in r2ai.data.path");
+	}
+	r_list_foreach (files, iter, file) {
+		if (!r_str_endswith (file, ".txt")) {
+			continue;
+		}
+		R_LOG_DEBUG ("Index %s", file);
+		char *filepath = r_file_new (path, file, NULL);
+		char *text = r_file_slurp (filepath, NULL);
+		if (text) {
+			RList *lines = r_str_split_list (text, "\n", -1);
+			r_list_foreach (lines, iter2, line) {
+				if (r_str_trim_head_ro (line)[0] == 0) {
+					continue;
+				}
+				r_vdb_insert (db, line);
+				R_LOG_DEBUG ("Insert %s", line);
+			}
+			r_list_free (lines);
+		}
+		free (filepath);
+	}
+	r_list_free (files);
+}
+
 static void cmd_r2ai(RCore *core, const char *input) {
 	if (*input == '?' || r_str_startswith (input, "-h")) {
 		r_core_cmd_help (core, help_msg_r2ai);
@@ -543,6 +577,25 @@ static void cmd_r2ai(RCore *core, const char *input) {
 		cmd_r2ai_x (core);
 	} else if (r_str_startswith (input, "-s")) {
 		cmd_r2ai_s (core);
+	} else if (r_str_startswith (input, "-S")) {
+		if (db == NULL) {
+			db = r_vdb_new (4);
+			load_embeddings (core, db);
+		}
+		const char *arg = r_str_trim_head_ro (input + 2);
+		const int K = 10;
+		eprintf ("vector search\n");
+		RVDBResultSet *rs = r_vdb_query (db, arg, K);
+		if (rs) {
+			int i;
+			eprintf ("Found up to %d neighbors (actual found: %d).\n", K, rs->size);
+			for (i = 0; i < rs->size; i++) {
+				RVDBResult *r = &rs->results[i];
+				KDNode *n = r->node;
+				r_cons_printf ("- %s\n", n->text);
+			}
+			r_vdb_result_free (rs);
+		}
 	} else if (r_str_startswith (input, "-i")) {
 		cmd_r2ai_i (core, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-v")) {

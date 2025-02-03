@@ -3,6 +3,7 @@ CFLAGS+=$(shell pkg-config --cflags r_core)
 LDFLAGS+=$(shell pkg-config --libs r_core)
 R2PLUGDIR=$(shell r2 -H R2_USER_PLUGINS)
 CFLAGS+=-I. -fPIC
+CFLAGS+=-Wall
 CFLAGS+=-g
 
 OBJS=r2ai.o

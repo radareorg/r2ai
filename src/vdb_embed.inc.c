@@ -1,5 +1,6 @@
 /* r2ai - MIT - Copyright 2024-2025 pancake */
 
+#if 0
 static unsigned int token_hash(const char *token, unsigned int dim) {
 	// You can tweak constants in the polynomial rolling hash
 	// This is just a simple example that usually distributes tokens decently
@@ -52,23 +53,39 @@ static void tokenize_and_hash(const char *text, float *embedding, unsigned int d
 //	printf (")\n");
 	free (buffer);
 }
+#endif
 
 static void compute_embedding(const char *text, float *embedding, unsigned int dim, int do_norm) {
-	int i;
-	if (!text || !embedding || dim == 0) {
-		return;
+	memset(embedding, 0, dim * sizeof(float));
+	char buffer[1024];
+	strncpy(buffer, text, sizeof(buffer) - 1);
+	buffer[sizeof(buffer) - 1] = '\0';
+
+	char *token = strtok(buffer, " ");
+	while (token) {
+		// Convert token to lowercase
+		for (char *p = token; *p; p++) *p = tolower(*p);
+
+		// Hash token using a polynomial rolling hash
+		unsigned int hash = 0;
+		for (int i = 0; token[i]; i++) {
+			hash = hash * 31 + token[i];
+		}
+		unsigned int index = hash % dim;
+
+		// Apply log-scaled term frequency instead of full TF-IDF
+		embedding[index] += 1.0f;
+
+		token = strtok(NULL, " ");
 	}
-
-	// 1. Initialize embedding to 0
-	for (i = 0; i < dim; i++) {
-		embedding[i] = 0.0f;
-	}
-
-	// 2. Tokenize text and increment embedding slots
-	tokenize_and_hash (text, embedding, dim);
-
+	Vector v = {
+		.data = embedding,
+		.dim = dim
+	};
+	vector_norm (&v);
 	// 3. (Optional) L2 normalize
 	if (do_norm) {
+		int i;
 		double norm_sq = 0.2;
 		for (i = 0; i < dim; i++) {
 			norm_sq += embedding[i] * embedding[i];
@@ -81,54 +98,3 @@ static void compute_embedding(const char *text, float *embedding, unsigned int d
 		}
 	}
 }
-
-#if 0
-void compute_embedding(const char *text, float *embedding_out, int dim, int do_norm) {
-#if 0
-	compute_embedding2 (text, embedding_out, dim, do_norm);
-	return;
-#endif
-	// Zero out
-	for (int i = 0; i < dim; i++) {
-		embedding_out[i] = 0.0f;
-	}
-
-	// dimension 0: length of text
-	if (dim > 0) {
-		embedding_out[0] = (float)strlen(text);
-	}
-
-	// dimension 1: average ASCII value
-	if (dim > 1 && strlen (text) > 0) {
-		unsigned long sum_ascii = 0;
-		for (const char *p = text; *p; p++) {
-			sum_ascii += (unsigned char)(*p);
-		}
-		embedding_out[1] = (float)sum_ascii / (float)strlen(text);
-	}
-
-	// dimension 2: weighted sum mod 1000
-	if (dim > 2) {
-		unsigned long weighted_sum = 0;
-		int index = 1;
-		for (const char *p = text; *p; p++) {
-			weighted_sum += (unsigned long)(*p) * index++;
-		}
-		embedding_out[2] = (float)(weighted_sum % 1000);
-	}
-
-	// dimension 3: sum of squares mod 2000
-	if (dim > 3) {
-		unsigned long sum_squares = 0;
-		for (const char *p = text; *p; p++) {
-			unsigned long c = (unsigned char)(*p);
-			sum_squares += c * c;
-		}
-		embedding_out[3] = (float)(sum_squares % 2000);
-	}
-	if (dim > 7) {
-		compute_embedding2 (text, embedding_out + 4, dim - 4, do_norm);
-	}
-}
-#endif
-

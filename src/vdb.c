@@ -34,7 +34,6 @@ static void vector_norm(Vector *v) {
 		norm_sq += v->data[i] * v->data[i];
 	}
 	if (norm_sq == 0.0f) {
-		// zero vector, handle as needed
 		return;
 	}
 	float norm = sqrtf(norm_sq);
@@ -43,6 +42,7 @@ static void vector_norm(Vector *v) {
 	}
 }
 
+#if 0
 /* We typically use squared Euclidean distance for k-d trees (no sqrt). */
 static float squared_distance(const Vector *a, const Vector *b) {
 	if (a->dim != b->dim) {
@@ -55,6 +55,7 @@ static float squared_distance(const Vector *a, const Vector *b) {
 	}
 	return dist;
 }
+#endif
 
 /*=============================
  * KDNode Utility
@@ -138,7 +139,7 @@ void r_vdb_insert(RVDB *db, const char *text) {
 	db->root = kd_insert_recursive (db->root, &v, text, 0, db->dimension);
 	db->size++;
 
-	free(embedding);
+	free (embedding);
 }
 
 // K-NN Search Data Structures
@@ -241,6 +242,7 @@ static int compare_knn_result(const void *a, const void *b) {
 
 // K-NN Search
 
+#if 0
 /* Recursive k-NN search in the kd-tree */
 static void kd_search_knn_recursive(KDNode *node, const Vector *query, RVDBResultSet *rs, int depth, int dim) {
 	if (!node) {
@@ -267,6 +269,57 @@ static void kd_search_knn_recursive(KDNode *node, const Vector *query, RVDBResul
 		kd_search_knn_recursive (second, query, rs, depth + 1, dim);
 	}
 }
+#else
+
+
+static float cosine_similarity(const Vector *a, const Vector *b) {
+	if (a->dim != b->dim) {
+		return -1.0f; // dimension mismatch
+	}
+	float dot_product = 0.0f;
+	float norm_a = 0.0f, norm_b = 0.0f;
+	for (int i = 0; i < a->dim; i++) {
+		dot_product += a->data[i] * b->data[i];
+		norm_a += a->data[i] * a->data[i];
+		norm_b += b->data[i] * b->data[i];
+	}
+	if (norm_a == 0.0f || norm_b == 0.0f) {
+		return -1.0f; // avoid division by zero
+	}
+	return dot_product / (sqrtf(norm_a) * sqrtf(norm_b));
+}
+
+#endif
+
+// BEGIN
+
+
+// Context-aware embedding computation using log-scaled term frequency
+
+void kd_search_knn_recursive(KDNode *node, const Vector *query, RVDBResultSet *rs, int depth, int dim) {
+	if (!node) {
+		return;
+	}
+
+	float similarity = cosine_similarity(query, &node->point);
+	knn_insert_result(rs, node, similarity);
+
+	int axis = node->split_dim;
+	float diff = query->data[axis] - node->point.data[axis];
+
+	KDNode *first = (diff < 0) ? node->left : node->right;
+	KDNode *second = (diff < 0) ? node->right : node->left;
+
+	kd_search_knn_recursive(first, query, rs, depth + 1, dim);
+
+	float worst = knn_worst_dist(rs);
+	if (fabsf(diff) < worst) {
+		kd_search_knn_recursive(second, query, rs, depth + 1, dim);
+	}
+}
+
+
+// END
 
 /*
  * Find the k nearest neighbors to the embedding computed from `query_data`.

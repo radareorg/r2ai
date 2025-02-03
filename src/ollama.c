@@ -39,7 +39,6 @@ R_IPI char *r2ai_ollama(RCore *core, const char *content, const char *model, cha
 	pj_end (pj);
 	char *data = pj_drain (pj);
 	int code = 0;
-	int rlen = 0;
 #if R2_VERSION_NUMBER >= 50909
 	const char *headers[] = { "Content-Type: application/json", NULL };
 	char *res = r_socket_http_post (openapi_url, headers, data, &code, NULL);
