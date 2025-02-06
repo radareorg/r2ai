@@ -592,7 +592,7 @@ static void cmd_r2ai(RCore *core, const char *input) {
 			for (i = 0; i < rs->size; i++) {
 				RVDBResult *r = &rs->results[i];
 				KDNode *n = r->node;
-				r_cons_printf ("- %s\n", n->text);
+				r_cons_printf ("- (%.4f) %s\n", r->dist_sq, n->text);
 			}
 			r_vdb_result_free (rs);
 		}

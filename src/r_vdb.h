@@ -13,14 +13,22 @@ typedef struct KDNode {
 	char          *text;       
 	struct KDNode *left;       
 	struct KDNode *right;      
-	int            split_dim;  
+	int split_dim;  
 } KDNode;
 
 /* A k-d tree "database" */
-typedef struct {
-	KDNode *root;
-	int     dimension;
-	int     size;
+typedef struct token_df {
+    char *token;
+    int df;
+    struct token_df *next;
+} token_df;
+
+typedef struct RVDB {
+    KDNode *root;
+    int dimension;
+    int size;
+    int total_docs;       // initialize to 0
+    token_df *df_table;   // initialize to NULL
 } RVDB;
 /* Each k-NN result: pointer to KDNode + distance (squared). */
 typedef struct {
