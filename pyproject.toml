@@ -25,7 +25,7 @@ dependencies = [
   "boto3",
   "colorama",
   "textual",
-  "litellm>=1.58.2",
+  "litellm>=1.60.5",
   "numpydoc"
 ]
 
