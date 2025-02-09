@@ -3,7 +3,9 @@
 #define R_LOG_ORIGIN "r2ai"
 
 #include "r2ai.h"
-static R_TH_LOCAL RVDB *db = NULL;
+static R_TH_LOCAL RVdb *db = NULL;
+
+#define VDBDIM 16
 
 static void refresh_embeddings(RCore *core) {
 	RListIter *iter, *iter2;
@@ -11,7 +13,7 @@ static void refresh_embeddings(RCore *core) {
 	char *file;
 	// refresh embeddings database
 	r_vdb_free (db);
-	db = r_vdb_new (4);
+	db = r_vdb_new (VDBDIM);
 	// enumerate .txt files in directory
 	const char *path = r_config_get (core->config, "r2ai.data.path");
 	RList *files = r_sys_dir (path);
@@ -127,7 +129,7 @@ R_IPI char *r2ai(RCore *core, const char *input, char **error, bool dorag) {
 				} else {
 					continue;
 				}
-				RVDBResultSet *rs = r_vdb_query (db, line, K);
+				RVdbResultSet *rs = r_vdb_query (db, line, K);
 #if 0
 				eprintf ("-------------VDB\n");
 				eprintf ("%s\n", vdb_input);
@@ -138,7 +140,7 @@ R_IPI char *r2ai(RCore *core, const char *input, char **error, bool dorag) {
 #if 0
 					RStrBuf *sb = r_strbuf_new ("");
 					for (int i = 0; i < rs->size; i++) {
-						RVDBResult *r = &rs->results[i];
+						RVdbResult *r = &rs->results[i];
 						KDNode *n = r->node;
 						r_strbuf_appendf (sb, "- %s\n", n->text);
 					}
@@ -165,7 +167,7 @@ R_IPI char *r2ai(RCore *core, const char *input, char **error, bool dorag) {
 			content = r_str_newf ("## Prompt\n%s.\n## Context\n%s", input, res);
 			free (res);
 		} else {
-			RVDBResultSet *rs = r_vdb_query (db, content, K);
+			RVdbResultSet *rs = r_vdb_query (db, content, K);
 #if 0
 			eprintf ("-------------VDB\n");
 			eprintf ("%s\n", vdb_input);
@@ -176,7 +178,7 @@ R_IPI char *r2ai(RCore *core, const char *input, char **error, bool dorag) {
 				RStrBuf *sb = r_strbuf_new ("");
 				int i;
 				for (i = 0; i < rs->size; i++) {
-					RVDBResult *r = &rs->results[i];
+					RVdbResult *r = &rs->results[i];
 					KDNode *n = r->node;
 					r_strbuf_appendf (sb, "- %s\n", n->text);
 				}
@@ -357,14 +359,14 @@ static void cmd_r2ai_R(RCore *core, const char *q) {
 			refresh_embeddings (core);
 		}
 		const int K = r_config_get_i (core->config, "r2ai.data.nth");
-		RVDBResultSet *rs = r_vdb_query (db, q, K);
+		RVdbResultSet *rs = r_vdb_query (db, q, K);
 
 		if (rs) {
 			R_LOG_INFO ("Query: \"%s\"", q);
 			R_LOG_INFO ("Found up to %d neighbors (actual found: %d)", K, rs->size);
 			int i;
 			for (i = 0; i < rs->size; i++) {
-				RVDBResult *r = &rs->results[i];
+				RVdbResult *r = &rs->results[i];
 				KDNode *n = r->node;
 				float dist_sq = r->dist_sq;
 				float cos_sim = 1.0f - (dist_sq * 0.5f); // for normalized vectors
@@ -522,12 +524,10 @@ static void cmd_r2ai_m(RCore *core, const char *input) {
 	r_cons_printf ("Model set to %s\n", input);
 }
 
-static void load_embeddings(RCore *core, RVDB *db) {
+static void load_embeddings(RCore *core, RVdb *db) {
 	RListIter *iter, *iter2;
 	char *line;
 	char *file;
-	// refresh embeddings database
-	// db = r_vdb_new (4);
 	// enumerate .txt files in directory
 	const char *path = r_config_get (core->config, "r2ai.data.path");
 	RList *files = r_sys_dir (path);
@@ -579,20 +579,20 @@ static void cmd_r2ai(RCore *core, const char *input) {
 		cmd_r2ai_s (core);
 	} else if (r_str_startswith (input, "-S")) {
 		if (db == NULL) {
-			db = r_vdb_new (4);
+			db = r_vdb_new (VDBDIM);
 			load_embeddings (core, db);
 		}
 		const char *arg = r_str_trim_head_ro (input + 2);
 		const int K = 10;
 		eprintf ("vector search\n");
-		RVDBResultSet *rs = r_vdb_query (db, arg, K);
+		RVdbResultSet *rs = r_vdb_query (db, arg, K);
 		if (rs) {
 			int i;
 			eprintf ("Found up to %d neighbors (actual found: %d).\n", K, rs->size);
 			for (i = 0; i < rs->size; i++) {
-				RVDBResult *r = &rs->results[i];
+				RVdbResult *r = &rs->results[i];
 				KDNode *n = r->node;
-				r_cons_printf ("- %s\n", n->text);
+				r_cons_printf ("- (%.4f) %s\n", r->dist_sq, n->text);
 			}
 			r_vdb_result_free (rs);
 		}
