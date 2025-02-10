@@ -101,6 +101,7 @@ Response:
     let decaiCommands = "pdc";
     let decaiLanguage = "C";
     let decaiHumanLanguage = "English";
+    let decaiDeterministic = false;
     let decaiDebug = false;
     let decaiContextFile = "";
     let decaiModel = "";
@@ -120,6 +121,9 @@ Response:
                 break;
             case "model":
                 console.log(decaiModel);
+                break;
+            case "deterministic":
+                console.log(decaiDeterministic);
                 break;
             case "debug":
                 console.log(decaiDebug);
@@ -178,6 +182,9 @@ Response:
             } else {
                 decaiApi = v;
             }
+            break;
+        case "deterministic":
+	    decaiDeterministic = v === 'true';
             break;
         case "model":
             if (v === "?") {
@@ -404,25 +411,27 @@ Response:
     function r2aiOllama(msg, hideprompt) {
         const model = decaiModel? decaiModel: "qwen2.5-coder:latest";
         const query = hideprompt? msg: decprompt + ", Convert this pseudocode into " + decaiLanguage + "\n" + msg;
-        const payload = JSON.stringify({
+        const object = {
             stream: false,
             model: model,
-            /*
-              // parameters
-              options: {
+            messages: [
+                    {
+                    role: "user",
+                    content: query,
+                }
+            ]
+        };
+        if (decaiDeterministic) {
+          object.options = {
               repeat_last_n: 0,
               top_p: 0.0,
               top_k: 1.0,
               temperature: 0.0,
               repeat_penalty: 1.0,
-              seed: 12,
-              },
-            */
-            // messages
-            messages: [{
-                role: "user",
-                content: query,
-            }]});
+              seed: 123,
+          };
+        }
+        const payload = JSON.stringify(object);
         if (decaiDebug) {
           console.log(payload);
         }
@@ -811,6 +820,7 @@ Response:
                     console.log("decai -e cache=" + decaiCache);
                     console.log("decai -e lang=" + decaiLanguage);
                     console.log("decai -e hlang=" + decaiHumanLanguage);
+                    console.log("decai -e deterministic=" + decaiDeterministic);
                     console.log("decai -e debug=" + decaiDebug);
                     console.log("decai -e model=" + decaiModel);
                     console.log("decai -e pipeline=" + decaiPipeline);
