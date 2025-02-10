@@ -421,6 +421,50 @@ Response:
         }
         return "error invalid response";
     }
+    function r2aiMistral(msg, hideprompt) {
+       const mistralKey = r2.cmd("'cat ~/.r2ai.mistral-key").trim()
+       if (mistralKey === '') {
+           return "Cannot read ~/.r2ai.mistral-key";
+       }
+        const model = decaiModel? decaiModel: "codestral-latest";
+        const query = hideprompt? msg: decprompt + ", Convert this pseudocode into " + decaiLanguage + "\n" + msg;
+        const object = {
+            stream: false,
+            model: model,
+            messages: [
+                {
+                    role: "user",
+                    content: query,
+                }
+            ]
+        };
+        if (decaiDeterministic) {
+          object.n = 1;
+          object.top_p = 1;
+        //  object.top_k = 1.0;
+          object.temperature = 0;
+        }
+        const payload = JSON.stringify(object);
+        if (decaiDebug) {
+          console.log(payload);
+        }
+
+        const curlcmd = `curl -s https://api.mistral.ai/v1/chat/completions
+	  -H "Authorization: Bearer ${mistralKey}"
+          -H "Content-Type: application/json"
+          -d '${payload}' #`.replace(/\n/g, "");
+        if (decaiDebug) {
+            console.log(curlcmd);
+        }
+        const res = r2.syscmds(curlcmd);
+        try {
+            return JSON.parse(res).choices[0].message.content;
+        } catch(e) {
+            console.error(e);
+            console.log(res);
+        }
+        return "error invalid response";
+    }
     function r2aiOllama(msg, hideprompt) {
         const model = decaiModel? decaiModel: "qwen2.5-coder:latest";
         const query = hideprompt? msg: decprompt + ", Convert this pseudocode into " + decaiLanguage + "\n" + msg;
@@ -728,6 +772,9 @@ Response:
         }
         if (decaiApi === "anthropic" || decaiApi === "claude") {
             return r2aiAnthropic(q, hideprompt);
+        }
+        if (decaiApi === "mistral") {
+            return r2aiMistral(q, hideprompt);
         }
         if (decaiApi === "deepseek") {
             return r2aiDeepseek(q, hideprompt);
