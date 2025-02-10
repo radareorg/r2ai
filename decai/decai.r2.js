@@ -253,7 +253,7 @@ Response:
        if (claudeKey === '') {
            return "Cannot read ~/.r2ai.anthropic-key";
        }
-       const payload = JSON.stringify({
+       const object = {
            model: claudeModel,
            max_tokens: 5128,
            messages: [
@@ -263,7 +263,13 @@ Response:
                      : decprompt + ", Rewrite this pseudocode into " + decaiLanguage + "\n" + msg
                }
            ]
-       });
+       };
+       if (decaiDeterministic) {
+         object.temperature = 0;
+         object.top_p = 0;
+         object.top_k = 1;
+       }
+       const payload = JSON.stringify(object);
        const curlcmd = `curl -s https://api.anthropic.com/v1/messages
           -H "Content-Type: application/json"
           -H "anthropic-version: 2023-06-01"
@@ -383,7 +389,7 @@ Response:
        }
        const openaiModel = (decaiModel.length > 0)? decaiModel: "gpt-4-turbo"; // o-2024-11-20";
        const query = hideprompt? msg: decprompt + ", Output in " + decaiLanguage + " language\n" + msg;
-       const payload = JSON.stringify({
+       const object = {
            model: openaiModel,
            // max_tokens: 5128,
            // max_completion_tokens: 5128, // make this configurable or depend on model, o1 supports more than 8K
@@ -391,7 +397,14 @@ Response:
                // { "role": "system", "content": hideprompt? decprompt: "" },
                { "role": "user", "content": query }
            ]
-       });
+       };
+       if (decaiDeterministic) {
+         object.temperature = 0;
+         object.top_p = 0;
+         object.frequency_penalty = 0;
+         object.presence_penalty = 0;
+       }
+       const payload = JSON.stringify(object);
        const curlcmd = `curl -s https://api.openai.com/v1/chat/completions
           -H "Content-Type: application/json"
           -H "Authorization: Bearer ${openaiKey}"
