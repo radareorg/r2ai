@@ -1,0 +1,37 @@
+{
+  "use": true,
+  "default": "pipeTest",
+  "_default": "asciiStack",
+  "asciiStack": {
+    "globalQuery": "output in C, respond only with code, no explanations, no markdown",
+    "pipeline": [
+      {
+        "model": "qwen2.5-coder:latest",
+        "query": "stack frame layout for this function, output a table in ascii art"
+      }
+    ]
+  },
+  "pipeTest": {
+    "globalQuery": "output in C, respond only with code, no explanations, no markdown",
+    "pipeline": [
+      {
+        "model": "qwen2.5-coder:latest",
+        "query": "resolve stack variables and arrays size without using malloc"
+      },
+      {
+        "model": "qwen2.5-coder:14b",
+        "query": "remove boilerplate and unnecessary code, replace goto with if/else blocks"
+      }
+    ],
+    "commentedOut": [
+      {
+        "model": "qwen2.5-coder:14b",
+        "query": "use better types and names for variable and arguments"
+      },
+      {
+        "model": "qwen2.5-coder:14b",
+        "query": "inline all the functions into a single one and make the code more readable"
+      }
+    ]
+  }
+}

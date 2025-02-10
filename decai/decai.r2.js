@@ -2,7 +2,7 @@
     const decaiHelp = `
 # Using Decai
 
-You must run an r2ai-server in local or connect to a remote backend via api:
+Uses local ollama by default, but can be configured with 'decai -e api=' to select any other local or remote implementation.
 
 ## Local backends:
 
@@ -92,10 +92,12 @@ Response:
 # Now, analyze the following user input:
 `;
 
+    let decopipe = {use:false};
     const command = "decai";
     let decaiHost = "http://localhost";
     let decaiPort = "11434";
     let decaiApi = "ollama"; // uses /cmd endpoint
+    let decaiPipeline = "";
     let decaiCommands = "pdc";
     let decaiLanguage = "C";
     let decaiHumanLanguage = "English";
@@ -113,6 +115,9 @@ Response:
         const [k, v] = arg.split("=");
         if (!v) {
             switch (k) {
+            case "pipeline":
+                console.log(decaiPipeline);
+                break;
             case "model":
                 console.log(decaiModel);
                 break;
@@ -156,6 +161,14 @@ Response:
             return;
         }
         switch (k) {
+        case "pipeline":
+            decaiPipeline = v;
+            try {
+                decopipe = JSON.parse(r2.cmd('cat ' + v));
+            } catch (e) {
+                console.error(e);
+            }
+            break;
         case "debug":
             decaiDebug = (v === "true" || v === "1");
             break;
@@ -347,7 +360,7 @@ Response:
             console.log(curlcmd);
         }
         const res = r2.syscmds(curlcmd);
-	console.log(res);
+        console.log(res);
         try {
             return JSON.parse(res).candidates[0].content.parts[0].text;
         } catch(e) {
@@ -389,14 +402,30 @@ Response:
         return "error invalid response";
     }
     function r2aiOllama(msg, hideprompt) {
+        const model = decaiModel? decaiModel: "qwen2.5-coder:latest";
         const query = hideprompt? msg: decprompt + ", Convert this pseudocode into " + decaiLanguage + "\n" + msg;
         const payload = JSON.stringify({
             stream: false,
-            model: decaiModel,
+            model: model,
+            /*
+              // parameters
+              options: {
+              repeat_last_n: 0,
+              top_p: 0.0,
+              top_k: 1.0,
+              temperature: 0.0,
+              repeat_penalty: 1.0,
+              seed: 12,
+              },
+            */
+            // messages
             messages: [{
                 role: "user",
-                content: query
+                content: query,
             }]});
+        if (decaiDebug) {
+          console.log(payload);
+        }
         const curlcmd = `curl -s ${decaiHost}:${decaiPort}/api/chat
           -H "Content-Type: application/json"
           -d '${payload}' #`.replace(/\n/g, "");
@@ -514,7 +543,7 @@ Response:
                return cachedAnotation;
            }
         }
-	let context = "";
+        let context = "";
         if (recursiveCalls) {
             const at = r2.cmd("s");
             context += "## Context functions:\n";
@@ -546,6 +575,7 @@ Response:
                 }
             }
             r2.cmd("e scr.color=0");
+            let body = "";
             for (const c of decaiCommands.split(",")) {
                 if (c.trim() === "") {
                     continue;
@@ -553,10 +583,8 @@ Response:
                 const oneliner = (extraQuery || args.trim().length === 0)? c : c + "@@= " + args;
                 const output = r2.cmd(oneliner);
                 if (output.length > 5) {
-                    text += "Output from " + c + ":\n";
-                    text += "[BEGIN]\n";
-                    text += output + "\n";
-                    text += "[END]\n";
+                    body += "Output of " + c + ":\n";
+                    body += "[BEGIN]\n" + output + "\n[END]\n";
                     count++;
                 }
             }
@@ -566,10 +594,34 @@ Response:
                 return;
             }
             r2ai("-R");
-            const query = (decprompt + appendQuery).trim() + ". Transform this pseudocode into " + decaiLanguage;
-            text += context;
-            out = r2ai(query, text);
-            lastOutput = out;
+            if (decopipe.use) {
+                const dpipe = decopipe[decopipe.default];
+                const origModel = decaiModel;
+                let code = text + body;
+                for (var dp of dpipe.pipeline) {
+                  if (dp.model) {
+                      decaiModel = dp.model;
+                  }
+                  const query = dp.query + ". " + dpipe.globalQuery;
+                  out = r2ai(query, code, true);
+                  if (decaiDebug) {
+                      console.log ("QUERY");
+                      console.log (query);
+                      console.log ("INPUT");
+                      console.log (code)
+                      console.log ("OUTPUT");
+                      console.log (out)
+                  }
+                  code = out;
+                }
+                out = code;
+            } else {
+                const query = (decprompt + appendQuery).trim() + ". Transform this pseudocode into " + decaiLanguage;
+                text += body;
+                text += context;
+                out = r2ai(query, text);
+                lastOutput = out;
+            }
         } catch (e) {
             r2.cmd("e scr.color=" + origColor);
             console.error(e, e.stack);
@@ -589,40 +641,40 @@ Response:
         const replies = [];
         while (true) {
             let q = autoPrompt;
-	    if (replies.length > 0) {
+            if (replies.length > 0) {
                 q += '## Executed function results\n';
                 q += replies.join("\n");
-	    }
+            }
             q += '## User prompt\n' + queryText;
-	    /*
-	    console.log('#### input');
-	    console.log(q);
-	    console.log('#### /input');
-	    */
+            /*
+            console.log('#### input');
+            console.log(q);
+            console.log('#### /input');
+            */
             out = r2ai('', q, true);
-	    /*
-	    console.log('#### output');
-	    console.log(out);
-	    console.log('#### /output');
-	    */
-	    try {
-		    const o = JSON.parse(out);
-		    if (o.action === 'execute_function' && o.function_name === 'r2cmd') {
-			    const cmd = o.parameters.r2cmd;
-			    console.log("[r2cmd] Running: " + cmd)
-			    r2.cmd("e scr.color=0");
-			    res = r2.cmd(cmd);
-			    r2.cmd("e scr.color=3");
-			    replies.push(JSON.stringify({action:'function_response', function_name: r2cmd, response: res}));
-		    } else if (o.action === 'reply') {
-			    console.log(o.response);
-			    break;
-		    }
-	    } catch (e) {
-		    console.error(out);
-		    console.error(e);
-		    break;
-	    }
+            /*
+            console.log('#### output');
+            console.log(out);
+            console.log('#### /output');
+            */
+            try {
+                    const o = JSON.parse(out);
+                    if (o.action === 'execute_function' && o.function_name === 'r2cmd') {
+                            const cmd = o.parameters.r2cmd;
+                            console.log("[r2cmd] Running: " + cmd)
+                            r2.cmd("e scr.color=0");
+                            res = r2.cmd(cmd);
+                            r2.cmd("e scr.color=3");
+                            replies.push(JSON.stringify({action:'function_response', function_name: r2cmd, response: res}));
+                    } else if (o.action === 'reply') {
+                            console.log(o.response);
+                            break;
+                    }
+            } catch (e) {
+                    console.error(out);
+                    console.error(e);
+                    break;
+            }
         }
     }
     function r2ai(queryText, fileData, hideprompt) {
@@ -761,13 +813,14 @@ Response:
                     console.log("decai -e hlang=" + decaiHumanLanguage);
                     console.log("decai -e debug=" + decaiDebug);
                     console.log("decai -e model=" + decaiModel);
+                    console.log("decai -e pipeline=" + decaiPipeline);
                     console.log("decai -e maxinputtokens=" + maxInputTokens);
                 }
                 break;
             case "q": // "-q"
-		try {
-                out = r2ai(args.slice(2).trim(), null, true);
-		} catch (e) {console.error(e, e.stack);}
+                try {
+                    out = r2ai(args.slice(2).trim(), null, true);
+                } catch (e) {console.error(e, e.stack);}
                 break;
             case "Q": // "-Q"
                 out = r2ai(args.slice(2).trim(), lastOutput);
@@ -782,15 +835,15 @@ Response:
                 out = r2ai("Analyze function calls, comments and strings, ignore registers and memory accesess. Considering the references and involved loops make explain the purpose of this function in one or two short sentences. Output must be only the translation of the explanation in " + decaiHumanLanguage, out, true);
                 break;
             case "d": // "-d"
-		if (args[2] == 'r') { // "dr"
+                if (args[2] == 'r') { // "dr"
                     out = decaiDecompile(args.slice(2), true, decaiCache, true);
-		} else if (args[2] == 'd') { // "dd"
+                } else if (args[2] == 'd') { // "dd"
                     out = decaiDecompile(args, false, false, false);
-		} else if (args[2] == 'D') { // "dD"
+                } else if (args[2] == 'D') { // "dD"
                     out = decaiDecompile(args, true, false, false);
-		} else {
+                } else {
                     out = decaiDecompile(args, false, decaiCache, false);
-		}
+                }
                 break;
             default:
                 usage();

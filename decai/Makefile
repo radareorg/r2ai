@@ -1,10 +1,11 @@
 PD=$(shell r2 -H R2_USER_PLUGINS)
 SPD=$(shell r2 -H R2_LIBR_PLUGINS)
-BF=/bin/dd
+#BF=/bin/dd
+BF=a.out
 
 all:
 	@echo 'You can now use 'decai' command'
-	r2 -i decai.r2.js $(BF)
+	r2 -i decai.r2.js -caf $(BF)
 
 user-install:
 	cp decai.r2.js $(PD)/decai.r2.js
