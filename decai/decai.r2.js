@@ -440,9 +440,9 @@ Response:
         };
         if (decaiDeterministic) {
           object.n = 1;
-          object.top_p = 1;
-        //  object.top_k = 1.0;
-          object.temperature = 0;
+          object.top_p = 0.001;
+          object.random_seed = 1;
+          object.temperature = 0.001;
         }
         const payload = JSON.stringify(object);
         if (decaiDebug) {
