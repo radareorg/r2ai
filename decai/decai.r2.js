@@ -230,6 +230,7 @@ Response:
     function usage() {
         console.error("Usage: " + command + " (-h) ...");
         console.error(" " + command + " -H         - help setting up r2ai");
+        console.error(" " + command + " -a [query] - solve query with auto mode");
         console.error(" " + command + " -d [f1 ..] - decompile given functions");
         console.error(" " + command + " -dr        - decompile function and its called ones (recursive)");
         console.error(" " + command + " -dd [..]   - same as above, but ignoring cache");
