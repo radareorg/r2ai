@@ -48,12 +48,15 @@ Specify the service to use:
   * decai -e api=openai
   * decai -e api=claude
   * decai -e api=hf
+  * decai -e api=mistral
+  * list all possible value with decai -e api=?
 
 Write the API keys in corresponding files:
 
   * ~/.r2ai.openai-key
   * ~/.r2ai.huggingface-key
   * ~/.r2ai.anthropic-key
+  * ~/.r2ai.mistral-key
 
 ## Make those changes permanent
 
@@ -178,7 +181,7 @@ Response:
             break;
         case "api":
             if (v === "?") {
-                console.error("r2ai\nclaude\nollama\nopenapi\nopenapi2\nopenai\ngemini\nxai\nhf");
+                console.error("r2ai\nclaude\ndeepseek\ngemini\nhf\nmistral\nollama\nopenapi\nopenapi2\nopenai\nvllm\nxai\n");
             } else {
                 decaiApi = v;
             }

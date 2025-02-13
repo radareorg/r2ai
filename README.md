@@ -89,7 +89,7 @@ python3 main.py
 
 ## Running r2ai
 
-**Launch r2ai:**
+### Launch r2ai
 
 - If you installed via r2pm, you can execute it like this: `r2pm -r r2ai`
 - Otherwise, `./r2ai.sh [/absolute/path/to/binary]`
@@ -101,6 +101,7 @@ If you have an **API key**, put it in the adequate file:
 | OpenAI    | `$HOME/.r2ai.openai-key` |
 | Gemini    | `$HOME/.r2ai.gemini-key` |
 | Anthropic | `$HOME/.r2ai.anthropic-key` |
+| Mistral   | `$HOME/.r2ai.mistral-key` |
 
 Example using an Anthropic API key:
 
@@ -109,60 +110,30 @@ $ cat ~/.r2ai.anthropic-key
 sk-ant-api03-CENSORED
 ```
 
-**Selecting the model:**
+### Selecting the model
 
 - List all downloaded models: `-m`
 - Get a short list of models: `-MM`
 - Help: `-h`
 
-Example selecting models:
+**Example selecting a remote models:**
 
 ```
 [r2ai:0x00006aa0]> -m anthropic:claude-3-5-sonnet-20241022
 [r2ai:0x00006aa0]> -m openai:gpt-4
 ```
 
-The standard mode is invoked by directly asking the question.
-For the Auto mode, the question must be prefixed by `' ` (quote + space).
-
-Example in "standard" mode:
-
-```
-[r2ai:0x00006aa0]> compute 4+5
-4 + 5 = 9
-[r2ai:0x00006aa0]> draw me a pancake in ASCII art
-Sure, here's a simple ASCII pancake:
-
-  _____  
- (     )
- (     )
-  -----
-```
-
-**Example in auto mode**
-
-```
-[r2ai:0x00006aa0]>' Decompile the main
-[..]
-```
-
-In **auto** mode, the AI may instruct r2ai to run various commands. Those commands are run on *your host*, so you are asked to review them: 
-
-```
-r2ai is going to execute the following command on the host
-Want to edit? (ENTER to validate) pdf @ fcn.000015d0
-This command will execute on this host: pdf @ fcn.000015d0. Agree? (y/N) y
-```
-
-If you wish to edit the command, you can do it inline for short one line commands, or an editor will pop up.
-
-
-**Example downloading a free local AI: Mistral 7B v0.2**
+**Example downloading a free local AI: Mistral 7B v0.2:**
 
 Launch r2ai, select the model and ask a question. If the model isn't downloaded yet, r2ai will ask you which precise version to download.
 
 ```
 [r2ai:0x00006aa0]> -m TheBloke/Mistral-7B-Instruct-v0.2-GGUF
+```
+
+Then ask your question, and r2ai will automatically download if needed:
+
+```
 [r2ai:0x00006aa0]> give me a short algorithm to test prime numbers
 Select TheBloke/Mistral-7B-Instruct-v0.2-GGUF model. See -M and -m flags
 [?] Quality (smaller is faster): 
@@ -190,24 +161,40 @@ Select TheBloke/Mistral-7B-Instruct-v0.2-GGUF model. See -M and -m flags
    No
 
 [?] Download to ~/.local/share/r2ai/models? (Y/n): Y
-
-  Here's a simple algorithm to test if a number is likely prime using the trial division method, which checks if a    
-  number is divisible by smaller prime numbers up to its square root:                                                 
-                                                                                                                      
-  1. Input the number `n` to be checked.                                                                              
-  2. If `n` is less than 2, it is not a prime number.                                                                 
-  3. If `n` is equal to 2, it is a prime number.                                                                      
-  4. If `n` is even, it is not a prime number (unless it is equal to 2).                                              
-  5. For each prime number `p` from 3 to the square root of `n`, do the following:                                    
-     a. If `n` is divisible by `p`, it is not a prime number.                                                         
-     b. If `n` is not divisible by `p`, go to the next prime number.                                                  
-  6. If the loop completes without finding a divisor, then `n` is a prime number.                                     
-                                                                                                                      
-  This algorithm is not foolproof, as it can only determine if a number is likely prime, not definitely prime. For    
-  example, it cannot determine if 15 is a prime number, but it can determine that 29 is a prime number. For larger    
-  numbers, more sophisticated algorithms like the Miller-Rabin primality test or the AKS primality test are           
-  required.              
 ```
+
+### Standard/Auto mode
+
+The standard mode is invoked by directly asking the question.
+For the Auto mode, the question **must be prefixed** by `' ` (quote + space). The AI may instruct r2ai to run various commands. Those commands are run on *your host*, so you will be asked to review them before they run.
+
+Example in "standard" mode:
+
+```
+[r2ai:0x00006aa0]> compute 4+5
+4 + 5 = 9
+[r2ai:0x00006aa0]> draw me a pancake in ASCII art
+Sure, here's a simple ASCII pancake:
+
+  _____  
+ (     )
+ (     )
+  -----
+```
+
+Example in auto mode:
+
+```
+[r2ai:0x00006aa0]>' Decompile the main
+[..]
+r2ai is going to execute the following command on the host
+Want to edit? (ENTER to validate) pdf @ fcn.000015d0
+This command will execute on this host: pdf @ fcn.000015d0. Agree? (y/N) y
+```
+
+If you wish to edit the command, you can do it inline for short one line commands, or an editor will pop up.
+
+
 
 
 ## Running r2ai-server
@@ -233,38 +220,24 @@ Decai is used from `r2` (e.g `r2 ./mybinary`). Get help with `decai -h`:
 [0x00406cac]> decai -h
 Usage: decai (-h) ...
  decai -H         - help setting up r2ai
+ decai -a [query] - solve query with auto mode
  decai -d [f1 ..] - decompile given functions
  decai -dr        - decompile function and its called ones (recursive)
  decai -dd [..]   - same as above, but ignoring cache
- decai -D [query] - decompile current function with given extra query
- decai -e         - display and change eval config vars
- decai -h         - show this help
- decai -i [f] [q] - include given file and query
- decai -n         - suggest better function name
- decai -q [text]  - query language model with given text
- decai -Q [text]  - query on top of the last output
- decai -r         - change role prompt (same as: decai -e prompt)
- decai -s         - function signature
- decai -v         - show local variables
- decai -V         - find vulnerabilities
- decai -x         - eXplain current function
+ decai -dD [query]- decompile current function with given extra query
+ ...
 ```
 
 List configuration variables with `decai -e`:
 
 ```
 [0x00406cac]> decai -e
-decai -e api=r2
+decai -e api=ollama
 decai -e host=http://localhost
-decai -e port=8080
-decai -e prompt=Rewrite this function and respond ONLY with code, NO explanations, NO markdown, Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and and strings from comments like 'string:'
+decai -e port=11434
+decai -e prompt=Rewrite this function and respond ONLY with code, NO explanations, NO markdown, Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and strings from comments like 'string:'
 decai -e ctxfile=
-decai -e cmds=pdc
-decai -e cache=false
-decai -e lang=C
-decai -e hlang=English
-decai -e debug=false
-decai -e model=
+...
 ```
 
 List possible APIs to discuss with AI: `decai -e api=?`:
@@ -274,13 +247,12 @@ List possible APIs to discuss with AI: `decai -e api=?`:
 r2ai
 claude
 openapi
-openai
-gemini
-xai
-hf
+...
 ```
 
-For example, assuming we have a local Mistral AI server running on port 8080 with `r2ai-server`, we can decompile a given function with `decai -d`.
+### Example using a local Mistral model and r2ai-server
+
+For example, assuming we have a *local* Mistral AI server running on port 8080 with `r2ai-server`, we can decompile a given function with `decai -d`.
 The server shows it received the question:
 
 ```
@@ -293,7 +265,26 @@ CUSTOM
 RUNLINE: -i /tmp/.pdc.txt Rewrite this function and respond ONLY with code, NO explanations, NO markdown, Change goto into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and and strings from comments like string:. Transform this pseudocode into C
 ```
 
-**Example with ChatGPT 4**:
+### Example using a Mistral API key 
+
+Put the API key in `~/.r2ai.mistral-key`.
+
+```
+[0x000010d0]> decai -e api=mistral
+[0x000010d0]> decai -d main
+```c
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+int main(int argc, char **argv, char **envp) {
+    char password[40];
+    char input[40];
+...
+```
+
+
+### Example with ChatGPT 4
 
 ```
 [0x00406cac]> decai -e api=openai
@@ -306,6 +297,8 @@ void daemonize() {
 }
 ...
 ```
+
+
 
 
 ## Videos
