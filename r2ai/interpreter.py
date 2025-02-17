@@ -95,14 +95,13 @@ def is_litellm_model(model):
     model_name = None
     if model.startswith ("/"):
         return False
+    provider = None
     if "/" in model:
-        provider, model_name = model.split("/")
-        if provider in litellm.LITELLM_CHAT_PROVIDERS:
-            return True
+        provider = model.split("/")[0]
     elif ":" in model:
-        provider, model_name = model.split(":")
-        if provider in [member.value for member in litellm.LlmProviders]:
-            return True
+        provider = model.split(":")[0]
+    if provider in litellm.LITELLM_CHAT_PROVIDERS:
+        return True
     return False
 
 class Interpreter:
