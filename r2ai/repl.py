@@ -172,6 +172,8 @@ def set_model(model):
     if ai.model != model:
       ai.llama_instance = None
     ai.model = model
+    if autoai:
+        autoai.model = model
     ai.env["llm.model"] = ai.model
     set_default_model(ai.model)
 
@@ -240,6 +242,8 @@ def runline(ai, usertext):
             print(ai.model)
     elif usertext == "reset" or usertext.startswith("-R"):
         ai.reset()
+        if autoai:
+            autoai.reset()
     elif usertext.startswith("-j"):
         q = usertext[2:].strip()
         query = f"Please respond using ONLY in JSON with the following fields if relevant: topic, array of key words, location, url, name, description, target, amounts and other details if necessary without providing any response. Question: \"{q}\""
