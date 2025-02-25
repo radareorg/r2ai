@@ -78,18 +78,23 @@ class ChatAuto:
         self._start_time = time.time()
         self._last_run_time = time.time()
         self.ask_to_execute = ask_to_execute
-
-        model_info = litellm.get_model_info(self.model)
-        self.max_tokens = min(self.max_tokens, model_info['max_tokens'])
-
-        if self.model.startswith('openai/o'):
-            self.is_reasoning = True
-            self.max_tokens = model_info['max_tokens']
-            self.timeout = 60 * 60
-        init_commands = self.interpreter.env["auto.init_commands"]
+        self.llama_instance = llama_instance or interpreter.llama_instance if interpreter else None
+        
         init_prompt = ""
-        if init_commands:
-            init_prompt = f"""
+        
+        if not self.llama_instance:
+
+            model_info = litellm.get_model_info(self.model)
+            self.max_tokens = min(self.max_tokens, model_info['max_tokens'])
+
+            if self.model.startswith('openai/o'):
+                self.is_reasoning = True
+                self.max_tokens = model_info['max_tokens']
+                self.timeout = 60 * 60
+            init_commands = self.interpreter.env["auto.init_commands"]
+            
+            if init_commands:
+                init_prompt = f"""
 Here is some information about the binary to get you started:
 > {init_commands}
 {r2cmd(init_commands)}
@@ -118,7 +123,6 @@ Here is some information about the binary to get you started:
                 self.tools.append({ "type": "function", "function": schema })
                 self.functions[tool.__name__] = tool
             self.tool_choice = tool_choice
-        self.llama_instance = llama_instance or interpreter.llama_instance if interpreter else None
         #self.tool_end_message = '\nNOTE: The user saw this output, do not repeat it.'
 
     async def process_tool_calls(self, tool_calls):
@@ -321,7 +325,10 @@ Here is some information about the binary to get you started:
                 "max_tokens": self.max_tokens,
                 "stream": stream,
             }
-            res = create_chat_completion(self.interpreter, messages=self.messages, tools=self.tools, **args)
+            if self.interpreter.env["chat.rawdog"] == "true":
+                res = create_chat_completion(self.interpreter, messages=self.messages, tools=self.tools, **args)
+            else:
+                res = self.llama_instance.create_chat_completion(self.messages, tools=self.tools, **args)
             if args['stream']:
                 return self.async_response_generator(res)
             else:
@@ -362,9 +369,12 @@ Here is some information about the binary to get you started:
         run_time = format_time(time.time() - self._last_run_time)
         self._last_run_time = time.time()
         total_time = format_time(time.time() - self._start_time)
-        if self.interpreter.env["chat.show_cost"] == "true" and self.n_runs > 0:   
-            run_cost = litellm.completion_cost(completion_response=self._last_response, messages=self.messages, model=self.model)
-            self.cost += run_cost
+        
+        if self.interpreter.env["chat.show_cost"] == "true" and self.n_runs > 0:
+            run_cost = 0
+            if not self.llama_instance:
+                run_cost = litellm.completion_cost(completion_response=self._last_response, messages=self.messages, model=self.model)
+                self.cost += run_cost
             cb('usage', { 
                 "model": self.model, 
                 "run_cost": run_cost, 
