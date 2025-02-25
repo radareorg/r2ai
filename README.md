@@ -163,6 +163,24 @@ Select TheBloke/Mistral-7B-Instruct-v0.2-GGUF model. See -M and -m flags
 [?] Download to ~/.local/share/r2ai/models? (Y/n): Y
 ```
 
+**Example selecting a local model served by Ollama**
+
+Download a model and make it available through Ollama:
+
+```
+$ ollama ls
+NAME                  ID              SIZE      MODIFIED     
+codegeex4:latest      867b8e81d038    5.5 GB    23 hours ago  
+```
+
+Use it from r2ai by prefixing its name with `ollama/`
+
+```
+[r2ai:0x00002d30]> -m ollama/codegeex4:latest
+[r2ai:0x00002d30]> hi
+Hello! How can I assist you today?
+```
+
 ### Standard/Auto mode
 
 The standard mode is invoked by directly asking the question.
@@ -194,7 +212,16 @@ This command will execute on this host: pdf @ fcn.000015d0. Agree? (y/N) y
 
 If you wish to edit the command, you can do it inline for short one line commands, or an editor will pop up.
 
+### r2ai Configuration settings
 
+List all settings with `-e`
+
+| Key         | Explanation                           |
+| ----------- | ------------------------------------- |
+| debug_level | All verbose messages for level 1. Default is 2 |
+| auto.max_runs | Maximum number of questions the AI is allowed to ask r2 in auto mode. |
+| auto.hide_tool_output | By default false, consequently output of r2cmd, run_python etc is shown. Set to `true` to hide those internal messages. |
+| chat.show_cost | Show the cost of each request to the AI if true |
 
 
 ## Running r2ai-server
