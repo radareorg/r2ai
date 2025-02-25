@@ -115,6 +115,50 @@ Response:
     const defaultPrompt = "Rewrite this function and respond ONLY with code, NO explanations, NO markdown, Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and strings from comments like 'string:'";
     let decprompt = defaultPrompt;
 
+    function listMistralModels() {
+        const mistralKey = r2.cmd("'cat ~/.r2ai.mistral-key").trim()
+        if (mistralKey === '') {
+           return "Cannot read ~/.r2ai.mistral-key";
+        }
+        const res = [];
+        const curlc = `curl -s https://api.mistral.ai/v1/models -H "Authorization: Bearer ${mistralKey}" -H "Content-Type: application/json"`;
+        const response = JSON.parse(r2.syscmds(curlc));
+        for (const item of response.data) {
+	    res.push(`${item.name}\t${item.max_context_length}\t${item.description}`);
+	}
+        return res.join("\n");
+    }
+    function listModelsFor(decaiApi) {
+        switch (decaiApi) {
+	case "ollama":
+	    // r2.syscmd("ollama ls");
+	case "openapi":
+            console.log(openApiListModels());
+	    break;
+	case "openai":
+            console.log("o1");
+            console.log("o1-mini");
+            console.log("gpt-4-turbo");
+            console.log("gpt-4o");
+            console.log("gpt-4o-mini");
+	    break;
+	case "claude":
+	case "anthropic":
+	    console.log("claude-3-5-sonnet-20241022");
+	    console.log("claude-3-7-sonnet-20250219");
+	    break;
+	case "mistral":
+	    try {
+	        console.log(listMistralModels());
+	    } catch (e) {
+	        console.error(e);
+	    }
+	    console.log("codestral-latest");
+	    break;
+	}
+
+    }
+
     function decaiEval(arg) {
         const [k, v] = arg.split("=");
         if (!v) {
@@ -191,9 +235,7 @@ Response:
             break;
         case "model":
             if (v === "?") {
-                if (decaiApi.startsWith("openapi")) {
-                    console.log(openApiListModels());
-                }
+                listModelsFor(decaiApi);
             } else {
                 decaiModel = v;
             }
@@ -426,10 +468,10 @@ Response:
         return "error invalid response";
     }
     function r2aiMistral(msg, hideprompt) {
-       const mistralKey = r2.cmd("'cat ~/.r2ai.mistral-key").trim()
-       if (mistralKey === '') {
+        const mistralKey = r2.cmd("'cat ~/.r2ai.mistral-key").trim()
+        if (mistralKey === '') {
            return "Cannot read ~/.r2ai.mistral-key";
-       }
+        }
         const model = decaiModel? decaiModel: "codestral-latest";
         const query = hideprompt? msg: decprompt + ", Convert this pseudocode into " + decaiLanguage + "\n" + msg;
         const object = {
@@ -452,7 +494,6 @@ Response:
         if (decaiDebug) {
           console.log(payload);
         }
-
         const curlcmd = `curl -s https://api.mistral.ai/v1/chat/completions
 	  -H "Authorization: Bearer ${mistralKey}"
           -H "Content-Type: application/json"
