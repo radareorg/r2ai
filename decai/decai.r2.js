@@ -296,7 +296,8 @@ Response:
     }
     function r2aiAnthropic(msg, hideprompt) {
        const claudeKey = r2.cmd("'cat ~/.r2ai.anthropic-key").trim()
-       const claudeModel = (decaiModel.length > 0)? decaiModel: "claude-3-5-sonnet-20241022";
+       // const claudeModel = (decaiModel.length > 0)? decaiModel: "claude-3-5-sonnet-20241022";
+       const claudeModel = (decaiModel.length > 0)? decaiModel: "claude-3-7-sonnet-20250219";
        if (claudeKey === '') {
            return "Cannot read ~/.r2ai.anthropic-key";
        }
