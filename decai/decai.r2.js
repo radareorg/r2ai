@@ -283,6 +283,7 @@ Response:
         console.error(" " + command + " -e         - display and change eval config vars");
         console.error(" " + command + " -h         - show this help");
         console.error(" " + command + " -i [f] [q] - include given file and query");
+        console.error(" " + command + " -m [model] - use -m? or -e model=? to list the available models for '-e api='");
         console.error(" " + command + " -n         - suggest better function name");
         console.error(" " + command + " -q [text]  - query language model with given text");
         console.error(" " + command + " -Q [text]  - query on top of the last output");
@@ -861,6 +862,9 @@ Response:
                 break;
             case "a": // "-a" // auto mode
                 decaiAuto(args.slice(2).trim());
+                break;
+            case "m": // "-m"
+                r2aidec("-e model="+args.slice(2));
                 break;
             case "n": // "-n"
             case "f": // "-f"
