@@ -16,7 +16,19 @@ You can use ollama, llamacpp, r2ai-server, etc
 
 It connects to decai -e host/port via OpenAPI rest endpoints.
 
-### Setting up r2ai-server:
+### Setting up Ollama
+
+Install Ollama and download a model (ollama run xxx). List the model (ollama ls).
+
+Configure decai to use Ollama:
+
+   * decai -e api=ollama
+
+Configure decai to use your model:
+
+   * decai -e model=ollama/MODEL_NAME e.g decai -e model=codegeex4:latest
+
+### Setting up r2ai-server
 
 Install r2ai or r2ai-server with r2pm:
 
@@ -30,18 +42,12 @@ Choose one of the recommended models (after r2pm -r r2ai):
 
 Start the webserver:
 
-   $ r2pm -r r2ai
-   $ echo $CLAUDEAPIKEY > ~/.r2ai.anthropic
-   [r2ai:0x0000000]> -m anthropic:claude-3-5-sonnet-20241022
-   [r2ai:0x0000000]> -w
-   Webserver listening at port 8080
+   * r2pm -r r2ai-server -l r2ai -m granite-8b-code-instruct-4k.Q2_K
 
-You can also make r2ai -w talk to an 'r2ai-server' using this line:
+Use the server for decai:
 
-  [r2ai:0x0000000]> -m openapi:http://localhost:8080
-  [r2ai:0x0000000]> -e http.port=8082
+[0x0000000]> decai -e api=r2ai
 
-  [0x0000000]> decai -e host=http://localhost:8082
 ## Remote backends:
 
 Specify the service to use:
@@ -49,6 +55,7 @@ Specify the service to use:
   * decai -e api=claude
   * decai -e api=hf
   * decai -e api=mistral
+  * decai -e api=ollama
   * list all possible value with decai -e api=?
 
 Write the API keys in corresponding files:
