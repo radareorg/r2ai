@@ -98,6 +98,12 @@ def main(args, commands, dorepl=True):
         os.environ["OPENAI_API_KEY"] = apikey
         print("[R2AI] OpenAI API key loaded from ~/.r2ai.openai-key", file=sys.stderr)
 
+    r2_mistral_file = os.path.join(home_dir, ".r2ai.mistral-key")
+    if os.path.isfile(r2_mistral_file):
+        apikey = slurp(r2_mistral_file).strip()
+        os.environ["MISTRAL_API_KEY"] = apikey
+        print("[R2AI] Mistral API key loaded from ~/.r2ai.mistral-key", file=sys.stderr)
+
     r2_gemini_file = os.path.join(home_dir, ".r2ai.gemini-key")
     if os.path.isfile(r2_gemini_file):
         apikey = slurp(r2_gemini_file).strip()
