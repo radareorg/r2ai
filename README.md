@@ -119,7 +119,7 @@ sk-ant-api03-CENSORED
 **Example selecting a remote models:**
 
 ```
-[r2ai:0x00006aa0]> -m anthropic:claude-3-5-sonnet-20241022
+[r2ai:0x00006aa0]> -m anthropic:claude-3-7-sonnet-20250219
 [r2ai:0x00006aa0]> -m openai:gpt-4
 ```
 
@@ -276,6 +276,19 @@ claude
 openapi
 ...
 ```
+
+### Example using a local model and ollama
+
+For example, if Ollama serves model codegeex4:latest (`ollama ls`), set decai API as `ollama` and model `codegeex4:latest`.
+
+```
+[0x00002d30]> decai -e api=ollama
+[0x00002d30]> decai -e model=codegeex4:latest
+[0x00002d30]> decai -q Explain what forkpty does in 2 lines
+The `forkpty` function creates a new process with a pseudo-terminal, allowing the parent to interact with the child via standard input/output/err and controlling its terminal.
+```
+
+
 
 ### Example using a local Mistral model and r2ai-server
 
