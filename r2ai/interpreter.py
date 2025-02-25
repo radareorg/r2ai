@@ -445,6 +445,15 @@ class Interpreter:
                     temperature=float(self.env["llm.temperature"]),
                     top_p=float(self.env["llm.top_p"]),
                 )
+            elif self.model.startswith("mistral/"):
+                completion = litellm_completion(
+                    drop_params=True,
+                    model=self.model.replace(":", "/"),
+                    messages=self.messages,
+                    max_completion_tokens=maxtokens,
+                    temperature=float(self.env["llm.temperature"]),
+                    top_p=float(self.env["llm.top_p"]),
+                )
             else:
                 completion = litellm_completion(
                     model=self.model.replace(":", "/"),
