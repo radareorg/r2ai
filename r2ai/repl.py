@@ -167,6 +167,14 @@ def slurp_until(endword):
       text += line
     return text
 
+def list_models():
+    print("ollama/llama3:latest")
+    print("ollama/granite-code:8b")
+    print("anthropic/claude-3-5-sonnet-20240620")
+    print("anthropic/claude-3-7-sonnet-20250219")
+    print("openai/gpt-4o")
+    print("mistral/mistral-tiny")
+
 def set_model(model):
     ai = ais[0].ai
     if ai.model != model:
@@ -234,6 +242,8 @@ def runline(ai, usertext):
         delete_downloaded_model(usertext[3:])
     elif usertext.startswith("r2ai"):
         print("ERROR: Cant run r2ai from r2ai, you must install the C plugin and run this command from radare2")
+    elif usertext == "-m?":
+        list_models()
     elif usertext.startswith("-m"):
         words = usertext.split(" ")
         if len(words) > 1:
