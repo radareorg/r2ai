@@ -435,13 +435,24 @@ class Interpreter:
             #  {"role": "user", "content": "Compose a poem that explains the concept of recursion in programming."}
             # ]
             from litellm import completion as litellm_completion
-            completion = litellm_completion(
-                model=self.model.replace(":", "/"),
-                messages=self.messages,
-                max_completion_tokens=maxtokens,
-                temperature=float(self.env["llm.temperature"]),
-                top_p=float(self.env["llm.top_p"]),
-            )
+            completion = None
+            if self.model.startswith("ollama/"):
+                completion = litellm_completion(
+                    model=self.model,
+                    messages=self.messages,
+                    drop_params=True,
+                    max_completion_tokens=maxtokens,
+                    temperature=float(self.env["llm.temperature"]),
+                    top_p=float(self.env["llm.top_p"]),
+                )
+            else:
+                completion = litellm_completion(
+                    model=self.model.replace(":", "/"),
+                    messages=self.messages,
+                    max_completion_tokens=maxtokens,
+                    temperature=float(self.env["llm.temperature"]),
+                    top_p=float(self.env["llm.top_p"]),
+                )
 
             response = completion.choices[0].message.content
             if "content" in self.messages[-1]:
