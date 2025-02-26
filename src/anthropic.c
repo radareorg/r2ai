@@ -3,7 +3,7 @@
 #if R2_VERSION_NUMBER >= 50909
 
 static const char *modelname(const char *model_name) {
-	return model_name? model_name: "claude-3-5-sonnet-20241022";
+	return model_name? model_name: "claude-3-7-sonnet-20250219";
 }
 
 static bool handle_anthropic_stream_chunk(const char *chunk) {

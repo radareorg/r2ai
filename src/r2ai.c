@@ -496,21 +496,23 @@ static void cmd_r2ai_V(RCore *core, bool recursive) {
 }
 
 static void cmd_r2ai_M(RCore *core) {
-	r_cons_printf ("r2ai -e api=anthropic\n");
-	r_cons_printf ("-m claude-3-5-sonnet-20241022\n");
-	r_cons_printf ("-m claude-3-haiku-20240307\n");
-	r_cons_printf ("r2ai -e api=gemini\n");
-	r_cons_printf ("-m gemini-1.5-flash\n");
-	r_cons_printf ("-m gemini-1.0-pro\n");
-	r_cons_printf ("r2ai -e api=openai\n");
-	r_cons_printf ("-m gpt-4\n");
-	r_cons_printf ("-m gpt-3.5-turbo\n");
-	r_cons_printf ("r2ai -e api=ollama\n");
-	r_cons_printf ("-m llama3.2:1b\n");
-	r_cons_printf ("-m llama3\n");
-	r_cons_printf ("-m codegeex4\n");
-	r_cons_printf ("-m qwen2.5-coder:3b\n");
-	r_cons_printf ("-m benevolentjoker/nsfwvanessa\n");
+	r_cons_printf (\
+	"r2ai -e api=anthropic\n"
+	"-m claude-3-7-sonnet-20250219\n"
+	"-m claude-3-5-sonnet-20241022\n"
+	"-m claude-3-haiku-20240307\n"
+	"r2ai -e api=gemini\n"
+	"-m gemini-1.5-flash\n"
+	"-m gemini-1.0-pro\n"
+	"r2ai -e api=openai\n"
+	"-m gpt-4\n"
+	"-m gpt-3.5-turbo\n"
+	"r2ai -e api=ollama\n"
+	"-m llama3.2:1b\n"
+	"-m llama3\n"
+	"-m codegeex4\n"
+	"-m qwen2.5-coder:3b\n"
+	"-m benevolentjoker/nsfwvanessa\n");
 }
 
 static void cmd_r2ai_m(RCore *core, const char *input) {
