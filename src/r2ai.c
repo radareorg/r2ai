@@ -404,8 +404,8 @@ static void cmd_r2ai_i(RCore *core, const char *arg) {
 	}
 	char *s = r_file_slurp (fname, NULL);
 	if (R_STR_ISEMPTY (s)) {
-		free (fname);
 		R_LOG_ERROR ("Cannot open %s", fname);
+		free (fname);
 		return;
 	}
 	char *q = r_str_newf ("%s\n```\n%s\n```\n", query, s);
@@ -419,7 +419,6 @@ static void cmd_r2ai_i(RCore *core, const char *arg) {
 		r_cons_printf ("%s\n", res);
 	}
 	free (fname);
-	free (s);
 	free (res);
 	free (q);
 }
