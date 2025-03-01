@@ -118,52 +118,119 @@ Response:
     let lastOutput = "";
     let decaiCache = false;
     let maxInputTokens = -1; // -1 = disabled i.e fileData is not truncated up to this limit
-    // let decprompt = "Do not explain, respond using ONLY code. Simplify and make it more readable. Use better variable names, keep it simple and avoid unnecessary logic, rewrite 'goto' into higher level constructs, Use comments like 'string:' to resolve function call arguments";
     const defaultPrompt = "Rewrite this function and respond ONLY with code, NO explanations, NO markdown, Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and strings from comments like 'string:'";
     let decprompt = defaultPrompt;
 
-    function listMistralModels() {
-        const mistralKey = r2.cmd("'cat ~/.r2ai.mistral-key").trim()
-        if (mistralKey === '') {
-           return "Cannot read ~/.r2ai.mistral-key";
+    function fileExist(path) {
+        if (r2.cmd2("test -h").logs[0].message.indexOf("-fdx") !== -1) {
+            // r2 is old and it doesn't support "test -v"
+            return true;
         }
-        const res = [];
-        const curlc = `curl -s https://api.mistral.ai/v1/models -H "Authorization: Bearer ${mistralKey}" -H "Content-Type: application/json"`;
-        const response = JSON.parse(r2.syscmds(curlc));
-        for (const item of response.data) {
-	    res.push(`${item.name}\t${item.max_context_length}\t${item.description}`);
+        return r2.cmd("'test -vf " + path).startsWith("found");
+    }
+    function getApiKey(provider, envvar) {
+        const keyEnv = r2.cmd("'%" + envvar).trim ();
+        if (keyEnv.indexOf('=') === -1 && keyEnv !== "") {
+            return [keyEnv.trim(), null, "env"];
+        }
+        const keyPath = "~/.r2ai." + provider + "-key";
+        if (fileExist(keyPath)) {
+            const keyFile = r2.cmd("'cat " + keyPath);
+            if (keyFile === '') {
+               return [null, "Cannot read " + keyPath, "no"];
+            }
+            return [keyFile.trim(), null, "file"];
+        }
+        return [null, "Not available", "nope"];
+    }
+
+    function listApiKeys() {
+        const providers = {
+            "mistral": 'MISTRAL_API_KEY',
+            "anthropic": 'ANTHROPIC_API_KEY',
+            "huggingface": 'HUGGINGFACE_API_KEY',
+            "openai": 'OPENAI_API_KEY',
+            "gemini": 'GEMINI_API_KEY',
+            "deepseek": 'DEEPSEEK_API_KEY',
+            "xai": 'XAI_API_KEY'
+        };
+        for (const key of Object.keys(providers)) {
+            const what = getApiKey(key, providers[key])[2];
+            console.log(what, "\t", key);
+        }
+    }
+
+    function curlGet(url, headers) {
+        const heads = headers.map((x) => { return '-H "' + x + '"' }).join(' ');
+        const curlc = `curl -s ${url} ${heads} -H "Content-Type: application/json"`;
+        return JSON.parse(r2.syscmds(curlc));
+    }
+    function curlPost(url, headers, payload) {
+        const heads = headers.map((x) => { return '-H "' + x + '"' }).join(' ');
+        const curlc = `curl -s ${url} ${heads} -d '${payload}' -H "Content-Type: application/json"`;
+        const output = r2.syscmds(curlc);
+        try {
+            if (output === "") {
+                return { error: "empty response" };
+	    }
+            return JSON.parse(output);
+	} catch (e) {
+            console.error ("output:", output);
+            console.error (e, e.stack);
+            return {error: e.stack};
 	}
-        return res.join("\n");
+    }
+
+    const padRight = (str, length) => str + ' '.repeat(Math.max(0, length - str.length));
+    function listMistralModels() {
+        const key = getApiKey('mistral', 'MISTRAL_API_KEY');
+        if (key[1]) {
+            throw new Error(key[1]);
+        }
+	const headers = ["Authorization: Bearer " + key[0]];
+        const response = curlGet("https://api.mistral.ai/v1/models", headers);
+	const uniqByName = arr => arr.filter((obj, i, self) => self.findIndex(o => o.name === obj.name) === i);
+        return uniqByName(response.data).map((model) => [
+	        padRight(model.name, 30),
+	        padRight(''+model.max_context_length, 10),
+		model.description
+	    ].join(' ')
+	).join("\n");
     }
     function listModelsFor(decaiApi) {
         switch (decaiApi) {
-	case "ollama":
-	    // r2.syscmd("ollama ls");
-	case "openapi":
+        case "ollama":
+            // r2.syscmd("ollama ls");
+        case "openapi":
             console.log(openApiListModels());
-	    break;
-	case "openai":
+            break;
+        case "openai":
             console.log("o1");
             console.log("o1-mini");
             console.log("gpt-4-turbo");
             console.log("gpt-4o");
             console.log("gpt-4o-mini");
-	    break;
-	case "claude":
-	case "anthropic":
-	    console.log("claude-3-5-sonnet-20241022");
-	    console.log("claude-3-7-sonnet-20250219");
-	    break;
-	case "mistral":
-	    try {
-	        console.log(listMistralModels());
-	    } catch (e) {
-	        console.error(e);
-	    }
-	    console.log("codestral-latest");
-	    break;
-	}
-
+            console.log("gpt-4.5-preview");
+            break;
+        case "claude":
+        case "anthropic":
+            console.log("claude-3-5-sonnet-20241022");
+            console.log("claude-3-7-sonnet-20250219");
+            break;
+        case "xai":
+            console.log("grok-2");
+            console.log("grok-beta");
+            // console.log("grok-3");
+            break;
+        case "mistral":
+            try {
+                console.log(listMistralModels());
+            } catch (e) {
+                console.error(e, e.stack);
+            }
+            console.log("codestral-latest");
+            break;
+        }
     }
 
     function decaiEval(arg) {
@@ -238,13 +305,13 @@ Response:
             }
             break;
         case "deterministic":
-	    decaiDeterministic = v === 'true';
+            decaiDeterministic = v === 'true';
             break;
         case "model":
             if (v === "?") {
                 listModelsFor(decaiApi);
             } else {
-                decaiModel = v;
+                decaiModel = v.trim();
             }
             break;
         case "cache":
@@ -290,6 +357,7 @@ Response:
         console.error(" " + command + " -e         - display and change eval config vars");
         console.error(" " + command + " -h         - show this help");
         console.error(" " + command + " -i [f] [q] - include given file and query");
+        console.error(" " + command + " -k         - list API key status");
         console.error(" " + command + " -m [model] - use -m? or -e model=? to list the available models for '-e api='");
         console.error(" " + command + " -n         - suggest better function name");
         console.error(" " + command + " -q [text]  - query language model with given text");
@@ -345,19 +413,11 @@ Response:
         return "error invalid response";
     }
     function r2aiHuggingFace(msg, hideprompt) {
-        const hfKey = r2.cmd("'cat ~/.r2ai.huggingface-key").trim();
-        if (hfKey === '') {
-            return "ERROR: Cannot read ~/.r2ai.huggingface-key";
+        const key = getApiKey('huggingface', 'HUGGINGFACE_API_KEY');
+        if (key[1]) {
+            throw new Error(key[1]);
         }
-        let hfModel = "deepseek-ai/DeepSeek-Coder-V2-Instruct";
-        if (decaiModel.length > 0) {
-            hfModel = decaiModel;
-        }
-        // const hfModel = "instructlab/granite-7b-lab"
-        // const hfModel = "TheBloke/Llama-2-7B-GGML"
-        // const hfModel = "meta-llama/Llama-3.1-8B-Instruct";
-        // const hfModel = "meta-llama/Llama-3.2-1B-Instruct";
-        // const hfModel = "Qwen/Qwen2.5-72B-Instruct";
+        let hfModel = decaiModel ?? "deepseek-ai/DeepSeek-Coder-V2-Instruct";
         const query = hideprompt? msg: decprompt + ", Output in " + decaiLanguage + " language\n" + msg;
         const payload = JSON.stringify({
             inputs: query,
@@ -365,31 +425,13 @@ Response:
                 max_new_tokens: 5128
             }
         });
-        const curlcmd = `curl -s https://api-inference.huggingface.co/models/${hfModel}
-            -H "Authorization: Bearer ${hfKey}"
-            -H "Content-Type: application/json"
-            -d '${payload}'`.replace(/\n/g, "");
-        //if (decaiDebug) {
-        //     console.log(curlcmd);
-        //}
-
-        const res = r2.syscmds(curlcmd);
-        // Debug response instead of request
-        if (decaiDebug) {
-            console.log(res)
+        const url = "https://api-inference.huggingface.co/models/" + hfModel;
+        const headers = [ "Authorization: Bearer " + key[0]];
+        const o = curlPost(url, headers, payload);
+        if (o.error) {
+	    return "ERROR: " + o.error;
         }
-
-        try {
-            const o = JSON.parse(res);
-            if (o.error) {
-                return "ERROR: " + o.error;
-            }
-            return JSON.parse(res).generated_text;
-        } catch (e) {
-            console.error(e);
-            console.log(res);
-        }
-        return "error invalid response";
+        return o.generated_text;
     }
 
     function r2aiDeepseek(msg, hideprompt) {
@@ -504,7 +546,7 @@ Response:
           console.log(payload);
         }
         const curlcmd = `curl -s https://api.mistral.ai/v1/chat/completions
-	  -H "Authorization: Bearer ${mistralKey}"
+          -H "Authorization: Bearer ${mistralKey}"
           -H "Content-Type: application/json"
           -d '${payload}' #`.replace(/\n/g, "");
         if (decaiDebug) {
@@ -546,20 +588,8 @@ Response:
         if (decaiDebug) {
           console.log(payload);
         }
-        const curlcmd = `curl -s ${decaiHost}:${decaiPort}/api/chat
-          -H "Content-Type: application/json"
-          -d '${payload}' #`.replace(/\n/g, "");
-        if (decaiDebug) {
-            console.log(curlcmd);
-        }
-        const res = r2.syscmds(curlcmd);
-        try {
-            return JSON.parse(res).message.content;
-        } catch(e) {
-            console.error(e);
-            console.log(res);
-        }
-        return "error invalid response";
+        const url = decaiHost + ":" + decaiPort + "/api/chat";
+        return curlPost(url, [], payload).message.content;
     }
     function r2aiOpenAPI(msg, hideprompt) {
         const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
@@ -736,7 +766,7 @@ Response:
                 }
                 out = code;
             } else {
-                const query = (decprompt + appendQuery).trim() + ". Transform this pseudocode into " + decaiLanguage;
+                const query = (decprompt + appendQuery).trim() + ". Translate this code into " + decaiLanguage + " programming language. Do not explain anything";
                 text += body;
                 text += context;
                 out = r2ai(query, text);
@@ -922,6 +952,9 @@ Response:
                 break;
             case "V": // "-V"
                 r2aidec("-Q find vulnerabilities, dont show the code, only show the response, provide a sample exploit");
+                break;
+            case "k": // "-k"
+                listApiKeys();
                 break;
             case "e": // "-e"
                 args = args.slice(2).trim();
