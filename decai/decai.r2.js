@@ -2,70 +2,55 @@
     const decaiHelp = `
 # Using Decai
 
-Uses local ollama by default, but can be configured with 'decai -e api=' to select any other local or remote implementation.
+Decai is the radare2 plugin for decompiling functions with the help of language models.
+By default uses a local ollama server, but can you can pick any other service by using 'decai -e api=?'.
 
-## Local backends:
+[0x00000000]> decai -e api=?
+r2ai claude deepseek gemini hf mistral ollama openapi openai vllm xai
 
-### R2AI
+## Using Ollama
 
-Run 'decai -e api=r2ai' inside r2. Optimized for 'r2ai -w' as backend (see below)
+* Visit https://ollama.com to install it.
+* Download the model of choice: 'ollama run llama3.3'
+* Configure decai to use the given model with: 'decai -e model=?'
 
-### OpenAPI
+## Common Options
 
-You can use ollama, llamacpp, r2ai-server, etc
+* 'decai -e deterministic=true' to remove randomness from decompilation responses
+* 'decai -e lang=Python' to output the decompilation in Python instead of C
+* 'decai -e hlang=Catalan' to add comments or explanations in that language (instead of English)
+* 'decai -e cmds=pdd,pdg' use r2dec and r2ghidra instead of r2's pdc as input for decompiling
+* 'decai -e prompt=..' default prompt must be fine for most models and binaries, feel free to tweak it
 
-It connects to decai -e host/port via OpenAPI rest endpoints.
+## API Keys
 
-### Setting up Ollama
+Remove services like OpenAI, Mistral, Anthropic, Grok, Gemini, .. require API keys to work.
 
-Install Ollama and download a model (ollama run xxx). List the model (ollama ls).
+See 'decai -k' to list the status of available APIkeys
 
-Configure decai to use Ollama:
+Decai will pick them from the environment or the config files in your home:
 
-   * decai -e api=ollama
+* echo KEY > ~/.r2ai.openai-key
+* export OPENAI_API_KEY=...
 
-Configure decai to use your model:
-
-   * decai -e model=ollama/MODEL_NAME e.g decai -e model=codegeex4:latest
-
-### Setting up r2ai-server
+## Using r2ai-server:
 
 Install r2ai or r2ai-server with r2pm:
 
-    r2pm -ci r2ai
+[0x0000000]> decai -e api=r2ai
+[0x0000000]> !r2pm -ci r2ai
 
 Choose one of the recommended models (after r2pm -r r2ai):
 
-    * -m ibm-granite/granite-20b-code-instruct-8k-GGUF
-    * -m QuantFactory/granite-8b-code-instruct-4k-GGUF
-    * -m TheBloke/Mistral-7B-Instruct-v0.2-GGUF
+* -m ibm-granite/granite-20b-code-instruct-8k-GGUF
+* -m QuantFactory/granite-8b-code-instruct-4k-GGUF
+* -m TheBloke/Mistral-7B-Instruct-v0.2-GGUF
 
 Start the webserver:
 
-   * r2pm -r r2ai-server -l r2ai -m granite-8b-code-instruct-4k.Q2_K
+$ r2pm -r r2ai-server -l r2ai -m granite-8b-code-instruct-4k.Q2_K
 
-Use the server for decai:
-
-[0x0000000]> decai -e api=r2ai
-
-## Remote backends:
-
-Specify the service to use:
-  * decai -e api=openai
-  * decai -e api=claude
-  * decai -e api=hf
-  * decai -e api=mistral
-  * decai -e api=ollama
-  * list all possible value with decai -e api=?
-
-Write the API keys in corresponding files:
-
-  * ~/.r2ai.openai-key
-  * ~/.r2ai.huggingface-key
-  * ~/.r2ai.anthropic-key
-  * ~/.r2ai.mistral-key
-
-## Make those changes permanent
+## Permanent Setup
 
 You can write your custom decai commands in your ~/.radare2rc file.
 
