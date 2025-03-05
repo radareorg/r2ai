@@ -157,13 +157,13 @@ Response:
         try {
             if (output === "") {
                 return { error: "empty response" };
-	    }
+            }
             return JSON.parse(output);
-	} catch (e) {
+        } catch (e) {
             console.error ("output:", output);
             console.error (e, e.stack);
             return {error: e.stack};
-	}
+        }
     }
 
     const padRight = (str, length) => str + ' '.repeat(Math.max(0, length - str.length));
@@ -172,15 +172,15 @@ Response:
         if (key[1]) {
             throw new Error(key[1]);
         }
-	const headers = ["Authorization: Bearer " + key[0]];
+        const headers = ["Authorization: Bearer " + key[0]];
         const response = curlGet("https://api.mistral.ai/v1/models", headers);
-	const uniqByName = arr => arr.filter((obj, i, self) => self.findIndex(o => o.name === obj.name) === i);
+        const uniqByName = arr => arr.filter((obj, i, self) => self.findIndex(o => o.name === obj.name) === i);
         return uniqByName(response.data).map((model) => [
-	        padRight(model.name, 30),
-	        padRight(''+model.max_context_length, 10),
-		model.description
-	    ].join(' ')
-	).join("\n");
+                padRight(model.name, 30),
+                padRight(''+model.max_context_length, 10),
+                model.description
+            ].join(' ')
+        ).join("\n");
     }
     function listModelsFor(decaiApi) {
         switch (decaiApi) {
@@ -217,142 +217,117 @@ Response:
             break;
         }
     }
-
-    function decaiEval(arg) {
-        const [k, v] = arg.split("=");
-        if (!v) {
-            switch (k) {
-            case "pipeline":
-                console.log(decaiPipeline);
-                break;
-            case "model":
-                console.log(decaiModel);
-                break;
-            case "deterministic":
-                console.log(decaiDeterministic);
-                break;
-            case "debug":
-                console.log(decaiDebug);
-                break;
-            case "api":
-                console.log(decaiApi);
-                break;
-            case "hlang":
-                console.log(decaiHumanLanguage);
-                break;
-            case "lang":
-                console.log(decaiLanguage);
-                break;
-            case "cache":
-                console.log(decaiCache);
-                break;
-            case "cmds":
-                console.log(decaiCommands);
-                break;
-            case "prompt":
-                console.log(decprompt);
-                break;
-            case "ctxfile":
-                console.log(decaiContextFile);
-                break;
-            case "host":
-                console.log(decaiHost);
-                break;
-            case "port":
-                console.log(decaiPort);
-                break;
-            case "maxinputtokens":
-                console.log(maxInputTokens);
-                break;
-            default:
-                console.error("Unknown key");
-                break;
-            }
-            return;
-        }
-        switch (k) {
-        case "pipeline":
+    const config = {
+      "pipeline": {
+          get: () => decaiPipeline,
+          set: () => {
             decaiPipeline = v;
             try {
                 decopipe = JSON.parse(r2.cmd('cat ' + v));
             } catch (e) {
                 console.error(e);
             }
-            break;
-        case "debug":
-            decaiDebug = (v === "true" || v === "1");
-            break;
-        case "api":
-            if (v === "?") {
-                console.error("r2ai\nclaude\ndeepseek\ngemini\nhf\nmistral\nollama\nopenapi\nopenapi2\nopenai\nvllm\nxai\n");
-            } else {
-                decaiApi = v;
-            }
-            break;
-        case "deterministic":
-            decaiDeterministic = v === 'true';
-            break;
-        case "model":
+         }
+      },
+      "model": {
+          get: () => decaiModel,
+          set: (v) => {
             if (v === "?") {
                 listModelsFor(decaiApi);
             } else {
                 decaiModel = v.trim();
             }
-            break;
-        case "cache":
-            decaiCache = v === "true" || v == 1;
-            break;
-        case "ctxfile":
-            decaiContextFile = v;
-            break;
-        case "hlang":
-            decaiHumanLanguage = v;
-            break;
-        case "lang":
-            decaiLanguage = v;
-            break;
-        case "cmds":
-            decaiCommands = v;
-            break;
-        case "prompt":
-            decprompt = v;
-            break;
-        case "host":
-            decaiHost = v;
-            break;
-        case "port":
-            decaiPort = v;
-            break;
-        case "maxinputtokens":
-            maxInputTokens = v;
-            break;
-        default:
-            console.error("Unknown key");
-            break;
+          }
+      },
+      "deterministic": {
+          get: () => decaiDeterministic,
+          set: (v) => { decaiDeterministic = v === 'true' || v === "1" },
+      },
+      "debug": {
+          get: () => decaiDebug,
+          set: (v) => { console.log("VAL "+ v); decaiDebug = (v === "true" || v === "1"); }
+      },
+      "api": {
+          get: () => decaiApi,
+          set: (v) => {
+            if (v === "?") {
+                console.error("r2ai\nclaude\ndeepseek\ngemini\nhf\nmistral\nollama\nopenapi\nopenapi2\nopenai\nvllm\nxai\n");
+            } else {
+                decaiApi = v;
+            }
+        }
+      },
+      "lang": {
+          get: () => decaiLanguage,
+          set: (v) => { decaiLanguage = v; }
+      },
+      "hlang": {
+          get: () => decaiHumanLanguage,
+          set: (v) => { decaiHumanLanguage = v; }
+      },
+      "cache": {
+          get: () => decaiCache,
+          set: (v) => { decaiCache = v === "true" || v == 1; }
+      },
+      "cmds": {
+          get: () => decaiCommands,
+          set: (v) => { decaiCommands = v; },
+      },
+      "prompt": {
+          get: () => decprompt,
+          set: (v) => { decprompt = v; }
+      },
+      "ctxfile": {
+          get: () => decaiContextFile,
+          set: (v) => { decaiContextFile = v; }
+      },
+      "host": {
+          get: () => decaiHost,
+          set: (v) => { decaiHost = v; }
+      },
+      "port": {
+          get: () => decaiPort,
+          set: (v) => { decaiPort = v; }
+      },
+      "maxinputtokens": {
+          get: () => maxInputTokens,
+          set: (v) => { maxInputTokens = v; },
+      },
+    };
+
+    function decaiEval(arg) {
+        const [k, v] = arg.split("=");
+        if (Object.keys(config).indexOf(k) === -1) {
+            console.error("Unknown config key");
+        } else if (v) {
+            config[k].set(v);
+        } else {
+                   console.log(config[k].get());
         }
     }
     function usage() {
+        const msg = (m) => console.error(" " + command + " " + m);
         console.error("Usage: " + command + " (-h) ...");
-        console.error(" " + command + " -H         - help setting up r2ai");
-        console.error(" " + command + " -a [query] - solve query with auto mode");
-        console.error(" " + command + " -d [f1 ..] - decompile given functions");
-        console.error(" " + command + " -dr        - decompile function and its called ones (recursive)");
-        console.error(" " + command + " -dd [..]   - same as above, but ignoring cache");
-        console.error(" " + command + " -dD [query]- decompile current function with given extra query");
-        console.error(" " + command + " -e         - display and change eval config vars");
-        console.error(" " + command + " -h         - show this help");
-        console.error(" " + command + " -i [f] [q] - include given file and query");
-        console.error(" " + command + " -k         - list API key status");
-        console.error(" " + command + " -m [model] - use -m? or -e model=? to list the available models for '-e api='");
-        console.error(" " + command + " -n         - suggest better function name");
-        console.error(" " + command + " -q [text]  - query language model with given text");
-        console.error(" " + command + " -Q [text]  - query on top of the last output");
-        console.error(" " + command + " -r         - change role prompt (same as: decai -e prompt)");
-        console.error(" " + command + " -R         - reset role prompt to default prompt");
-        console.error(" " + command + " -s         - function signature");
-        console.error(" " + command + " -v         - show local variables");
-        console.error(" " + command + " -V         - find vulnerabilities");
-        console.error(" " + command + " -x         - eXplain current function");
+        msg("-H         - help setting up r2ai");
+        msg("-a [query] - solve query with auto mode");
+        msg("-d [f1 ..] - decompile given functions");
+        msg("-dr        - decompile function and its called ones (recursive)");
+        msg("-dd [..]   - same as above, but ignoring cache");
+        msg("-dD [query]- decompile current function with given extra query");
+        msg("-e         - display and change eval config vars");
+        msg("-h         - show this help");
+        msg("-i [f] [q] - include given file and query");
+        msg("-k         - list API key status");
+        msg("-m [model] - use -m? or -e model=? to list the available models for '-e api='");
+        msg("-n         - suggest better function name");
+        msg("-q [text]  - query language model with given text");
+        msg("-Q [text]  - query on top of the last output");
+        msg("-r         - change role prompt (same as: decai -e prompt)");
+        msg("-R         - reset role prompt to default prompt");
+        msg("-s         - function signature");
+        msg("-v         - show local variables");
+        msg("-V         - find vulnerabilities");
+        msg("-x         - eXplain current function");
     }
     function r2aiAnthropic(msg, hideprompt) {
        const claudeKey = r2.cmd("'cat ~/.r2ai.anthropic-key").trim()
@@ -383,13 +358,9 @@ Response:
           -H "anthropic-version: 2023-06-01"
           -H "x-api-key: ${claudeKey}"
           -d '${payload}'`.replace(/\n/g, "");
-        if (decaiDebug) {
-            console.error(curlcmd);
-        }
+        debug.log(curlcmd);
         const res = r2.syscmds(curlcmd);
-        if (decaiDebug) {
-            console.error(res);
-        }
+        debug.log(res);
         try {
             return JSON.parse(res).content[0].text;
         } catch(e) {
@@ -414,7 +385,7 @@ Response:
         const headers = [ "Authorization: Bearer " + key[0]];
         const o = curlPost(url, headers, payload);
         if (o.error) {
-	    return "ERROR: " + o.error;
+            return "ERROR: " + o.error;
         }
         return o.generated_text;
     }
@@ -428,9 +399,7 @@ Response:
        const query = hideprompt? msg: decprompt + ", Output in " + decaiLanguage + " language\n" + msg;
        const payload = JSON.stringify({model:deepseekModel, messages: [{role:"user", content: query}]});
        const curlcmd = `curl -X POST "https://api.deepseek.com/v1/chat" -H "Authorization: Bearer ${deepseekKey}" -H "Content-Type: application/json" -d '${payload}'`; // .replace(/\n/g, "");
-        if (decaiDebug) {
-            console.log(curlcmd);
-        }
+        debug.log(curlcmd);
         const res = r2.syscmds(curlcmd);
         try {
             return JSON.parse(res).choices[0].message.content;
@@ -451,9 +420,7 @@ Response:
        const curlcmd = `curl -X POST -s https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:'generateContent?key='${geminiKey}
           -H "Content-Type: application/json"
           -d '${payload}'`.replace(/\n/g, "");
-        if (decaiDebug) {
-            console.log(curlcmd);
-        }
+        debug.log(curlcmd);
         const res = r2.syscmds(curlcmd);
         console.log(res);
         try {
@@ -465,35 +432,31 @@ Response:
         return "error invalid response";
     }
     function r2aiOpenAI(msg, hideprompt) {
-       const openaiKey = r2.cmd("'cat ~/.r2ai.openai-key").trim()
-       if (openaiKey === '') {
-           return "Cannot read ~/.r2ai.openai-key";
-       }
-       const openaiModel = (decaiModel.length > 0)? decaiModel: "gpt-4-turbo"; // o-2024-11-20";
-       const query = hideprompt? msg: decprompt + ", Output in " + decaiLanguage + " language\n" + msg;
-       const object = {
-           model: openaiModel,
-           // max_tokens: 5128,
-           // max_completion_tokens: 5128, // make this configurable or depend on model, o1 supports more than 8K
-           messages: [
+        const openaiKey = r2.cmd("'cat ~/.r2ai.openai-key").trim()
+        if (openaiKey === '') {
+            return "Cannot read ~/.r2ai.openai-key";
+        }
+        const openaiModel = (decaiModel.length > 0)? decaiModel: "gpt-4-turbo"; // o-2024-11-20";
+        const query = hideprompt? msg: decprompt + ", Output in " + decaiLanguage + " language\n" + msg;
+        const object = {
+            model: openaiModel,
+            messages: [
                // { "role": "system", "content": hideprompt? decprompt: "" },
-               { "role": "user", "content": query }
-           ]
-       };
-       if (decaiDeterministic) {
-         object.temperature = 0;
-         object.top_p = 0;
-         object.frequency_penalty = 0;
-         object.presence_penalty = 0;
-       }
-       const payload = JSON.stringify(object);
-       const curlcmd = `curl -s https://api.openai.com/v1/chat/completions
+                { "role": "user", "content": query }
+            ]
+        };
+        if (decaiDeterministic) {
+            object.temperature = 0;
+            object.top_p = 0;
+            object.frequency_penalty = 0;
+            object.presence_penalty = 0;
+        }
+        const payload = JSON.stringify(object);
+        const curlcmd = `curl -s https://api.openai.com/v1/chat/completions
           -H "Content-Type: application/json"
           -H "Authorization: Bearer ${openaiKey}"
           -d '${payload}' #`.replace(/\n/g, "");
-        if (decaiDebug) {
-            console.log(curlcmd);
-        }
+        debug.log(curlcmd);
         const res = r2.syscmds(curlcmd);
         try {
             return JSON.parse(res).choices[0].message.content;
@@ -546,18 +509,20 @@ Response:
         }
         return "error invalid response";
     }
+    const debug = {
+        log: (msg) => {
+            if (decaiDebug) {
+              console.log(msg);
+            }
+        }
+    }
     function r2aiOllama(msg, hideprompt) {
         const model = decaiModel? decaiModel: "qwen2.5-coder:latest";
         const query = hideprompt? msg: decprompt + ", Convert this pseudocode into " + decaiLanguage + "\n" + msg;
         const object = {
             stream: false,
             model: model,
-            messages: [
-                    {
-                    role: "user",
-                    content: query,
-                }
-            ]
+            messages: [ { role: "user", content: query, } ]
         };
         if (decaiDeterministic) {
           object.options = {
@@ -570,9 +535,7 @@ Response:
           };
         }
         const payload = JSON.stringify(object);
-        if (decaiDebug) {
-          console.log(payload);
-        }
+        debug.log(payload);
         const url = decaiHost + ":" + decaiPort + "/api/chat";
         return curlPost(url, [], payload).message.content;
     }
@@ -582,9 +545,7 @@ Response:
         const curlcmd = `curl -s ${decaiHost}:${decaiPort}/api/generate
           -H "Content-Type: application/json"
           -d '${payload}' #`.replace(/\n/g, "");
-        if (decaiDebug) {
-            console.log(curlcmd);
-        }
+        debug.log(curlcmd);
         const res = r2.syscmds(curlcmd);
         try {
             return JSON.parse(res).content;
@@ -623,9 +584,7 @@ Response:
           -H "Authorization: Bearer ${xaiKey}"
           -d '${payload}' #`.replace(/\n/g, "");
 
-        if (decaiDebug) {
-            console.log(curlcmd);
-        }
+        debug.log(curlcmd);
         const res = r2.syscmds(curlcmd);
         try {
             return JSON.parse(res).choices[0].message.content;
@@ -641,9 +600,7 @@ Response:
         const curlcmd = `curl -s ${decaiHost}:8000/v1/completions
           -H "Content-Type: application/json"
           -d '${payload}' #`.replace(/\n/g, "");
-        if (decaiDebug) {
-            console.log(curlcmd);
-        }
+        debug.log(curlcmd);
         const res = r2.syscmds(curlcmd);
         try {
             return JSON.parse(res).choices[0].text;
@@ -659,9 +616,7 @@ Response:
         const curlcmd = `curl -s ${decaiHost}:${decaiPort}/api/generate
           -H "Content-Type: application/json"
           -d '${payload}' #`.replace(/\n/g, "");
-        if (decaiDebug) {
-            console.log(curlcmd);
-        }
+        debug.log(curlcmd);
         const res = r2.syscmds(curlcmd);
         try {
             return JSON.parse(res).response;
@@ -825,9 +780,7 @@ Response:
             const host = decaiHost + ":" + decaiPort + "/cmd"; // "http://localhost:8080/cmd";
             const ss = q.replace(/ /g, "%20").replace(/'/g, "\\'");
             const cmd = 'curl -s "' + host + '/' + ss + '" || echo "Cannot curl, use r2ai-server or r2ai -w"';
-            if (decaiDebug) {
-                console.error(cmd);
-            }
+            debug.log(cmd);
             return r2.syscmds(cmd);
             // return r2.cmd(cmd);
         }
@@ -946,20 +899,10 @@ Response:
                 if (args) {
                     decaiEval(args);
                 } else {
-                    console.log("decai -e api=" + decaiApi);
-                    console.log("decai -e host=" + decaiHost);
-                    console.log("decai -e port=" + decaiPort);
-                    console.log("decai -e prompt=" + decprompt);
-                    console.log("decai -e ctxfile=" + decaiContextFile);
-                    console.log("decai -e cmds=" + decaiCommands);
-                    console.log("decai -e cache=" + decaiCache);
-                    console.log("decai -e lang=" + decaiLanguage);
-                    console.log("decai -e hlang=" + decaiHumanLanguage);
-                    console.log("decai -e deterministic=" + decaiDeterministic);
-                    console.log("decai -e debug=" + decaiDebug);
-                    console.log("decai -e model=" + decaiModel);
-                    console.log("decai -e pipeline=" + decaiPipeline);
-                    console.log("decai -e maxinputtokens=" + maxInputTokens);
+                    for (const key of Object.keys(config)) {
+                        const v = config[key].get();
+                        console.log("decai -e " + key + "=" + v);
+                    }
                 }
                 break;
             case "q": // "-q"
