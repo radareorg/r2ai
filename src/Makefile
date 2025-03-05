@@ -18,6 +18,8 @@ OBJS+=xai.o
 
 all: $(OBJS) r2check
 	$(CC) -fPIC -shared -o r2ai.$(EXT) $(OBJS) $(CFLAGS) $(LDFLAGS)
+
+try: all
 	$(MAKE) user-install
 	$(MAKE) doc-install
 
