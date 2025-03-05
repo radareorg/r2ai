@@ -189,7 +189,9 @@ R_IPI char *r2ai(RCore *core, const char *input, char **error, bool dorag) {
 		}
 	}
 	// free (model);
+#if R2_VERSION_NUMBER >= 50909
 	bool stream = r_config_get_b (core->config, "r2ai.stream");
+#endif
 	char *result = NULL;
 	if (R_STR_ISEMPTY (model)) {
 		R_FREE (model);
