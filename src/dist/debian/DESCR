@@ -1,0 +1,2 @@
+AI based decompiler plugin for radare2
+r2js plugin for radare2 that provides several features for reverse engineers, from autonaming functions, improve decompiling outputs, find bugs or explain functions to automated crackme solving using local and remote models if API keys are provided..
