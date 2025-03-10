@@ -245,7 +245,7 @@ Response:
       },
       "debug": {
           get: () => decaiDebug,
-          set: (v) => { console.log("VAL "+ v); decaiDebug = (v === "true" || v === "1"); }
+          set: (v) => { decaiDebug = (v === "true" || v === "1"); }
       },
       "api": {
           get: () => decaiApi,
@@ -472,7 +472,7 @@ Response:
            return "Cannot read ~/.r2ai.mistral-key";
         }
         const model = decaiModel? decaiModel: "codestral-latest";
-        const query = hideprompt? msg: decprompt + ", Convert this pseudocode into " + decaiLanguage + "\n" + msg;
+        const query = hideprompt? msg: decprompt + ", Convert this pseudocode into " + decaiLanguage + " programming language\n" + msg;
         const object = {
             stream: false,
             model: model,
@@ -711,7 +711,7 @@ Response:
                 }
                 out = code;
             } else {
-                const query = (decprompt + appendQuery).trim() + ". Translate this code into " + decaiLanguage + " programming language. Do not explain anything";
+                const query = appendQuery; // + ". Translate this code into " + decaiLanguage + " programming language.";
                 text += body;
                 text += context;
                 out = r2ai(query, text);
@@ -787,7 +787,6 @@ Response:
             const cmd = 'curl -s "' + host + '/' + ss + '" || echo "Cannot curl, use r2ai-server or r2ai -w"';
             debug.log(cmd);
             return r2.syscmds(cmd);
-            // return r2.cmd(cmd);
         }
         if (queryText.startsWith("-")) { // -i
             return "";
