@@ -154,10 +154,10 @@ Response:
         const heads = headers.map((x) => { return '-H "' + x + '"' }).join(' ');
         const curlc = `curl -s ${url} ${heads} -d '${payload}' -H "Content-Type: application/json"`;
         const output = r2.syscmds(curlc);
+        if (output === "") {
+            return { error: "empty response" };
+        }
         try {
-            if (output === "") {
-                return { error: "empty response" };
-            }
             return JSON.parse(output);
         } catch (e) {
             console.error ("output:", output);
@@ -537,7 +537,12 @@ Response:
         const payload = JSON.stringify(object);
         debug.log(payload);
         const url = decaiHost + ":" + decaiPort + "/api/chat";
-        return curlPost(url, [], payload).message.content;
+        const res = curlPost(url, [], payload);
+	try {
+            return res.message.content;
+	} catch (e) {
+            return "ERROR: " + res.error;
+	}
     }
     function r2aiOpenAPI(msg, hideprompt) {
         const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
