@@ -104,6 +104,7 @@ Response:
     let decaiCache = false;
     let maxInputTokens = -1; // -1 = disabled i.e fileData is not truncated up to this limit
     const defaultPrompt = "Rewrite this function and respond ONLY with code, NO explanations, NO markdown, Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and strings from comments like 'string:'";
+    // const defaultPrompt = "Rewrite this function following these rules:\n* Replace goto statements with structured control flow (if/else/for/while).\n* Simplify logic and remove unused code as much as possible.\n* Rename variables to be more meaningful.\n* Extract and inline function arguments and string values from comments like 'string:'.\n* Strictly return only the transformed code, without any explanations, markdown, or extra formatting."
     let decprompt = defaultPrompt;
 
     function fileExist(path) {
@@ -343,7 +344,7 @@ Response:
                {
                    "role": "user",
                    "content": hideprompt ? msg
-                     : decprompt + ", Rewrite this pseudocode into " + decaiLanguage + "\n" + msg
+                     : decprompt + languagePrompt() + msg
                }
            ]
        };
@@ -374,7 +375,7 @@ Response:
             throw new Error(key[1]);
         }
         let hfModel = decaiModel ?? "deepseek-ai/DeepSeek-Coder-V2-Instruct";
-        const query = hideprompt? msg: decprompt + ", Output in " + decaiLanguage + " language\n" + msg;
+        const query = hideprompt? msg: decprompt + languagePrompt() + msg;
         const payload = JSON.stringify({
             inputs: query,
             parameters: {
@@ -472,7 +473,7 @@ Response:
            return "Cannot read ~/.r2ai.mistral-key";
         }
         const model = decaiModel? decaiModel: "codestral-latest";
-        const query = hideprompt? msg: decprompt + ", Convert this pseudocode into " + decaiLanguage + " programming language\n" + msg;
+        const query = hideprompt? msg: decprompt + languagePrompt + msg;
         const object = {
             stream: false,
             model: model,
@@ -516,9 +517,12 @@ Response:
             }
         }
     }
+    function languagePrompt() {
+        return "\n.Translate the code into " + decaiLanguage + " programming language\n";
+    }
     function r2aiOllama(msg, hideprompt) {
         const model = decaiModel? decaiModel: "qwen2.5-coder:latest";
-        const query = hideprompt? msg: decprompt + ", Convert this pseudocode into " + decaiLanguage + "\n" + msg;
+        const query = hideprompt? msg: decprompt + languagePrompt() + msg;
         const object = {
             stream: false,
             model: model,
@@ -680,9 +684,12 @@ Response:
                 if (output.length > 5) {
                     body += "Output of " + c + ":\n";
                     body += "[BEGIN]\n" + output + "\n[END]\n";
+                    // body += "## Code from " + c + ":\n\n```c" + "\n" + output + "\n```\n";
+                    // body +=  output + "\n[END]\n";
                     count++;
                 }
             }
+            body += "[BEGIN]\n";
             r2.cmd("e scr.color=" + origColor);
             if (count === 0) {
                 console.error("Nothing to do.");
@@ -711,7 +718,7 @@ Response:
                 }
                 out = code;
             } else {
-                const query = appendQuery; // + ". Translate this code into " + decaiLanguage + " programming language.";
+                const query = appendQuery;
                 text += body;
                 text += context;
                 out = r2ai(query, text);
