@@ -830,7 +830,14 @@ Response:
                 decaiAuto(args.slice(2).trim());
                 break;
             case "m": // "-m"
-                r2aidec("-e model="+args.slice(2));
+		var arg0 = args.slice(2).trim();
+                if (arg0 === "=") {
+                    r2aidec("-e model=");
+		} else if (arg0) {
+                    r2aidec("-e model="+arg0);
+		} else {
+                    r2aidec("-e model");
+		}
                 break;
             case "n": // "-n"
             case "f": // "-f"
