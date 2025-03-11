@@ -297,13 +297,13 @@ Response:
     };
 
     function decaiEval(arg) {
-        const [k, v] = arg.split("=");
+        const [k, v] = arg.split('=');
         if (Object.keys(config).indexOf(k) === -1) {
             console.error("Unknown config key");
-        } else if (v) {
+        } else if (typeof v !== 'undefined') {
             config[k].set(v);
         } else {
-                   console.log(config[k].get());
+            console.log(config[k].get());
         }
     }
     function usage() {
