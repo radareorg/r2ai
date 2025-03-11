@@ -33,12 +33,12 @@ Decai will pick them from the environment or the config files in your home:
 * echo KEY > ~/.r2ai.openai-key
 * export OPENAI_API_KEY=...
 
-## Using r2ai-server:
+## Using the R2AI Server:
 
 Install r2ai or r2ai-server with r2pm:
 
 [0x0000000]> decai -e api=r2ai
-[0x0000000]> !r2pm -ci r2ai
+[0x0000000]> r2pm -ci r2ai
 
 Choose one of the recommended models (after r2pm -r r2ai):
 
@@ -50,7 +50,7 @@ Start the webserver:
 
 $ r2pm -r r2ai-server -l r2ai -m granite-8b-code-instruct-4k.Q2_K
 
-## Permanent Setup
+## Permanent Settings
 
 You can write your custom decai commands in your ~/.radare2rc file.
 
@@ -154,6 +154,7 @@ Response:
     function curlPost(url, headers, payload) {
         const heads = headers.map((x) => { return '-H "' + x + '"' }).join(' ');
         const curlc = `curl -s ${url} ${heads} -d '${payload}' -H "Content-Type: application/json"`;
+        debug.log(curlc);
         const output = r2.syscmds(curlc);
         if (output === "") {
             return { error: "empty response" };
@@ -163,7 +164,7 @@ Response:
         } catch (e) {
             console.error ("output:", output);
             console.error (e, e.stack);
-            return {error: e.stack};
+            return { error: e.stack };
         }
     }
 
@@ -309,14 +310,14 @@ Response:
     function usage() {
         const msg = (m) => console.error(" " + command + " " + m);
         console.error("Usage: " + command + " (-h) ...");
-        msg("-H         - help setting up r2ai");
         msg("-a [query] - solve query with auto mode");
         msg("-d [f1 ..] - decompile given functions");
-        msg("-dr        - decompile function and its called ones (recursive)");
         msg("-dd [..]   - same as above, but ignoring cache");
         msg("-dD [query]- decompile current function with given extra query");
+        msg("-dr        - decompile function and its called ones (recursive)");
         msg("-e         - display and change eval config vars");
         msg("-h         - show this help");
+        msg("-H         - help setting up r2ai");
         msg("-i [f] [q] - include given file and query");
         msg("-k         - list API key status");
         msg("-m [model] - use -m? or -e model=? to list the available models for '-e api='");
@@ -331,44 +332,41 @@ Response:
         msg("-x         - eXplain current function");
     }
     function r2aiAnthropic(msg, hideprompt) {
-       const claudeKey = r2.cmd("'cat ~/.r2ai.anthropic-key").trim()
-       // const claudeModel = (decaiModel.length > 0)? decaiModel: "claude-3-5-sonnet-20241022";
-       const claudeModel = (decaiModel.length > 0)? decaiModel: "claude-3-7-sonnet-20250219";
-       if (claudeKey === '') {
-           return "Cannot read ~/.r2ai.anthropic-key";
-       }
-       const object = {
-           model: claudeModel,
-           max_tokens: 5128,
-           messages: [
-               {
-                   "role": "user",
-                   "content": hideprompt ? msg
-                     : decprompt + languagePrompt() + msg
-               }
-           ]
-       };
-       if (decaiDeterministic) {
-         object.temperature = 0;
-         object.top_p = 0;
-         object.top_k = 1;
-       }
-       const payload = JSON.stringify(object);
-       const curlcmd = `curl -s https://api.anthropic.com/v1/messages
-          -H "Content-Type: application/json"
-          -H "anthropic-version: 2023-06-01"
-          -H "x-api-key: ${claudeKey}"
-          -d '${payload}'`.replace(/\n/g, "");
-        debug.log(curlcmd);
-        const res = r2.syscmds(curlcmd);
-        debug.log(res);
-        try {
-            return JSON.parse(res).content[0].text;
-        } catch(e) {
-            console.error("ERROR: " + e + "(" + res + ")");
+        const claudeKey = r2.cmd("'cat ~/.r2ai.anthropic-key").trim()
+        const claudeModel = (decaiModel.length > 0)? decaiModel: "claude-3-7-sonnet-20250219";
+        if (claudeKey === '') {
+            return "Cannot read ~/.r2ai.anthropic-key";
         }
-        return "error invalid response";
+        const object = {
+            model: claudeModel,
+            max_tokens: 5128,
+            messages: [
+                {
+                    "role": "user",
+                    "content": hideprompt ? msg
+                      : decprompt + languagePrompt() + msg
+                }
+            ]
+        };
+        if (decaiDeterministic) {
+          object.temperature = 0;
+          object.top_p = 0;
+          object.top_k = 1;
+        }
+        const payload = JSON.stringify(object);
+        const url = "https://api.anthropic.com/v1/messages";
+        const headers = [
+           "anthropic-version: 2023-06-01",
+           "x-api-key: " + claudeKey
+        ];
+        const res = curlPost(url, headers, payload);
+        try {
+            return res.content[0].text;
+        } catch (e) {
+            return "ERROR: " + res.error.message;
+        }
     }
+
     function r2aiHuggingFace(msg, hideprompt) {
         const key = getApiKey('huggingface', 'HUGGINGFACE_API_KEY');
         if (key[1]) {
@@ -411,21 +409,17 @@ Response:
         return "error invalid response";
     }
     function r2aiGemini(msg, hideprompt) {
-       const geminiKey = r2.cmd("'cat ~/.r2ai.gemini-key").trim()
-       if (geminiKey === '') {
-           return "Cannot read ~/.r2ai.gemini-key";
-       }
-       const geminiModel = (decaiModel.length > 0)? decaiModel: "gemini-1.5-flash";
-       const query = hideprompt? msg: decprompt + ", Output in " + decaiLanguage + " language\n" + msg;
-       const payload = JSON.stringify({contents: [{parts:[{text: query}]}]});
-       const curlcmd = `curl -X POST -s https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:'generateContent?key='${geminiKey}
-          -H "Content-Type: application/json"
-          -d '${payload}'`.replace(/\n/g, "");
-        debug.log(curlcmd);
-        const res = r2.syscmds(curlcmd);
-        console.log(res);
+        const geminiKey = r2.cmd("'cat ~/.r2ai.gemini-key").trim()
+        if (geminiKey === '') {
+            return "Cannot read ~/.r2ai.gemini-key";
+        }
+        const geminiModel = (decaiModel.length > 0)? decaiModel: "gemini-1.5-flash";
+        const query = hideprompt? msg: decprompt + ", Output in " + decaiLanguage + " language\n" + msg;
+        const payload = JSON.stringify({contents: [{parts:[{text: query}]}]});
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:'generateContent?key='${geminiKey}`
+        const res = curlPost(url, [], payload);
         try {
-            return JSON.parse(res).candidates[0].content.parts[0].text;
+            return res.candidates[0].content.parts[0].text;
         } catch(e) {
             console.error(e);
             console.log(res);
@@ -453,16 +447,13 @@ Response:
             object.presence_penalty = 0;
         }
         const payload = JSON.stringify(object);
-        const curlcmd = `curl -s https://api.openai.com/v1/chat/completions
-          -H "Content-Type: application/json"
-          -H "Authorization: Bearer ${openaiKey}"
-          -d '${payload}' #`.replace(/\n/g, "");
-        debug.log(curlcmd);
-        const res = r2.syscmds(curlcmd);
+        const url = "https://api.openai.com/v1/chat/completions";
+        const headers = [ "Authorization: Bearer " + openaiKey ];
+        const res = curlPost(url, headers, payload);
         try {
-            return JSON.parse(res).choices[0].message.content;
+            return res.choices[0].message.content;
         } catch(e) {
-            console.error(e);
+            console.error(e, e.stack);
             console.log(res);
         }
         return "error invalid response";
@@ -491,24 +482,18 @@ Response:
           object.temperature = 0.001;
         }
         const payload = JSON.stringify(object);
-        if (decaiDebug) {
-          console.log(payload);
-        }
-        const curlcmd = `curl -s https://api.mistral.ai/v1/chat/completions
-          -H "Authorization: Bearer ${mistralKey}"
-          -H "Content-Type: application/json"
-          -d '${payload}' #`.replace(/\n/g, "");
-        if (decaiDebug) {
-            console.log(curlcmd);
-        }
-        const res = r2.syscmds(curlcmd);
+        const url = "https://api.mistral.ai/v1/chat/completions";
+        const headers = [
+           "Accept: application/json",
+           "Authorization: Bearer " + mistralKey
+        ];
+        const res = curlPost(url, headers, payload);
         try {
-            return JSON.parse(res).choices[0].message.content;
+            return res.choices[0].message.content;
         } catch(e) {
-            console.error(e);
-            console.log(res);
+            console.error(e, e.stack);
+            console.error("ERROR:" + res.detail[0].msg);
         }
-        return "error invalid response";
     }
     const debug = {
         log: (msg) => {
@@ -551,13 +536,10 @@ Response:
     function r2aiOpenAPI(msg, hideprompt) {
         const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
         const payload = JSON.stringify({ "prompt": query });
-        const curlcmd = `curl -s ${decaiHost}:${decaiPort}/api/generate
-          -H "Content-Type: application/json"
-          -d '${payload}' #`.replace(/\n/g, "");
-        debug.log(curlcmd);
-        const res = r2.syscmds(curlcmd);
+        const url = `${decaiHost}:${decaiPort}/api/generate`;
+        const res = curlPost(url, [], payload);
         try {
-            return JSON.parse(res).content;
+            return res.content;
         } catch(e) {
             console.error(e);
             console.log(res);
@@ -588,15 +570,11 @@ Response:
        const xaiModel = (decaiModel.length > 0)? decaiModel: "grok-beta";
         const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
         const payload = JSON.stringify({messages:[{ role:'user', "content": query}], "model": xaiModel, stream:false});
-        const curlcmd = `curl -s https://api.x.ai/v1/chat/completions
-          -H "Content-Type: application/json"
-          -H "Authorization: Bearer ${xaiKey}"
-          -d '${payload}' #`.replace(/\n/g, "");
-
-        debug.log(curlcmd);
-        const res = r2.syscmds(curlcmd);
+        const url = "https://api.x.ai/v1/chat/completions";
+        const headers = [ "Authorization: Bearer " + xaiKey ];
+        const res = curlPost(url, headers, payload);
         try {
-            return JSON.parse(res).choices[0].message.content;
+            return res.choices[0].message.content;
         } catch(e) {
             console.error(e);
             console.log(res);
@@ -667,14 +645,14 @@ Response:
             let text = "";
             if (decaiContextFile !== "") {
                 if (r2.cmd2("test -f " + decaiContextFile).value === 0) {
-                    text += "Context:\n";
-                    text += "[RULES]\n";
+                    text += "## Context:\n";
+                    text += "[BEGIN]\n";
                     text += r2.cmd("cat " + decaiContextFile);
-                    text += "[/RULES]\n";
+                    text += "[END]\n";
                 }
             }
             r2.cmd("e scr.color=0");
-            let body = "";
+            let body = "## Before:\n";
             for (const c of decaiCommands.split(",")) {
                 if (c.trim() === "") {
                     continue;
@@ -689,6 +667,7 @@ Response:
                     count++;
                 }
             }
+            body += "## After:\n";
             body += "[BEGIN]\n";
             r2.cmd("e scr.color=" + origColor);
             if (count === 0) {
