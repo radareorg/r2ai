@@ -415,7 +415,16 @@ Response:
         }
         const geminiModel = (decaiModel.length > 0)? decaiModel: "gemini-1.5-flash";
         const query = hideprompt? msg: decprompt + languagePrompt() + msg;
-        const payload = JSON.stringify({contents: [{parts:[{text: query}]}]});
+        const object = {contents: [{parts:[{text: query}]}]};
+        if (decaiDeterministic) {
+            object.generationConfig = {
+                "temperature": 0.0,
+                "topP": 1.0,
+                "topK": 1,
+                "maxOutputTokens": 256
+            }
+        }
+        const payload = JSON.stringify(object);
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:'generateContent?key='${geminiKey}`
         const res = curlPost(url, [], payload);
         try {
