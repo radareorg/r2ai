@@ -103,7 +103,7 @@ Response:
     let lastOutput = "";
     let decaiCache = false;
     let maxInputTokens = -1; // -1 = disabled i.e fileData is not truncated up to this limit
-    const defaultPrompt = "Rewrite this function and respond ONLY with code, NO explanations, NO markdown, Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and strings from comments like 'string:'";
+    const defaultPrompt = "Transform this pseudocode and respond ONLY with plain code (NO explanations, comments or markdown), Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and strings from comments like 'string:', Reduce lines of code and fit everything in a single function, Remove all dead code";
     // const defaultPrompt = "Rewrite this function following these rules:\n* Replace goto statements with structured control flow (if/else/for/while).\n* Simplify logic and remove unused code as much as possible.\n* Rename variables to be more meaningful.\n* Extract and inline function arguments and string values from comments like 'string:'.\n* Strictly return only the transformed code, without any explanations, markdown, or extra formatting."
     let decprompt = defaultPrompt;
 
@@ -395,7 +395,7 @@ Response:
            return "Cannot read ~/.r2ai.deepseek-key";
        }
        const deepseekModel = (decaiModel.length > 0)? decaiModel: "deepseek-coder";
-       const query = hideprompt? msg: decprompt + ", Output in " + decaiLanguage + " language\n" + msg;
+       const query = hideprompt? msg: decprompt + languagePrompt() + msg;
        const payload = JSON.stringify({model:deepseekModel, messages: [{role:"user", content: query}]});
        const curlcmd = `curl -X POST "https://api.deepseek.com/v1/chat" -H "Authorization: Bearer ${deepseekKey}" -H "Content-Type: application/json" -d '${payload}'`; // .replace(/\n/g, "");
         debug.log(curlcmd);
@@ -414,7 +414,7 @@ Response:
             return "Cannot read ~/.r2ai.gemini-key";
         }
         const geminiModel = (decaiModel.length > 0)? decaiModel: "gemini-1.5-flash";
-        const query = hideprompt? msg: decprompt + ", Output in " + decaiLanguage + " language\n" + msg;
+        const query = hideprompt? msg: decprompt + languagePrompt() + msg;
         const payload = JSON.stringify({contents: [{parts:[{text: query}]}]});
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:'generateContent?key='${geminiKey}`
         const res = curlPost(url, [], payload);
@@ -432,7 +432,7 @@ Response:
             return "Cannot read ~/.r2ai.openai-key";
         }
         const openaiModel = (decaiModel.length > 0)? decaiModel: "gpt-4-turbo"; // o-2024-11-20";
-        const query = hideprompt? msg: decprompt + ", Output in " + decaiLanguage + " language\n" + msg;
+        const query = hideprompt? msg: decprompt + languagePrompt() + msg;
         const object = {
             model: openaiModel,
             messages: [
@@ -464,7 +464,7 @@ Response:
            return "Cannot read ~/.r2ai.mistral-key";
         }
         const model = decaiModel? decaiModel: "codestral-latest";
-        const query = hideprompt? msg: decprompt + languagePrompt + msg;
+        const query = hideprompt? msg: decprompt + languagePrompt() + msg;
         const object = {
             stream: false,
             model: model,
@@ -534,7 +534,7 @@ Response:
 	}
     }
     function r2aiOpenAPI(msg, hideprompt) {
-        const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
+        const query = hideprompt? msg: decprompt + languagePrompt() + msg;
         const payload = JSON.stringify({ "prompt": query });
         const url = `${decaiHost}:${decaiPort}/api/generate`;
         const res = curlPost(url, [], payload);
@@ -568,7 +568,7 @@ Response:
            return "Cannot read ~/.r2ai.xai-key";
        }
        const xaiModel = (decaiModel.length > 0)? decaiModel: "grok-beta";
-        const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
+        const query = hideprompt? msg: decprompt + languagePrompt() + msg;
         const payload = JSON.stringify({messages:[{ role:'user', "content": query}], "model": xaiModel, stream:false});
         const url = "https://api.x.ai/v1/chat/completions";
         const headers = [ "Authorization: Bearer " + xaiKey ];
@@ -582,7 +582,7 @@ Response:
         return "error invalid response";
     }
     function r2aiVLLM(msg, hideprompt) {
-        const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
+        const query = hideprompt? msg: decprompt + languagePrompt() + msg;
         const payload = JSON.stringify({ "prompt": query, "model": "lmsys/vicuna-7b-v1.3" });
         const curlcmd = `curl -s ${decaiHost}:8000/v1/completions
           -H "Content-Type: application/json"
@@ -598,7 +598,7 @@ Response:
         return "error invalid response";
     }
     function r2aiOpenAPI2(msg, hideprompt) {
-        const query = hideprompt? msg: decprompt + ", Transform this pseudocode into " + decaiLanguage + "\n" + msg;
+        const query = hideprompt? msg: decprompt + languagePrompt() + msg;
         const payload = JSON.stringify({ "prompt": query, "model": "qwen2.5_Coder_1.5B_4bit" });
         const curlcmd = `curl -s ${decaiHost}:${decaiPort}/api/generate
           -H "Content-Type: application/json"
@@ -646,7 +646,7 @@ Response:
             if (decaiContextFile !== "") {
                 if (r2.cmd2("test -f " + decaiContextFile).value === 0) {
                     text += "## Context:\n";
-                    text += "[BEGIN]\n";
+                    text += "[START]\n";
                     text += r2.cmd("cat " + decaiContextFile);
                     text += "[END]\n";
                 }
@@ -661,14 +661,14 @@ Response:
                 const output = r2.cmd(oneliner);
                 if (output.length > 5) {
                     body += "Output of " + c + ":\n";
-                    body += "[BEGIN]\n" + output + "\n[END]\n";
+                    body += "[START]\n" + output + "\n[END]\n";
                     // body += "## Code from " + c + ":\n\n```c" + "\n" + output + "\n```\n";
                     // body +=  output + "\n[END]\n";
                     count++;
                 }
             }
             body += "## After:\n";
-            body += "[BEGIN]\n";
+            // body += "[START]\n";
             r2.cmd("e scr.color=" + origColor);
             if (count === 0) {
                 console.error("Nothing to do.");
@@ -906,8 +906,7 @@ Response:
             case "x": // "-x"
                 var origColor = r2.cmd("e scr.color");
                 r2.cmd("e scr.color=0");
-                var cmds = decaiCommands; // +",axt";
-                out = "[BEGIN]" + cmds.split(",").map(r2.cmd).join("\n") + "[END]";
+                out = "[START]" + decaiCommands.split(",").map(r2.cmd).join("\n") + "[END]";
                 r2.cmd("e scr.color=" + origColor);
                 r2ai("-R");
                 out = r2ai("Analyze function calls, comments and strings, ignore registers and memory accesess. Considering the references and involved loops make explain the purpose of this function in one or two short sentences. Output must be only the translation of the explanation in " + decaiHumanLanguage, out, true);
