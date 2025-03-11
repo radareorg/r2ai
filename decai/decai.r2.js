@@ -96,7 +96,7 @@ Response:
     let decaiCommands = "pdc";
     let decaiLanguage = "C";
     let decaiHumanLanguage = "English";
-    let decaiDeterministic = false;
+    let decaiDeterministic = true;
     let decaiDebug = false;
     let decaiContextFile = "";
     let decaiModel = "";
