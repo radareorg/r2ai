@@ -199,6 +199,12 @@ Response:
             console.log("gpt-4o-mini");
             console.log("gpt-4.5-preview");
             break;
+        case "gemini":
+            console.log("gemini-2.0-flash");
+            console.log("gemini-2.0-flash-lite");
+            console.log("gemini-1.5-pro");
+            console.log("gemini-1.5-flash");
+            break;
         case "claude":
         case "anthropic":
             console.log("claude-3-5-sonnet-20241022");
