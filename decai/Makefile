@@ -8,6 +8,7 @@ all:
 	r2 -i decai.r2.js -c 'decai -e deterministic=true' -caf $(BF)
 
 user-install:
+	mkdir -p "$(PD)"
 	cp decai.r2.js $(PD)/decai.r2.js
 
 user-uninstall:
