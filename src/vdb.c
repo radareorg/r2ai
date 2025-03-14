@@ -3,13 +3,10 @@
 #include <r_util.h>
 #include "r_vdb.h"
 
-/*-------------------------------
-  Vector Utility Functions
-  -------------------------------*/
 static Vector vector_new(int dim) {
 	Vector v;
 	v.dim = dim;
-	v.data = (float *)calloc(dim, sizeof(float));
+	v.data = (float *)calloc(dim, sizeof (float));
 	return v;
 }
 
@@ -21,10 +18,9 @@ static void vector_free(Vector *v) {
 }
 
 /*-------------------------------
-  Distance Function
-  (Using Squared Euclidean Distance)
-  For two unit vectors: dist^2 = 2 - 2 * (dot product)
-  -------------------------------*/
+ * Distance Function Using Squared Euclidean Distance
+ * For two unit vectors: dist^2 = 2 - 2 * (dot product)
+ *-------------------------------*/
 static float squared_distance(const Vector *a, const Vector *b) {
 	if (a->dim != b->dim) {
 		return 1e30f; // dimension mismatch
@@ -67,11 +63,9 @@ static void kdnode_free(KDNode *node) {
 }
 
 RVdb *r_vdb_new(int dim) {
-	RVdb *db = (RVdb *)malloc(sizeof(RVdb));
-	db->root = NULL;
+	RVdb *db = R_NEW0 (RVdb);
 	db->dimension = dim;
 	db->tokens = r_list_newf (token_free);
-	db->size = 0;
 	return db;
 }
 

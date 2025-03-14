@@ -14,6 +14,11 @@ r2ai claude deepseek gemini hf mistral ollama openapi openai vllm xai
 * Download the model of choice: 'ollama run llama3.3'
 * Configure decai to use the given model with: 'decai -e model=?'
 
+These are the most recommended models for decompiling in local:
+
+* hhao/qwen2.5-coder-tools:latest (18GB of ram)
+* hhao/qwen2.5-coder-tools:32b (24GB of ram required)
+
 ## Common Options
 
 * 'decai -e deterministic=true' to remove randomness from decompilation responses
