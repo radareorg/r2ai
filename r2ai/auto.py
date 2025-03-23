@@ -178,12 +178,10 @@ Here is some information about the binary to get you started:
 
                             else:
                                 # inline short edit
-                                print(f'r2ai is going to execute the following command on the host')
-                                readline.set_startup_hook(lambda: readline.insert_text(command))
-                                try:
-                                    new_command = input("Want to edit? (ENTER to validate) ")
-                                finally:
-                                    readline.set_startup_hook(None) 
+                                print(f'r2ai is going to execute the following command on the host:')
+                                print(f'> {command}')
+                                
+                                new_command = input(f"Type a new command or press ENTER to use {command} ") or command
 
                             if answer.lower() != 'y':
                                 answer = input(f"\033[91mThis command will execute on this host: {new_command}. Agree? (y/N)\033[0m ")
