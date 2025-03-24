@@ -767,16 +767,16 @@ Response:
             }
             q += '## User prompt\n' + queryText;
             
-            console.log('#### input');
+            /*console.log('#### input');
             console.log(q);
-            console.log('#### /input');
+            console.log('#### /input');*/
             
             out = r2ai('', q, true);
             out = stripMarkdownCodeBlock(out);
             
-            console.log('#### output');
+            /*console.log('#### output');
             console.log(out);
-            console.log('#### /output');
+            console.log('#### /output');*/
             
             try {
 
