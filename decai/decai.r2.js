@@ -736,6 +736,25 @@ Response:
         const d = b64(fileData);
         r2.cmd("p6ds " + d + " > " + fileName);
     }
+    function stripMarkdownCodeBlock(input) {
+        // input is a json markdown block. 
+        // this function strips out the initial ```json and trailing ```
+        const lines = input.split('\n');
+        let startIndex = 0;
+        let endIndex = lines.length;
+
+        // remove first and last line if they begin with ```
+        if (lines.length > 0 && lines[0].trim().startsWith('```')) {
+            startIndex = 1;
+        }
+        if (lines.length > 0 && lines[lines.length - 1].trim().startsWith('```')) {
+            endIndex = lines.length - 1;
+        }
+        
+        const contentLines = lines.slice(startIndex, endIndex);
+        return contentLines.join('\n');
+    }
+
     function decaiAuto(queryText) {
         r2ai("-R");
         let autoQuery = autoPrompt;
@@ -747,19 +766,22 @@ Response:
                 q += replies.join("\n");
             }
             q += '## User prompt\n' + queryText;
-            /*
+            
             console.log('#### input');
             console.log(q);
             console.log('#### /input');
-            */
+            
             out = r2ai('', q, true);
-            /*
+            out = stripMarkdownCodeBlock(out);
+            
             console.log('#### output');
             console.log(out);
             console.log('#### /output');
-            */
+            
             try {
+
                     const o = JSON.parse(out);
+                    console.log("[+] successfully parsed output");
                     if (o.action === 'execute_function' && o.function_name === 'r2cmd') {
                             const cmd = o.parameters.r2cmd;
                             console.log("[r2cmd] Running: " + cmd)
@@ -772,6 +794,7 @@ Response:
                             break;
                     }
             } catch (e) {
+                console.log('syntax error here?');
                     console.error(out);
                     console.error(e);
                     break;
