@@ -123,7 +123,7 @@ Response:
     function getApiKey(provider, envvar) {
         const keyEnv = r2.cmd("'%" + envvar).trim ();
         if (keyEnv.indexOf('=') === -1 && keyEnv !== "") {
-            return [keyEnv.trim(), null, "env"];
+            return [keyEnv.trim(), null, "envp"];
         }
         const keyPath = "~/.r2ai." + provider + "-key";
         if (fileExist(keyPath)) {
