@@ -794,7 +794,6 @@ Response:
                             break;
                     }
             } catch (e) {
-                console.log('syntax error here?');
                     console.error(out);
                     console.error(e);
                     break;
