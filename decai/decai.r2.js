@@ -431,8 +431,7 @@ Response:
             object.generationConfig = {
                 "temperature": 0.0,
                 "topP": 1.0,
-                "topK": 1,
-                "maxOutputTokens": 256
+                "topK": 1
             }
         }
         const payload = JSON.stringify(object);
