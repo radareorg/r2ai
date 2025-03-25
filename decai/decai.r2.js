@@ -102,6 +102,7 @@ Response:
     let decaiLanguage = "C";
     let decaiHumanLanguage = "English";
     let decaiDeterministic = true;
+    let decaiSystem = "";
     let decaiDebug = false;
     let decaiContextFile = "";
     let decaiModel = "";
@@ -252,6 +253,10 @@ Response:
             }
           }
       },
+      "system": {
+          get: () => decaiSystem,
+          set: (v) => decaiSystem = v
+      },
       "deterministic": {
           get: () => decaiDeterministic,
           set: (v) => { decaiDeterministic = v === 'true' || v === "1" },
@@ -359,6 +364,9 @@ Response:
                 }
             ]
         };
+        if (decaiSystem) {
+            object.system = decaiSystem;
+        }
         if (decaiDeterministic) {
           object.temperature = 0;
           object.top_p = 0;
@@ -426,7 +434,13 @@ Response:
         }
         const geminiModel = (decaiModel.length > 0)? decaiModel: "gemini-1.5-flash";
         const query = hideprompt? msg: decprompt + languagePrompt() + msg;
-        const object = {contents: [{parts:[{text: query}]}]};
+        const object = {contents: [{role:"user",parts:[{text: query}]}]};
+        if (decaiSystem) {
+            object.contents = [
+                { role: "system", parts: [{text: decaiSystem}] },
+                object.contents[0]
+            ];
+        }
         if (decaiDeterministic) {
             object.generationConfig = {
                 "temperature": 0.0,
@@ -459,6 +473,12 @@ Response:
                 { "role": "user", "content": query }
             ]
         };
+        if (decaiSystem) {
+            object.messages = [
+                { role: "developer", content: decaiSystem }, // developer is the new system
+                object.messages[0]
+            ];
+        }
         if (decaiDeterministic) {
             object.temperature = 0;
             object.top_p = 0;
@@ -494,6 +514,12 @@ Response:
                 }
             ]
         };
+        if (decaiSystem) {
+            object.messages = [
+                { role: "system", content: decaiSystem },
+                object.messages[0]
+            ];
+        }
         if (decaiDeterministic) {
           object.n = 1;
           object.top_p = 0.001;
@@ -532,6 +558,12 @@ Response:
             model: model,
             messages: [ { role: "user", content: query, } ]
         };
+        if (decaiSystem) {
+            object.messages = [
+                { role: "system", content: decaiSystem },
+                object.messages[0]
+            ];
+        }
         if (decaiDeterministic) {
           object.options = {
               repeat_last_n: 0,
@@ -588,7 +620,14 @@ Response:
        }
        const xaiModel = (decaiModel.length > 0)? decaiModel: "grok-beta";
         const query = hideprompt? msg: decprompt + languagePrompt() + msg;
-        const payload = JSON.stringify({messages:[{ role:'user', "content": query}], "model": xaiModel, stream:false});
+        const object = {messages:[{ role:'user', "content": query}], "model": xaiModel, stream:false};
+        if (decaiSystem) {
+            object.messages = [
+                { role: "system", content: decaiSystem },
+                object.messages[0]
+            ];
+        }
+        const payload = JSON.stringify(object);
         const url = "https://api.x.ai/v1/chat/completions";
         const headers = [ "Authorization: Bearer " + xaiKey ];
         const res = curlPost(url, headers, payload);
