@@ -550,6 +550,48 @@ Response:
     function languagePrompt() {
         return "\n.Translate the code into " + decaiLanguage + " programming language\n";
     }
+    function r2aiOpenWebUI(msg, hideprompt) {
+        const owuiKey = r2.cmd("'cat ~/.r2ai.owui-key").trim()
+        if (owuiKey === '') {
+           return "Cannot read ~/.r2ai.owui-key";
+        }
+        const model = decaiModel? decaiModel: "qwen2.5-coder:latest";
+        const query = hideprompt? msg: decprompt + languagePrompt() + msg;
+        const object = {
+            // stream: false,
+            model: model,
+            messages: [ { role: "user", content: query, } ]
+        };
+        if (decaiSystem) {
+            object.messages = [
+                { role: "system", content: decaiSystem },
+                object.messages[0]
+            ];
+        }
+        if (decaiDeterministic) {
+          object.options = {
+              repeat_last_n: 0,
+              top_p: 0.0,
+              top_k: 1.0,
+              temperature: 0.0,
+              repeat_penalty: 1.0,
+              seed: 123,
+          };
+        }
+        const payload = JSON.stringify(object);
+        debug.log(payload);
+        const url = decaiHost + ":" + decaiPort + "/api/chat/completions";
+        const headers = [
+           "Authorization: Bearer " + owuiKey
+        ];
+        const res = curlPost(url, headers, payload);
+	debug.log(JSON.stringify(res, null, 2));
+	try {
+            return res.choices[0].message.content;
+	} catch (e) {
+            return "ERROR: " + res.error;
+	}
+    }
     function r2aiOllama(msg, hideprompt) {
         const model = decaiModel? decaiModel: "qwen2.5-coder:latest";
         const query = hideprompt? msg: decprompt + languagePrompt() + msg;
@@ -873,6 +915,9 @@ Response:
         }
         if (decaiApi === "google" || decaiApi === "gemini") {
             return r2aiGemini(q, hideprompt);
+        }
+        if (decaiApi === "openwebui") {
+            return r2aiOpenWebUI(q, hideprompt);
         }
         if (decaiApi === "ollama") {
             return r2aiOllama(q, hideprompt);

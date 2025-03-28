@@ -43,6 +43,7 @@ static bool valid_token(const char *a) {
 	}
 	return true;
 }
+
 static void compute_embedding(RVdb *db, const char *text, float *embedding, unsigned int dim) {
 	// gtfidf_list (db);
 
