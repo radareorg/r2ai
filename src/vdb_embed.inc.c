@@ -3,14 +3,14 @@
 #include <r_util.h>
 
 // Create a new global DF entry.
-static void gtfidf_add(RList *db_tokens, const char *token) {
+static void gtfidf_add (RList *db_tokens, const char *token) {
 	RVdbToken *t = R_NEW (RVdbToken);
 	t->token = r_str_trim_dup (token);
 	t->count = 1;
 	r_list_append (db_tokens, t);
 }
 
-static RVdbToken *gtfidf_find(RList *db_tokens, const char *token) {
+static RVdbToken *gtfidf_find (RList *db_tokens, const char *token) {
 	RListIter *iter;
 	RVdbToken *t;
 	r_list_foreach (db_tokens, iter, t) {
@@ -21,7 +21,7 @@ static RVdbToken *gtfidf_find(RList *db_tokens, const char *token) {
 	return NULL;
 }
 
-static inline void gtfidf_list(RVdb *db) {
+static inline void gtfidf_list (RVdb *db) {
 	// show global token frequency
 	RListIter *iter;
 	RVdbToken *t;
@@ -31,7 +31,7 @@ static inline void gtfidf_list(RVdb *db) {
 	}
 }
 
-static bool valid_token(const char *a) {
+static bool valid_token (const char *a) {
 	if (!strcmp (a, "pancake")) {
 		return false;
 	}
@@ -44,7 +44,7 @@ static bool valid_token(const char *a) {
 	return true;
 }
 
-static void compute_embedding(RVdb *db, const char *text, float *embedding, unsigned int dim) {
+static void compute_embedding (RVdb *db, const char *text, float *embedding, unsigned int dim) {
 	// gtfidf_list (db);
 
 	// Zero the embedding vector.
@@ -106,7 +106,7 @@ static void compute_embedding(RVdb *db, const char *text, float *embedding, unsi
 		// Compute term frequency: tf = 1 + log(token_count)
 		float tf = 1.0f + log ((float)dt->count);
 		RVdbToken *t = gtfidf_find (db->tokens, dt->token);
-		float df_value = t? t->df: 1.0f;
+		float df_value = t ? t->df : 1.0f;
 		// Compute inverse document frequency;
 		float idf = log (((float)db->total_docs + 1.0f) / ((float)df_value + 1.0f)) + 1.0f;
 		float weight = tf * idf;
@@ -115,7 +115,7 @@ static void compute_embedding(RVdb *db, const char *text, float *embedding, unsi
 		unsigned int index = hash % dim;
 		// Add the TF-IDF weight to the appropriate bucket.
 		embedding[index] += weight;
-//		printf ("TOK %x[%d] %s = %f %f = %f\n", hash, index, dt->token, tf, idf, weight);
+		//		printf ("TOK %x[%d] %s = %f %f = %f\n", hash, index, dt->token, tf, idf, weight);
 	}
 
 	r_list_free (doc_tokens);

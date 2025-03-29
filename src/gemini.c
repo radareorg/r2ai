@@ -2,7 +2,7 @@
 
 #if R2_VERSION_NUMBER >= 50909
 
-static bool handle_gemini_stream_chunk(const char *chunk) {
+static bool handle_gemini_stream_chunk (const char *chunk) {
 	if (R_STR_ISEMPTY (chunk)) {
 		return false;
 	}
@@ -64,7 +64,7 @@ R_IPI char *r2ai_gemini (RCore *core, R2AIArgs args) {
 	}
 
 	if (!content) {
-		*error = strdup("Content cannot be null");
+		*error = strdup ("Content cannot be null");
 		return NULL;
 	}
 
@@ -74,7 +74,7 @@ R_IPI char *r2ai_gemini (RCore *core, R2AIArgs args) {
 
 	char *url = r_str_newf ("%s/%s:generateContent?key=%s",
 		"https://generativelanguage.googleapis.com/v1beta/models",
-		model? model: "gemini-1.5-pro",
+		model ? model : "gemini-1.5-pro",
 		api_key);
 
 	R_LOG_DEBUG ("Gemini API URL: %s", url);
@@ -108,7 +108,7 @@ R_IPI char *r2ai_gemini (RCore *core, R2AIArgs args) {
 			R_LOG_ERROR ("Error response: %s", res);
 		}
 		if (error) {
-			*error = strdup (res? res: "Failed to get response from Gemini API");
+			*error = strdup (res ? res : "Failed to get response from Gemini API");
 		}
 		free (api_key);
 		free (url);
@@ -163,7 +163,7 @@ R_IPI char *r2ai_gemini_stream (RCore *core, R2AIArgs args) {
 	}
 
 	if (!content) {
-		*error = strdup("Content cannot be null");
+		*error = strdup ("Content cannot be null");
 		return NULL;
 	}
 
@@ -173,7 +173,7 @@ R_IPI char *r2ai_gemini_stream (RCore *core, R2AIArgs args) {
 
 	char *url = r_str_newf ("%s/%s:streamGenerateContent?alt=sse&key=%s",
 		"https://generativelanguage.googleapis.com/v1beta/models",
-		model? model: "gemini-1.5-pro",
+		model ? model : "gemini-1.5-pro",
 		api_key);
 
 	R_LOG_DEBUG ("Gemini API URL: %s", url);
@@ -207,7 +207,7 @@ R_IPI char *r2ai_gemini_stream (RCore *core, R2AIArgs args) {
 			R_LOG_ERROR ("Error response: %s", res);
 		}
 		if (error) {
-			*error = strdup (res? res: "Failed to get response from Gemini API");
+			*error = strdup (res ? res : "Failed to get response from Gemini API");
 		}
 		free (api_key);
 		free (url);

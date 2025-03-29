@@ -5,13 +5,13 @@
 #include "r2ai.h"
 
 // External declaration for cmd_r2ai_a - implemented in auto.c
-R_IPI void cmd_r2ai_a(RCore *core, const char *user_query);
+R_IPI void cmd_r2ai_a (RCore *core, const char *user_query);
 
 static R_TH_LOCAL RVdb *db = NULL;
 
 #define VDBDIM 16
 
-static void refresh_embeddings(RCore *core) {
+static void refresh_embeddings (RCore *core) {
 	RListIter *iter, *iter2;
 	char *line;
 	char *file;
@@ -68,11 +68,12 @@ static RCoreHelpMessage help_msg_r2ai = {
 	NULL
 };
 
-static char *vdb_from(RCore *core, const char *prompt) {
+static char *vdb_from (RCore *core, const char *prompt) {
 	char *q = r_str_newf (
 		"# Instruction\n"
 		"Deconstruct the prompt and respond ONLY with the list of multiple prompts necessary to resolve it\n"
-		"## Prompt\n%s\n", prompt);
+		"## Prompt\n%s\n",
+		prompt);
 	char *error = NULL;
 	R2AIArgs vdb_args = {
 		.input = q,
@@ -88,12 +89,13 @@ static char *vdb_from(RCore *core, const char *prompt) {
 	return r;
 }
 
-static char *rag(RCore *core, const char *content, const char *prompt) {
+static char *rag (RCore *core, const char *content, const char *prompt) {
 	char *q = r_str_newf (
 		"# Instruction\n"
 		"Filter the statements. Respond ONLY the subset of statements matching the prompt. Do not introduce the output. Do not use markdown\n"
 		"## Prompt\n%s\n"
-		"## Statements\n%s\n", prompt, content);
+		"## Statements\n%s\n",
+		prompt, content);
 	char *error = NULL;
 	R2AIArgs rag_args = {
 		.input = q,
@@ -110,25 +112,25 @@ static char *rag(RCore *core, const char *content, const char *prompt) {
 	return r;
 }
 
-R_IPI R2AI_Message *r2ai_llmcall(RCore *core, R2AIArgs args) {
+R_IPI R2AI_Message *r2ai_llmcall (RCore *core, R2AIArgs args) {
 	R2AI_Message *res = NULL;
-	const char *provider = r_config_get(core->config, "r2ai.api");
+	const char *provider = r_config_get (core->config, "r2ai.api");
 	if (!provider) {
 		provider = "gemini";
 	}
-	R_LOG_INFO("Using provider: %s", provider);
+	R_LOG_INFO ("Using provider: %s", provider);
 	if (strcmp (provider, "openai") == 0) {
 		res = r2ai_openai (core, args);
-	// } else if (strcmp (provider, "gemini") == 0) {
-	// 	res = r2ai_gemini (core, args);
+		// } else if (strcmp (provider, "gemini") == 0) {
+		// 	res = r2ai_gemini (core, args);
 	} else if (strcmp (provider, "anthropic") == 0) {
 		res = r2ai_anthropic (core, args);
-	// } else if (!strcmp (provider, "ollama")) {
-	// 	res = r2ai_ollama (core, args);
-	// } else if (!strcmp (provider, "xai")) {
-	// 	res = r2ai_xai (core, args);
-	// } else if (!strcmp (provider, "openapi")) {
-	// 	res = r2ai_openapi (core, args);
+		// } else if (!strcmp (provider, "ollama")) {
+		// 	res = r2ai_ollama (core, args);
+		// } else if (!strcmp (provider, "xai")) {
+		// 	res = r2ai_xai (core, args);
+		// } else if (!strcmp (provider, "openapi")) {
+		// 	res = r2ai_openapi (core, args);
 	} else {
 		if (args.error) {
 			*args.error = r_str_newf ("Unknown provider: %s", provider);
@@ -147,7 +149,7 @@ R_IPI char *r2ai (RCore *core, R2AIArgs args) {
 	}
 
 	// Call the r2ai_llmcall function to get the message
-	R2AI_Message *res = r2ai_llmcall(core, args);
+	R2AI_Message *res = r2ai_llmcall (core, args);
 	if (!res) {
 		return NULL;
 	}
@@ -157,18 +159,18 @@ R_IPI char *r2ai (RCore *core, R2AIArgs args) {
 
 	// If content is present in the result message, use it
 	if (res->content) {
-		content = strdup(res->content);
+		content = strdup (res->content);
 	}
 
 	// Free the message properly using r2ai_message_free
-	r2ai_message_free(res);
+	r2ai_message_free (res);
 	// Free the message struct itself
-	free(res);
-	
+	free (res);
+
 	return content;
 }
 
-static void cmd_r2ai_d(RCore *core, const char *input, const bool recursive) {
+static void cmd_r2ai_d (RCore *core, const char *input, const bool recursive) {
 	const bool r2ai_stream = r_config_get_b (core->config, "r2ai.stream");
 	r_config_set_b (core->config, "r2ai.stream", false);
 	const char *prompt = r_config_get (core->config, "r2ai.prompt");
@@ -212,7 +214,7 @@ static void cmd_r2ai_d(RCore *core, const char *input, const bool recursive) {
 		.input = s,
 		.error = &error,
 		.dorag = true,
-		.tools = r2ai_get_tools()
+		.tools = r2ai_get_tools ()
 	};
 	char *res = r2ai (core, d_args);
 	free (s);
@@ -227,13 +229,13 @@ static void cmd_r2ai_d(RCore *core, const char *input, const bool recursive) {
 	r_config_set_b (core->config, "r2ai.stream", r2ai_stream);
 }
 
-static void cmd_r2ai_x(RCore *core) {
+static void cmd_r2ai_x (RCore *core) {
 	const char *hlang = r_config_get (core->config, "r2ai.hlang");
 	char *explain_prompt = r_str_newf ("Analyze function calls, comments and strings, ignore registers and memory accesess. Considering the references and involved loops make explain the purpose of this function in one or two short sentences. Output must be only the translation of the explanation in %s", hlang);
 	char *s = r_core_cmd_str (core, "r2ai -d");
 	char *error = NULL;
 	char *q = r_str_newf ("%s\n[CODE]\n%s\n[/CODE]\n", explain_prompt, s);
-	char *res = r2ai (core, (R2AIArgs){.input = q, .error = &error, .dorag = true});
+	char *res = r2ai (core, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
 	free (s);
 	if (error) {
 		R_LOG_ERROR (error);
@@ -246,7 +248,7 @@ static void cmd_r2ai_x(RCore *core) {
 	free (explain_prompt);
 }
 
-static void cmd_r2ai_repl(RCore *core) {
+static void cmd_r2ai_repl (RCore *core) {
 	RStrBuf *sb = r_strbuf_new ("");
 	while (true) {
 		r_line_set_prompt (">>> ");
@@ -270,7 +272,7 @@ static void cmd_r2ai_repl(RCore *core) {
 		r_strbuf_appendf (sb, "User: %s\n", ptr);
 		const char *a = r_strbuf_tostring (sb);
 		char *error = NULL;
-		char *res = r2ai (core, (R2AIArgs){.input = a, .error = &error, .dorag = true});
+		char *res = r2ai (core, (R2AIArgs){ .input = a, .error = &error, .dorag = true });
 		if (error) {
 			R_LOG_ERROR ("%s", error);
 			free (error);
@@ -282,12 +284,11 @@ static void cmd_r2ai_repl(RCore *core) {
 		free (res);
 	}
 	r_strbuf_free (sb);
-	
 }
 
-static void cmd_r2ai_R(RCore *core, const char *q) {
-	if (!r_config_get_b(core->config, "r2ai.data")) {
-		R_LOG_ERROR("r2ai -e r2ai.data=true");
+static void cmd_r2ai_R (RCore *core, const char *q) {
+	if (!r_config_get_b (core->config, "r2ai.data")) {
+		R_LOG_ERROR ("r2ai -e r2ai.data=true");
 		return;
 	}
 	if (R_STR_ISEMPTY (q)) {
@@ -313,7 +314,7 @@ static void cmd_r2ai_R(RCore *core, const char *q) {
 				float dist_sq = r->dist_sq;
 				float cos_sim = 1.0f - (dist_sq * 0.5f); // for normalized vectors
 				printf ("%2d) dist_sq=%.4f cos_sim=%.4f text=\"%s\"\n",
-						i + 1, dist_sq, cos_sim, (n->text ? n->text : "(null)"));
+					i + 1, dist_sq, cos_sim, (n->text ? n->text : "(null)"));
 			}
 			r_vdb_result_free (rs);
 		} else {
@@ -322,11 +323,11 @@ static void cmd_r2ai_R(RCore *core, const char *q) {
 	}
 }
 
-static void cmd_r2ai_n(RCore *core) {
+static void cmd_r2ai_n (RCore *core) {
 	char *s = r_core_cmd_str (core, "r2ai -d");
 	char *q = r_str_newf ("output only the radare2 commands in plain text without markdown. Give me a better name for this function. the output must be: 'afn NEWNAME'. do not include the function code, only the afn line. consider: \n```c\n%s\n```", s);
 	char *error = NULL;
-	char *res = r2ai (core, (R2AIArgs){.input = q, .error = &error, .dorag = true});
+	char *res = r2ai (core, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
 	free (s);
 	if (error) {
 		R_LOG_ERROR (error);
@@ -338,7 +339,7 @@ static void cmd_r2ai_n(RCore *core) {
 	free (q);
 }
 
-static void cmd_r2ai_i(RCore *core, const char *arg) {
+static void cmd_r2ai_i (RCore *core, const char *arg) {
 	char *fname = strdup (arg);
 	char *query = strchr (fname, ' ');
 	if (query) {
@@ -352,7 +353,7 @@ static void cmd_r2ai_i(RCore *core, const char *arg) {
 	}
 	char *q = r_str_newf ("%s\n```\n%s\n```\n", query, s);
 	char *error = NULL;
-	char *res = r2ai (core, (R2AIArgs){.input = q, .error = &error, .dorag = true});
+	char *res = r2ai (core, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
 	free (s);
 	if (error) {
 		R_LOG_ERROR (error);
@@ -365,7 +366,7 @@ static void cmd_r2ai_i(RCore *core, const char *arg) {
 	free (q);
 }
 
-static void cmd_r2ai_s(RCore *core) {
+static void cmd_r2ai_s (RCore *core) {
 	char *afv = r_core_cmd_str (core, "afv");
 	r_str_trim (afv);
 	char *s = r_core_cmd_str (core, "r2ai -d");
@@ -377,7 +378,7 @@ static void cmd_r2ai_s(RCore *core) {
 	}
 	char *q = r_str_newf ("analyze the uses of the arguments and return value to infer the signature, identify which is the correct type for the resturn. Do NOT print the function body, ONLY output the function signature, ignore '@' in argument types because it must be used in a C header:\n```\n%s\n``` source code:\n```\n%s\n```\n", afv, s);
 	char *error = NULL;
-	char *res = r2ai (core, (R2AIArgs){.input = q, .error = &error, .dorag = true});
+	char *res = r2ai (core, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
 	if (error) {
 		R_LOG_ERROR (error);
 		free (error);
@@ -402,12 +403,12 @@ static void cmd_r2ai_s(RCore *core) {
 	free (s);
 }
 
-static void cmd_r2ai_v(RCore *core) {
+static void cmd_r2ai_v (RCore *core) {
 	char *s = r_core_cmd_str (core, "r2ai -d");
 	char *afv = r_core_cmd_str (core, "afv");
 	char *q = r_str_newf ("Output only the radare2 command without markdown, guess a better name and type for each local variable and function argument taking using. output an r2 script using afvn and afvt commands:\n```\n%s```", afv);
 	char *error = NULL;
-	char *res = r2ai (core, (R2AIArgs){.input = q, .error = &error, .dorag = true});
+	char *res = r2ai (core, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
 	if (error) {
 		R_LOG_ERROR (error);
 		free (error);
@@ -420,11 +421,11 @@ static void cmd_r2ai_v(RCore *core) {
 	free (s);
 }
 
-static void cmd_r2ai_V(RCore *core, bool recursive) {
-	char *s = r_core_cmd_str (core, recursive? "r2ai -d": "r2ai -dr");
+static void cmd_r2ai_V (RCore *core, bool recursive) {
+	char *s = r_core_cmd_str (core, recursive ? "r2ai -d" : "r2ai -dr");
 	char *q = r_str_newf ("find vulnerabilities, dont show the code, only show the response, provide a sample exploit and suggest good practices:\n```\n%s```", s);
 	char *error = NULL;
-	char *res = r2ai (core, (R2AIArgs){.input = q, .error = &error, .dorag = true});
+	char *res = r2ai (core, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
 	if (error) {
 		R_LOG_ERROR (error);
 		free (error);
@@ -436,27 +437,27 @@ static void cmd_r2ai_V(RCore *core, bool recursive) {
 	free (s);
 }
 
-static void cmd_r2ai_M(RCore *core) {
-	r_cons_printf (\
-	"r2ai -e api=anthropic\n"
-	"-m claude-3-7-sonnet-20250219\n"
-	"-m claude-3-5-sonnet-20241022\n"
-	"-m claude-3-haiku-20240307\n"
-	"r2ai -e api=gemini\n"
-	"-m gemini-1.5-flash\n"
-	"-m gemini-1.0-pro\n"
-	"r2ai -e api=openai\n"
-	"-m gpt-4\n"
-	"-m gpt-3.5-turbo\n"
-	"r2ai -e api=ollama\n"
-	"-m llama3.2:1b\n"
-	"-m llama3\n"
-	"-m codegeex4\n"
-	"-m qwen2.5-coder:3b\n"
-	"-m benevolentjoker/nsfwvanessa\n");
+static void cmd_r2ai_M (RCore *core) {
+	r_cons_printf (
+		"r2ai -e api=anthropic\n"
+		"-m claude-3-7-sonnet-20250219\n"
+		"-m claude-3-5-sonnet-20241022\n"
+		"-m claude-3-haiku-20240307\n"
+		"r2ai -e api=gemini\n"
+		"-m gemini-1.5-flash\n"
+		"-m gemini-1.0-pro\n"
+		"r2ai -e api=openai\n"
+		"-m gpt-4\n"
+		"-m gpt-3.5-turbo\n"
+		"r2ai -e api=ollama\n"
+		"-m llama3.2:1b\n"
+		"-m llama3\n"
+		"-m codegeex4\n"
+		"-m qwen2.5-coder:3b\n"
+		"-m benevolentjoker/nsfwvanessa\n");
 }
 
-static void cmd_r2ai_m(RCore *core, const char *input) {
+static void cmd_r2ai_m (RCore *core, const char *input) {
 	if (R_STR_ISEMPTY (input)) {
 		r_cons_printf ("%s\n", r_config_get (core->config, "r2ai.model"));
 		return;
@@ -467,7 +468,7 @@ static void cmd_r2ai_m(RCore *core, const char *input) {
 	r_cons_printf ("Model set to %s\n", input);
 }
 
-static void load_embeddings(RCore *core, RVdb *db) {
+static void load_embeddings (RCore *core, RVdb *db) {
 	RListIter *iter, *iter2;
 	char *line;
 	char *file;
@@ -500,7 +501,7 @@ static void load_embeddings(RCore *core, RVdb *db) {
 	r_list_free (files);
 }
 
-static void cmd_r2ai(RCore *core, const char *input) {
+static void cmd_r2ai (RCore *core, const char *input) {
 	if (*input == '?' || r_str_startswith (input, "-h")) {
 		r_core_cmd_help (core, help_msg_r2ai);
 	} else if (r_str_startswith (input, "-e")) {
@@ -561,7 +562,7 @@ static void cmd_r2ai(RCore *core, const char *input) {
 		r_core_cmd_help (core, help_msg_r2ai);
 	} else {
 		char *err = NULL;
-		char *res = r2ai (core, (R2AIArgs){.input = input, .error = &err, .dorag = true});
+		char *res = r2ai (core, (R2AIArgs){ .input = input, .error = &err, .dorag = true });
 		if (err) {
 			R_LOG_ERROR ("%s", err);
 			R_FREE (err);
@@ -573,8 +574,8 @@ static void cmd_r2ai(RCore *core, const char *input) {
 	}
 }
 
-static int r2ai_init(void *user, const char *input) {
-	RCmd *cmd = (RCmd*)user;
+static int r2ai_init (void *user, const char *input) {
+	RCmd *cmd = (RCmd *)user;
 	RCore *core = cmd->data;
 	r_config_lock (core->config, false);
 	r_config_set (core->config, "r2ai.api", "ollama");
@@ -593,8 +594,8 @@ static int r2ai_init(void *user, const char *input) {
 	return true;
 }
 
-static int r2ai_fini(void *user, const char *input) {
-	RCmd *cmd = (RCmd*)user;
+static int r2ai_fini (void *user, const char *input) {
+	RCmd *cmd = (RCmd *)user;
 	RCore *core = cmd->data;
 	r_config_lock (core->config, false);
 	r_config_rm (core->config, "r2ai.api");
@@ -610,8 +611,8 @@ static int r2ai_fini(void *user, const char *input) {
 	return true;
 }
 
-static int r_cmd_r2ai_client(void *user, const char *input) {
-	RCore *core = (RCore *) user;
+static int r_cmd_r2ai_client (void *user, const char *input) {
+	RCore *core = (RCore *)user;
 	r_sys_setenv ("R2_CURL", "1");
 	if (r_str_startswith (input, "r2ai")) {
 		cmd_r2ai (core, r_str_trim_head_ro (input + 4));
