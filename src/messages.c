@@ -358,18 +358,24 @@ R_API char *r2ai_msgs_to_anthropic_json (const R2AI_Messages *msgs) {
 			pj_ks (pj, "type", "tool_use");
 			pj_ks (pj, "id", tc->id ? tc->id : "");
 			pj_ks (pj, "name", tc->name ? tc->name : "");
-			const RJson *arguments = r_json_parse (tc->arguments);
+
+			// Create a non-const copy for r_json_parse
+			char *arguments_copy = tc->arguments ? strdup (tc->arguments) : NULL;
+			RJson *arguments = arguments_copy ? r_json_parse (arguments_copy) : NULL;
+
 			pj_ko (pj, "input"); // Start input object
-			for (int k = 0; k < arguments->children.count; k++) {
-				const RJson *arg = r_json_item (arguments, k);
-				if (arg && arg->type == R_JSON_STRING) {
-					pj_ks (pj, arg->key, arg->str_value);
+			if (arguments) {
+				for (int k = 0; k < arguments->children.count; k++) {
+					const RJson *arg = r_json_item (arguments, k);
+					if (arg && arg->type == R_JSON_STRING) {
+						pj_ks (pj, arg->key, arg->str_value);
+					}
 				}
+				r_json_free (arguments);
 			}
+			free (arguments_copy);
+
 			pj_end (pj); // End input object
-
-			r_json_free (arguments);
-
 			pj_end (pj); // End tool_calls object
 		}
 		pj_end (pj); // End content array

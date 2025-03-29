@@ -1,7 +1,71 @@
 #include "r2ai.h"
+#include <time.h>
 
 // Forward declaration of the r2ai_llmcall function
 extern R2AI_Message *r2ai_llmcall (RCore *core, R2AIArgs args);
+
+// Add a global structure to track timing and costs
+typedef struct {
+	double total_cost;
+	double run_cost;
+	time_t start_time;
+	time_t total_start_time;
+} R2AIStats;
+
+static R2AIStats stats = { 0 };
+
+// Helper function to format time duration
+static char *format_time_duration (time_t seconds) {
+	if (seconds < 60) {
+		return r_str_newf ("%llds", (long long)seconds);
+	} else if (seconds < 3600) {
+		return r_str_newf ("%lldm%llds", (long long)(seconds / 60), (long long)(seconds % 60));
+	} else {
+		return r_str_newf ("%lldh%lldm%llds",
+			(long long)(seconds / 3600),
+			(long long)((seconds % 3600) / 60),
+			(long long)(seconds % 60));
+	}
+}
+
+// Initialize timing and cost tracking for a run
+static void r2ai_stats_init_run (int n_run) {
+	time_t run_start = time (NULL);
+	if (n_run == 1) {
+		// First run, initialize total timing
+		stats.total_cost = 0.0;
+		stats.run_cost = 0.0;
+		stats.total_start_time = run_start;
+	}
+	stats.start_time = run_start;
+}
+
+// Print a simple run indicator at the start
+static void r2ai_print_run_end (RCore *core, int n_run, int max_runs) {
+	time_t run_time = time (NULL) - stats.start_time;
+	time_t total_time = time (NULL) - stats.total_start_time;
+
+	// TODO: calculate cost
+	stats.run_cost = 0.0 * run_time;
+	stats.total_cost += stats.run_cost;
+
+	// Format times for display
+	char *run_time_str = format_time_duration (run_time);
+	char *total_time_str = format_time_duration (total_time);
+
+	// Print detailed stats
+	r_cons_printf ("\x1b[1;34m%s | total: $%.10f | run: $%.10f | %d / %d | %s / %s\x1b[0m\n",
+		r_config_get (core->config, "r2ai.model"),
+		stats.total_cost,
+		stats.run_cost,
+		n_run, max_runs,
+		run_time_str,
+		total_time_str);
+	r_cons_flush ();
+
+	free (run_time_str);
+	free (total_time_str);
+}
 
 const char *Gprompt_auto = "You are a reverse engineer and you are using radare2 to analyze a binary.\n"
 			   "The user will ask questions about the binary and you will respond with the answer to the best of your ability.\n"
@@ -24,9 +88,19 @@ const char *Gprompt_auto = "You are a reverse engineer and you are using radare2
 			   "- Make sure you call tools and functions correctly.\n";
 
 // Helper function to process messages and handle tool calls recursively
-static void process_messages (RCore *core, R2AI_Messages *messages) {
+static void process_messages (RCore *core, R2AI_Messages *messages, int n_run) {
 	char *error = NULL;
+	const int max_runs = r_config_get_i (core->config, "r2ai.auto.max_runs");
+	if (n_run > max_runs) {
+		r_cons_printf ("\x1b[1;31m[r2ai] Max runs reached\x1b[0m\n");
+		r_cons_flush ();
+		return;
+	}
 
+	r2ai_stats_init_run (n_run);
+
+	const bool hide_tool_output = r_config_get_b (core->config, "r2ai.auto.hide_tool_output");
+	const bool ask_to_execute = r_config_get_b (core->config, "r2ai.auto.ask_to_execute");
 	// Set up args for r2ai_llmcall call with tools directly
 	R2AIArgs args = {
 		.messages = messages,
@@ -50,8 +124,7 @@ static void process_messages (RCore *core, R2AI_Messages *messages) {
 
 	// Process the response - we need to add it to our messages array
 	if (response->content) {
-		R_LOG_INFO ("Assistant response: %s", response->content);
-		r_cons_printf ("%s\n", response->content);
+		r_cons_printf ("\x1b[1;32massistant:\x1b[0m\n%s\n", response->content);
 		r_cons_flush ();
 	}
 
@@ -121,8 +194,10 @@ static void process_messages (RCore *core, R2AI_Messages *messages) {
 				// Use the original command for execution, not the formatted one
 				// TODO: make it -e scr.color=0 and back to original setting
 				char *cmd_output = r_core_cmd_str (core, command);
-				r_cons_printf ("%s", cmd_output);
-				r_cons_flush ();
+				if (!hide_tool_output) {
+					r_cons_printf ("%s", cmd_output);
+					r_cons_flush ();
+				}
 				r_json_free (args_json);
 				free (args_copy);
 
@@ -144,8 +219,10 @@ static void process_messages (RCore *core, R2AI_Messages *messages) {
 			}
 		}
 
-		// Call process_messages recursively with the updated messages
-		process_messages (core, messages);
+		r2ai_print_run_end (core, n_run, max_runs);
+		process_messages (core, messages, n_run + 1);
+	} else {
+		r2ai_print_run_end (core, n_run, max_runs);
 	}
 
 	// Free the response - the strings were already copied to messages array
@@ -177,7 +254,7 @@ R_IPI void cmd_r2ai_a (RCore *core, const char *user_query) {
 	r2ai_msgs_add (messages, &user_msg);
 
 	// Process messages
-	process_messages (core, messages);
+	process_messages (core, messages, 1);
 
 	// Free messages array
 	r2ai_msgs_free (messages);
