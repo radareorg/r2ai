@@ -51,11 +51,20 @@ static bool handle_gemini_stream_chunk(const char *chunk) {
 	return false;
 }
 
-R_IPI char *r2ai_gemini(const char *content, const char *model_name, char **error) {
+R_IPI char *r2ai_gemini (RCore *core, R2AIArgs args) {
+	const char *content = args.input;
+	const char *model = args.model;
+	char **error = args.error;
+
+	char *result = NULL;
+	char *api_key = r_config_get (core->config, "r2ai.gemini.api_key");
+	if (!api_key) {
+		*error = strdup ("Gemini API key not found. Set r2ai.gemini.api_key");
+		return NULL;
+	}
+
 	if (!content) {
-		if (error) {
-			*error = strdup("Content cannot be null");
-		}
+		*error = strdup("Content cannot be null");
 		return NULL;
 	}
 
@@ -63,34 +72,10 @@ R_IPI char *r2ai_gemini(const char *content, const char *model_name, char **erro
 		*error = NULL;
 	}
 
-	char *apikey = r_sys_getenv ("GEMINI_API_KEY");
-	if (!apikey) {
-		char *apikey_file = r_file_new ("~/.r2ai.gemini-key", NULL);
-		apikey = r_file_slurp (apikey_file, NULL);
-		free (apikey_file);
-		if (!apikey) {
-			if (error) {
-				*error = strdup ("Failed to read Gemini API key from GEMINI_API_KEY env or ~/.r2ai.gemini-key");
-			}
-			return NULL;
-		}
-		r_str_trim (apikey);
-	}
-
-	const char *headers[] = {
-		"Content-Type: application/json",
-		NULL
-	};
-
-	const char *base_url = "https://generativelanguage.googleapis.com/v1beta/models";
-	const char *actual_model = model_name;
-	if (model_name && r_str_startswith (model_name, "gemini:")) {
-		actual_model = model_name + 7;
-	}
 	char *url = r_str_newf ("%s/%s:generateContent?key=%s",
-		base_url,
-		actual_model? actual_model: "gemini-1.5-pro",
-		apikey);
+		"https://generativelanguage.googleapis.com/v1beta/models",
+		model? model: "gemini-1.5-pro",
+		api_key);
 
 	R_LOG_DEBUG ("Gemini API URL: %s", url);
 
@@ -111,7 +96,7 @@ R_IPI char *r2ai_gemini(const char *content, const char *model_name, char **erro
 	char *data = pj_drain (pj);
 	R_LOG_DEBUG ("Gemini API request data: %s", data);
 	int code = 0;
-	char *res = r_socket_http_post (url, headers, data, &code, NULL);
+	char *res = r_socket_http_post (url, NULL, data, &code, NULL);
 
 	if (res) {
 		R_LOG_DEBUG ("Gemini API response: %s", res);
@@ -125,7 +110,7 @@ R_IPI char *r2ai_gemini(const char *content, const char *model_name, char **erro
 		if (error) {
 			*error = strdup (res? res: "Failed to get response from Gemini API");
 		}
-		free (apikey);
+		free (api_key);
 		free (url);
 		free (data);
 		free (res);
@@ -158,18 +143,27 @@ R_IPI char *r2ai_gemini(const char *content, const char *model_name, char **erro
 		r_json_free (jres);
 	}
 
-	free (apikey);
+	free (api_key);
 	free (url);
 	free (data);
 	free (res);
 	return res_content;
 }
 
-R_IPI char *r2ai_gemini_stream(const char *content, const char *model_name, char **error) {
+R_IPI char *r2ai_gemini_stream (RCore *core, R2AIArgs args) {
+	const char *content = args.input;
+	const char *model = args.model;
+	char **error = args.error;
+
+	char *result = NULL;
+	char *api_key = r_config_get (core->config, "r2ai.gemini.api_key");
+	if (!api_key) {
+		*error = strdup ("Gemini API key not found. Set r2ai.gemini.api_key");
+		return NULL;
+	}
+
 	if (!content) {
-		if (error) {
-			*error = strdup("Content cannot be null");
-		}
+		*error = strdup("Content cannot be null");
 		return NULL;
 	}
 
@@ -177,34 +171,10 @@ R_IPI char *r2ai_gemini_stream(const char *content, const char *model_name, char
 		*error = NULL;
 	}
 
-	char *apikey = r_sys_getenv ("GEMINI_API_KEY");
-	if (!apikey) {
-		char *apikey_file = r_file_new ("~/.r2ai.gemini-key", NULL);
-		apikey = r_file_slurp (apikey_file, NULL);
-		free (apikey_file);
-		if (!apikey) {
-			if (error) {
-				*error = strdup ("Failed to read Gemini API key from GEMINI_API_KEY env or ~/.r2ai.gemini-key");
-			}
-			return NULL;
-		}
-		r_str_trim (apikey);
-	}
-
-	const char *headers[] = {
-		"Content-Type: application/json",
-		NULL
-	};
-
-	const char *base_url = "https://generativelanguage.googleapis.com/v1beta/models";
-	const char *actual_model = model_name;
-	if (model_name && r_str_startswith (model_name, "gemini:")) {
-		actual_model = model_name + 7;
-	}
 	char *url = r_str_newf ("%s/%s:streamGenerateContent?alt=sse&key=%s",
-		base_url,
-		actual_model? actual_model: "gemini-1.5-pro",
-		apikey);
+		"https://generativelanguage.googleapis.com/v1beta/models",
+		model? model: "gemini-1.5-pro",
+		api_key);
 
 	R_LOG_DEBUG ("Gemini API URL: %s", url);
 
@@ -225,7 +195,7 @@ R_IPI char *r2ai_gemini_stream(const char *content, const char *model_name, char
 	char *data = pj_drain (pj);
 	R_LOG_DEBUG ("Gemini API request data: %s", data);
 	int code = 0;
-	char *res = r_socket_http_post (url, headers, data, &code, NULL);
+	char *res = r_socket_http_post (url, NULL, data, &code, NULL);
 
 	if (res) {
 		R_LOG_DEBUG ("Gemini API response: %s", res);
@@ -239,7 +209,7 @@ R_IPI char *r2ai_gemini_stream(const char *content, const char *model_name, char
 		if (error) {
 			*error = strdup (res? res: "Failed to get response from Gemini API");
 		}
-		free (apikey);
+		free (api_key);
 		free (url);
 		free (data);
 		return NULL;
@@ -255,7 +225,7 @@ R_IPI char *r2ai_gemini_stream(const char *content, const char *model_name, char
 
 	eprintf ("\n");
 
-	free (apikey);
+	free (api_key);
 	free (url);
 	free (data);
 	free (res);

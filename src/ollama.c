@@ -1,6 +1,12 @@
+#include <r_core.h>
+#include <r_util/r_json.h>
 #include "r2ai.h"
 
-R_IPI char *r2ai_ollama(RCore *core, const char *content, const char *model, char **error) {
+R_IPI char *r2ai_ollama (RCore *core, R2AIArgs args) {
+	const char *content = args.input;
+	const char *model = args.model;
+	char **error = args.error;
+
 	if (error) {
 		*error = NULL;
 	}

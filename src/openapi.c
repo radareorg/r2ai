@@ -5,7 +5,17 @@ static char *prompt_for_llama(const char* s) {
 	return r_str_newf ("%s<s>[INST]%s[/INST]", sysprompt, s);
 }
 
-R_IPI char *r2ai_openapi(const char *content, char **error) {
+R_IPI char *r2ai_openapi(RCore *core, R2AIArgs args) {
+	const char *content = args.input;
+	char **error = args.error;
+
+	char *result = NULL;
+	char *api_key = r_config_get (core->config, "r2ai.openapi.api_key");
+	if (!api_key) {
+		*error = strdup ("OpenAPI key not found. Set r2ai.openapi.api_key");
+		return NULL;
+	}
+
 	if (error) {
 		*error = NULL;
 	}

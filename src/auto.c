@@ -1,101 +1,156 @@
 #include "r2ai.h"
 
-static const char Gprompt_auto[] = \
-"# Function Calling\n" \
-"\n" \
-"Respond ONLY using JSON. You are a smart assistant designed to process user queries and decide if a local function needs to be executed. Follow these steps:\n" \
-"1. Analyze the user input to determine if it requires invoking a local function or just returning a direct response.\n" \
-"2. If it requires a function call:\n" \
-"    - Use the key \"action\": \"execute_function\".\n" \
-"    - Provide the \"function_name\" as a string.\n" \
-"    - Include \"parameters\" as a dictionary of key-value pairs matching the required function arguments.\n" \
-"    - Optionally, provide a \"response\" to summarize your intent.\n" \
-"3. If no function is required:\n" \
-"    - Use the key \"action\": \"reply\".\n" \
-"    - Include \"response\" with the direct answer to the user query.\n" \
-"\n" \
-"Return the result as a JSON object.\n" \
-"\n" \
-"## Here is an example:\n" \
-"\n" \
-"User Query: \"Count how many functions.\"\n" \
-"Response:\n" \
-"{\n" \
-"    \"action\": \"execute_function\",\n" \
-"    \"function_name\": \"r2cmd\",\n" \
-"    \"parameters\": {\n" \
-"        \"r2cmd\": \"aflc\",\n" \
-"    }\n" \
-"    \"response\": \"Count how many functions do we have\"\n" \
-"}\n" \
-"\n" \
-"# Now, analyze the following user input:\n";
+// Forward declaration of the r2ai_llmcall function
+extern R2AI_Message *r2ai_llmcall(RCore *core, R2AIArgs args);
+
+const char *Gprompt_auto = "You are a reverse engineer and you are using radare2 to analyze a binary.\n"
+	"The user will ask questions about the binary and you will respond with the answer to the best of your ability.\n"
+	"\n"
+	"# Guidelines\n"
+	"- Understand the Task: Grasp the main objective, goals, requirements, constraints, and expected output.\n"
+	"- Reasoning Before Conclusions**: Encourage reasoning steps before any conclusions are reached.\n"
+	"- Assume the user is always asking you about the binary, unless they're specifically asking you for radare2 help.\n"
+	"- The binary has already been loaded. You can interact with the binary using the r2cmd tool.\n"
+	"- `this` or `here` might refer to the current address in the binary or the binary itself.\n"
+	"- If you need more information, try to use the r2cmd tool to run commands before answering.\n"
+	"- You can use the r2cmd tool multiple times if you need or you can pass a command with pipes if you need to chain commands.\n"
+	"- If you're asked to decompile a function, make sure to return the code in the language you think it was originally written and rewrite it to be as easy as possible to be understood. Make sure you use descriptive variable and function names and add comments.\n"
+	"- Don't just regurgitate the same code, figure out what it's doing and rewrite it to be more understandable.\n"
+	"- If you need to run a command in r2 before answering, you can use the r2cmd tool\n"
+	"- Do not repeat commands if you already know the answer.\n"
+	"- Formulate a plan. Think step by step. Analyze the binary as much as possible before answering.\n"
+	"- You must keep going until you have a final answer.\n"
+	"- Double check that final answer. Make sure you didn't miss anything.\n"
+	"- Make sure you call tools and functions correctly.\n";
+	
+// Helper function to process messages and handle tool calls recursively
+static void process_messages(RCore *core, R2AI_Messages *messages) {
+	char *error = NULL;
+	
+	// Set up args for r2ai_llmcall call with tools directly
+	R2AIArgs args = {
+		.messages = messages,
+		.error = &error,
+		.dorag = true,
+		.tools = r2ai_get_tools()
+	};
+	
+	// Call r2ai_llmcall to get a response
+	R2AI_Message *response = r2ai_llmcall(core, args);
+	
+	if (!response) {
+		if (error) {
+			R_LOG_ERROR("Error: %s", error);
+			free(error);
+		} else {
+			R_LOG_ERROR("Unknown error occurred");
+		}
+		return;
+	}
+	
+	// Process the response - we need to add it to our messages array
+	if (response->content) {
+		R_LOG_INFO("Assistant response: %s", response->content);
+		r_cons_printf("%s\n", response->content);
+	}
+	
+	// Add the response to our messages array
+	// This creates a copy, so we can safely free the original later
+	r2ai_msgs_add(messages, response);
+	
+	// Check for tool calls and process them
+	if (response->tool_calls && response->n_tool_calls > 0) {
+		R_LOG_INFO("Found %d tool calls", response->n_tool_calls);
+		
+		// Process each tool call
+		for (int i = 0; i < response->n_tool_calls; i++) {
+			const R2AI_ToolCall *tool_call = &response->tool_calls[i];
+			
+			if (!tool_call->name || !tool_call->arguments || !tool_call->id) {
+				continue;
+			}
+			
+			// We only support the r2cmd function for now
+			if (strcmp(tool_call->name, "r2cmd") == 0) {
+				// Parse arguments JSON to get the command
+				char *args_copy = strdup(tool_call->arguments);
+				RJson *args_json = r_json_parse(args_copy);
+				if (!args_json) {
+					R_LOG_ERROR("Failed to parse tool call arguments");
+					free(args_copy);
+					continue;
+				}
+				
+				const RJson *command_json = r_json_get(args_json, "command");
+				if (!command_json || !command_json->str_value) {
+					R_LOG_ERROR("No command in tool call arguments");
+					r_json_free(args_json);
+					free(args_copy);
+					continue;
+				}
+				
+				const char *command = command_json->str_value;
+				R_LOG_INFO("Running command: %s", command);
+				
+				// TODO: make it -e scr.color=0 and back to original setting
+				char *cmd_output = r_core_cmd_str(core, command);
+				r_json_free(args_json);
+				free(args_copy);
+				
+				if (!cmd_output) {
+					cmd_output = strdup("Command returned no output or failed");
+				}
+				
+				// Create a tool call response message
+				R2AI_Message tool_response = {
+					.role = "tool",
+					.tool_call_id = tool_call->id,
+					.content = cmd_output
+				};
+				
+				// Add the tool response to our messages array
+				r2ai_msgs_add(messages, &tool_response);
+				
+				free(cmd_output);
+			}
+		}
+		
+		// Call process_messages recursively with the updated messages
+		process_messages(core, messages);
+	}
+	
+	// Free the response - the strings were already copied to messages array
+	r2ai_message_free(response);
+	// Free the response struct itself since r2ai_message_free doesn't do it anymore
+	free(response);
+}
 
 R_IPI void cmd_r2ai_a(RCore *core, const char *user_query) {
-	RList *replies = r_list_newf (free);
-	while (true) {
-		RStrBuf *sb = r_strbuf_new ("");
-		r_strbuf_append (sb, Gprompt_auto);
-		if (!r_list_empty (replies)) {
-			r_strbuf_append (sb, "\n## Executed function results:\n");
-			char *r;
-			RListIter *iter;
-			r_list_foreach (replies, iter, r) {
-				r_strbuf_appendf (sb, "%s\n", r);
-			}
-		}
-		r_strbuf_appendf (sb, "## User prompt\n%s\n", user_query);
-
-		char *q = r_strbuf_drain (sb);
-		char *error = NULL;
-		char *res = r2ai (core, q, &error, true);
-		free (q);
-		{
-			RJson *jres = r_json_parse (res);
-			if (!jres) {
-				R_LOG_ERROR ("Invalid json");
-				r_cons_printf ("%s\n", res);
-				free (res);
-				break;
-			}
-			const RJson *action = r_json_get (jres, "action");
-			if (action) {
-				const char *action_str = action->str_value;
-				if (!strcmp (action_str, "execute_function") || !strcmp (action_str, "r2cmd")) {
-					const RJson *parameters = r_json_get (jres, "parameters");
-					if (!parameters) {
-						goto badjson;
-					}
-					const RJson *r2cmd = r_json_get (parameters, "r2cmd");
-					if (!r2cmd) {
-						goto badjson;
-					}
-					R_LOG_INFO ("[r2cmd] Running: %s", r2cmd);
-					char *res2 = r_core_cmd_str (core, r2cmd->str_value);
-					PJ *pj = pj_new ();
-					pj_o (pj);
-					pj_ks (pj, "action", "function_response");
-					pj_ks (pj, "r2cmd", r2cmd->str_value);
-					pj_ks (pj, "response", res2);
-					pj_end (pj);
-					char *reply = pj_drain (pj);
-					r_list_append (replies, reply);
-					free (res2);
-				} else if (!strcmp (action_str, "reply")) {
-					const RJson *res = r_json_get (jres, "response");
-					if (!res) {
-						goto badjson;
-					}
-					r_cons_printf ("%s\n", res->str_value);
-				}
-			} else {
-				r_cons_printf ("%s\n", res);
-			}
-badjson:
-			r_json_free (jres);
-		}
-
-		free (res);
+	// Create a new messages array
+	R2AI_Messages *messages = r2ai_msgs_new();
+	if (!messages) {
+		R_LOG_ERROR("Failed to create messages array");
+		return;
 	}
+	
+	// Add system message
+	R2AI_Message system_msg = {
+		.role = "system",
+		.content = Gprompt_auto
+	};
+	r2ai_msgs_add(messages, &system_msg);
+	
+	// Add user query
+	R2AI_Message user_msg = {
+		.role = "user",
+		.content = user_query
+	};
+	r2ai_msgs_add(messages, &user_msg);
+	
+	// Process messages
+	process_messages(core, messages);
+	
+	// Free messages array
+	r2ai_msgs_free(messages);
 }
 

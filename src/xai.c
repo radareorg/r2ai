@@ -48,11 +48,19 @@ static bool handle_xai_stream_chunk(const char *chunk) {
 	return false;
 }
 
-R_IPI char *r2ai_xai(RCore *core, const char *content, char **error) {
+R_IPI char *r2ai_xai (RCore *core, R2AIArgs args) {
+	const char *content = args.input;
+	char **error = args.error;
+
+	char *result = NULL;
+	char *api_key = r_config_get (core->config, "r2ai.xai.api_key");
+	if (!api_key) {
+		*error = strdup ("XAI API key not found. Set r2ai.xai.api_key");
+		return NULL;
+	}
+
 	if (!content) {
-		if (error) {
-			*error = strdup("Content cannot be null");
-		}
+		*error = strdup("Content cannot be null");
 		return NULL;
 	}
 
@@ -60,21 +68,7 @@ R_IPI char *r2ai_xai(RCore *core, const char *content, char **error) {
 		*error = NULL;
 	}
 
-	char *apikey = r_sys_getenv ("XAI_API_KEY");
-	if (!apikey) {
-		char *apikey_file = r_file_new ("~/.r2ai.xai-key", NULL);
-		apikey = r_file_slurp (apikey_file, NULL);
-		free (apikey_file);
-		if (!apikey) {
-			if (error) {
-				*error = strdup ("Failed to read X.AI API key from XAI_API_KEY env or ~/.r2ai.xai-key");
-			}
-			return NULL;
-		}
-		r_str_trim (apikey);
-	}
-
-	char *authorization_bearer = r_str_newf ("Authorization: Bearer %s", apikey);
+	char *authorization_bearer = r_str_newf ("Authorization: Bearer %s", api_key);
 	const char *headers[] = {
 		"Content-Type: application/json",
 		authorization_bearer,
@@ -86,7 +80,7 @@ R_IPI char *r2ai_xai(RCore *core, const char *content, char **error) {
 	char *url = r_str_newf ("%s/%s:generateContent?key=%s",
 		base_url,
 		actual_model? actual_model: "xai-1.5-pro",
-		apikey);
+		api_key);
 
 	R_LOG_DEBUG ("X.AI API URL: %s", url);
 
@@ -127,7 +121,7 @@ R_IPI char *r2ai_xai(RCore *core, const char *content, char **error) {
 		if (error) {
 			*error = strdup (res? res: "Failed to get response from X.AI API");
 		}
-		free (apikey);
+		free (api_key);
 		free (url);
 		free (data);
 		free (res);
@@ -153,18 +147,26 @@ R_IPI char *r2ai_xai(RCore *core, const char *content, char **error) {
 		r_json_free (jres);
 	}
 
-	free (apikey);
+	free (api_key);
 	free (url);
 	free (data);
 	free (res);
 	return res_content;
 }
 
-R_IPI char *r2ai_xai_stream(RCore *core, const char *content, char **error) {
+R_IPI char *r2ai_xai_stream (RCore *core, R2AIArgs args) {
+	const char *content = args.input;
+	char **error = args.error;
+
+	char *result = NULL;
+	char *api_key = r_config_get (core->config, "r2ai.xai.api_key");
+	if (!api_key) {
+		*error = strdup ("XAI API key not found. Set r2ai.xai.api_key");
+		return NULL;
+	}
+
 	if (!content) {
-		if (error) {
-			*error = strdup ("Content cannot be null");
-		}
+		*error = strdup("Content cannot be null");
 		return NULL;
 	}
 
@@ -172,21 +174,7 @@ R_IPI char *r2ai_xai_stream(RCore *core, const char *content, char **error) {
 		*error = NULL;
 	}
 
-	char *apikey = r_sys_getenv ("XAI_API_KEY");
-	if (!apikey) {
-		char *apikey_file = r_file_new ("~/.r2ai.xai-key", NULL);
-		apikey = r_file_slurp (apikey_file, NULL);
-		free (apikey_file);
-		if (!apikey) {
-			if (error) {
-				*error = strdup ("Failed to read X.AI API key from XAI_API_KEY env or ~/.r2ai.xai-key");
-			}
-			return NULL;
-		}
-		r_str_trim (apikey);
-	}
-
-	char *authorization_bearer = r_str_newf ("Authorization: Bearer %s", apikey);
+	char *authorization_bearer = r_str_newf ("Authorization: Bearer %s", api_key);
 	const char *headers[] = {
 		"Content-Type: application/json",
 		authorization_bearer,
@@ -237,7 +225,7 @@ R_IPI char *r2ai_xai_stream(RCore *core, const char *content, char **error) {
 		if (error) {
 			*error = strdup (res? res: "Failed to get response from X.AI API");
 		}
-		free (apikey);
+		free (api_key);
 		free (url);
 		free (data);
 		return NULL;
@@ -253,7 +241,7 @@ R_IPI char *r2ai_xai_stream(RCore *core, const char *content, char **error) {
 
 	eprintf ("\n");
 
-	free (apikey);
+	free (api_key);
 	free (url);
 	free (data);
 	free (res);
