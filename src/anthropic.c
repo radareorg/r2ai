@@ -115,26 +115,8 @@ R_IPI R2AI_Message *r2ai_anthropic (RCore *core, R2AIArgs args) {
 		*error = NULL;
 	}
 
-	char *apikey = NULL;
-	const char *api_key = r_config_get (core->config, "r2ai.anthropic.api_key");
-	if (api_key) {
-		apikey = strdup (api_key);
-	} else {
-		char *apikey_file = r_file_new ("~/.r2ai.anthropic-key", NULL);
-		apikey = r_file_slurp (apikey_file, NULL);
-		free (apikey_file);
-		if (!apikey) {
-			if (error) {
-				*error = strdup ("Failed to read Anthropic API key from r2ai.anthropic.api_key or ~/.r2ai.anthropic-key");
-			}
-			return NULL;
-		}
-	}
-
-	r_str_trim (apikey);
-
 	// Setup HTTP headers
-	char *auth_header = r_str_newf ("x-api-key: %s", apikey);
+	char *auth_header = r_str_newf ("x-api-key: %s", args.api_key);
 	char *anthropic_version = "anthropic-version: 2023-06-01";
 	const char *headers[] = {
 		"Content-Type: application/json",
@@ -172,7 +154,6 @@ R_IPI R2AI_Message *r2ai_anthropic (RCore *core, R2AIArgs args) {
 				*error = strdup ("Failed to create messages array");
 			}
 			free (auth_header);
-			free (apikey);
 			return NULL;
 		}
 
@@ -192,7 +173,6 @@ R_IPI R2AI_Message *r2ai_anthropic (RCore *core, R2AIArgs args) {
 				*error = strdup ("Failed to convert messages to JSON");
 			}
 			free (auth_header);
-			free (apikey);
 			return NULL;
 		}
 
@@ -201,7 +181,6 @@ R_IPI R2AI_Message *r2ai_anthropic (RCore *core, R2AIArgs args) {
 			*error = strdup ("No input or messages provided");
 		}
 		free (auth_header);
-		free (apikey);
 		return NULL;
 	}
 
@@ -258,7 +237,6 @@ R_IPI R2AI_Message *r2ai_anthropic (RCore *core, R2AIArgs args) {
 			*error = strdup ("Failed to get response from Anthropic API");
 		}
 		free (res);
-		free (apikey);
 		return NULL;
 	}
 
@@ -310,7 +288,6 @@ R_IPI R2AI_Message *r2ai_anthropic (RCore *core, R2AIArgs args) {
 						free (response_copy);
 						r2ai_message_free (result);
 						free (res);
-						free (apikey);
 						return NULL;
 					}
 					result->n_tool_calls = n_tool_calls;
@@ -417,7 +394,6 @@ R_IPI R2AI_Message *r2ai_anthropic (RCore *core, R2AIArgs args) {
 	}
 
 	free (res);
-	free (apikey);
 	return result;
 }
 

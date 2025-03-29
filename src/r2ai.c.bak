@@ -118,35 +118,22 @@ R_IPI R2AI_Message *r2ai_llmcall (RCore *core, R2AIArgs args) {
 	if (!provider) {
 		provider = "gemini";
 	}
-	if (!args.model) {
-		args.model = strdup (r_config_get (core->config, "r2ai.model"));
-	}
 	args.provider = strdup (provider);
 
 	const char *api_key_env = r_str_newf ("%s_API_KEY", provider);
-	char *api_key_env_copy = strdup (api_key_env);
-	r_str_case (api_key_env_copy, true);
+	r_str_case (api_key_env, true);
 	const char *api_key_config = r_str_newf ("r2ai.%s.api_key", provider);
 	const char *api_key_filename = r_str_newf ("~/.r2ai.%s-key", provider);
-
-	char *api_key = NULL;
-
 	if (r_config_get (core->config, api_key_config)) {
-		api_key = strdup (r_config_get (core->config, api_key_config));
+		args.api_key = strdup (r_config_get (core->config, api_key_config));
 	} else if (r_file_exists (api_key_filename)) {
 		char *apikey_file = r_file_new (api_key_filename, NULL);
-		api_key = r_file_slurp (apikey_file, NULL);
+		args.api_key = r_file_slurp (apikey_file, NULL);
 		free (apikey_file);
-	} else if (getenv (api_key_env_copy)) {
-		api_key = strdup (getenv (api_key_env_copy));
+	} else if (getenv (api_key_env)) {
+		args.api_key = strdup (getenv (api_key_env));
 	}
-	free (api_key_env_copy);
-
-	if (api_key) {
-		r_str_trim (api_key);
-		args.api_key = api_key;
-	}
-
+	r_str_trim (args.api_key);
 	R_LOG_INFO ("Using provider: %s", provider);
 	if (strcmp (provider, "anthropic") == 0) {
 		res = r2ai_anthropic (core, args);
@@ -470,9 +457,7 @@ static void cmd_r2ai_M (RCore *core) {
 		"-m llama3\n"
 		"-m codegeex4\n"
 		"-m qwen2.5-coder:3b\n"
-		"-m benevolentjoker/nsfwvanessa\n"
-		"r2ai -e api=openrouter\n"
-		"-m deepseek/deepseek-r1-zero:free\n");
+		"-m benevolentjoker/nsfwvanessa\n");
 }
 
 static void cmd_r2ai_m (RCore *core, const char *input) {

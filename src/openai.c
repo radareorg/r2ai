@@ -5,6 +5,26 @@
 #if R2_VERSION_NUMBER >= 50909
 
 R_IPI R2AI_Message *r2ai_openai (RCore *core, R2AIArgs args) {
+	const char *base_url = r_config_get (core->config, "r2ai.base_url");
+
+	if (R_STR_ISEMPTY (base_url)) {
+		if (strcmp (args.provider, "openai") == 0) {
+			base_url = "https://api.openai.com/v1";
+		} else if (strcmp (args.provider, "gemini") == 0) {
+			base_url = "https://generativelanguage.googleapis.com/v1beta/openai";
+		} else if (strcmp (args.provider, "ollama") == 0) {
+			base_url = "http://localhost:11434/v1";
+		} else if (strcmp (args.provider, "xai") == 0) {
+			base_url = "https://api.x.ai/v1";
+		} else if (strcmp (args.provider, "anthropic") == 0) {
+			base_url = "https://api.anthropic.com/v1";
+		} else if (strcmp (args.provider, "openapi") == 0) {
+			base_url = "http://127.0.0.1:11434";
+		} else if (strcmp (args.provider, "openrouter") == 0) {
+			base_url = "https://openrouter.ai/api/v1";
+		}
+	}
+
 	const char *content = args.input;
 	const char *model = args.model;
 	char **error = args.error;
@@ -15,27 +35,10 @@ R_IPI R2AI_Message *r2ai_openai (RCore *core, R2AIArgs args) {
 		*error = NULL;
 	}
 
-	char *apikey = NULL;
-	const char *api_key = r_config_get (core->config, "r2ai.openai.api_key");
-	if (api_key) {
-		apikey = strdup (api_key);
-	} else {
-		char *apikey_file = r_file_new ("~/.r2ai.openai-key", NULL);
-		apikey = r_file_slurp (apikey_file, NULL);
-		free (apikey_file);
-		if (!apikey) {
-			if (error) {
-				*error = strdup ("Failed to read OpenAI API key from r2ai.openai.api_key or ~/.r2ai.openai-key");
-			}
-			return NULL;
-		}
-	}
-
-	r_str_trim (apikey);
-	char *auth_header = r_str_newf ("Authorization: Bearer %s", apikey);
+	char *auth_header = r_str_newf ("Authorization: Bearer %s", args.api_key);
 	R_LOG_INFO ("Auth header: %s", auth_header);
 	const char *headers[] = { "Content-Type: application/json", auth_header, NULL };
-	const char *openai_url = "https://api.openai.com/v1/chat/completions";
+	const char *openai_url = r_str_newf ("%s/chat/completions", base_url);
 
 	// Create a messages JSON object, either from input messages or from content
 	char *messages_json = NULL;
@@ -47,7 +50,6 @@ R_IPI R2AI_Message *r2ai_openai (RCore *core, R2AIArgs args) {
 			if (error) {
 				*error = strdup ("Failed to convert messages to JSON");
 			}
-			free (apikey);
 			free (auth_header);
 			return NULL;
 		}
@@ -58,7 +60,6 @@ R_IPI R2AI_Message *r2ai_openai (RCore *core, R2AIArgs args) {
 			if (error) {
 				*error = strdup ("Failed to create temporary messages array");
 			}
-			free (apikey);
 			free (auth_header);
 			return NULL;
 		}
@@ -90,7 +91,6 @@ R_IPI R2AI_Message *r2ai_openai (RCore *core, R2AIArgs args) {
 			if (error) {
 				*error = strdup ("Failed to convert messages to JSON");
 			}
-			free (apikey);
 			free (auth_header);
 			return NULL;
 		}
@@ -98,7 +98,6 @@ R_IPI R2AI_Message *r2ai_openai (RCore *core, R2AIArgs args) {
 		if (error) {
 			*error = strdup ("No input or messages provided");
 		}
-		free (apikey);
 		free (auth_header);
 		return NULL;
 	}
@@ -112,7 +111,7 @@ R_IPI R2AI_Message *r2ai_openai (RCore *core, R2AIArgs args) {
 	// Create the model settings part
 	PJ *pj = pj_new ();
 	pj_o (pj);
-	pj_ks (pj, "model", model ? model : "gpt-4o-mini");
+	pj_ks (pj, "model", args.model ? args.model : "gpt-4o-mini");
 	pj_kb (pj, "stream", false);
 	pj_kn (pj, "max_completion_tokens", 5128);
 	pj_end (pj);
@@ -123,7 +122,6 @@ R_IPI R2AI_Message *r2ai_openai (RCore *core, R2AIArgs args) {
 		if (error) {
 			*error = strdup ("Failed to create model settings JSON");
 		}
-		free (apikey);
 		free (auth_header);
 		free (messages_json);
 		if (openai_tools_json) {
@@ -158,7 +156,6 @@ R_IPI R2AI_Message *r2ai_openai (RCore *core, R2AIArgs args) {
 		if (error) {
 			*error = strdup ("Failed to create complete request JSON");
 		}
-		free (apikey);
 		free (auth_header);
 		return NULL;
 	}
@@ -179,7 +176,6 @@ R_IPI R2AI_Message *r2ai_openai (RCore *core, R2AIArgs args) {
 		if (res) {
 			R_LOG_ERROR ("Error response: %s", res);
 		}
-		free (apikey);
 		free (auth_header);
 		free (res);
 		return NULL;
@@ -262,7 +258,6 @@ R_IPI R2AI_Message *r2ai_openai (RCore *core, R2AIArgs args) {
 	}
 	free (res_copy);
 
-	free (apikey);
 	free (auth_header);
 	free (res);
 	return result;
