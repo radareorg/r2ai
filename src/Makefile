@@ -9,12 +9,14 @@ CFLAGS+=-g
 OBJS=r2ai.o
 OBJS+=auto.o
 OBJS+=vdb.o
+OBJS+=tools.o
+OBJS+=messages.o
 OBJS+=anthropic.o
-OBJS+=gemini.o
+# OBJS+=gemini.o
 OBJS+=openai.o
-OBJS+=openapi.o
-OBJS+=ollama.o
-OBJS+=xai.o
+# OBJS+=openapi.o
+# OBJS+=ollama.o
+# OBJS+=xai.o
 
 all: $(OBJS) r2check
 	$(CC) -fPIC -shared -o r2ai.$(EXT) $(OBJS) $(CFLAGS) $(LDFLAGS)
