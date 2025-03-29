@@ -29,7 +29,7 @@ typedef struct {
 	float df;
 } RVdbToken;
 
-static inline void token_free(void *p) {
+static inline void token_free (void *p) {
 	if (p) {
 		RVdbToken *t = (RVdbToken *)p;
 		free (t->token);
@@ -42,7 +42,7 @@ typedef struct {
 	int dimension;
 	int size;
 	RList *tokens; // global tokens count
-	int total_docs;       // initialize to 0
+	int total_docs; // initialize to 0
 	// token_df *df_table;   // initialize to NULL
 } RVdb;
 
@@ -63,11 +63,11 @@ typedef struct {
 	int size;
 } RVdbResultSet;
 
-RVdb *r_vdb_new(int dim);
-void r_vdb_insert(RVdb *db, const char *text); // add_document
+RVdb *r_vdb_new (int dim);
+void r_vdb_insert (RVdb *db, const char *text); // add_document
 // expose api to add_token
-RVdbResultSet *r_vdb_query(RVdb *db, const char *text, int k);
-void r_vdb_free(RVdb *db);
-void r_vdb_result_free(RVdbResultSet *rs);
+RVdbResultSet *r_vdb_query (RVdb *db, const char *text, int k);
+void r_vdb_free (RVdb *db);
+void r_vdb_result_free (RVdbResultSet *rs);
 
 #endif

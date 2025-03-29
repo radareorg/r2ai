@@ -2,7 +2,7 @@
 
 #if R2_VERSION_NUMBER >= 50909
 
-static bool handle_xai_stream_chunk(const char *chunk) {
+static bool handle_xai_stream_chunk (const char *chunk) {
 	if (R_STR_ISEMPTY (chunk)) {
 		return false;
 	}
@@ -60,7 +60,7 @@ R_IPI char *r2ai_xai (RCore *core, R2AIArgs args) {
 	}
 
 	if (!content) {
-		*error = strdup("Content cannot be null");
+		*error = strdup ("Content cannot be null");
 		return NULL;
 	}
 
@@ -79,28 +79,28 @@ R_IPI char *r2ai_xai (RCore *core, R2AIArgs args) {
 	const char *actual_model = r_config_get (core->config, "r2ai.model");
 	char *url = r_str_newf ("%s/%s:generateContent?key=%s",
 		base_url,
-		actual_model? actual_model: "xai-1.5-pro",
+		actual_model ? actual_model : "xai-1.5-pro",
 		api_key);
 
 	R_LOG_DEBUG ("X.AI API URL: %s", url);
 
 	PJ *pj = pj_new ();
 	pj_o (pj);
-		pj_ka (pj, "contents");
-			{
-				const char *s = r_config_get (core->config, "r2ai.system");
-				if (R_STR_ISNOTEMPTY (s)) {
-					pj_o (pj);
-					pj_ks (pj, "role", "system");
-					pj_ks (pj, "content", s);
-					pj_end (pj);
-				}
-			}
+	pj_ka (pj, "contents");
+	{
+		const char *s = r_config_get (core->config, "r2ai.system");
+		if (R_STR_ISNOTEMPTY (s)) {
 			pj_o (pj);
-				pj_ks (pj, "role", "user");
-				pj_ks (pj, "content", content);
+			pj_ks (pj, "role", "system");
+			pj_ks (pj, "content", s);
 			pj_end (pj);
-		pj_end (pj);
+		}
+	}
+	pj_o (pj);
+	pj_ks (pj, "role", "user");
+	pj_ks (pj, "content", content);
+	pj_end (pj);
+	pj_end (pj);
 	pj_end (pj);
 
 	char *data = pj_drain (pj);
@@ -119,7 +119,7 @@ R_IPI char *r2ai_xai (RCore *core, R2AIArgs args) {
 			R_LOG_ERROR ("Error response: %s", res);
 		}
 		if (error) {
-			*error = strdup (res? res: "Failed to get response from X.AI API");
+			*error = strdup (res ? res : "Failed to get response from X.AI API");
 		}
 		free (api_key);
 		free (url);
@@ -166,7 +166,7 @@ R_IPI char *r2ai_xai_stream (RCore *core, R2AIArgs args) {
 	}
 
 	if (!content) {
-		*error = strdup("Content cannot be null");
+		*error = strdup ("Content cannot be null");
 		return NULL;
 	}
 
@@ -183,7 +183,7 @@ R_IPI char *r2ai_xai_stream (RCore *core, R2AIArgs args) {
 
 	const char *base_url = "https://api.x.ai/v1beta/models";
 	const char *actual_model = r_config_get (core->config, "r2ai.model");
-	char *url = r_str_newf ("%s/%s", base_url, actual_model? actual_model: "xai-1.5-pro");
+	char *url = r_str_newf ("%s/%s", base_url, actual_model ? actual_model : "xai-1.5-pro");
 
 	R_LOG_DEBUG ("X.AI API URL: %s", url);
 
@@ -223,7 +223,7 @@ R_IPI char *r2ai_xai_stream (RCore *core, R2AIArgs args) {
 			R_LOG_ERROR ("Error response: %s", res);
 		}
 		if (error) {
-			*error = strdup (res? res: "Failed to get response from X.AI API");
+			*error = strdup (res ? res : "Failed to get response from X.AI API");
 		}
 		free (api_key);
 		free (url);

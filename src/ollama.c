@@ -12,7 +12,7 @@ R_IPI char *r2ai_ollama (RCore *core, R2AIArgs args) {
 	}
 	PJ *pj = pj_new ();
 	pj_o (pj);
-	pj_ks (pj, "model", R_STR_ISNOTEMPTY (model)? model: "llama3"); // qwen2.5-coder:3b
+	pj_ks (pj, "model", R_STR_ISNOTEMPTY (model) ? model : "llama3"); // qwen2.5-coder:3b
 #if 1
 	const char *openapi_url = "http://127.0.0.1:11434/api/chat";
 	pj_kb (pj, "stream", false);
@@ -25,8 +25,8 @@ R_IPI char *r2ai_ollama (RCore *core, R2AIArgs args) {
 		pj_end (pj);
 	}
 	pj_o (pj);
-		pj_ks (pj, "role", "user");
-		pj_ks (pj, "content", content);
+	pj_ks (pj, "role", "user");
+	pj_ks (pj, "content", content);
 	pj_end (pj);
 	pj_end (pj);
 #else

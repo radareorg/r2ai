@@ -1,11 +1,11 @@
 #include "r2ai.h"
 
-static char *prompt_for_llama(const char* s) {
+static char *prompt_for_llama (const char *s) {
 	const char *sysprompt = "<s><<SYS>>You are a helpful assistant named r2clippy. Respond few words<</SYS>></s>";
 	return r_str_newf ("%s<s>[INST]%s[/INST]", sysprompt, s);
 }
 
-R_IPI char *r2ai_openapi(RCore *core, R2AIArgs args) {
+R_IPI char *r2ai_openapi (RCore *core, R2AIArgs args) {
 	const char *content = args.input;
 	char **error = args.error;
 
