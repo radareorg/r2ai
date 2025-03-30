@@ -25,11 +25,44 @@ R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 		}
 	}
 
-	const char *content = args.input;
 	char **error = args.error;
 	const R2AI_Tools *tools = args.tools;
-	R2AI_Messages *messages_input = args.messages;
+	// create a temp conversation to include the system prompt and the rest of the messages
+	R2AI_Messages *temp_msgs = r2ai_msgs_new ();
+	if (!temp_msgs) {
+		if (error) {
+			*error = strdup ("Failed to create temporary messages array");
+		}
+		return NULL;
+	}
 
+	// Add system message if available from args.system_prompt
+	if (R_STR_ISNOTEMPTY (args.system_prompt)) {
+		R_LOG_INFO ("Using system prompt: %s", args.system_prompt);
+		R2AI_Message system_msg = {
+			.role = "system",
+			.content = args.system_prompt
+		};
+		r2ai_msgs_add (temp_msgs, &system_msg);
+	} else {
+		// Fallback to config if args.system_prompt is not set
+		const char *sysprompt = r_config_get (core->config, "r2ai.system");
+		if (R_STR_ISNOTEMPTY (sysprompt)) {
+			R_LOG_INFO ("Using system prompt from config: %s", sysprompt);
+			R2AI_Message system_msg = {
+				.role = "system",
+				.content = sysprompt
+			};
+			r2ai_msgs_add (temp_msgs, &system_msg);
+		}
+	}
+
+	// Add the rest of the messages one by one
+	for (int i = 0; i < args.messages->n_messages; i++) {
+		r2ai_msgs_add (temp_msgs, &args.messages->messages[i]);
+	}
+	// print the role of the first message
+	R_LOG_INFO ("First message role: %s", temp_msgs->messages[0].role);
 	if (error) {
 		*error = NULL;
 	}
@@ -42,59 +75,9 @@ R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 	// Create a messages JSON object, either from input messages or from content
 	char *messages_json = NULL;
 
-	if (messages_input && messages_input->n_messages > 0) {
-		R_LOG_INFO ("Using input messages: %d messages", messages_input->n_messages);
-		messages_json = r2ai_msgs_to_json (messages_input);
-		if (!messages_json) {
-			if (error) {
-				*error = strdup ("Failed to convert messages to JSON");
-			}
-			free (auth_header);
-			return NULL;
-		}
-	} else if (content) {
-		// Create a temporary messages array for the simple content-based message
-		R2AI_Messages *temp_msgs = r2ai_msgs_new ();
-		if (!temp_msgs) {
-			if (error) {
-				*error = strdup ("Failed to create temporary messages array");
-			}
-			free (auth_header);
-			return NULL;
-		}
-
-		// Add system message if available from args.system_prompt
-		if (R_STR_ISNOTEMPTY (args.system_prompt)) {
-			R2AI_Message system_msg = {
-				.role = "system",
-				.content = args.system_prompt
-			};
-			r2ai_msgs_add (temp_msgs, &system_msg);
-		} else {
-			// Fallback to config if args.system_prompt is not set
-			const char *sysprompt = r_config_get (core->config, "r2ai.system");
-			if (R_STR_ISNOTEMPTY (sysprompt)) {
-				R2AI_Message system_msg = {
-					.role = "system",
-					.content = sysprompt
-				};
-				r2ai_msgs_add (temp_msgs, &system_msg);
-			}
-		}
-
-		// Add user message with content
-		R2AI_Message user_msg = {
-			.role = "user",
-			.content = content
-		};
-		r2ai_msgs_add (temp_msgs, &user_msg);
-
-		// Convert to JSON
+	if (temp_msgs && temp_msgs->n_messages > 0) {
+		R_LOG_INFO ("Using input messages: %d messages", temp_msgs->n_messages);
 		messages_json = r2ai_msgs_to_json (temp_msgs);
-
-		// Free the temporary messages
-		r2ai_msgs_free (temp_msgs);
-
 		if (!messages_json) {
 			if (error) {
 				*error = strdup ("Failed to convert messages to JSON");
@@ -104,7 +87,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 		}
 	} else {
 		if (error) {
-			*error = strdup ("No input or messages provided");
+			*error = strdup ("No messages provided");
 		}
 		free (auth_header);
 		return NULL;
@@ -176,7 +159,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 	// Make the API call
 	char *res = NULL;
 	int code = 0;
-	res = r_socket_http_post (openai_url, headers, complete_json, &code, NULL);
+	res = r2ai_http_post (openai_url, headers, complete_json, &code, NULL);
 	free (complete_json);
 
 	if (code != 200) {
@@ -284,6 +267,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 		result->usage = usage;
 		free (res_copy);
 		free (auth_header);
+		r2ai_msgs_free (temp_msgs);
 		free (res);
 		return result;
 	}

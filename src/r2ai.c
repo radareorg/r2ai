@@ -161,6 +161,11 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall (RCore *core, R2AIArgs args) {
 	} else {
 		res = r2ai_openai (core, args);
 	}
+	if (*args.error) {
+		R_LOG_ERROR ("%s", *args.error);
+		free (*args.error);
+		*args.error = NULL;
+	}
 
 	return res;
 }
@@ -667,6 +672,10 @@ static int r2ai_init (void *user, const char *input) {
 	r_config_set_b (core->config, "r2ai.auto.ask_to_execute", true);
 	r_config_set_b (core->config, "r2ai.auto.reset_on_query", false);
 	r_config_set_b (core->config, "r2ai.chat.show_cost", true);
+	// Configure HTTP backend preference (curl or socket)
+	r_config_set (core->config, "r2ai.http.backend", r2ai_http_has_curl () ? "curl" : "socket");
+	// Configure HTTP timeout in seconds
+	r_config_set_i (core->config, "r2ai.http.timeout", 120);
 	r_config_lock (core->config, true);
 	return true;
 }
@@ -685,6 +694,8 @@ static int r2ai_fini (void *user, const char *input) {
 	r_config_rm (core->config, "r2ai.data.path");
 	r_config_rm (core->config, "r2ai.data.nth");
 	r_config_rm (core->config, "r2ai.auto.reset_on_query");
+	r_config_rm (core->config, "r2ai.http.backend");
+	r_config_rm (core->config, "r2ai.http.timeout");
 	r_config_lock (core->config, true);
 
 	// Free the conversation

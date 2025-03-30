@@ -168,6 +168,25 @@ R_API char *r2ai_tools_to_anthropic_json (const R2AI_Tools *tools);
  */
 R_API void r2ai_tools_free (R2AI_Tools *tools);
 
+/**
+ * Send an HTTP POST request
+ *
+ * @param url The URL to send the request to
+ * @param headers Array of headers, NULL terminated
+ * @param data The data to send in the request
+ * @param code Pointer to store the response code
+ * @param rlen Pointer to store the response length
+ * @return Response body as string (must be freed by caller) or NULL on error
+ */
+R_API char *r2ai_http_post (const char *url, const char *headers[], const char *data, int *code, int *rlen);
+
+/**
+ * Check if libcurl support is enabled at compile time
+ *
+ * @return true if libcurl is available, false otherwise
+ */
+R_API bool r2ai_http_has_curl (void);
+
 // anthropic
 R_IPI R2AI_ChatResponse *r2ai_anthropic (RCore *core, R2AIArgs args);
 

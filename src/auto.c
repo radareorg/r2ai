@@ -141,29 +141,10 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 
 	r2ai_stats_init_run (n_run);
 
-	// Create temporary messages with system prompt
-	R2AI_Messages *temp_messages = r2ai_msgs_new ();
-	if (!temp_messages) {
-		R_LOG_ERROR ("Failed to create temporary messages");
-		return;
-	}
-
-	// Add system message first
-	R2AI_Message system_msg = {
-		.role = "system",
-		.content = system_prompt
-	};
-	r2ai_msgs_add (temp_messages, &system_msg);
-
-	// Copy all messages from the conversation to the temporary container
-	for (int i = 0; i < messages->n_messages; i++) {
-		r2ai_msgs_add (temp_messages, &messages->messages[i]);
-	}
-
 	const bool hide_tool_output = r_config_get_b (core->config, "r2ai.auto.hide_tool_output");
 	// Set up args for r2ai_llmcall call with tools directly
 	R2AIArgs args = {
-		.messages = temp_messages,
+		.messages = messages,
 		.error = &error,
 		.dorag = true,
 		.tools = r2ai_get_tools (),
@@ -172,9 +153,6 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 
 	// Call r2ai_llmcall to get a response
 	R2AI_ChatResponse *response = r2ai_llmcall (core, args);
-
-	// Free temporary messages now that we're done with them
-	r2ai_msgs_free (temp_messages);
 
 	if (!response) {
 		return;
