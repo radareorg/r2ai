@@ -207,6 +207,15 @@ R_IPI void cmd_r2ai_logs (RCore *core);
 R_API R2AI_Messages *create_conversation (const char *system_prompt, const char *user_message);
 
 /**
+ * Run a radare2 command and return the output
+ *
+ * @param core The RCore instance
+ * @param command The r2 command to run
+ * @return The command output (caller must free)
+ */
+R_API char *r2ai_r2cmd (RCore *core, const char *command);
+
+/**
  * Process messages through LLM and handle tool calls recursively
  */
 R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *system_prompt, int n_run);

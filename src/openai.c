@@ -2,8 +2,6 @@
 #include <r_util/r_json.h>
 #include "r2ai.h"
 
-#if R2_VERSION_NUMBER >= 50909
-
 R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 	const char *base_url = r_config_get (core->config, "r2ai.base_url");
 
@@ -281,5 +279,3 @@ R_IPI char *r2ai_openai_stream (RCore *core, R2AIArgs args) {
 
 	return NULL;
 }
-
-#endif

@@ -34,21 +34,6 @@ static char *format_time_duration (time_t seconds) {
 	}
 }
 
-// Helper function to strip ANSI escape codes from a string
-static char *strip_ansi_codes (const char *str) {
-	if (!str) {
-		return NULL;
-	}
-
-	char *result = strdup (str);
-	if (!result) {
-		return NULL;
-	}
-
-	r_str_ansi_strip (result);
-	return result;
-}
-
 // Initialize timing and cost tracking for a run
 static void r2ai_stats_init_run (int n_run) {
 	time_t run_start = time (NULL);
@@ -232,23 +217,10 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 
 				const char *command = command_json->str_value;
 				R_LOG_INFO ("Running command: %s", command);
-				// Format the command as JSON with proper escaping
-				char *escaped_command = r_str_escape (command);
-				if (!escaped_command) {
-					R_LOG_ERROR ("Failed to escape command for JSON");
-					r_json_free (args_json);
-					free (args_copy);
-					continue;
-				}
 
-				char *formatted_cmd = r_str_newf ("{\"cmd\":\"%s\"}", escaped_command);
-				R_LOG_INFO ("Formatted command: %s", formatted_cmd);
-				free (escaped_command);
-				free (formatted_cmd); // Free formatted_cmd to prevent memory leak
+				// Use r2cmd function to run the command
+				char *cmd_output = r2ai_r2cmd (core, command);
 
-				// Use the original command for execution, not the formatted one
-				// TODO: make it -e scr.color=0 and back to original setting
-				char *cmd_output = r_core_cmd_str (core, command);
 				if (!hide_tool_output) {
 					r_cons_printf ("%s", cmd_output);
 					r_cons_flush ();
@@ -256,25 +228,17 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 				r_json_free (args_json);
 				free (args_copy);
 
-				if (!cmd_output) {
-					cmd_output = strdup ("Command returned no output or failed");
-				}
-
-				// Strip ANSI escape codes from the output
-				char *clean_output = strip_ansi_codes (cmd_output);
-
 				// Create a tool call response message
 				R2AI_Message tool_response = {
 					.role = "tool",
 					.tool_call_id = tool_call->id,
-					.content = clean_output ? clean_output : cmd_output
+					.content = cmd_output
 				};
 
 				// Add the tool response to our messages array
 				r2ai_msgs_add (messages, &tool_response);
 
 				free (cmd_output);
-				free (clean_output);
 			}
 		}
 

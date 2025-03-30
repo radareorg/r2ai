@@ -188,8 +188,12 @@ static char *socket_http_post_with_interrupt (const char *url, const char *heade
 	signal (SIGALRM, r2ai_http_sigint_handler);
 	alarm (timeout); // Use configured timeout
 
-	// Make the request
+// Make the request
+#if R2_VERSION_NUMBER >= 50909
 	char *result = r_socket_http_post (url, headers, data, code, rlen);
+#else
+	char *result = r_socket_http_post (url, data, code, rlen);
+#endif
 
 	// Clear the alarm
 	alarm (0);
