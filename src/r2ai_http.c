@@ -212,33 +212,12 @@ static char *socket_http_post_with_interrupt (const char *url, const char *heade
 }
 
 R_API char *r2ai_http_post (const char *url, const char *headers[], const char *data, int *code, int *rlen) {
-#if HAVE_LIBCURL
-	// Get the current core instance
-	RCore *core = r_cons_singleton ()->user;
-	if (core) {
-		// Check if config exists and if curl is preferred
-		const char *backend = r_config_get (core->config, "r2ai.http.backend");
-		if (backend && !strcmp (backend, "curl")) {
-			R_LOG_INFO ("Using libcurl for HTTP request");
-			return curl_http_post (url, headers, data, code, rlen);
-		} else {
-			R_LOG_INFO ("Using r_socket for HTTP request (configured)");
-			return socket_http_post_with_interrupt (url, headers, data, code, rlen);
-		}
-	}
-
-	// Fallback to socket if config can't be accessed
-	R_LOG_INFO ("Using r_socket for HTTP request (fallback)");
-	return socket_http_post_with_interrupt (url, headers, data, code, rlen);
+#if USE_LIBCURL && HAVE_LIBCURL
+	return curl_http_post (url, headers, data, code, rlen);
 #else
-	return socket_http_post_with_interrupt (url, headers, data, code, rlen);
+#if USE_R2_CURL
+	r_sys_setenv ("R2_CURL", "1");
 #endif
-}
-
-R_API bool r2ai_http_has_curl (void) {
-#if HAVE_LIBCURL
-	return true;
-#else
-	return false;
+	return socket_http_post_with_interrupt (url, headers, data, code, rlen);
 #endif
 }

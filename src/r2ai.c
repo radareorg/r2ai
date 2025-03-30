@@ -672,8 +672,6 @@ static int r2ai_init (void *user, const char *input) {
 	r_config_set_b (core->config, "r2ai.auto.ask_to_execute", true);
 	r_config_set_b (core->config, "r2ai.auto.reset_on_query", false);
 	r_config_set_b (core->config, "r2ai.chat.show_cost", true);
-	// Configure HTTP backend preference (curl or socket)
-	r_config_set (core->config, "r2ai.http.backend", r2ai_http_has_curl () ? "curl" : "socket");
 	// Configure HTTP timeout in seconds
 	r_config_set_i (core->config, "r2ai.http.timeout", 120);
 	r_config_lock (core->config, true);
@@ -694,7 +692,6 @@ static int r2ai_fini (void *user, const char *input) {
 	r_config_rm (core->config, "r2ai.data.path");
 	r_config_rm (core->config, "r2ai.data.nth");
 	r_config_rm (core->config, "r2ai.auto.reset_on_query");
-	r_config_rm (core->config, "r2ai.http.backend");
 	r_config_rm (core->config, "r2ai.http.timeout");
 	r_config_lock (core->config, true);
 
@@ -711,7 +708,6 @@ static int r2ai_fini (void *user, const char *input) {
 
 static int r_cmd_r2ai_client (void *user, const char *input) {
 	RCore *core = (RCore *)user;
-	r_sys_setenv ("R2_CURL", "1");
 	if (r_str_startswith (input, "r2ai")) {
 		cmd_r2ai (core, r_str_trim_head_ro (input + 4));
 		return true;

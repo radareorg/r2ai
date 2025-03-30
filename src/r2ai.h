@@ -180,13 +180,6 @@ R_API void r2ai_tools_free (R2AI_Tools *tools);
  */
 R_API char *r2ai_http_post (const char *url, const char *headers[], const char *data, int *code, int *rlen);
 
-/**
- * Check if libcurl support is enabled at compile time
- *
- * @return true if libcurl is available, false otherwise
- */
-R_API bool r2ai_http_has_curl (void);
-
 // anthropic
 R_IPI R2AI_ChatResponse *r2ai_anthropic (RCore *core, R2AIArgs args);
 
