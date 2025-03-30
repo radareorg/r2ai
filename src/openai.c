@@ -4,7 +4,7 @@
 
 #if R2_VERSION_NUMBER >= 50909
 
-R_IPI R2AI_Message *r2ai_openai (RCore *core, R2AIArgs args) {
+R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 	const char *base_url = r_config_get (core->config, "r2ai.base_url");
 
 	if (R_STR_ISEMPTY (base_url)) {
@@ -26,7 +26,6 @@ R_IPI R2AI_Message *r2ai_openai (RCore *core, R2AIArgs args) {
 	}
 
 	const char *content = args.input;
-	const char *model = args.model;
 	char **error = args.error;
 	const R2AI_Tools *tools = args.tools;
 	R2AI_Messages *messages_input = args.messages;
@@ -64,14 +63,23 @@ R_IPI R2AI_Message *r2ai_openai (RCore *core, R2AIArgs args) {
 			return NULL;
 		}
 
-		// Add system message if available
-		const char *sysprompt = r_config_get (core->config, "r2ai.system");
-		if (R_STR_ISNOTEMPTY (sysprompt)) {
+		// Add system message if available from args.system_prompt
+		if (R_STR_ISNOTEMPTY (args.system_prompt)) {
 			R2AI_Message system_msg = {
 				.role = "system",
-				.content = sysprompt
+				.content = args.system_prompt
 			};
 			r2ai_msgs_add (temp_msgs, &system_msg);
+		} else {
+			// Fallback to config if args.system_prompt is not set
+			const char *sysprompt = r_config_get (core->config, "r2ai.system");
+			if (R_STR_ISNOTEMPTY (sysprompt)) {
+				R2AI_Message system_msg = {
+					.role = "system",
+					.content = sysprompt
+				};
+				r2ai_msgs_add (temp_msgs, &system_msg);
+			}
 		}
 
 		// Add user message with content
@@ -187,32 +195,48 @@ R_IPI R2AI_Message *r2ai_openai (RCore *core, R2AIArgs args) {
 	R_LOG_INFO ("OpenAI API response: %s", res);
 
 	// Parse the response into our messages structure
-	R2AI_Message *result = NULL;
+
 	char *res_copy = strdup (res);
 	RJson *jres = r_json_parse (res_copy);
 	if (jres) {
 		// Create a new message structure
-		result = R_NEW0 (R2AI_Message);
-		if (result) {
+		R2AI_Message *message = R_NEW0 (R2AI_Message);
+		R2AI_Usage *usage = R_NEW0 (R2AI_Usage);
+		if (message) {
 			// Process the response using our r2ai_msgs_from_json logic
+			const RJson *usage_json = r_json_get (jres, "usage");
+			if (usage_json && usage_json->type == R_JSON_OBJECT) {
+				const RJson *prompt_tokens = r_json_get (usage_json, "prompt_tokens");
+				const RJson *completion_tokens = r_json_get (usage_json, "completion_tokens");
+				const RJson *total_tokens = r_json_get (usage_json, "total_tokens");
+				if (prompt_tokens && prompt_tokens->type == R_JSON_INTEGER) {
+					usage->prompt_tokens = prompt_tokens->num.u_value;
+				}
+				if (completion_tokens && completion_tokens->type == R_JSON_INTEGER) {
+					usage->completion_tokens = completion_tokens->num.u_value;
+				}
+				if (total_tokens && total_tokens->type == R_JSON_INTEGER) {
+					usage->total_tokens = total_tokens->num.u_value;
+				}
+			}
 			const RJson *choices = r_json_get (jres, "choices");
 			if (choices && choices->type == R_JSON_ARRAY) {
 				const RJson *choice = r_json_item (choices, 0);
 				if (choice) {
-					const RJson *message = r_json_get (choice, "message");
-					if (message) {
-						const RJson *role = r_json_get (message, "role");
-						const RJson *content = r_json_get (message, "content");
+					const RJson *message_json = r_json_get (choice, "message");
+					if (message_json) {
+						const RJson *role = r_json_get (message_json, "role");
+						const RJson *content = r_json_get (message_json, "content");
 
 						// Set the basic message properties
-						result->role = (role && role->type == R_JSON_STRING) ? strdup (role->str_value) : strdup ("assistant");
+						message->role = (role && role->type == R_JSON_STRING) ? strdup (role->str_value) : strdup ("assistant");
 
 						if (content && content->type == R_JSON_STRING) {
-							result->content = strdup (content->str_value);
+							message->content = strdup (content->str_value);
 						}
 
 						// Handle tool calls if present
-						const RJson *tool_calls = r_json_get (message, "tool_calls");
+						const RJson *tool_calls = r_json_get (message_json, "tool_calls");
 						if (tool_calls && tool_calls->type == R_JSON_ARRAY && tool_calls->children.count > 0) {
 							int n_tool_calls = tool_calls->children.count;
 							R2AI_ToolCall *tool_calls_array = R_NEWS0 (R2AI_ToolCall, n_tool_calls);
@@ -246,8 +270,8 @@ R_IPI R2AI_Message *r2ai_openai (RCore *core, R2AIArgs args) {
 									}
 								}
 
-								result->tool_calls = tool_calls_array;
-								result->n_tool_calls = n_tool_calls;
+								message->tool_calls = tool_calls_array;
+								message->n_tool_calls = n_tool_calls;
 							}
 						}
 					}
@@ -255,12 +279,18 @@ R_IPI R2AI_Message *r2ai_openai (RCore *core, R2AIArgs args) {
 			}
 		}
 		r_json_free (jres);
+		R2AI_ChatResponse *result = R_NEW0 (R2AI_ChatResponse);
+		result->message = message;
+		result->usage = usage;
+		free (res_copy);
+		free (auth_header);
+		free (res);
+		return result;
 	}
-	free (res_copy);
 
 	free (auth_header);
 	free (res);
-	return result;
+	return NULL;
 }
 
 R_IPI char *r2ai_openai_stream (RCore *core, R2AIArgs args) {

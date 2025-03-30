@@ -32,6 +32,17 @@ typedef struct {
 	int n_tool_calls;
 } R2AI_Message;
 
+typedef struct {
+	u_int64_t prompt_tokens;
+	u_int64_t completion_tokens;
+	u_int64_t total_tokens;
+} R2AI_Usage;
+
+typedef struct {
+	const R2AI_Message *message;
+	const R2AI_Usage *usage;
+} R2AI_ChatResponse;
+
 // Messages array management
 typedef struct {
 	R2AI_Message *messages;
@@ -42,6 +53,7 @@ typedef struct {
 typedef struct {
 	const char *input;
 	const char *model;
+	const char *system_prompt; // System prompt to use
 	const R2AI_Tools *tools; // Tools structure (replacing tools_json)
 	R2AI_Messages *messages; // Array of message objects
 	const char *provider;
@@ -54,6 +66,21 @@ typedef struct {
  * Initialize a new empty messages array
  */
 R_API R2AI_Messages *r2ai_msgs_new (void);
+
+/**
+ * Initialize the conversation container (call during plugin init)
+ */
+R_API void r2ai_conversation_init (void);
+
+/**
+ * Get the conversation instance (returns NULL if not initialized)
+ */
+R_API R2AI_Messages *r2ai_conversation_get (void);
+
+/**
+ * Clear all messages in a container without freeing the container
+ */
+R_API void r2ai_msgs_clear (R2AI_Messages *msgs);
 
 /**
  * Add a message to the array
@@ -97,9 +124,20 @@ R_API char *r2ai_msgs_to_anthropic_json (const R2AI_Messages *msgs);
 R_API void r2ai_msgs_free (R2AI_Messages *msgs);
 
 /**
+ * Free the conversation (call during plugin unload)
+ */
+R_API void r2ai_conversation_free (void);
+
+/**
  * Free a R2AI_Message structure
  */
 R_API void r2ai_message_free (R2AI_Message *msg);
+
+/**
+ * Delete the last N messages from the message array
+ * If n <= 0, defaults to deleting just the last message
+ */
+R_API void r2ai_delete_last_messages (R2AI_Messages *messages, int n);
 
 /**
  * Get the global tools instance
@@ -131,25 +169,27 @@ R_API char *r2ai_tools_to_anthropic_json (const R2AI_Tools *tools);
 R_API void r2ai_tools_free (R2AI_Tools *tools);
 
 // anthropic
-R_IPI R2AI_Message *r2ai_anthropic (RCore *core, R2AIArgs args);
-R_IPI char *r2ai_anthropic_stream (RCore *core, R2AIArgs args);
+R_IPI R2AI_ChatResponse *r2ai_anthropic (RCore *core, R2AIArgs args);
+
 // openai
-R_IPI R2AI_Message *r2ai_openai (RCore *core, R2AIArgs args);
-R_IPI char *r2ai_openai_stream (RCore *core, R2AIArgs args);
-// xai
-R_IPI R2AI_Message *r2ai_xai (RCore *core, R2AIArgs args);
-R_IPI char *r2ai_xai_stream (RCore *core, R2AIArgs args);
-// openapi
-R_IPI R2AI_Message *r2ai_openapi (RCore *core, R2AIArgs args);
-R_IPI R2AI_Message *r2ai_ollama (RCore *core, R2AIArgs args);
-// gemini
-R_IPI R2AI_Message *r2ai_gemini (RCore *core, R2AIArgs args);
-R_IPI char *r2ai_gemini_stream (RCore *core, R2AIArgs args);
+R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args);
 
 // auto mode
 R_IPI void cmd_r2ai_a (RCore *core, const char *user_query);
 R_IPI char *r2ai (RCore *core, R2AIArgs args);
 
-R_IPI R2AI_Message *r2ai_llmcall (RCore *core, R2AIArgs args);
+R_IPI R2AI_ChatResponse *r2ai_llmcall (RCore *core, R2AIArgs args);
+
+R_IPI void cmd_r2ai_logs (RCore *core);
+
+/**
+ * Create a conversation with system prompt and optional user message
+ */
+R_API R2AI_Messages *create_conversation (const char *system_prompt, const char *user_message);
+
+/**
+ * Process messages through LLM and handle tool calls recursively
+ */
+R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *system_prompt, int n_run);
 
 #endif

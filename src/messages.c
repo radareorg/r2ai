@@ -2,17 +2,11 @@
 
 #include "r2ai.h"
 
+// Static global message store for session persistence
+static R2AI_Messages *conversation = NULL;
+
 #define INITIAL_CAPACITY 8
 #define GROWTH_FACTOR    1.5
-
-static void r2ai_tool_call_free (R2AI_ToolCall *tc) {
-	if (!tc) {
-		return;
-	}
-	R_FREE (tc->name);
-	R_FREE (tc->arguments);
-	R_FREE (tc->id);
-}
 
 R_API void r2ai_message_free (R2AI_Message *msg) {
 	if (!msg) {
@@ -37,6 +31,30 @@ R_API void r2ai_message_free (R2AI_Message *msg) {
 	memset (msg, 0, sizeof (R2AI_Message));
 }
 
+// Initialize conversation container (call this during plugin init)
+R_API void r2ai_conversation_init (void) {
+	if (conversation) {
+		// Already initialized
+		return;
+	}
+
+	conversation = R_NEW0 (R2AI_Messages);
+	if (!conversation) {
+		return;
+	}
+	conversation->cap_messages = INITIAL_CAPACITY;
+	conversation->messages = R_NEWS0 (R2AI_Message, conversation->cap_messages);
+	if (!conversation->messages) {
+		R_FREE (conversation);
+	}
+}
+
+// Get the conversation instance (returns NULL if not initialized)
+R_API R2AI_Messages *r2ai_conversation_get (void) {
+	return conversation;
+}
+
+// Create a new temporary messages container
 R_API R2AI_Messages *r2ai_msgs_new (void) {
 	R2AI_Messages *msgs = R_NEW0 (R2AI_Messages);
 	if (!msgs) {
@@ -56,6 +74,17 @@ R_API void r2ai_msgs_free (R2AI_Messages *msgs) {
 		return;
 	}
 
+	// Don't actually free if it's our static instance
+	if (msgs == conversation) {
+		// Just clear the messages but keep the allocated structure
+		for (int i = 0; i < msgs->n_messages; i++) {
+			r2ai_message_free (&msgs->messages[i]);
+		}
+		msgs->n_messages = 0;
+		return;
+	}
+
+	// Normal free for non-static instances
 	if (msgs->messages) {
 		for (int i = 0; i < msgs->n_messages; i++) {
 			r2ai_message_free (&msgs->messages[i]);
@@ -64,6 +93,32 @@ R_API void r2ai_msgs_free (R2AI_Messages *msgs) {
 	}
 
 	R_FREE (msgs);
+}
+
+// Free the conversation when plugin is unloaded
+R_API void r2ai_conversation_free (void) {
+	if (conversation) {
+		if (conversation->messages) {
+			for (int i = 0; i < conversation->n_messages; i++) {
+				r2ai_message_free (&conversation->messages[i]);
+			}
+			R_FREE (conversation->messages);
+		}
+		R_FREE (conversation);
+		conversation = NULL;
+	}
+}
+
+// Clear messages in a container without freeing the container itself
+R_API void r2ai_msgs_clear (R2AI_Messages *msgs) {
+	if (!msgs) {
+		return;
+	}
+
+	for (int i = 0; i < msgs->n_messages; i++) {
+		r2ai_message_free (&msgs->messages[i]);
+	}
+	msgs->n_messages = 0;
 }
 
 R_API bool r2ai_msgs_add (R2AI_Messages *msgs, const R2AI_Message *msg) {
@@ -386,4 +441,29 @@ R_API char *r2ai_msgs_to_anthropic_json (const R2AI_Messages *msgs) {
 
 	char *result = pj_drain (pj);
 	return result;
+}
+
+// Function to delete the last N messages from conversation history
+R_API void r2ai_delete_last_messages (R2AI_Messages *messages, int n) {
+	if (!messages || messages->n_messages == 0) {
+		return;
+	}
+
+	// If n is not specified or invalid, default to deleting the last message
+	if (n <= 0) {
+		n = 1;
+	}
+
+	// Make sure we don't try to delete more messages than exist
+	if (n > messages->n_messages) {
+		n = messages->n_messages;
+	}
+
+	// Free the last n messages
+	for (int i = messages->n_messages - n; i < messages->n_messages; i++) {
+		r2ai_message_free (&messages->messages[i]);
+	}
+
+	// Update the message count
+	messages->n_messages -= n;
 }

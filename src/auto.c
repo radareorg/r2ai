@@ -2,12 +2,18 @@
 #include <time.h>
 
 // Forward declaration of the r2ai_llmcall function
-extern R2AI_Message *r2ai_llmcall (RCore *core, R2AIArgs args);
+extern R2AI_ChatResponse *r2ai_llmcall (RCore *core, R2AIArgs args);
 
 // Add a global structure to track timing and costs
 typedef struct {
 	double total_cost;
 	double run_cost;
+	int total_tokens;
+	int run_tokens;
+	int total_prompt_tokens;
+	int run_prompt_tokens;
+	int total_completion_tokens;
+	int run_completion_tokens;
 	time_t start_time;
 	time_t total_start_time;
 } R2AIStats;
@@ -51,15 +57,28 @@ static void r2ai_stats_init_run (int n_run) {
 		stats.total_cost = 0.0;
 		stats.run_cost = 0.0;
 		stats.total_start_time = run_start;
+		stats.total_tokens = 0;
+		stats.run_tokens = 0;
+		stats.total_prompt_tokens = 0;
+		stats.run_prompt_tokens = 0;
+		stats.total_completion_tokens = 0;
+		stats.run_completion_tokens = 0;
 	}
 	stats.start_time = run_start;
 }
 
 // Print a simple run indicator at the start
-static void r2ai_print_run_end (RCore *core, int n_run, int max_runs) {
+static void r2ai_print_run_end (RCore *core, const R2AI_Usage *usage, int n_run, int max_runs) {
 	time_t run_time = time (NULL) - stats.start_time;
 	time_t total_time = time (NULL) - stats.total_start_time;
-
+	if (usage) {
+		stats.run_tokens = usage->total_tokens;
+		stats.run_prompt_tokens = usage->prompt_tokens;
+		stats.run_completion_tokens = usage->completion_tokens;
+		stats.total_tokens += usage->total_tokens;
+		stats.total_prompt_tokens += usage->prompt_tokens;
+		stats.total_completion_tokens += usage->completion_tokens;
+	}
 	// TODO: calculate cost
 	stats.run_cost = 0.0 * run_time;
 	stats.total_cost += stats.run_cost;
@@ -69,11 +88,14 @@ static void r2ai_print_run_end (RCore *core, int n_run, int max_runs) {
 	char *total_time_str = format_time_duration (total_time);
 
 	// Print detailed stats
-	r_cons_printf ("\x1b[1;34m%s | total: $%.10f | run: $%.10f | %d / %d | %s / %s\x1b[0m\n",
+	r_cons_printf ("\x1b[1;34m%s | total: %d in: %d out: %d | run: %d in: %d out: %d | %s / %s\x1b[0m\n",
 		r_config_get (core->config, "r2ai.model"),
-		stats.total_cost,
-		stats.run_cost,
-		n_run, max_runs,
+		stats.total_tokens,
+		stats.total_prompt_tokens,
+		stats.total_completion_tokens,
+		stats.run_tokens,
+		stats.run_prompt_tokens,
+		stats.run_completion_tokens,
 		run_time_str,
 		total_time_str);
 	r_cons_flush ();
@@ -103,7 +125,7 @@ const char *Gprompt_auto = "You are a reverse engineer and you are using radare2
 			   "- Make sure you call tools and functions correctly.\n";
 
 // Helper function to process messages and handle tool calls recursively
-static void process_messages (RCore *core, R2AI_Messages *messages, int n_run) {
+R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *system_prompt, int n_run) {
 	char *error = NULL;
 	const int max_runs = r_config_get_i (core->config, "r2ai.auto.max_runs");
 	if (n_run > max_runs) {
@@ -112,20 +134,60 @@ static void process_messages (RCore *core, R2AI_Messages *messages, int n_run) {
 		return;
 	}
 
+	// Use provided system_prompt or fallback to the default Gprompt_auto
+	if (!system_prompt) {
+		system_prompt = Gprompt_auto;
+	}
+
 	r2ai_stats_init_run (n_run);
 
+	// Create temporary messages with system prompt
+	R2AI_Messages *temp_messages = r2ai_msgs_new ();
+	if (!temp_messages) {
+		R_LOG_ERROR ("Failed to create temporary messages");
+		return;
+	}
+
+	// Add system message first
+	R2AI_Message system_msg = {
+		.role = "system",
+		.content = system_prompt
+	};
+	r2ai_msgs_add (temp_messages, &system_msg);
+
+	// Copy all messages from the conversation to the temporary container
+	for (int i = 0; i < messages->n_messages; i++) {
+		r2ai_msgs_add (temp_messages, &messages->messages[i]);
+	}
+
 	const bool hide_tool_output = r_config_get_b (core->config, "r2ai.auto.hide_tool_output");
-	const bool ask_to_execute = r_config_get_b (core->config, "r2ai.auto.ask_to_execute");
 	// Set up args for r2ai_llmcall call with tools directly
 	R2AIArgs args = {
-		.messages = messages,
+		.messages = temp_messages,
 		.error = &error,
 		.dorag = true,
-		.tools = r2ai_get_tools ()
+		.tools = r2ai_get_tools (),
+		.system_prompt = system_prompt
 	};
 
 	// Call r2ai_llmcall to get a response
-	R2AI_Message *response = r2ai_llmcall (core, args);
+	R2AI_ChatResponse *response = r2ai_llmcall (core, args);
+
+	// Free temporary messages now that we're done with them
+	r2ai_msgs_free (temp_messages);
+
+	if (!response) {
+		return;
+	}
+
+	const R2AI_Message *message = response->message;
+	const R2AI_Usage *usage = response->usage;
+
+	if (!message) {
+		R_LOG_ERROR ("No message in response");
+		free (response);
+		return;
+	}
 
 	if (!response) {
 		if (error) {
@@ -138,22 +200,22 @@ static void process_messages (RCore *core, R2AI_Messages *messages, int n_run) {
 	}
 
 	// Process the response - we need to add it to our messages array
-	if (response->content) {
-		r_cons_printf ("\x1b[1;32massistant:\x1b[0m\n%s\n", response->content);
+	if (message->content) {
+		r_cons_printf ("\x1b[1;32massistant:\x1b[0m\n%s\n", message->content);
 		r_cons_flush ();
 	}
 
 	// Add the response to our messages array
 	// This creates a copy, so we can safely free the original later
-	r2ai_msgs_add (messages, response);
+	r2ai_msgs_add (messages, message);
 
 	// Check for tool calls and process them
-	if (response->tool_calls && response->n_tool_calls > 0) {
-		R_LOG_INFO ("Found %d tool calls", response->n_tool_calls);
+	if (message->tool_calls && message->n_tool_calls > 0) {
+		R_LOG_INFO ("Found %d tool calls", message->n_tool_calls);
 
 		// Process each tool call
-		for (int i = 0; i < response->n_tool_calls; i++) {
-			const R2AI_ToolCall *tool_call = &response->tool_calls[i];
+		for (int i = 0; i < message->n_tool_calls; i++) {
+			const R2AI_ToolCall *tool_call = &message->tool_calls[i];
 			// Parse arguments JSON to get the command for printing
 			char *args_copy_for_print = strdup (tool_call->arguments);
 			RJson *args_json_for_print = r_json_parse (args_copy_for_print);
@@ -238,32 +300,29 @@ static void process_messages (RCore *core, R2AI_Messages *messages, int n_run) {
 			}
 		}
 
-		r2ai_print_run_end (core, n_run, max_runs);
-		process_messages (core, messages, n_run + 1);
+		r2ai_print_run_end (core, usage, n_run, max_runs);
+		process_messages (core, messages, system_prompt, n_run + 1);
 	} else {
-		r2ai_print_run_end (core, n_run, max_runs);
+		r2ai_print_run_end (core, usage, n_run, max_runs);
 	}
 
-	// Free the response - the strings were already copied to messages array
-	r2ai_message_free (response);
 	// Free the response struct itself since r2ai_message_free doesn't do it anymore
 	free (response);
 }
 
 R_IPI void cmd_r2ai_a (RCore *core, const char *user_query) {
-	// Create a new messages array
-	R2AI_Messages *messages = r2ai_msgs_new ();
+	// Get conversation
+	R2AI_Messages *messages = r2ai_conversation_get ();
 	if (!messages) {
-		R_LOG_ERROR ("Failed to create messages array");
+		R_LOG_ERROR ("Conversation not initialized");
 		return;
 	}
 
-	// Add system message
-	R2AI_Message system_msg = {
-		.role = "system",
-		.content = Gprompt_auto
-	};
-	r2ai_msgs_add (messages, &system_msg);
+	// Add user query to the conversation (no system prompt)
+	// If this is the first message in a new conversation, clear previous history
+	if (messages->n_messages == 0 || r_config_get_b (core->config, "r2ai.auto.reset_on_query")) {
+		r2ai_msgs_clear (messages);
+	}
 
 	// Add user query
 	R2AI_Message user_msg = {
@@ -272,9 +331,157 @@ R_IPI void cmd_r2ai_a (RCore *core, const char *user_query) {
 	};
 	r2ai_msgs_add (messages, &user_msg);
 
-	// Process messages
-	process_messages (core, messages, 1);
+	// Process messages - system prompt will be handled inside process_messages
+	process_messages (core, messages, NULL, 1);
+}
 
-	// Free messages array
-	r2ai_msgs_free (messages);
+// Helper function to display content with length indication for long content
+static void print_content_with_length (const char *content, const char *empty_msg, bool always_show_length) {
+	if (!content || *content == '\0') {
+		r_cons_printf ("%s\n", empty_msg ? empty_msg : "<no content>");
+		return;
+	}
+
+	size_t content_len = strlen (content);
+	const int max_display = 200;
+
+	if (content_len > max_display) {
+		// Truncate long content and show length
+		char *truncated = r_str_ndup (content, max_display);
+		r_cons_printf ("%s... \x1b[1;37m(length: %zu chars)\x1b[0m\n",
+			truncated, content_len);
+		free (truncated);
+	} else if (always_show_length) {
+		// Always show length for certain types (like tool responses)
+		r_cons_printf ("%s \x1b[1;37m(length: %zu chars)\x1b[0m\n",
+			content, content_len);
+	} else {
+		r_cons_printf ("%s\n", content);
+	}
+}
+
+// Add this function right after cmd_r2ai_a
+R_IPI void cmd_r2ai_logs (RCore *core) {
+	// Get conversation
+	R2AI_Messages *messages = r2ai_conversation_get ();
+	if (!messages || messages->n_messages == 0) {
+		r_cons_printf ("No conversation history available\n");
+		return;
+	}
+
+	const char *input = r_core_cmd_str (core, "r2ai");
+	bool json_mode = input && strstr (input, "-Lj");
+	free ((char *)input);
+
+	if (json_mode) {
+		PJ *pj = pj_new ();
+		if (!pj) {
+			return;
+		}
+
+		pj_a (pj);
+
+		for (int i = 0; i < messages->n_messages; i++) {
+			const R2AI_Message *msg = &messages->messages[i];
+
+			pj_o (pj);
+
+			pj_ks (pj, "role", msg->role ? msg->role : "unknown");
+			pj_ks (pj, "content", msg->content ? msg->content : "");
+
+			if (msg->tool_calls && msg->n_tool_calls > 0) {
+				pj_ka (pj, "tool_calls");
+
+				for (int j = 0; j < msg->n_tool_calls; j++) {
+					const R2AI_ToolCall *tc = &msg->tool_calls[j];
+
+					pj_o (pj);
+
+					if (tc->name)
+						pj_ks (pj, "name", tc->name);
+					if (tc->arguments)
+						pj_ks (pj, "arguments", tc->arguments);
+
+					pj_end (pj);
+				}
+
+				pj_end (pj);
+			}
+
+			pj_end (pj);
+		}
+
+		pj_end (pj);
+
+		char *json_str = pj_drain (pj);
+		r_cons_printf ("%s\n", json_str);
+		free (json_str);
+
+		return;
+	}
+
+	r_cons_printf ("\x1b[1;34m[r2ai] Chat Logs (%d messages)\x1b[0m\n",
+		messages->n_messages);
+
+	r_cons_printf ("\x1b[1;33mNote: System prompt is applied automatically but not stored in history\x1b[0m\n\n");
+
+	// Display each message in the conversation
+	for (int i = 0; i < messages->n_messages; i++) {
+		const R2AI_Message *msg = &messages->messages[i];
+		const char *role = msg->role;
+
+		// Format based on role
+		if (!strcmp (role, "user")) {
+			r_cons_printf ("\x1b[1;32m[user]:\x1b[0m ");
+			print_content_with_length (msg->content, "<no content>", false);
+		} else if (!strcmp (role, "assistant")) {
+			r_cons_printf ("\x1b[1;36m[assistant]:\x1b[0m ");
+			print_content_with_length (msg->content, "<no content>", false);
+
+			// Show tool calls if present
+			if (msg->tool_calls && msg->n_tool_calls > 0) {
+				for (int j = 0; j < msg->n_tool_calls; j++) {
+					const R2AI_ToolCall *tc = &msg->tool_calls[j];
+					r_cons_printf ("  \x1b[1;35m[tool call]:\x1b[0m %s\n",
+						tc->name ? tc->name : "<unnamed>");
+
+					if (tc->arguments) {
+						r_cons_printf ("    %s\n", tc->arguments);
+					}
+				}
+			}
+		} else if (!strcmp (role, "tool")) {
+			r_cons_printf ("\x1b[1;35m[tool]:\x1b[0m ");
+			print_content_with_length (msg->content, "<no result>", true);
+
+			// Don't show the tool call ID as requested
+		} else {
+			// Other roles (system, etc.)
+			r_cons_printf ("\x1b[1;37m[%s]:\x1b[0m ", role);
+			print_content_with_length (msg->content, "<no content>", false);
+		}
+
+		// Add a blank line between messages for readability
+		r_cons_printf ("\n");
+	}
+}
+
+// Create a conversation with optional initial user message
+R_API R2AI_Messages *create_conversation (const char *system_prompt, const char *user_message) {
+	// Create a temporary message container (not using static storage)
+	R2AI_Messages *msgs = r2ai_msgs_new ();
+	if (!msgs) {
+		return NULL;
+	}
+
+	// Add user message if provided (no system message - that's added during processing)
+	if (user_message) {
+		R2AI_Message user_msg = {
+			.role = "user",
+			.content = user_message
+		};
+		r2ai_msgs_add (msgs, &user_msg);
+	}
+
+	return msgs;
 }
