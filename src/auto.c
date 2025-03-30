@@ -34,21 +34,6 @@ static char *format_time_duration (time_t seconds) {
 	}
 }
 
-// Helper function to strip ANSI escape codes from a string
-static char *strip_ansi_codes (const char *str) {
-	if (!str) {
-		return NULL;
-	}
-
-	char *result = strdup (str);
-	if (!result) {
-		return NULL;
-	}
-
-	r_str_ansi_strip (result);
-	return result;
-}
-
 // Initialize timing and cost tracking for a run
 static void r2ai_stats_init_run (int n_run) {
 	time_t run_start = time (NULL);
@@ -141,29 +126,10 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 
 	r2ai_stats_init_run (n_run);
 
-	// Create temporary messages with system prompt
-	R2AI_Messages *temp_messages = r2ai_msgs_new ();
-	if (!temp_messages) {
-		R_LOG_ERROR ("Failed to create temporary messages");
-		return;
-	}
-
-	// Add system message first
-	R2AI_Message system_msg = {
-		.role = "system",
-		.content = system_prompt
-	};
-	r2ai_msgs_add (temp_messages, &system_msg);
-
-	// Copy all messages from the conversation to the temporary container
-	for (int i = 0; i < messages->n_messages; i++) {
-		r2ai_msgs_add (temp_messages, &messages->messages[i]);
-	}
-
 	const bool hide_tool_output = r_config_get_b (core->config, "r2ai.auto.hide_tool_output");
 	// Set up args for r2ai_llmcall call with tools directly
 	R2AIArgs args = {
-		.messages = temp_messages,
+		.messages = messages,
 		.error = &error,
 		.dorag = true,
 		.tools = r2ai_get_tools (),
@@ -172,9 +138,6 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 
 	// Call r2ai_llmcall to get a response
 	R2AI_ChatResponse *response = r2ai_llmcall (core, args);
-
-	// Free temporary messages now that we're done with them
-	r2ai_msgs_free (temp_messages);
 
 	if (!response) {
 		return;
@@ -254,23 +217,10 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 
 				const char *command = command_json->str_value;
 				R_LOG_INFO ("Running command: %s", command);
-				// Format the command as JSON with proper escaping
-				char *escaped_command = r_str_escape (command);
-				if (!escaped_command) {
-					R_LOG_ERROR ("Failed to escape command for JSON");
-					r_json_free (args_json);
-					free (args_copy);
-					continue;
-				}
 
-				char *formatted_cmd = r_str_newf ("{\"cmd\":\"%s\"}", escaped_command);
-				R_LOG_INFO ("Formatted command: %s", formatted_cmd);
-				free (escaped_command);
-				free (formatted_cmd); // Free formatted_cmd to prevent memory leak
+				// Use r2cmd function to run the command
+				char *cmd_output = r2ai_r2cmd (core, command);
 
-				// Use the original command for execution, not the formatted one
-				// TODO: make it -e scr.color=0 and back to original setting
-				char *cmd_output = r_core_cmd_str (core, command);
 				if (!hide_tool_output) {
 					r_cons_printf ("%s", cmd_output);
 					r_cons_flush ();
@@ -278,25 +228,17 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 				r_json_free (args_json);
 				free (args_copy);
 
-				if (!cmd_output) {
-					cmd_output = strdup ("Command returned no output or failed");
-				}
-
-				// Strip ANSI escape codes from the output
-				char *clean_output = strip_ansi_codes (cmd_output);
-
 				// Create a tool call response message
 				R2AI_Message tool_response = {
 					.role = "tool",
 					.tool_call_id = tool_call->id,
-					.content = clean_output ? clean_output : cmd_output
+					.content = cmd_output
 				};
 
 				// Add the tool response to our messages array
 				r2ai_msgs_add (messages, &tool_response);
 
 				free (cmd_output);
-				free (clean_output);
 			}
 		}
 

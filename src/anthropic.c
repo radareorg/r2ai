@@ -1,7 +1,5 @@
 #include "r2ai.h"
 
-#if R2_VERSION_NUMBER >= 50909
-
 static const char *modelname (const char *model_name) {
 	return model_name ? model_name : "claude-3-7-sonnet-20250219";
 }
@@ -101,7 +99,7 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic (RCore *core, R2AIArgs args) {
 
 	// Make the API call
 	int code = 0;
-	char *res = r_socket_http_post (anthropic_url, headers, data, &code, NULL);
+	char *res = r2ai_http_post (anthropic_url, headers, data, &code, NULL);
 	free (data);
 	free (auth_header);
 
@@ -122,7 +120,15 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic (RCore *core, R2AIArgs args) {
 	R_LOG_INFO ("Anthropic API response: %s", res);
 
 	// Parse the response
-	R2AI_ChatResponse *result = NULL;
+	R2AI_ChatResponse *result = R_NEW0 (R2AI_ChatResponse);
+	if (!result) {
+		free (res);
+		if (error) {
+			*error = strdup ("Failed to allocate memory for response");
+		}
+		return NULL;
+	}
+
 	R2AI_Message *message = NULL;
 	R2AI_Usage *usage = NULL;
 
@@ -287,10 +293,13 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic (RCore *core, R2AIArgs args) {
 			r_json_free (jres);
 		}
 		free (response_copy);
-		result->message = message;
-		result->usage = usage;
 	}
 
+	// Assign message and usage to result
+	result->message = message;
+	result->usage = usage;
+
+	// Free the HTTP response body
 	free (res);
 	return result;
 }
@@ -299,5 +308,3 @@ R_IPI char *r2ai_anthropic_stream (RCore *core, R2AIArgs args) {
 	// Not implemented yet
 	return NULL;
 }
-
-#endif

@@ -6,12 +6,23 @@ CFLAGS+=-I. -fPIC
 CFLAGS+=-Wall
 CFLAGS+=-g
 
+# Check if libcurl is available
+HAVE_LIBCURL=$(shell pkg-config --exists libcurl && echo 1 || echo 0)
+ifeq ($(HAVE_LIBCURL),1)
+  CFLAGS+=$(shell pkg-config --cflags libcurl)
+  LDFLAGS+=$(shell pkg-config --libs libcurl)
+  CFLAGS+=-DHAVE_LIBCURL=1
+else
+  CFLAGS+=-DHAVE_LIBCURL=0
+endif
+
 OBJS=r2ai.o
 OBJS+=auto.o
 OBJS+=vdb.o
 OBJS+=tools.o
 OBJS+=messages.o
 OBJS+=anthropic.o
+OBJS+=r2ai_http.o
 # OBJS+=gemini.o
 OBJS+=openai.o
 # OBJS+=openapi.o
