@@ -59,7 +59,10 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -M", "show suggested models for each api",
 	"r2ai", " -n", "suggest a better name for the current function",
 	"r2ai", " -r", "enter the repl",
-	"r2ai", " -R ([text])", "refresh and query embeddings (see r2ai.data)",
+	"r2ai", " -Rq ([text])", "refresh and query embeddings (see r2ai.data)",
+	"r2ai", " -L", "show chat logs (See -Lj for json)",
+	"r2ai", " -L-[N]", "delete the last (or N last messages from the chat history)",
+	"r2ai", " -R", "reset the chat conversation context",
 	"r2ai", " -s", "function signature",
 	"r2ai", " -x", "explain current function",
 	"r2ai", " -v", "suggest better variables names and types",
@@ -112,8 +115,8 @@ static char *rag (RCore *core, const char *content, const char *prompt) {
 	return r;
 }
 
-R_IPI R2AI_Message *r2ai_llmcall (RCore *core, R2AIArgs args) {
-	R2AI_Message *res = NULL;
+R_IPI R2AI_ChatResponse *r2ai_llmcall (RCore *core, R2AIArgs args) {
+	R2AI_ChatResponse *res = NULL;
 	const char *provider = r_config_get (core->config, "r2ai.api");
 	if (!provider) {
 		provider = "gemini";
@@ -147,6 +150,11 @@ R_IPI R2AI_Message *r2ai_llmcall (RCore *core, R2AIArgs args) {
 		args.api_key = api_key;
 	}
 
+	// Set system_prompt from config if it's not already set
+	if (!args.system_prompt) {
+		args.system_prompt = r_config_get (core->config, "r2ai.system");
+	}
+
 	R_LOG_INFO ("Using provider: %s", provider);
 	if (strcmp (provider, "anthropic") == 0) {
 		res = r2ai_anthropic (core, args);
@@ -165,8 +173,13 @@ R_IPI char *r2ai (RCore *core, R2AIArgs args) {
 		return NULL;
 	}
 
+	// Set system_prompt from config if it's not already set
+	if (!args.system_prompt) {
+		args.system_prompt = r_config_get (core->config, "r2ai.system");
+	}
+
 	// Call the r2ai_llmcall function to get the message
-	R2AI_Message *res = r2ai_llmcall (core, args);
+	R2AI_ChatResponse *res = r2ai_llmcall (core, args);
 	if (!res) {
 		return NULL;
 	}
@@ -175,13 +188,18 @@ R_IPI char *r2ai (RCore *core, R2AIArgs args) {
 	char *content = NULL;
 
 	// If content is present in the result message, use it
-	if (res->content) {
-		content = strdup (res->content);
+	if (res->message) {
+		if (res->message->content) {
+			content = strdup (res->message->content);
+		}
 	}
 
 	// Free the message properly using r2ai_message_free
-	r2ai_message_free (res);
-	// Free the message struct itself
+	if (res->message) {
+		r2ai_message_free ((R2AI_Message *)res->message);
+	}
+
+	// Free the response struct itself
 	free (res);
 
 	return content;
@@ -249,18 +267,23 @@ static void cmd_r2ai_x (RCore *core) {
 	const char *hlang = r_config_get (core->config, "r2ai.hlang");
 	char *explain_prompt = r_str_newf ("Analyze function calls, comments and strings, ignore registers and memory accesess. Considering the references and involved loops make explain the purpose of this function in one or two short sentences. Output must be only the translation of the explanation in %s", hlang);
 	char *s = r_core_cmd_str (core, "r2ai -d");
-	char *error = NULL;
-	char *q = r_str_newf ("%s\n[CODE]\n%s\n[/CODE]\n", explain_prompt, s);
-	char *res = r2ai (core, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
-	free (s);
-	if (error) {
-		R_LOG_ERROR (error);
-		free (error);
-	} else {
-		r_cons_printf ("%s\n", res);
+
+	// Create conversation
+	R2AI_Messages *msgs = create_conversation (NULL, s);
+	if (!msgs) {
+		R_LOG_ERROR ("Failed to create conversation");
+		free (s);
+		free (explain_prompt);
+		return;
 	}
-	free (res);
-	free (q);
+
+	// Process the conversation with custom system prompt (will print the result)
+	process_messages (core, msgs, explain_prompt, 1);
+
+	// Free temporary messages
+	r2ai_msgs_free (msgs);
+
+	free (s);
 	free (explain_prompt);
 }
 
@@ -531,6 +554,19 @@ static void cmd_r2ai (RCore *core, const char *input) {
 		}
 	} else if (r_str_startswith (input, "-a")) {
 		cmd_r2ai_a (core, r_str_trim_head_ro (input + 2));
+	} else if (r_str_startswith (input, "-L-")) {
+		const char *arg = r_str_trim_head_ro (input + 3);
+		const int N = atoi (arg);
+		R2AI_Messages *messages = r2ai_conversation_get ();
+		if (!messages || messages->n_messages == 0) {
+			r_cons_printf ("No conversation history available\n");
+		} else {
+			r2ai_delete_last_messages (messages, N);
+			r_cons_printf ("Deleted %d message%s from chat history\n",
+				N > 0 ? N : 1, (N > 0 && N != 1) ? "s" : "");
+		}
+	} else if (r_str_startswith (input, "-L")) {
+		cmd_r2ai_logs (core);
 	} else if (r_str_startswith (input, "-d")) {
 		cmd_r2ai_d (core, r_str_trim_head_ro (input + 2), false);
 	} else if (r_str_startswith (input, "-dr")) {
@@ -571,7 +607,19 @@ static void cmd_r2ai (RCore *core, const char *input) {
 	} else if (r_str_startswith (input, "-r")) {
 		cmd_r2ai_repl (core);
 	} else if (r_str_startswith (input, "-R")) {
-		cmd_r2ai_R (core, r_str_trim_head_ro (input + 2));
+		if (strlen (input) <= 2 || input[2] == ' ' || input[2] == '\t' || input[2] == '\n') {
+			R2AI_Messages *messages = r2ai_conversation_get ();
+			if (!messages || messages->n_messages == 0) {
+				r_cons_printf ("No conversation history to reset\n");
+			} else {
+				r2ai_msgs_clear (messages);
+				r_cons_printf ("Chat conversation context has been reset\n");
+			}
+		} else {
+			cmd_r2ai_R (core, r_str_trim_head_ro (input + 2));
+		}
+	} else if (r_str_startswith (input, "-Rq")) {
+		cmd_r2ai_R (core, r_str_trim_head_ro (input + 3));
 	} else if (r_str_startswith (input, "-M")) {
 		cmd_r2ai_M (core);
 	} else if (r_str_startswith (input, "-m")) {
@@ -595,6 +643,10 @@ static void cmd_r2ai (RCore *core, const char *input) {
 static int r2ai_init (void *user, const char *input) {
 	RCmd *cmd = (RCmd *)user;
 	RCore *core = cmd->data;
+
+	// Initialize conversation container
+	r2ai_conversation_init ();
+
 	r_config_lock (core->config, false);
 	r_config_set (core->config, "r2ai.api", "ollama");
 	r_config_set (core->config, "r2ai.model", ""); // "qwen2.5-coder:3b"); // qwen2.5-4km");
@@ -613,6 +665,7 @@ static int r2ai_init (void *user, const char *input) {
 	r_config_set_b (core->config, "r2ai.auto.hide_tool_output", false);
 	r_config_set (core->config, "r2ai.auto.init_commands", "aaa;iI;afl");
 	r_config_set_b (core->config, "r2ai.auto.ask_to_execute", true);
+	r_config_set_b (core->config, "r2ai.auto.reset_on_query", false);
 	r_config_set_b (core->config, "r2ai.chat.show_cost", true);
 	r_config_lock (core->config, true);
 	return true;
@@ -631,7 +684,17 @@ static int r2ai_fini (void *user, const char *input) {
 	r_config_rm (core->config, "r2ai.data");
 	r_config_rm (core->config, "r2ai.data.path");
 	r_config_rm (core->config, "r2ai.data.nth");
+	r_config_rm (core->config, "r2ai.auto.reset_on_query");
 	r_config_lock (core->config, true);
+
+	// Free the conversation
+	r2ai_conversation_free ();
+
+	// Free the vector database if we have one
+	if (db) {
+		r_vdb_free (db);
+		db = NULL;
+	}
 	return true;
 }
 
