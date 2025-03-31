@@ -278,6 +278,50 @@ R_API char *r2ai_r2cmd (RCore *core, RJson *args, bool hide_tool_output) {
 		return strdup ("{ \"res\":\"You are already in r2!\" }");
 	}
 
+	bool ask_to_execute = r_config_get_b (core->config, "r2ai.auto.ask_to_execute");
+	char *edited_command = NULL;
+	
+	if (ask_to_execute) {
+		// Check if command contains newlines to determine if it's multi-line
+		bool is_multiline = strchr(command, '\n') != NULL;
+		
+		if (is_multiline) {
+			// Use editor for multi-line commands
+			edited_command = strdup(command);
+			R_LOG_INFO ("Editing multi-line command");
+			r_cons_editor (NULL, edited_command);
+			command = edited_command;
+		} else {
+			R_LOG_INFO ("Editing single-line command");
+			// For single-line commands, push the command to input buffer
+			r_cons_printf("\x1b[31m[edit cmd]>\x1b[0m ");
+			r_cons_flush();
+			
+			// Push the command to the input buffer
+			r_cons_readpush(command, strlen(command));
+			r_cons_readpush("\x05", 1); // Ctrl+E - move to end
+			
+			// Get user input with command pre-filled
+			const char *readline_result = r_line_readline();
+			
+			// Check if interrupted or ESC pressed (readline_result is NULL or empty)
+			if (r_cons_is_breaked() || !readline_result || !*readline_result) {
+				R_LOG_INFO ("Command execution cancelled %s", readline_result);
+				return strdup("R2AI_SIGINT");
+			}
+			
+			// Process the result
+			if (readline_result && *readline_result) {
+				edited_command = strdup(readline_result);
+				command = edited_command;
+			} else {
+				// If user just pressed enter, keep the original command
+				edited_command = strdup(command);
+				command = edited_command;
+			}
+		}
+	}
+
 	if(!hide_tool_output) {	
 		char *red_command = r_str_newf ("\x1b[31m%s\x1b[0m\n", command);
 		r_cons_write (red_command, strlen (red_command));
@@ -287,11 +331,15 @@ R_API char *r2ai_r2cmd (RCore *core, RJson *args, bool hide_tool_output) {
 
 	char *json_cmd = to_cmd (command);
 	if (!json_cmd) {
+		free(edited_command); // Free edited_command if allocated
 		return strdup ("{ \"res\":\"Failed to create JSON command\" }");
 	}
 
 	char *cmd_output = r_core_cmd_str (core, json_cmd);
 	free (json_cmd);
+	
+	// Free edited_command if we allocated it
+	free(edited_command);
 
 	if (!cmd_output) {
 		return strdup ("{ \"res\":\"Command returned no output or failed\" }");
@@ -320,15 +368,65 @@ R_API char *r2ai_qjs (RCore *core, RJson *args, bool hide_tool_output) {
 	if (!script_json->str_value) {
 		return strdup ("{ \"res\":\"Script value is NULL or empty\" }");
 	}
+	
+	bool ask_to_execute = r_config_get_b (core->config, "r2ai.auto.ask_to_execute");
+	const char *script = script_json->str_value;
+	char *edited_script = NULL;
+	
+	if (ask_to_execute) {
+		// Check if script contains newlines to determine if it's multi-line
+		bool is_multiline = strchr(script, '\n') != NULL;
+		
+		if (is_multiline) {
+			// Use editor for multi-line scripts
+			R_LOG_INFO ("Editing multi-line script");
+			edited_script = strdup(script);
+			r_cons_editor (NULL, edited_script);
+			script = edited_script;
+		} else {
+			R_LOG_INFO ("Editing single-line script");
+			// For single-line scripts, push the script to input buffer
+			r_cons_printf("\x1b[31m[edit js]>\x1b[0m ");
+			r_cons_flush();
+			
+			// Push the script to the input buffer
+			r_cons_readpush(script, strlen(script));
+			r_cons_readpush("\x05", 1); // Ctrl+E - move to end
+			
+			// Get user input with script pre-filled
+			const char *readline_result = r_line_readline();
+			
+			// Check if interrupted or ESC pressed (readline_result is NULL or empty)
+			if (r_cons_is_breaked() || !readline_result || !*readline_result) {
+				free(edited_script); // Free if already allocated
+				return strdup("R2AI_SIGINT");
+			}
+			
+			// Process the result
+			if (readline_result && *readline_result) {
+				edited_script = strdup(readline_result);
+				script = edited_script;
+			} else {
+				// If user just pressed enter, keep the original script
+				edited_script = strdup(script);
+				script = edited_script;
+			}
+		}
+	}
+	
 	if(!hide_tool_output) {
-		char *print_script = r_str_newf ("\n```js\n%s\n```", script_json->str_value);
+		char *print_script = r_str_newf ("\n```js\n%s\n```", script);
 		char *print_script_rendered = r2ai_markdown (print_script);
 		r_cons_write (print_script_rendered, strlen (print_script_rendered));
 		r_cons_flush ();
 		free (print_script);
 		free (print_script_rendered);
 	}
-	char *payload = r_str_newf ("var console = { log:r2log, warn:r2log, info:r2log, error:r2log, debug:r2log };%s", script_json->str_value);
+	char *payload = r_str_newf ("var console = { log:r2log, warn:r2log, info:r2log, error:r2log, debug:r2log };%s", script);
+	
+	// Free edited_script after we're done using it
+	free(edited_script);
+	
 	R_LOG_DEBUG ("Payload length: %d", (int)strlen(payload));
 	
 	if (!payload) {
@@ -355,7 +453,7 @@ R_API char *r2ai_qjs (RCore *core, RJson *args, bool hide_tool_output) {
 	char *cmd_output = r_core_cmd_str (core, json_cmd);
 	free (json_cmd);
 	free (cmd);
-
+	
 	return cmd_output;
 }
 
@@ -376,7 +474,6 @@ R_API char *execute_tool (RCore *core, const char *tool_name, const char *args) 
 		return r_str_newf ("Failed to parse arguments: %s", args);
 	}
 
-
 	bool hide_tool_output = r_config_get_b (core->config, "r2ai.auto.hide_tool_output");
 
 	char *print_name = r_str_newf ("\x1b[1;32m\x1b[4m[%s]>\x1b[0m ", tool_name);
@@ -385,14 +482,22 @@ R_API char *execute_tool (RCore *core, const char *tool_name, const char *args) 
 
 	free (print_name);
 	char *tool_result = NULL;
+	
 	if (strcmp (tool_name, "r2cmd") == 0) {
 		tool_result = r2ai_r2cmd (core, args_json, hide_tool_output);
-	}
-
-	if (strcmp (tool_name, "execute_js") == 0) {
+	} else if (strcmp (tool_name, "execute_js") == 0) {
 		tool_result = r2ai_qjs (core, args_json, hide_tool_output);
+	} else {
+		tool_result = strdup("{ \"res\":\"Unknown tool\" }");
 	}
-// Try to parse as JSON (equivalent to json.loads in Python)
+	
+	// Check for interruption after executing the tool
+	if (tool_result && strcmp(tool_result, "R2AI_SIGINT") == 0) {
+		free(tool_result);
+		return strdup("R2AI_SIGINT");
+	}
+	
+	// Try to parse as JSON (equivalent to json.loads in Python)
 	char *result = NULL;
 	RJson *json = r_json_parse (tool_result);
 

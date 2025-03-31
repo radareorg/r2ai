@@ -112,6 +112,7 @@ const char *Gprompt_auto = "You are a reverse engineer and you are using radare2
 // Helper function to process messages and handle tool calls recursively
 R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *system_prompt, int n_run) {
 	char *error = NULL;
+	bool interrupted = false;
 	const int max_runs = r_config_get_i (core->config, "r2ai.auto.max_runs");
 	if (n_run > max_runs) {
 		r_cons_printf ("\x1b[1;31m[r2ai] Max runs reached\x1b[0m\n");
@@ -134,7 +135,7 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 		.tools = r2ai_get_tools (),
 		.system_prompt = system_prompt
 	};
-
+	
 	// Call r2ai_llmcall to get a response
 	R2AI_ChatResponse *response = r2ai_llmcall (core, args);
 
@@ -148,16 +149,6 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 	if (!message) {
 		R_LOG_ERROR ("No message in response");
 		free (response);
-		return;
-	}
-
-	if (!response) {
-		if (error) {
-			R_LOG_ERROR ("Error: %s", error);
-			free (error);
-		} else {
-			R_LOG_ERROR ("Unknown error occurred");
-		}
 		return;
 	}
 
@@ -195,9 +186,24 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 				free (tool_args);
 				continue;
 			}
-			char *cmd_output = execute_tool (core, tool_name, tool_args);
+			
+			char *cmd_output = NULL;
+			if (interrupted) {
+				cmd_output = strdup("<user interrupted>");
+			} else {
+				cmd_output = execute_tool (core, tool_name, tool_args);
+			}
+
 			free (tool_name);
 			free (tool_args);
+			if (strcmp(cmd_output, "R2AI_SIGINT") == 0) {
+				r_cons_printf("\n\n\x1b[1;31m[r2ai] Processing interrupted after tool execution\x1b[0m\n\n");
+				r_cons_flush();
+				free (cmd_output);
+				cmd_output = strdup("<user interrupted>");
+				interrupted = true;
+			}
+
 			// Create a tool call response message
 			R2AI_Message tool_response = {
 				.role = "tool",
@@ -207,12 +213,15 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 
 			// Add the tool response to our messages array
 			r2ai_msgs_add (messages, &tool_response);
-
 			free (cmd_output);
 		}
 
 		r2ai_print_run_end (core, usage, n_run, max_runs);
-		process_messages (core, messages, system_prompt, n_run + 1);
+
+		// Check if we should continue with recursion
+		if (!interrupted && message->tool_calls && message->n_tool_calls > 0) {
+			process_messages (core, messages, system_prompt, n_run + 1);
+		}
 	} else {
 		r2ai_print_run_end (core, usage, n_run, max_runs);
 	}
@@ -242,7 +251,6 @@ R_IPI void cmd_r2ai_a (RCore *core, const char *user_query) {
 	};
 	r2ai_msgs_add (messages, &user_msg);
 
-	// Process messages - system prompt will be handled inside process_messages
 	process_messages (core, messages, NULL, 1);
 }
 
