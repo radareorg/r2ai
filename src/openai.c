@@ -20,6 +20,10 @@ R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 			base_url = "http://127.0.0.1:11434";
 		} else if (strcmp (args.provider, "openrouter") == 0) {
 			base_url = "https://openrouter.ai/api/v1";
+		} else if (strcmp (args.provider, "groq") == 0) {
+			base_url = "https://api.groq.com/openai/v1";
+		} else if (strcmp (args.provider, "mistral") == 0) {
+			base_url = "https://api.mistral.ai/v1";
 		}
 	}
 
