@@ -31,11 +31,8 @@ OBJS+=tools.o
 OBJS+=messages.o
 OBJS+=anthropic.o
 OBJS+=r2ai_http.o
-# OBJS+=gemini.o
 OBJS+=openai.o
-# OBJS+=openapi.o
-# OBJS+=ollama.o
-# OBJS+=xai.o
+OBJS+=markdown.o
 
 all: $(OBJS) r2check
 	$(CC) -fPIC -shared -o r2ai.$(EXT) $(OBJS) $(CFLAGS) $(LDFLAGS)
