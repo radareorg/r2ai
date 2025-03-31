@@ -163,12 +163,10 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 
 	// Process the response - we need to add it to our messages array
 	if (message->content) {
-		char *md = r_str_newf ("# Assistant\n\n%s", message->content);
-		char *md_rendered = r2ai_markdown (md);
-		r_cons_printf ("%s", md_rendered);
+		char *assistant_msg = r_str_newf ("\x1b[31m[Assistant]\x1b[0m\n\n%s\n", message->content);
+		r_cons_printf ("%s", assistant_msg);
 		r_cons_flush ();
-		free (md_rendered);
-		free (md);
+		free (assistant_msg);
 	}
 
 	// Add the response to our messages array

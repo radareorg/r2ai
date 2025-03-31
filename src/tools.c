@@ -276,8 +276,10 @@ R_API char *r2ai_r2cmd (RCore *core, RJson *args, bool hide_tool_output) {
 	}
 
 	if(!hide_tool_output) {	
-		r_cons_write (command, strlen (command));
+		char *red_command = r_str_newf ("\x1b[31m%s\x1b[0m\n", command);
+		r_cons_write (red_command, strlen (red_command));
 		r_cons_flush ();
+		free (red_command);
 	}
 
 	char *json_cmd = to_cmd (command);
@@ -374,8 +376,9 @@ R_API char *execute_tool (RCore *core, const char *tool_name, const char *args) 
 
 	bool hide_tool_output = r_config_get_b (core->config, "r2ai.auto.hide_tool_output");
 
-	char *print_name = r_str_newf ("\x1b[1;32m> \x1b[4m%s\x1b[0m", tool_name);
+	char *print_name = r_str_newf ("\x1b[1;32m\x1b[4m[%s]>\x1b[0m ", tool_name);
 	r_cons_write (print_name, strlen (print_name));
+	r_cons_flush ();
 
 	free (print_name);
 	char *tool_result = NULL;
