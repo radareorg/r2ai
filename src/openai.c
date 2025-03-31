@@ -36,7 +36,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 
 	// Add system message if available from args.system_prompt
 	if (R_STR_ISNOTEMPTY (args.system_prompt)) {
-		R_LOG_INFO ("Using system prompt: %s", args.system_prompt);
+		R_LOG_DEBUG ("Using system prompt: %s", args.system_prompt);
 		R2AI_Message system_msg = {
 			.role = "system",
 			.content = args.system_prompt
@@ -46,7 +46,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 		// Fallback to config if args.system_prompt is not set
 		const char *sysprompt = r_config_get (core->config, "r2ai.system");
 		if (R_STR_ISNOTEMPTY (sysprompt)) {
-			R_LOG_INFO ("Using system prompt from config: %s", sysprompt);
+			R_LOG_DEBUG ("Using system prompt from config: %s", sysprompt);
 			R2AI_Message system_msg = {
 				.role = "system",
 				.content = sysprompt
@@ -60,13 +60,13 @@ R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 		r2ai_msgs_add (temp_msgs, &args.messages->messages[i]);
 	}
 	// print the role of the first message
-	R_LOG_INFO ("First message role: %s", temp_msgs->messages[0].role);
+	R_LOG_DEBUG ("First message role: %s", temp_msgs->messages[0].role);
 	if (error) {
 		*error = NULL;
 	}
 
 	char *auth_header = r_str_newf ("Authorization: Bearer %s", args.api_key);
-	R_LOG_INFO ("Auth header: %s", auth_header);
+	R_LOG_DEBUG ("Auth header: %s", auth_header);
 	const char *headers[] = { "Content-Type: application/json", auth_header, NULL };
 	const char *openai_url = r_str_newf ("%s/chat/completions", base_url);
 
@@ -74,7 +74,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 	char *messages_json = NULL;
 
 	if (temp_msgs && temp_msgs->n_messages > 0) {
-		R_LOG_INFO ("Using input messages: %d messages", temp_msgs->n_messages);
+		R_LOG_DEBUG ("Using input messages: %d messages", temp_msgs->n_messages);
 		messages_json = r2ai_msgs_to_json (temp_msgs);
 		if (!messages_json) {
 			if (error) {
@@ -151,8 +151,8 @@ R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 
 	// Save the full JSON to a file for inspection
 	r_file_dump ("/tmp/r2ai_openai_request.json", (const ut8 *)complete_json, strlen (complete_json), 0);
-	R_LOG_INFO ("Full request saved to /tmp/r2ai_openai_request.json");
-	R_LOG_INFO ("OpenAI API request data: %s", complete_json);
+	R_LOG_DEBUG ("Full request saved to /tmp/r2ai_openai_request.json");
+	R_LOG_DEBUG ("OpenAI API request data: %s", complete_json);
 
 	// Make the API call
 	char *res = NULL;
@@ -172,8 +172,8 @@ R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 
 	// Save the response for inspection
 	r_file_dump ("/tmp/r2ai_openai_response.json", (const ut8 *)res, strlen (res), 0);
-	R_LOG_INFO ("OpenAI API response saved to /tmp/r2ai_openai_response.json");
-	R_LOG_INFO ("OpenAI API response: %s", res);
+	R_LOG_DEBUG ("OpenAI API response saved to /tmp/r2ai_openai_response.json");
+	R_LOG_DEBUG ("OpenAI API response: %s", res);
 
 	// Parse the response into our messages structure
 

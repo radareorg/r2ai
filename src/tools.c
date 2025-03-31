@@ -16,14 +16,36 @@ static R2AI_Tool r2cmd_tool = {
 	}"
 };
 
+static R2AI_Tool qjs_tool = {
+	.name = "execute_js",
+	.description = "Execute a JavaScript script in a quickjs environment. Only what you console.log will be returned.",
+	.parameters = "{\
+		\"type\": \"object\",\
+		\"properties\": {\
+			\"script\": {\
+				\"type\": \"string\",\
+				\"description\": \"The JavaScript script to execute\"\
+			}\
+		},\
+		\"required\": [\"script\"]\
+	}"
+};
+
 // Create a global tools structure with our tools
 static R2AI_Tools r2ai_tools_instance = {
-	.tools = &r2cmd_tool,
-	.n_tools = 1
+	.tools = NULL,  // Will initialize below
+	.n_tools = 2
 };
 
 // Function to get the global tools instance
 R_API const R2AI_Tools *r2ai_get_tools (void) {
+	// Initialize tools array if not done yet
+	if (!r2ai_tools_instance.tools) {
+		static R2AI_Tool tools_array[2];
+		tools_array[0] = r2cmd_tool;
+		tools_array[1] = qjs_tool;
+		r2ai_tools_instance.tools = tools_array;
+	}
 	return &r2ai_tools_instance;
 }
 
@@ -151,11 +173,15 @@ R_API char *r2ai_tools_to_openai_json (const R2AI_Tools *tools) {
 
 		pj_end (pj); // End function object
 		pj_end (pj); // End tool object
+		if (i < tools->n_tools - 1) {
+			pj_raw (pj, ",");
+		}
 	}
 
 	pj_end (pj); // End array
 
 	char *result = pj_drain (pj);
+	R_LOG_DEBUG ("OpenAI tools JSON: %s", result);
 	return result;
 }
 
@@ -219,41 +245,153 @@ R_API void r2ai_tools_free (R2AI_Tools *tools) {
 	R_FREE (tools);
 }
 
-// r2cmd function implementation
-R_API char *r2ai_r2cmd (RCore *core, const char *command) {
-	if (!command) {
-		return strdup ("Command is NULL");
-	}
-
-	if (r_str_startswith (command, "r2 ")) {
-		return strdup ("You are already in r2!");
-	}
-
-	// Format the command as JSON with proper escaping (equivalent to json.dumps in Python)
+static char *to_cmd (const char *command) {
 	PJ *pj = pj_new ();
 	if (!pj) {
-		return strdup ("Failed to create JSON object");
+		return NULL;
 	}
 
 	pj_o (pj);
 	pj_ks (pj, "cmd", command);
 	pj_end (pj);
 
-	char *json_cmd = pj_drain (pj);
+	return pj_drain (pj);
+}
+
+// r2cmd function implementation
+R_API char *r2ai_r2cmd (RCore *core, RJson *args, bool hide_tool_output) {
+	if (!args) {
+		return strdup ("{ \"res\":\"Command is NULL\" }");
+	}
+
+	const RJson *command_json = r_json_get (args, "command");
+	if (!command_json || !command_json->str_value) {
+		return strdup ("{ \"res\":\"No command in tool call arguments\" }");
+	}
+
+	const char *command = command_json->str_value;
+
+	if (r_str_startswith (command, "r2 ")) {
+		return strdup ("{ \"res\":\"You are already in r2!\" }");
+	}
+
+	if(!hide_tool_output) {	
+		char *red_command = r_str_newf ("\x1b[31m%s\x1b[0m\n", command);
+		r_cons_write (red_command, strlen (red_command));
+		r_cons_flush ();
+		free (red_command);
+	}
+
+	char *json_cmd = to_cmd (command);
 	if (!json_cmd) {
-		return strdup ("Failed to create JSON command");
+		return strdup ("{ \"res\":\"Failed to create JSON command\" }");
 	}
 
 	char *cmd_output = r_core_cmd_str (core, json_cmd);
 	free (json_cmd);
 
 	if (!cmd_output) {
-		return strdup ("Command returned no output or failed");
+		return strdup ("{ \"res\":\"Command returned no output or failed\" }");
 	}
 
-	// Try to parse as JSON (equivalent to json.loads in Python)
+	return cmd_output;
+}
+
+// R_API int r_base64_encode(char *bout, const ut8 *bin, int len);
+// R_API int r_base64_decode(ut8 *bout, const char *bin, int len);
+// R_API ut8 *r_base64_decode_dyn(const char *in, int len);
+// R_API char *r_base64_encode_dyn(const char *str, int len);
+
+
+// qjs function implementation
+R_API char *r2ai_qjs (RCore *core, RJson *args, bool hide_tool_output) {
+	if (!args) {
+		return strdup ("{ \"res\":\"Script is NULL\" }");
+	}
+
+	const RJson *script_json = r_json_get (args, "script");	
+	if (!script_json) {
+		return strdup ("{ \"res\":\"No script field found in arguments\" }");
+	}
+	
+	if (!script_json->str_value) {
+		return strdup ("{ \"res\":\"Script value is NULL or empty\" }");
+	}
+	if(!hide_tool_output) {
+		char *print_script = r_str_newf ("\n```js\n%s\n```", script_json->str_value);
+		char *print_script_rendered = r2ai_markdown (print_script);
+		r_cons_write (print_script_rendered, strlen (print_script_rendered));
+		r_cons_flush ();
+		free (print_script);
+		free (print_script_rendered);
+	}
+	char *payload = r_str_newf ("var console = { log:r2log, warn:r2log, info:r2log, error:r2log, debug:r2log };%s", script_json->str_value);
+	R_LOG_DEBUG ("Payload length: %d", (int)strlen(payload));
+	
+	if (!payload) {
+		return strdup ("{ \"res\":\"Failed to create script payload\" }");
+	}
+
+	char *payload_base64 = r_base64_encode_dyn (payload, strlen (payload));
+	if (!payload_base64) {
+		free(payload);
+		return strdup ("{ \"res\":\"Failed to encode script\" }");
+	}
+
+	char *cmd = r_str_newf ("#!qjs -e base64:%s", payload_base64);
+	R_LOG_DEBUG ("Command length: %d", (int)strlen(cmd));
+	free (payload);
+	free (payload_base64);
+
+	char *json_cmd = to_cmd (cmd);
+	if (!json_cmd) {
+		free(cmd);
+		return strdup ("{ \"res\":\"Failed to execute qjs\" }");
+	}
+
+	char *cmd_output = r_core_cmd_str (core, json_cmd);
+	free (json_cmd);
+	free (cmd);
+
+	return cmd_output;
+}
+
+R_API char *execute_tool (RCore *core, const char *tool_name, const char *args) {
+	if (!tool_name || !args) {
+		return strdup ("{ \"res\":\"Tool name or arguments are NULL\" }");
+	}
+
+	R_LOG_DEBUG ("Args: %s", args);
+	
+	// Check if args is valid JSON before parsing
+	if (!r_str_startswith (args, "{") || !strchr (args, '}')) {
+		return r_str_newf ("Invalid JSON arguments: %s", args);
+	}
+
+	RJson *args_json = r_json_parse ((char *)args);
+	if (!args_json) {
+		return r_str_newf ("Failed to parse arguments: %s", args);
+	}
+
+
+	bool hide_tool_output = r_config_get_b (core->config, "r2ai.auto.hide_tool_output");
+
+	char *print_name = r_str_newf ("\x1b[1;32m\x1b[4m[%s]>\x1b[0m ", tool_name);
+	r_cons_write (print_name, strlen (print_name));
+	r_cons_flush ();
+
+	free (print_name);
+	char *tool_result = NULL;
+	if (strcmp (tool_name, "r2cmd") == 0) {
+		tool_result = r2ai_r2cmd (core, args_json, hide_tool_output);
+	}
+
+	if (strcmp (tool_name, "execute_js") == 0) {
+		tool_result = r2ai_qjs (core, args_json, hide_tool_output);
+	}
+// Try to parse as JSON (equivalent to json.loads in Python)
 	char *result = NULL;
-	RJson *json = r_json_parse (cmd_output);
+	RJson *json = r_json_parse (tool_result);
 
 	if (json) {
 		// Check for error field
@@ -293,14 +431,14 @@ R_API char *r2ai_r2cmd (RCore *core, const char *command) {
 				result = strdup (res_json->str_value);
 			} else {
 				// Just return the entire command output if res field not found
-				result = strdup (cmd_output);
+				result = strdup (tool_result);
 			}
 		}
 
 		r_json_free (json);
 	} else {
 		// JSON parse failed, handle like JSONDecodeError in Python
-		char *trimmed = r_str_trim_dup (cmd_output);
+		char *trimmed = r_str_trim_dup (tool_result);
 		if (trimmed) {
 			// Manual line splitting to avoid r_str_split issues
 			RList *lines = r_str_split_list (trimmed, "\n", 0);
@@ -330,26 +468,31 @@ R_API char *r2ai_r2cmd (RCore *core, const char *command) {
 						result = r_strbuf_drain (sb);
 					} else {
 						// Keep the output as is
-						result = strdup (cmd_output);
+						result = strdup (tool_result);
 					}
 				} else {
-					result = strdup (cmd_output);
+					result = strdup (tool_result);
 				}
 				r_list_free (lines);
 			} else {
-				result = strdup (cmd_output);
+				result = strdup (tool_result);
 			}
 			free (trimmed);
 		} else {
-			result = strdup (cmd_output);
+			result = strdup (tool_result);
 		}
 	}
 
-	free (cmd_output);
+	free (tool_result);
 
 	if (!result) {
-		return r_str_newf ("Error running r2cmd: Unknown error\nCommand: %s", command);
+		return r_str_newf ("Error running tool: Unknown error\nCommand: %s", args);
 	}
 
+	r_cons_newline ();
+	r_cons_write (result, strlen (result));
+	r_cons_flush ();
+
+	r_json_free (args_json);
 	return result;
 }

@@ -6,14 +6,22 @@ CFLAGS+=-I. -fPIC
 CFLAGS+=-Wall
 CFLAGS+=-g
 
-# Check if libcurl is available
+USE_R2_CURL=1
+USE_LIBCURL=0
+
 HAVE_LIBCURL=$(shell pkg-config --exists libcurl && echo 1 || echo 0)
-ifeq ($(HAVE_LIBCURL),1)
-  CFLAGS+=$(shell pkg-config --cflags libcurl)
-  LDFLAGS+=$(shell pkg-config --libs libcurl)
-  CFLAGS+=-DHAVE_LIBCURL=1
-else
-  CFLAGS+=-DHAVE_LIBCURL=0
+
+CFLAGS+=-DUSE_R2_CURL=$(USE_R2_CURL)
+CFLAGS+=-DUSE_LIBCURL=$(USE_LIBCURL)
+
+ifeq ($(USE_LIBCURL),1)
+  ifeq ($(HAVE_LIBCURL),1)
+    CFLAGS+=$(shell pkg-config --cflags libcurl)
+    LDFLAGS+=$(shell pkg-config --libs libcurl)
+    CFLAGS+=-DHAVE_LIBCURL=1
+  else
+    CFLAGS+=-DHAVE_LIBCURL=0
+  endif
 endif
 
 OBJS=r2ai.o
@@ -23,11 +31,8 @@ OBJS+=tools.o
 OBJS+=messages.o
 OBJS+=anthropic.o
 OBJS+=r2ai_http.o
-# OBJS+=gemini.o
 OBJS+=openai.o
-# OBJS+=openapi.o
-# OBJS+=ollama.o
-# OBJS+=xai.o
+OBJS+=markdown.o
 
 all: $(OBJS) r2check
 	$(CC) -fPIC -shared -o r2ai.$(EXT) $(OBJS) $(CFLAGS) $(LDFLAGS)

@@ -126,7 +126,6 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 
 	r2ai_stats_init_run (n_run);
 
-	const bool hide_tool_output = r_config_get_b (core->config, "r2ai.auto.hide_tool_output");
 	// Set up args for r2ai_llmcall call with tools directly
 	R2AIArgs args = {
 		.messages = messages,
@@ -164,8 +163,10 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 
 	// Process the response - we need to add it to our messages array
 	if (message->content) {
-		r_cons_printf ("\x1b[1;32massistant:\x1b[0m\n%s\n", message->content);
+		char *assistant_msg = r_str_newf ("\x1b[31m[Assistant]\x1b[0m\n\n%s\n", message->content);
+		r_cons_printf ("%s", assistant_msg);
 		r_cons_flush ();
+		free (assistant_msg);
 	}
 
 	// Add the response to our messages array
@@ -174,72 +175,40 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 
 	// Check for tool calls and process them
 	if (message->tool_calls && message->n_tool_calls > 0) {
-		R_LOG_INFO ("Found %d tool calls", message->n_tool_calls);
+		R_LOG_DEBUG ("Found %d tool calls", message->n_tool_calls);
 
 		// Process each tool call
 		for (int i = 0; i < message->n_tool_calls; i++) {
 			const R2AI_ToolCall *tool_call = &message->tool_calls[i];
-			// Parse arguments JSON to get the command for printing
-			char *args_copy_for_print = strdup (tool_call->arguments);
-			RJson *args_json_for_print = r_json_parse (args_copy_for_print);
-			if (args_json_for_print) {
-				const RJson *command_json_for_print = r_json_get (args_json_for_print, "command");
-				if (command_json_for_print && command_json_for_print->str_value) {
-					r_cons_printf ("\x1b[1;32m> \x1b[4m%s\x1b[0m\n", command_json_for_print->str_value);
-					r_cons_flush ();
-				}
-				r_json_free (args_json_for_print);
-			}
-			free (args_copy_for_print);
 
 			if (!tool_call->name || !tool_call->arguments || !tool_call->id) {
 				continue;
 			}
-
-			// We only support the r2cmd function for now
-			if (strcmp (tool_call->name, "r2cmd") == 0) {
-				// Parse arguments JSON to get the command
-				char *args_copy = strdup (tool_call->arguments);
-				RJson *args_json = r_json_parse (args_copy);
-				if (!args_json) {
-					R_LOG_ERROR ("Failed to parse tool call arguments");
-					free (args_copy);
-					continue;
-				}
-
-				const RJson *command_json = r_json_get (args_json, "command");
-				if (!command_json || !command_json->str_value) {
-					R_LOG_ERROR ("No command in tool call arguments");
-					r_json_free (args_json);
-					free (args_copy);
-					continue;
-				}
-
-				const char *command = command_json->str_value;
-				R_LOG_INFO ("Running command: %s", command);
-
-				// Use r2cmd function to run the command
-				char *cmd_output = r2ai_r2cmd (core, command);
-
-				if (!hide_tool_output) {
-					r_cons_printf ("%s", cmd_output);
-					r_cons_flush ();
-				}
-				r_json_free (args_json);
-				free (args_copy);
-
-				// Create a tool call response message
-				R2AI_Message tool_response = {
-					.role = "tool",
-					.tool_call_id = tool_call->id,
-					.content = cmd_output
-				};
-
-				// Add the tool response to our messages array
-				r2ai_msgs_add (messages, &tool_response);
-
-				free (cmd_output);
+			R_LOG_DEBUG ("Tool call: %s", tool_call->name);
+			// Don't log the full arguments which might get truncated
+			R_LOG_DEBUG ("Processing tool arguments...");
+			char *tool_name = strdup (tool_call->name);
+			char *tool_args = strdup (tool_call->arguments);
+			if (!tool_name || !tool_args) {
+				R_LOG_ERROR ("Failed to allocate memory for tool call");
+				free (tool_name);
+				free (tool_args);
+				continue;
 			}
+			char *cmd_output = execute_tool (core, tool_name, tool_args);
+			free (tool_name);
+			free (tool_args);
+			// Create a tool call response message
+			R2AI_Message tool_response = {
+				.role = "tool",
+				.tool_call_id = tool_call->id,
+				.content = cmd_output
+			};
+
+			// Add the tool response to our messages array
+			r2ai_msgs_add (messages, &tool_response);
+
+			free (cmd_output);
 		}
 
 		r2ai_print_run_end (core, usage, n_run, max_runs);

@@ -4,6 +4,7 @@
 #include <r_core.h>
 #include <r_util/r_json.h>
 #include "r_vdb.h"
+#include "markdown.h"
 
 // Tool definition structure
 typedef struct {
@@ -169,6 +170,11 @@ R_API char *r2ai_tools_to_anthropic_json (const R2AI_Tools *tools);
 R_API void r2ai_tools_free (R2AI_Tools *tools);
 
 /**
+ * Execute a tool and return the output
+ */
+R_API char *execute_tool (RCore *core, const char *tool_name, const char *args);
+
+/**
  * Send an HTTP POST request
  *
  * @param url The URL to send the request to
@@ -179,13 +185,6 @@ R_API void r2ai_tools_free (R2AI_Tools *tools);
  * @return Response body as string (must be freed by caller) or NULL on error
  */
 R_API char *r2ai_http_post (const char *url, const char *headers[], const char *data, int *code, int *rlen);
-
-/**
- * Check if libcurl support is enabled at compile time
- *
- * @return true if libcurl is available, false otherwise
- */
-R_API bool r2ai_http_has_curl (void);
 
 // anthropic
 R_IPI R2AI_ChatResponse *r2ai_anthropic (RCore *core, R2AIArgs args);
@@ -205,15 +204,6 @@ R_IPI void cmd_r2ai_logs (RCore *core);
  * Create a conversation with system prompt and optional user message
  */
 R_API R2AI_Messages *create_conversation (const char *system_prompt, const char *user_message);
-
-/**
- * Run a radare2 command and return the output
- *
- * @param core The RCore instance
- * @param command The r2 command to run
- * @return The command output (caller must free)
- */
-R_API char *r2ai_r2cmd (RCore *core, const char *command);
 
 /**
  * Process messages through LLM and handle tool calls recursively

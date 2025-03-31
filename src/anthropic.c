@@ -94,8 +94,8 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic (RCore *core, R2AIArgs args) {
 
 	// Save the full JSON for debugging
 	r_file_dump ("/tmp/r2ai_anthropic_request.json", (const ut8 *)data, strlen (data), 0);
-	R_LOG_INFO ("Full request saved to /tmp/r2ai_anthropic_request.json");
-	R_LOG_INFO ("Anthropic API request data: %s", data);
+	R_LOG_DEBUG ("Full request saved to /tmp/r2ai_anthropic_request.json");
+	R_LOG_DEBUG ("Anthropic API request data: %s", data);
 
 	// Make the API call
 	int code = 0;
@@ -116,8 +116,8 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic (RCore *core, R2AIArgs args) {
 
 	// Save the response for inspection
 	r_file_dump ("/tmp/r2ai_anthropic_response.json", (const ut8 *)res, strlen (res), 0);
-	R_LOG_INFO ("Anthropic API response saved to /tmp/r2ai_anthropic_response.json");
-	R_LOG_INFO ("Anthropic API response: %s", res);
+	R_LOG_DEBUG ("Anthropic API response saved to /tmp/r2ai_anthropic_response.json");
+	R_LOG_DEBUG ("Anthropic API response: %s", res);
 
 	// Parse the response
 	R2AI_ChatResponse *result = R_NEW0 (R2AI_ChatResponse);
