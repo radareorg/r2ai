@@ -177,7 +177,7 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 
 	// Check for tool calls and process them
 	if (message->tool_calls && message->n_tool_calls > 0) {
-		R_LOG_INFO ("Found %d tool calls", message->n_tool_calls);
+		R_LOG_DEBUG ("Found %d tool calls", message->n_tool_calls);
 
 		// Process each tool call
 		for (int i = 0; i < message->n_tool_calls; i++) {
@@ -186,9 +186,9 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 			if (!tool_call->name || !tool_call->arguments || !tool_call->id) {
 				continue;
 			}
-			R_LOG_INFO ("Tool call: %s", tool_call->name);
+			R_LOG_DEBUG ("Tool call: %s", tool_call->name);
 			// Don't log the full arguments which might get truncated
-			R_LOG_INFO ("Processing tool arguments...");
+			R_LOG_DEBUG ("Processing tool arguments...");
 			char *tool_name = strdup (tool_call->name);
 			char *tool_args = strdup (tool_call->arguments);
 			if (!tool_name || !tool_args) {

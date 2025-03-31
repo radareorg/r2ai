@@ -181,7 +181,7 @@ R_API char *r2ai_tools_to_openai_json (const R2AI_Tools *tools) {
 	pj_end (pj); // End array
 
 	char *result = pj_drain (pj);
-	R_LOG_INFO ("OpenAI tools JSON: %s", result);
+	R_LOG_DEBUG ("OpenAI tools JSON: %s", result);
 	return result;
 }
 
@@ -359,7 +359,7 @@ R_API char *execute_tool (RCore *core, const char *tool_name, const char *args) 
 		return strdup ("{ \"res\":\"Tool name or arguments are NULL\" }");
 	}
 
-	R_LOG_INFO ("Args: %s", args);
+	R_LOG_DEBUG ("Args: %s", args);
 	
 	// Check if args is valid JSON before parsing
 	if (!r_str_startswith (args, "{") || !strchr (args, '}')) {

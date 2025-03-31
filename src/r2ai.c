@@ -155,7 +155,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall (RCore *core, R2AIArgs args) {
 		args.system_prompt = r_config_get (core->config, "r2ai.system");
 	}
 
-	R_LOG_INFO ("Using provider: %s", provider);
+	R_LOG_DEBUG ("Using provider: %s", provider);
 	if (strcmp (provider, "anthropic") == 0) {
 		res = r2ai_anthropic (core, args);
 	} else {
@@ -349,8 +349,8 @@ static void cmd_r2ai_R (RCore *core, const char *q) {
 		RVdbResultSet *rs = r_vdb_query (db, q, K);
 
 		if (rs) {
-			R_LOG_INFO ("Query: \"%s\"", q);
-			R_LOG_INFO ("Found up to %d neighbors (actual found: %d)", K, rs->size);
+			R_LOG_DEBUG ("Query: \"%s\"", q);
+			R_LOG_DEBUG ("Found up to %d neighbors (actual found: %d)", K, rs->size);
 			int i;
 			for (i = 0; i < rs->size; i++) {
 				RVdbResult *r = &rs->results[i];
