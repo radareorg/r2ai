@@ -1,5 +1,19 @@
 #include "r2ai.h"
 #include <signal.h>
+#include <time.h>
+
+/**
+ * r2ai HTTP implementation with:
+ * - Interrupt handling (SIGINT)
+ * - Timeout handling
+ * - Rate limiting with exponential backoff
+ * - Retrying on errors (429, 5xx)
+ * 
+ * Configuration variables:
+ * - r2ai.http.timeout: Request timeout in seconds (default: 120)
+ * - r2ai.http.max_retries: Maximum number of retry attempts (default: 3)
+ * - r2ai.http.max_backoff: Maximum backoff time in seconds (default: 30)
+ */
 
 // Global flag for tracking interrupt status
 static volatile sig_atomic_t r2ai_http_interrupted = 0;
@@ -7,6 +21,39 @@ static volatile sig_atomic_t r2ai_http_interrupted = 0;
 // Signal handler for SIGINT
 static void r2ai_http_sigint_handler (int sig) {
 	r2ai_http_interrupted = 1;
+}
+
+// Helper function to implement exponential backoff sleep
+static void r2ai_sleep_with_backoff(int retry_count, int max_sleep_seconds) {
+	// Calculate sleep time with exponential backoff: 2^retry * base_time with jitter
+	int base_time_ms = 1000; // 500ms base time
+	int max_sleep_ms = max_sleep_seconds * 1000;
+	
+	// Calculate exponential delay time with upper bound
+	int delay_ms = (1 << retry_count) * base_time_ms;
+	if (delay_ms > max_sleep_ms) {
+		delay_ms = max_sleep_ms;
+	}
+	
+	// Add jitter (±20%)
+	int jitter = delay_ms / 5;
+	if (jitter > 0) {
+		srand(time(NULL) + retry_count);
+		delay_ms += (rand() % (jitter * 2)) - jitter;
+	}
+	
+	// Ensure delay stays positive and within max limits
+	if (delay_ms <= 0) {
+		delay_ms = base_time_ms;
+	} else if (delay_ms > max_sleep_ms) {
+		delay_ms = max_sleep_ms;
+	}
+	
+	// Sleep for the calculated time
+	struct timespec ts;
+	ts.tv_sec = delay_ms / 1000;
+	ts.tv_nsec = (delay_ms % 1000) * 1000000;
+	nanosleep(&ts, NULL);
 }
 
 #if HAVE_LIBCURL
@@ -56,13 +103,26 @@ static char *curl_http_post (const char *url, const char *headers[], const char 
 		return NULL;
 	}
 
-	// Get timeout from config if available
+	// Get timeout and retry configuration from config if available
 	int timeout = 120; // Default timeout in seconds
+	int max_retries = 10; // Default max retries
+	int max_backoff = 30; // Default max backoff in seconds
+	
 	RCore *core = r_cons_singleton ()->user;
 	if (core) {
 		timeout = r_config_get_i (core->config, "r2ai.http.timeout");
 		if (timeout <= 0) {
 			timeout = 120; // Use default if invalid
+		}
+		
+		max_retries = r_config_get_i (core->config, "r2ai.http.max_retries");
+		if (max_retries < 0) {
+			max_retries = 10; // Use default if invalid
+		}
+		
+		max_backoff = r_config_get_i (core->config, "r2ai.http.max_backoff");
+		if (max_backoff <= 0) {
+			max_backoff = 30; // Use default if invalid
 		}
 	}
 
@@ -76,101 +136,162 @@ static char *curl_http_post (const char *url, const char *headers[], const char 
 	// Reset interrupt flag
 	r2ai_http_interrupted = 0;
 
-	CURL *curl;
-	CURLcode res;
-	struct curl_slist *curl_headers = NULL;
-	CurlResponse response = { 0 };
+	// Retry loop
+	char *result = NULL;
+	int retry_count = 0;
+	bool success = false;
+	
+	while (!success && retry_count <= max_retries && !r2ai_http_interrupted) {
+		CURL *curl;
+		CURLcode res;
+		struct curl_slist *curl_headers = NULL;
+		CurlResponse response = { 0 };
 
-	// Initialize response
-	response.data = malloc (1);
-	if (!response.data) {
-		sigaction (SIGINT, &old_action, NULL); // Restore signal handler
-		return NULL;
+		// Initialize response
+		response.data = malloc (1);
+		if (!response.data) {
+			if (retry_count < max_retries) {
+				retry_count++;
+				r2ai_sleep_with_backoff(retry_count, max_backoff);
+				continue;
+			}
+			sigaction (SIGINT, &old_action, NULL); // Restore signal handler
+			return NULL;
+		}
+		response.data[0] = '\0';
+		response.size = 0;
+
+		curl = curl_easy_init ();
+		if (!curl) {
+			free (response.data);
+			if (retry_count < max_retries) {
+				retry_count++;
+				r2ai_sleep_with_backoff(retry_count, max_backoff);
+				continue;
+			}
+			sigaction (SIGINT, &old_action, NULL); // Restore signal handler
+			return NULL;
+		}
+
+		// Set URL
+		curl_easy_setopt (curl, CURLOPT_URL, url);
+
+		// Set POST data
+		curl_easy_setopt (curl, CURLOPT_POSTFIELDS, data);
+
+		// Set headers
+		for (int i = 0; headers[i] != NULL; i++) {
+			curl_headers = curl_slist_append (curl_headers, headers[i]);
+		}
+		curl_easy_setopt (curl, CURLOPT_HTTPHEADER, curl_headers);
+
+		// Set write callback
+		curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, write_callback);
+		curl_easy_setopt (curl, CURLOPT_WRITEDATA, (void *)&response);
+
+		// Set progress callback to handle interrupts
+		curl_easy_setopt (curl, CURLOPT_NOPROGRESS, 0L);
+		curl_easy_setopt (curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
+		curl_easy_setopt (curl, CURLOPT_XFERINFODATA, NULL);
+
+		// Set timeout options
+		curl_easy_setopt (curl, CURLOPT_CONNECTTIMEOUT, 10L); // 10 seconds connect timeout
+		curl_easy_setopt (curl, CURLOPT_TIMEOUT, (long)timeout); // Use configured timeout
+
+		// Follow redirects
+		curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
+
+		// Perform the request
+		res = curl_easy_perform (curl);
+
+		// Check for interruption
+		if (r2ai_http_interrupted) {
+			R_LOG_DEBUG ("HTTP request was interrupted by user");
+			free (response.data);
+			curl_slist_free_all (curl_headers);
+			curl_easy_cleanup (curl);
+			break; // Exit the retry loop
+		}
+
+		// Get response code
+		long http_code;
+		curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
+		*code = (int)http_code;
+
+		// Check for errors
+		if (res != CURLE_OK) {
+			R_LOG_ERROR ("curl_easy_perform() failed: %s", curl_easy_strerror (res));
+			free (response.data);
+			curl_slist_free_all (curl_headers);
+			curl_easy_cleanup (curl);
+			
+			// Retry on network errors
+			if (retry_count < max_retries) {
+				retry_count++;
+				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
+				r2ai_sleep_with_backoff(retry_count, max_backoff);
+				continue;
+			}
+			break; // Exit the retry loop after max retries
+		}
+		
+		// Check for rate limiting or server errors (429, 500, 502, 503, 504)
+		if (http_code == 429 || (http_code >= 500 && http_code < 600)) {
+			R_LOG_WARN ("Server returned %d response code", (int)http_code);
+			free (response.data);
+			curl_slist_free_all (curl_headers);
+			curl_easy_cleanup (curl);
+			
+			if (retry_count < max_retries) {
+				retry_count++;
+				R_LOG_INFO ("Retrying request (%d/%d) after rate limiting...", retry_count, max_retries);
+				r2ai_sleep_with_backoff(retry_count, max_backoff);
+				continue;
+			}
+			break; // Exit the retry loop after max retries
+		}
+		
+		// If we get here, the request was successful
+		success = true;
+		result = response.data;
+		if (rlen) {
+			*rlen = response.size;
+		}
+		
+		// Cleanup
+		curl_slist_free_all (curl_headers);
+		curl_easy_cleanup (curl);
 	}
-	response.data[0] = '\0';
-	response.size = 0;
-
-	curl = curl_easy_init ();
-	if (!curl) {
-		free (response.data);
-		sigaction (SIGINT, &old_action, NULL); // Restore signal handler
-		return NULL;
-	}
-
-	// Set URL
-	curl_easy_setopt (curl, CURLOPT_URL, url);
-
-	// Set POST data
-	curl_easy_setopt (curl, CURLOPT_POSTFIELDS, data);
-
-	// Set headers
-	for (int i = 0; headers[i] != NULL; i++) {
-		curl_headers = curl_slist_append (curl_headers, headers[i]);
-	}
-	curl_easy_setopt (curl, CURLOPT_HTTPHEADER, curl_headers);
-
-	// Set write callback
-	curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, write_callback);
-	curl_easy_setopt (curl, CURLOPT_WRITEDATA, (void *)&response);
-
-	// Set progress callback to handle interrupts
-	curl_easy_setopt (curl, CURLOPT_NOPROGRESS, 0L);
-	curl_easy_setopt (curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
-	curl_easy_setopt (curl, CURLOPT_XFERINFODATA, NULL);
-
-	// Set timeout options
-	curl_easy_setopt (curl, CURLOPT_CONNECTTIMEOUT, 10L); // 10 seconds connect timeout
-	curl_easy_setopt (curl, CURLOPT_TIMEOUT, (long)timeout); // Use configured timeout
-
-	// Follow redirects
-	curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
-
-	// Perform the request
-	res = curl_easy_perform (curl);
 
 	// Restore the original signal handler
 	sigaction (SIGINT, &old_action, NULL);
-
-	// Check for interruption
-	if (r2ai_http_interrupted) {
-		R_LOG_INFO ("HTTP request was interrupted by user");
-		free (response.data);
-		curl_slist_free_all (curl_headers);
-		curl_easy_cleanup (curl);
-		return NULL;
-	}
-
-	// Check for errors
-	if (res != CURLE_OK) {
-		R_LOG_ERROR ("curl_easy_perform() failed: %s", curl_easy_strerror (res));
-		free (response.data);
-		curl_slist_free_all (curl_headers);
-		curl_easy_cleanup (curl);
-		return NULL;
-	}
-
-	// Get response code
-	long http_code;
-	curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
-	*code = (int)http_code;
-
-	// Cleanup
-	curl_slist_free_all (curl_headers);
-	curl_easy_cleanup (curl);
-
-	return response.data;
+	
+	return result;
 }
 #endif // HAVE_LIBCURL
 
-// Socket implementation with interrupt handling
+// Socket implementation with interrupt handling and retry logic
 static char *socket_http_post_with_interrupt (const char *url, const char *headers[], const char *data, int *code, int *rlen) {
-	// Get timeout from config if available
+	// Get timeout and retry configuration from config if available
 	int timeout = 120; // Default timeout in seconds
+	int max_retries = 10; // Default max retries
+	int max_backoff = 30; // Default max backoff in seconds
+	
 	RCore *core = r_cons_singleton ()->user;
 	if (core) {
 		timeout = r_config_get_i (core->config, "r2ai.http.timeout");
 		if (timeout <= 0) {
 			timeout = 120; // Use default if invalid
+		}
+		
+		max_retries = r_config_get_i (core->config, "r2ai.http.max_retries");
+		if (max_retries < 0) {
+			max_retries = 10; // Use default if invalid
+		}
+		
+		max_backoff = r_config_get_i (core->config, "r2ai.http.max_backoff");
+		if (max_backoff <= 0) {
+			max_backoff = 30; // Use default if invalid
 		}
 	}
 
@@ -184,29 +305,68 @@ static char *socket_http_post_with_interrupt (const char *url, const char *heade
 	// Reset interrupt flag
 	r2ai_http_interrupted = 0;
 
-	// Set an alarm to limit the request time
-	signal (SIGALRM, r2ai_http_sigint_handler);
-	alarm (timeout); // Use configured timeout
+	// Retry loop
+	char *result = NULL;
+	int retry_count = 0;
+	bool success = false;
+	
+	while (!success && retry_count <= max_retries && !r2ai_http_interrupted) {
+		// Set an alarm to limit the request time
+		signal (SIGALRM, r2ai_http_sigint_handler);
+		alarm (timeout); // Use configured timeout
 
-// Make the request
+		// Make the request
 #if R2_VERSION_NUMBER >= 50909
-	char *result = r_socket_http_post (url, headers, data, code, rlen);
+		result = r_socket_http_post (url, headers, data, code, rlen);
 #else
-	char *result = r_socket_http_post (url, data, code, rlen);
+		result = r_socket_http_post (url, data, code, rlen);
 #endif
 
-	// Clear the alarm
-	alarm (0);
+		// Clear the alarm
+		alarm (0);
+
+		// Check if we were interrupted
+		if (r2ai_http_interrupted) {
+			R_LOG_DEBUG ("HTTP request was interrupted by user");
+			free (result);
+			result = NULL;
+			break; // Exit the retry loop
+		}
+
+		// Check for rate limiting or server errors (429, 500, 502, 503, 504)
+		if (result && *code) {
+			if (*code == 429 || (*code >= 500 && *code < 600)) {
+				R_LOG_WARN ("Server returned %d response code", *code);
+				free (result);
+				result = NULL;
+				
+				if (retry_count < max_retries) {
+					retry_count++;
+					R_LOG_INFO ("Retrying request (%d/%d) after error...", retry_count, max_retries);
+					r2ai_sleep_with_backoff(retry_count, max_backoff);
+					continue;
+				}
+				break; // Exit the retry loop after max retries
+			}
+		}
+		
+		// Check for other failures
+		if (!result) {
+			if (retry_count < max_retries) {
+				retry_count++;
+				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
+				r2ai_sleep_with_backoff(retry_count, max_backoff);
+				continue;
+			}
+			break; // Exit the retry loop after max retries
+		}
+		
+		// If we get here, the request was successful
+		success = true;
+	}
 
 	// Restore the original signal handler
 	sigaction (SIGINT, &old_action, NULL);
-
-	// Check if we were interrupted
-	if (r2ai_http_interrupted) {
-		R_LOG_INFO ("HTTP request was interrupted by user");
-		free (result);
-		return NULL;
-	}
 
 	return result;
 }

@@ -218,6 +218,9 @@ R_API char *r2ai_tools_to_anthropic_json (const R2AI_Tools *tools) {
 		}
 
 		pj_end (pj); // End tool object
+		if (i < tools->n_tools - 1) {
+			pj_raw (pj, ",");
+		}
 	}
 
 	pj_end (pj); // End array
