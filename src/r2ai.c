@@ -68,6 +68,10 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -v", "suggest better variables names and types",
 	"r2ai", " -V[r]", "find vulnerabilities in the decompiled code (-Vr uses -dr)",
 	"r2ai", " [arg]", "send a post request to talk to r2ai and print the output",
+	"Configuration:", "", "",
+	"r2ai.http.timeout", "", "HTTP request timeout in seconds (default: 120)",
+	"r2ai.http.max_retries", "", "Maximum number of retry attempts for failed requests (default: 3)",
+	"r2ai.http.max_backoff", "", "Maximum backoff time in seconds between retries (default: 30)",
 	NULL
 };
 
@@ -674,6 +678,9 @@ static int r2ai_init (void *user, const char *input) {
 	r_config_set_b (core->config, "r2ai.chat.show_cost", true);
 	// Configure HTTP timeout in seconds
 	r_config_set_i (core->config, "r2ai.http.timeout", 120);
+	// Configure HTTP rate limiting and retry parameters
+	r_config_set_i (core->config, "r2ai.http.max_retries", 10);
+	r_config_set_i (core->config, "r2ai.http.max_backoff", 30);
 	r_config_lock (core->config, true);
 	return true;
 }
@@ -693,6 +700,8 @@ static int r2ai_fini (void *user, const char *input) {
 	r_config_rm (core->config, "r2ai.data.nth");
 	r_config_rm (core->config, "r2ai.auto.reset_on_query");
 	r_config_rm (core->config, "r2ai.http.timeout");
+	r_config_rm (core->config, "r2ai.http.max_retries");
+	r_config_rm (core->config, "r2ai.http.max_backoff");
 	r_config_lock (core->config, true);
 
 	// Free the conversation
