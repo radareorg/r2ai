@@ -68,10 +68,6 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -v", "suggest better variables names and types",
 	"r2ai", " -V[r]", "find vulnerabilities in the decompiled code (-Vr uses -dr)",
 	"r2ai", " [arg]", "send a post request to talk to r2ai and print the output",
-	"Configuration:", "", "",
-	"r2ai.http.timeout", "", "HTTP request timeout in seconds (default: 120)",
-	"r2ai.http.max_retries", "", "Maximum number of retry attempts for failed requests (default: 3)",
-	"r2ai.http.max_backoff", "", "Maximum backoff time in seconds between retries (default: 30)",
 	NULL
 };
 
@@ -130,28 +126,46 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall (RCore *core, R2AIArgs args) {
 	}
 	args.provider = strdup (provider);
 
+	if (!args.max_tokens) {
+		args.max_tokens = r_config_get_i (core->config, "r2ai.max_tokens");
+	}
+	if (!args.temperature) {
+		args.temperature = atof (r_config_get (core->config, "r2ai.temperature"));
+	}
+
 	const char *api_key_env = r_str_newf ("%s_API_KEY", provider);
 	char *api_key_env_copy = strdup (api_key_env);
 	r_str_case (api_key_env_copy, true);
-	const char *api_key_config = r_str_newf ("r2ai.%s.api_key", provider);
 	const char *api_key_filename = r_str_newf ("~/.r2ai.%s-key", provider);
-
 	char *api_key = NULL;
 
-	if (r_config_get (core->config, api_key_config)) {
-		api_key = strdup (r_config_get (core->config, api_key_config));
-	} else if (r_file_exists (api_key_filename)) {
-		char *apikey_file = r_file_new (api_key_filename, NULL);
-		api_key = r_file_slurp (apikey_file, NULL);
-		free (apikey_file);
-	} else if (getenv (api_key_env_copy)) {
-		api_key = strdup (getenv (api_key_env_copy));
+	if (!R_STR_ISEMPTY(r_config_get (core->config, "r2ai.api_key"))) {
+		api_key = strdup (r_config_get (core->config, "r2ai.api_key"));
+	}
+	if (R_STR_ISEMPTY(api_key)) {
+		if (r_file_exists (api_key_filename)) {
+			char *apikey_file = r_file_new (api_key_filename, NULL);
+			api_key = r_file_slurp (apikey_file, NULL);
+			free (apikey_file);
+		}
+	}
+	if (R_STR_ISEMPTY(api_key)) {
+		if (getenv (api_key_env_copy)) {
+			api_key = strdup (getenv (api_key_env_copy));
+		}
 	}
 	free (api_key_env_copy);
 
 	if (api_key) {
 		r_str_trim (api_key);
 		args.api_key = api_key;
+	}
+
+	// Make sure we have an API key before proceeding
+	if (!args.api_key || !*args.api_key) {
+		R_LOG_ERROR ("No API key found for %s provider. Please set one with: r2ai -e %s.api_key=YOUR_KEY", 
+			provider, provider);
+		return NULL;
 	}
 
 	// Set system_prompt from config if it's not already set
@@ -657,9 +671,12 @@ static int r2ai_init (void *user, const char *input) {
 	r2ai_conversation_init ();
 
 	r_config_lock (core->config, false);
-	r_config_set (core->config, "r2ai.api", "ollama");
-	r_config_set (core->config, "r2ai.model", ""); // "qwen2.5-coder:3b"); // qwen2.5-4km");
+	r_config_set (core->config, "r2ai.api", "openai");
+	r_config_set (core->config, "r2ai.model", "gpt-4o-mini");
 	r_config_set (core->config, "r2ai.base_url", "");
+	r_config_set (core->config, "r2ai.api_key", "");
+	r_config_set_i (core->config, "r2ai.max_tokens", 5128);
+	r_config_set (core->config, "r2ai.temperature", "0.01");
 	r_config_set (core->config, "r2ai.cmds", "pdc");
 	r_config_set (core->config, "r2ai.lang", "C");
 	r_config_set_b (core->config, "r2ai.data", false);
@@ -707,6 +724,9 @@ static int r2ai_fini (void *user, const char *input) {
 	// Free the conversation
 	r2ai_conversation_free ();
 
+	// Free the OpenAI resources
+	r2ai_openai_fini();
+	
 	// Free the vector database if we have one
 	if (db) {
 		r_vdb_free (db);

@@ -59,6 +59,8 @@ typedef struct {
 	R2AI_Messages *messages; // Array of message objects
 	const char *provider;
 	const char *api_key;
+	int max_tokens;
+	float temperature;
 	bool dorag;
 	char **error;
 } R2AIArgs;
@@ -191,6 +193,7 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic (RCore *core, R2AIArgs args);
 
 // openai
 R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args);
+R_IPI void r2ai_openai_fini(void);
 
 // auto mode
 R_IPI void cmd_r2ai_a (RCore *core, const char *user_query);
