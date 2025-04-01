@@ -2,8 +2,95 @@
 #include <r_util/r_json.h>
 #include "r2ai.h"
 
+// Bit flags for different types of model errors/incompatibilities
+typedef enum {
+	MODEL_ERROR_NONE = 0,
+	MODEL_ERROR_TEMPERATURE = 1 << 0,
+	// Can add more error types here as needed
+	// MODEL_ERROR_TOP_P = 1 << 1,
+	// MODEL_ERROR_MAX_TOKENS = 1 << 2,
+	// etc.
+} ModelErrorFlags;
+
+// Structure to store model compatibility info
+typedef struct {
+	char *model_id;        // Provider:model string
+	int error_flags;       // Bitfield of ModelErrorFlags
+} ModelCompat;
+
+// Hash table to store model compatibility info
+static HtPP *model_compat_db = NULL;
+
+// Function to check if a model has a specific error flag
+static bool model_has_error(const char *provider, const char *model, ModelErrorFlags flag) {
+	if (!model_compat_db) {
+		return false;
+	}
+	
+	char *key = r_str_newf("%s:%s", provider, model ? model : "default");
+	ModelCompat *compat = NULL;
+	bool found_flag = false;
+	compat = ht_pp_find(model_compat_db, key, &found_flag);
+	free(key);
+	
+	if (found_flag && compat) {
+		return (compat->error_flags & flag) != 0;
+	}
+	return false;
+}
+
+// Function to add an error flag to a model
+static void model_add_error(const char *provider, const char *model, ModelErrorFlags flag) {
+	if (!model_compat_db) {
+		model_compat_db = ht_pp_new0();
+	}
+	
+	char *key = r_str_newf("%s:%s", provider, model ? model : "default");
+	ModelCompat *compat = NULL;
+	bool found_flag = false;
+	compat = ht_pp_find(model_compat_db, key, &found_flag);
+	
+	if (found_flag && compat) {
+		// Update existing entry
+		compat->error_flags |= flag;
+	} else {
+		// Create new entry
+		compat = R_NEW0(ModelCompat);
+		if (compat) {
+			compat->model_id = strdup(key);
+			compat->error_flags = flag;
+			ht_pp_insert(model_compat_db, key, compat);
+		}
+	}
+	free(key);
+}
+
+// Free a ModelCompat item (for hash table)
+static bool model_compat_free_cb(void *user, const void *k, const void *v) {
+	ModelCompat *compat = (ModelCompat *)v;
+	if (compat) {
+		free(compat->model_id);
+		free(compat);
+	}
+	return true;
+}
+
+// Function to free the model_compat_db hash table
+R_IPI void r2ai_openai_fini(void) {
+	if (model_compat_db) {
+		ht_pp_foreach(model_compat_db, model_compat_free_cb, NULL);
+		ht_pp_free(model_compat_db);
+		model_compat_db = NULL;
+	}
+}
+
 R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 	const char *base_url = r_config_get (core->config, "r2ai.base_url");
+
+	// Initialize compatibility database if needed
+	if (!model_compat_db) {
+		model_compat_db = ht_pp_new0();
+	}
 
 	if (R_STR_ISEMPTY (base_url)) {
 		if (strcmp (args.provider, "openai") == 0) {
@@ -26,7 +113,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 			base_url = "https://api.mistral.ai/v1";
 		}
 	}
-
+	const char *model_name = args.model ? args.model : "gpt-4o-mini";
 	char **error = args.error;
 	const R2AI_Tools *tools = args.tools;
 	// create a temp conversation to include the system prompt and the rest of the messages
@@ -37,24 +124,33 @@ R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 		}
 		return NULL;
 	}
-
+	R2AI_Message system_msg = {
+		.role = "system",
+		.content = args.system_prompt
+	};
 	// Add system message if available from args.system_prompt
 	if (R_STR_ISNOTEMPTY (args.system_prompt)) {
 		R_LOG_DEBUG ("Using system prompt: %s", args.system_prompt);
-		R2AI_Message system_msg = {
-			.role = "system",
-			.content = args.system_prompt
-		};
+		// if the model name contains "o1" or "o3", it's "developer" role
+		if (strstr(model_name, "o1") || strstr(model_name, "o3")) {
+			system_msg.role = "developer";
+			system_msg.content = args.system_prompt;
+		} else {
+			system_msg.role = "system";
+			system_msg.content = args.system_prompt;
+		}
 		r2ai_msgs_add (temp_msgs, &system_msg);
 	} else {
 		// Fallback to config if args.system_prompt is not set
 		const char *sysprompt = r_config_get (core->config, "r2ai.system");
 		if (R_STR_ISNOTEMPTY (sysprompt)) {
 			R_LOG_DEBUG ("Using system prompt from config: %s", sysprompt);
-			R2AI_Message system_msg = {
-				.role = "system",
-				.content = sysprompt
-			};
+			if (strstr(model_name, "o1") || strstr(model_name, "o3")) {
+				system_msg.role = "developer";
+			} else {
+				system_msg.role = "system";
+			}
+			system_msg.content = sysprompt;
 			r2ai_msgs_add (temp_msgs, &system_msg);
 		}
 	}
@@ -63,9 +159,12 @@ R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 	for (int i = 0; i < args.messages->n_messages; i++) {
 		r2ai_msgs_add (temp_msgs, &args.messages->messages[i]);
 	}
-	// print the role of the first message
-	R_LOG_DEBUG ("First message role: %s", temp_msgs->messages[0].role);
-	if (error) {
+	// Safely print debug info about first message
+	if (temp_msgs && temp_msgs->n_messages > 0 && temp_msgs->messages && temp_msgs->messages[0].role) {
+		R_LOG_DEBUG ("First message role: %s", temp_msgs->messages[0].role);
+	}
+	// Only set *error to NULL if error pointer is not NULL
+	if (error && *error) {
 		*error = NULL;
 	}
 
@@ -104,9 +203,20 @@ R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 	// Create the model settings part
 	PJ *pj = pj_new ();
 	pj_o (pj);
-	pj_ks (pj, "model", args.model ? args.model : "gpt-4o-mini");
+	pj_ks (pj, "model", model_name);
 	pj_kb (pj, "stream", false);
-	pj_kn (pj, "max_completion_tokens", 5128);
+
+	// Only add temperature if this provider/model doesn't have the temperature error flag
+	if (!model_has_error(args.provider, model_name, MODEL_ERROR_TEMPERATURE)) {
+		pj_kd (pj, "temperature", args.temperature ? args.temperature : 0.01);
+	}
+
+	if(strcmp(args.provider, "mistral") == 0) {
+		pj_kn (pj, "max_tokens", args.max_tokens ? args.max_tokens : 5128);
+	} else {
+		pj_kn (pj, "max_completion_tokens", args.max_tokens ? args.max_tokens : 5128);
+	}
+
 	pj_end (pj);
 
 	// Get the JSON for model settings
@@ -167,7 +277,34 @@ R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 	if (code != 200) {
 		R_LOG_ERROR ("OpenAI API error %d", code);
 		if (res) {
-			R_LOG_ERROR ("Error response: %s", res);
+			R_LOG_ERROR ("OpenAI API error response: %s", res);
+			// Check for specific error types in the response
+			ModelErrorFlags error_flag = MODEL_ERROR_NONE;
+			const char *model_name = args.model ? args.model : "gpt-4o-mini";
+
+			// Check for temperature errors
+			if (strstr(res, "temperature")) {
+				R_LOG_DEBUG("Detected temperature error for %s model %s", args.provider, model_name);
+				error_flag |= MODEL_ERROR_TEMPERATURE;
+			}
+			
+			// Add more error type checks as needed
+			// if (strstr(res, "top_p")) {
+			//     error_flag |= MODEL_ERROR_TOP_P;
+			// }
+
+			if (error_flag != MODEL_ERROR_NONE) {
+				// Record the error flags for this provider/model
+				model_add_error(args.provider, model_name, error_flag);
+				
+				// Clean up
+				free(auth_header);
+				free(res);
+				
+				// Retry the call (it will skip problematic parameters this time)
+				R_LOG_INFO("Retrying request with adjusted parameters for %s/%s", args.provider, model_name);
+				return r2ai_openai(core, args);
+			}
 		}
 		free (auth_header);
 		free (res);

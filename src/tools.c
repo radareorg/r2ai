@@ -499,7 +499,32 @@ R_API char *execute_tool (RCore *core, const char *tool_name, const char *args) 
 	
 	// Try to parse as JSON (equivalent to json.loads in Python)
 	char *result = NULL;
-	RJson *json = r_json_parse (tool_result);
+	
+	// Check for empty or invalid response that could cause a crash
+	if (!tool_result || !*tool_result) {
+		free(tool_result);
+		return strdup("{ \"res\":\"Error: Empty or invalid response from QJS execution\" }");
+	}
+	
+	// Validate that the tool_result looks like valid JSON before parsing
+	if (!r_str_startswith(tool_result, "{") || !strchr(tool_result, '}')) {
+		// Not a JSON object, return as plain text
+		result = strdup(tool_result);
+		free(tool_result);
+		return result;
+	}
+	
+	RJson *json = NULL;
+	// Try to parse the JSON safely
+	json = r_json_parse(tool_result);
+	
+	if (!json) {
+		// JSON parsing failed, return original content
+		R_LOG_WARN("Failed to parse JSON response from tool execution");
+		result = strdup(tool_result);
+		free(tool_result);
+		return result;
+	}
 
 	if (json) {
 		// Check for error field
