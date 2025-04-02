@@ -115,7 +115,7 @@ static char *rag (RCore *core, const char *content, const char *prompt) {
 	return r;
 }
 
-R_IPI R2AI_ChatResponse *r2ai_llmcall (RCore *core, R2AIArgs args) {
+R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 	R2AI_ChatResponse *res = NULL;
 	const char *provider = r_config_get (core->config, "r2ai.api");
 	if (!provider) {
@@ -139,19 +139,21 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall (RCore *core, R2AIArgs args) {
 	const char *api_key_filename = r_str_newf ("~/.r2ai.%s-key", provider);
 	char *api_key = NULL;
 
-	if (!R_STR_ISEMPTY(r_config_get (core->config, "r2ai.api_key"))) {
+	eprintf ("Ktak\n");
+	if (!R_STR_ISEMPTY (r_config_get (core->config, "r2ai.api_key"))) {
 		api_key = strdup (r_config_get (core->config, "r2ai.api_key"));
 	}
-	if (R_STR_ISEMPTY(api_key)) {
+	if (R_STR_ISEMPTY (api_key)) {
 		if (r_file_exists (api_key_filename)) {
 			char *apikey_file = r_file_new (api_key_filename, NULL);
 			api_key = r_file_slurp (apikey_file, NULL);
 			free (apikey_file);
-		}
-	}
-	if (R_STR_ISEMPTY(api_key)) {
-		if (getenv (api_key_env_copy)) {
-			api_key = strdup (getenv (api_key_env_copy));
+			if (R_STR_ISEMPTY (api_key)) {
+				// TODO: use r_sys_getenv for portability reasons
+				if (getenv (api_key_env_copy)) {
+					api_key = strdup (getenv (api_key_env_copy));
+				}
+			}
 		}
 	}
 	free (api_key_env_copy);
@@ -160,12 +162,13 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall (RCore *core, R2AIArgs args) {
 		r_str_trim (api_key);
 		args.api_key = api_key;
 	}
-
 	// Make sure we have an API key before proceeding
-	if (!args.api_key || !*args.api_key) {
-		R_LOG_ERROR ("No API key found for %s provider. Please set one with: r2ai -e %s.api_key=YOUR_KEY", 
-			provider, provider);
-		return NULL;
+	if (strcmp (provider, "ollama")) {
+		if (R_STR_ISNOTEMPTY (args.api_key)) {
+			R_LOG_ERROR ("No API key found for %s provider. Please set one with: r2ai -e %s.api_key=YOUR_KEY",
+				provider, provider);
+			return NULL;
+		}
 	}
 
 	// Set system_prompt from config if it's not already set
@@ -188,7 +191,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall (RCore *core, R2AIArgs args) {
 	return res;
 }
 
-R_IPI char *r2ai (RCore *core, R2AIArgs args) {
+R_IPI char *r2ai(RCore *core, R2AIArgs args) {
 	if (R_STR_ISEMPTY (args.input) && !args.messages) {
 		if (args.error) {
 			*args.error = r_str_newf ("Usage: r2ai [-h] [provider] [prompt]");
@@ -228,7 +231,7 @@ R_IPI char *r2ai (RCore *core, R2AIArgs args) {
 	return content;
 }
 
-static void cmd_r2ai_d (RCore *core, const char *input, const bool recursive) {
+static void cmd_r2ai_d(RCore *core, const char *input, const bool recursive) {
 	const bool r2ai_stream = r_config_get_b (core->config, "r2ai.stream");
 	r_config_set_b (core->config, "r2ai.stream", false);
 	const char *prompt = r_config_get (core->config, "r2ai.prompt");
@@ -286,7 +289,7 @@ static void cmd_r2ai_d (RCore *core, const char *input, const bool recursive) {
 	r_config_set_b (core->config, "r2ai.stream", r2ai_stream);
 }
 
-static void cmd_r2ai_x (RCore *core) {
+static void cmd_r2ai_x(RCore *core) {
 	const char *hlang = r_config_get (core->config, "r2ai.hlang");
 	char *explain_prompt = r_str_newf ("Analyze function calls, comments and strings, ignore registers and memory accesess. Considering the references and involved loops make explain the purpose of this function in one or two short sentences. Output must be only the translation of the explanation in %s", hlang);
 	char *s = r_core_cmd_str (core, "r2ai -d");
@@ -310,7 +313,7 @@ static void cmd_r2ai_x (RCore *core) {
 	free (explain_prompt);
 }
 
-static void cmd_r2ai_repl (RCore *core) {
+static void cmd_r2ai_repl(RCore *core) {
 	RStrBuf *sb = r_strbuf_new ("");
 	while (true) {
 		r_line_set_prompt (">>> ");
@@ -565,7 +568,7 @@ static void load_embeddings (RCore *core, RVdb *db) {
 	r_list_free (files);
 }
 
-static void cmd_r2ai (RCore *core, const char *input) {
+static void cmd_r2ai(RCore *core, const char *input) {
 	if (*input == '?' || r_str_startswith (input, "-h")) {
 		r_core_cmd_help (core, help_msg_r2ai);
 	} else if (r_str_startswith (input, "-e")) {

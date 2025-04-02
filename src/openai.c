@@ -1,3 +1,5 @@
+/* r2ai - Copyright 2023-2025 dnakov */
+
 #include <r_core.h>
 #include <r_util/r_json.h>
 #include "r2ai.h"
@@ -27,10 +29,10 @@ static bool model_has_error(const char *provider, const char *model, ModelErrorF
 		return false;
 	}
 	
-	char *key = r_str_newf("%s:%s", provider, model ? model : "default");
+	char *key = r_str_newf ("%s:%s", provider, model ? model : "default");
 	ModelCompat *compat = NULL;
 	bool found_flag = false;
-	compat = ht_pp_find(model_compat_db, key, &found_flag);
+	compat = ht_pp_find (model_compat_db, key, &found_flag);
 	free(key);
 	
 	if (found_flag && compat) {
@@ -46,31 +48,28 @@ static void model_add_error(const char *provider, const char *model, ModelErrorF
 	}
 	
 	char *key = r_str_newf("%s:%s", provider, model ? model : "default");
-	ModelCompat *compat = NULL;
 	bool found_flag = false;
-	compat = ht_pp_find(model_compat_db, key, &found_flag);
+	ModelCompat *compat = ht_pp_find (model_compat_db, key, &found_flag);
 	
 	if (found_flag && compat) {
 		// Update existing entry
 		compat->error_flags |= flag;
 	} else {
 		// Create new entry
-		compat = R_NEW0(ModelCompat);
-		if (compat) {
-			compat->model_id = strdup(key);
-			compat->error_flags = flag;
-			ht_pp_insert(model_compat_db, key, compat);
-		}
+		compat = R_NEW0 (ModelCompat);
+		compat->model_id = strdup(key);
+		compat->error_flags = flag;
+		ht_pp_insert(model_compat_db, key, compat);
 	}
-	free(key);
+	free (key);
 }
 
 // Free a ModelCompat item (for hash table)
 static bool model_compat_free_cb(void *user, const void *k, const void *v) {
 	ModelCompat *compat = (ModelCompat *)v;
 	if (compat) {
-		free(compat->model_id);
-		free(compat);
+		free (compat->model_id);
+		free (compat);
 	}
 	return true;
 }
@@ -84,12 +83,12 @@ R_IPI void r2ai_openai_fini(void) {
 	}
 }
 
-R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
+R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 	const char *base_url = r_config_get (core->config, "r2ai.base_url");
 
 	// Initialize compatibility database if needed
 	if (!model_compat_db) {
-		model_compat_db = ht_pp_new0();
+		model_compat_db = ht_pp_new0 ();
 	}
 
 	if (R_STR_ISEMPTY (base_url)) {
@@ -113,6 +112,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 			base_url = "https://api.mistral.ai/v1";
 		}
 	}
+	// TODO: default model name should depend on api
 	const char *model_name = args.model ? args.model : "gpt-4o-mini";
 	char **error = args.error;
 	const R2AI_Tools *tools = args.tools;
@@ -156,15 +156,27 @@ R_IPI R2AI_ChatResponse *r2ai_openai (RCore *core, R2AIArgs args) {
 	}
 
 	// Add the rest of the messages one by one
-	for (int i = 0; i < args.messages->n_messages; i++) {
-		r2ai_msgs_add (temp_msgs, &args.messages->messages[i]);
+	if (!args.messages && args.input) {
+		R_LOG_INFO(args.input);
+		R2AI_Message msg = {
+			.role = "user",
+			.content = args.input
+		};
+		args.messages = r2ai_msgs_new ();
+		r2ai_msgs_add (args.messages, &msg);
+	}
+	if (args.messages) {
+		for (int i = 0; i < args.messages->n_messages; i++) {
+			r2ai_msgs_add (temp_msgs, &args.messages->messages[i]);
+		}
+	} else {
+		R_LOG_WARN ("No messages");
 	}
 	// Safely print debug info about first message
 	if (temp_msgs && temp_msgs->n_messages > 0 && temp_msgs->messages && temp_msgs->messages[0].role) {
 		R_LOG_DEBUG ("First message role: %s", temp_msgs->messages[0].role);
 	}
-	// Only set *error to NULL if error pointer is not NULL
-	if (error && *error) {
+	if (error) {
 		*error = NULL;
 	}
 

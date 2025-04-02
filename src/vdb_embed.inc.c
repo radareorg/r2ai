@@ -2,6 +2,8 @@
 
 #include <r_util.h>
 
+#define USE_OLLAMA_EMBED 0
+
 // Create a new global DF entry.
 static void gtfidf_add (RList *db_tokens, const char *token) {
 	RVdbToken *t = R_NEW (RVdbToken);
@@ -44,7 +46,6 @@ static bool valid_token (const char *a) {
 	return true;
 }
 
-#define USE_OLLAMA_EMBED 1
 #if USE_OLLAMA_EMBED
 // experimental ollama
 static void compute_embedding (RVdb *db, const char *text, float *embedding, unsigned int dim) {
