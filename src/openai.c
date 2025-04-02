@@ -1,4 +1,4 @@
-/* r2ai - Copyright 2023-2025 dnakov */
+/* r2ai - Copyright 2023-2025 pancake, dnakov */
 
 #include <r_core.h>
 #include <r_util/r_json.h>
@@ -154,16 +154,6 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 			r2ai_msgs_add (temp_msgs, &system_msg);
 		}
 	}
-
-	// Add the rest of the messages one by one
-	if (!args.messages && args.input) {
-		R2AI_Message msg = {
-			.role = "user",
-			.content = args.input
-		};
-		args.messages = r2ai_msgs_new ();
-		r2ai_msgs_add (args.messages, &msg);
-	}
 	if (args.messages) {
 		for (int i = 0; i < args.messages->n_messages; i++) {
 			r2ai_msgs_add (temp_msgs, &args.messages->messages[i]);
@@ -275,6 +265,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 	}
 
 	// Save the full JSON to a file for inspection
+	// XXX: only create request/response files when r2ai.debug is set
 	r_file_dump ("/tmp/r2ai_openai_request.json", (const ut8 *)complete_json, strlen (complete_json), 0);
 	R_LOG_DEBUG ("Full request saved to /tmp/r2ai_openai_request.json");
 	R_LOG_DEBUG ("OpenAI API request data: %s", complete_json);
@@ -294,7 +285,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 			const char *model_name = args.model ? args.model : "gpt-4o-mini";
 
 			// Check for temperature errors
-			if (strstr(res, "temperature")) {
+			if (strstr (res, "temperature")) {
 				R_LOG_DEBUG("Detected temperature error for %s model %s", args.provider, model_name);
 				error_flag |= MODEL_ERROR_TEMPERATURE;
 			}
@@ -309,12 +300,12 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 				model_add_error(args.provider, model_name, error_flag);
 				
 				// Clean up
-				free(auth_header);
-				free(res);
+				free (auth_header);
+				free (res);
 				
 				// Retry the call (it will skip problematic parameters this time)
-				R_LOG_INFO("Retrying request with adjusted parameters for %s/%s", args.provider, model_name);
-				return r2ai_openai(core, args);
+				R_LOG_INFO ("Retrying request with adjusted parameters for %s/%s", args.provider, model_name);
+				return r2ai_openai (core, args);
 			}
 		}
 		free (auth_header);
@@ -427,7 +418,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 	return NULL;
 }
 
-R_IPI char *r2ai_openai_stream (RCore *core, R2AIArgs args) {
+R_IPI char *r2ai_openai_stream(RCore *core, R2AIArgs args) {
 
 	return NULL;
 }

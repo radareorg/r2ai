@@ -11,13 +11,14 @@ static R_TH_LOCAL RVdb *db = NULL;
 
 #define VDBDIM 16
 
-static void refresh_embeddings (RCore *core) {
+static void refresh_embeddings(RCore *core) {
 	RListIter *iter, *iter2;
 	char *line;
 	char *file;
 	// refresh embeddings database
 	r_vdb_free (db);
 	db = r_vdb_new (VDBDIM);
+	eprintf ("NEW VDB\n");
 	// enumerate .txt files in directory
 	const char *path = r_config_get (core->config, "r2ai.data.path");
 	RList *files = r_sys_dir (path);
@@ -71,7 +72,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 	NULL
 };
 
-static char *vdb_from (RCore *core, const char *prompt) {
+static char *vdb_from(RCore *core, const char *prompt) {
 	char *q = r_str_newf (
 		"# Instruction\n"
 		"Deconstruct the prompt and respond ONLY with the list of multiple prompts necessary to resolve it\n"
@@ -175,6 +176,54 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 	// Set system_prompt from config if it's not already set
 	if (!args.system_prompt) {
 		args.system_prompt = r_config_get (core->config, "r2ai.system");
+	}
+	if (!args.messages) {
+		args.messages = r2ai_msgs_new ();
+	}
+	// context and user message
+	if (args.input && r_config_get_b (core->config, "r2ai.data")) {
+		eprintf ("DATASET\n");
+		const int K = r_config_get_i (core->config, "r2ai.data.nth");
+		if (!db) {
+			db = r_vdb_new (VDBDIM);
+			refresh_embeddings (core);
+		}
+		RStrBuf *sb = r_strbuf_new ("");
+		r_strbuf_appendf (sb, "\n## Query\n\n%s\n## Context\n", args.input);
+		RVdbResultSet *rs = r_vdb_query (db, args.input, K);
+		if (rs) {
+			int i;
+			for (i = 0; i < rs->size; i++) {
+				RVdbResult *r = &rs->results[i];
+				KDNode *n = r->node;
+				r_strbuf_appendf (sb, "- %s.\n", n->text);
+			}
+			r_vdb_result_free (rs);
+		}
+		char *m = r_strbuf_drain (sb);
+		R2AI_Message msg = {
+			.role = "user",
+			.content = m
+		};
+		r2ai_msgs_add (args.messages, &msg);
+		free (m);
+		// TODO: we can save the msg without context
+	} else {
+		R2AI_Message msg = {
+			.role = "user",
+			.content = args.input
+		};
+		r2ai_msgs_add (args.messages, &msg);
+	}
+
+	// Add the rest of the messages one by one
+	if (!args.messages && args.input) {
+		R2AI_Message msg = {
+			.role = "user",
+			.content = args.input
+		};
+		args.messages = r2ai_msgs_new ();
+		r2ai_msgs_add (args.messages, &msg);
 	}
 
 	R_LOG_DEBUG ("Using provider: %s", provider);
@@ -352,7 +401,7 @@ static void cmd_r2ai_repl(RCore *core) {
 	r_strbuf_free (sb);
 }
 
-static void cmd_r2ai_R (RCore *core, const char *q) {
+static void cmd_r2ai_R(RCore *core, const char *q) {
 	if (!r_config_get_b (core->config, "r2ai.data")) {
 		R_LOG_ERROR ("r2ai -e r2ai.data=true");
 		return;
@@ -364,9 +413,7 @@ static void cmd_r2ai_R (RCore *core, const char *q) {
 		}
 		refresh_embeddings (core);
 	} else {
-		if (!db) {
-			refresh_embeddings (core);
-		}
+		refresh_embeddings (core);
 		const int K = r_config_get_i (core->config, "r2ai.data.nth");
 		RVdbResultSet *rs = r_vdb_query (db, q, K);
 
@@ -525,7 +572,7 @@ static void cmd_r2ai_M (RCore *core) {
 		"-m deepseek/deepseek-r1-zero:free\n");
 }
 
-static void cmd_r2ai_m (RCore *core, const char *input) {
+static void cmd_r2ai_m(RCore *core, const char *input) {
 	if (R_STR_ISEMPTY (input)) {
 		r_cons_printf ("%s\n", r_config_get (core->config, "r2ai.model"));
 		return;
