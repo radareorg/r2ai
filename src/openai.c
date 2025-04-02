@@ -100,13 +100,13 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 			base_url = "http://localhost:11434/v1";
 		} else if (strcmp (args.provider, "xai") == 0) {
 			base_url = "https://api.x.ai/v1";
-		} else if (strcmp (args.provider, "anthropic") == 0) {
+		} else if (strcmp (args.provider, "anthropic") == 0) { // also "claude" ?
 			base_url = "https://api.anthropic.com/v1";
 		} else if (strcmp (args.provider, "openapi") == 0) {
 			base_url = "http://127.0.0.1:11434";
 		} else if (strcmp (args.provider, "openrouter") == 0) {
 			base_url = "https://openrouter.ai/api/v1";
-		} else if (strcmp (args.provider, "groq") == 0) {
+		} else if (strcmp (args.provider, "groq") == 0) { // isnt the same as x.ai?
 			base_url = "https://api.groq.com/openai/v1";
 		} else if (strcmp (args.provider, "mistral") == 0) {
 			base_url = "https://api.mistral.ai/v1";

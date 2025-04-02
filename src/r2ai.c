@@ -541,7 +541,7 @@ static void cmd_r2ai_v (RCore *core) {
 	free (s);
 }
 
-static void cmd_r2ai_V (RCore *core, bool recursive) {
+static void cmd_r2ai_V(RCore *core, bool recursive) {
 	char *s = r_core_cmd_str (core, recursive ? "r2ai -d" : "r2ai -dr");
 	char *q = r_str_newf ("find vulnerabilities, dont show the code, only show the response, provide a sample exploit and suggest good practices:\n```\n%s```", s);
 	char *error = NULL;
@@ -557,7 +557,7 @@ static void cmd_r2ai_V (RCore *core, bool recursive) {
 	free (s);
 }
 
-static void cmd_r2ai_M (RCore *core) {
+static void cmd_r2ai_M(RCore *core) {
 	r_cons_printf (
 		"r2ai -e api=anthropic\n"
 		"-m claude-3-7-sonnet-20250219\n"
@@ -724,6 +724,23 @@ static void cmd_r2ai(RCore *core, const char *input) {
 	}
 }
 
+static bool cb_r2ai_api(void *user, void *data) {
+	RConfigNode *node = (RConfigNode*) data;
+	if (*node->value == '?') {
+		r_cons_println ("ollama");
+		r_cons_println ("openai");
+		r_cons_println ("openapi");
+		r_cons_println ("anthropic");
+		r_cons_println ("gemini");
+		r_cons_println ("openrouter");
+		r_cons_println ("mistral");
+		r_cons_println ("groq");
+		r_cons_println ("xai");
+		return false;
+	}
+	return true;
+}
+
 static int r2ai_init (void *user, const char *input) {
 	RCmd *cmd = (RCmd *)user;
 	RCore *core = cmd->data;
@@ -732,7 +749,7 @@ static int r2ai_init (void *user, const char *input) {
 	r2ai_conversation_init ();
 
 	r_config_lock (core->config, false);
-	r_config_set (core->config, "r2ai.api", "openai");
+	r_config_set_cb (core->config, "r2ai.api", "openai", &cb_r2ai_api);
 	r_config_set (core->config, "r2ai.model", "gpt-4o-mini");
 	r_config_set (core->config, "r2ai.base_url", "");
 	r_config_set (core->config, "r2ai.api_key", ""); // TODO: deprecate for privacy reasons
