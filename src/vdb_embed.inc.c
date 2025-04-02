@@ -44,6 +44,35 @@ static bool valid_token (const char *a) {
 	return true;
 }
 
+#define USE_OLLAMA_EMBED 1
+#if USE_OLLAMA_EMBED
+// experimental ollama
+static void compute_embedding (RVdb *db, const char *text, float *embedding, unsigned int dim) {
+	// curl http://localhost:11434/api/embed -d '{ "model": "llama3:latest", "input": "text" }' |jq -r '.embeddings[0]'
+	char *json_text = r_str_escape_utf8_for_json (text, -1);
+	const char *model = "llama3:latest";
+	char *s = r_sys_cmd_strf ("curl http://localhost:11434/api/embed -d '{ \"model\": \"%s\", \"input\": \"%\" }' |jq -r '.embeddings[0]'", model, json_text);
+	RList *list = r_str_split_list (s, "\n", 0);
+	RListIter *iter;
+	const char *vector;
+	int i = 0;
+	for (i = 0; i < dim; i++) {
+		embedding[i] = 0.0f;
+	}
+	r_list_foreach (list, iter, vector) {
+		float f;
+		sscanf (vector, "%f", &f);
+		if (f) {
+			embedding[i % dim] += f;
+			i++;
+		}
+	}
+	printf ("--> %s\n", s);
+	r_list_free (list);
+	free (json_text);
+	free (s);
+}
+#else
 static void compute_embedding (RVdb *db, const char *text, float *embedding, unsigned int dim) {
 	// gtfidf_list (db);
 
@@ -140,3 +169,4 @@ static void compute_embedding (RVdb *db, const char *text, float *embedding, uns
 	eprintf ("\n");
 #endif
 }
+#endif

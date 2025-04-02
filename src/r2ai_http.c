@@ -8,7 +8,7 @@
  * - Timeout handling
  * - Rate limiting with exponential backoff
  * - Retrying on errors (429, 5xx)
- * 
+ *
  * Configuration variables:
  * - r2ai.http.timeout: Request timeout in seconds (default: 120)
  * - r2ai.http.max_retries: Maximum number of retry attempts (default: 3)

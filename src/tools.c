@@ -433,7 +433,7 @@ R_API char *r2ai_qjs (RCore *core, RJson *args, bool hide_tool_output) {
 		return strdup ("{ \"res\":\"Failed to create script payload\" }");
 	}
 
-	char *payload_base64 = r_base64_encode_dyn (payload, strlen (payload));
+	char *payload_base64 = r_base64_encode_dyn ((const ut8 *)payload, strlen (payload));
 	if (!payload_base64) {
 		free(payload);
 		return strdup ("{ \"res\":\"Failed to encode script\" }");
