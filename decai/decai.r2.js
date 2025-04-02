@@ -810,7 +810,10 @@ Response:
         if (useCache && out.length > 1) {
            r2.call("ano=base64:" + b64(out));
         }
-        return out;
+        if (out.startsWith("```")) {
+           out = out.replace(/```.*\n/, "").replace(/```$/, "");
+        }
+        return out.trim();
     }
     function fileDump(fileName, fileData) {
         const d = b64(fileData);
