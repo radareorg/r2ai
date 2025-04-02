@@ -157,7 +157,6 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 
 	// Add the rest of the messages one by one
 	if (!args.messages && args.input) {
-		R_LOG_INFO(args.input);
 		R2AI_Message msg = {
 			.role = "user",
 			.content = args.input

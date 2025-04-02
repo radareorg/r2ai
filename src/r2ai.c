@@ -139,22 +139,23 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 	const char *api_key_filename = r_str_newf ("~/.r2ai.%s-key", provider);
 	char *api_key = NULL;
 
-	eprintf ("Ktak\n");
-	if (!R_STR_ISEMPTY (r_config_get (core->config, "r2ai.api_key"))) {
-		api_key = strdup (r_config_get (core->config, "r2ai.api_key"));
-	}
-	if (R_STR_ISEMPTY (api_key)) {
-		if (r_file_exists (api_key_filename)) {
-			char *apikey_file = r_file_new (api_key_filename, NULL);
-			api_key = r_file_slurp (apikey_file, NULL);
-			free (apikey_file);
+	const char *e_api_key = r_config_get (core->config, "r2ai.api_key");
+	if (R_STR_ISNOTEMPTY (e_api_key)) {
+		api_key = strdup (e_api_key);
+	} else {
+		char *absolute_apikey = r_file_abspath (api_key_filename);
+		if (r_file_exists (absolute_apikey)) {
+			api_key = r_file_slurp (absolute_apikey, NULL);
 			if (R_STR_ISEMPTY (api_key)) {
-				// TODO: use r_sys_getenv for portability reasons
-				if (getenv (api_key_env_copy)) {
-					api_key = strdup (getenv (api_key_env_copy));
+				char *s = r_sys_getenv (api_key_env_copy);
+				if (R_STR_ISNOTEMPTY (s)) {
+					api_key = s;
+				} else {
+					free (s);
 				}
 			}
 		}
+		free (absolute_apikey);
 	}
 	free (api_key_env_copy);
 
@@ -164,7 +165,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 	}
 	// Make sure we have an API key before proceeding
 	if (strcmp (provider, "ollama")) {
-		if (R_STR_ISNOTEMPTY (args.api_key)) {
+		if (R_STR_ISEMPTY (args.api_key)) {
 			R_LOG_ERROR ("No API key found for %s provider. Please set one with: r2ai -e %s.api_key=YOUR_KEY",
 				provider, provider);
 			return NULL;
@@ -677,7 +678,7 @@ static int r2ai_init (void *user, const char *input) {
 	r_config_set (core->config, "r2ai.api", "openai");
 	r_config_set (core->config, "r2ai.model", "gpt-4o-mini");
 	r_config_set (core->config, "r2ai.base_url", "");
-	r_config_set (core->config, "r2ai.api_key", "");
+	r_config_set (core->config, "r2ai.api_key", ""); // TODO: deprecate for privacy reasons
 	r_config_set_i (core->config, "r2ai.max_tokens", 5128);
 	r_config_set (core->config, "r2ai.temperature", "0.01");
 	r_config_set (core->config, "r2ai.cmds", "pdc");
