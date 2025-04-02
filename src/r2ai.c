@@ -18,7 +18,6 @@ static void refresh_embeddings(RCore *core) {
 	// refresh embeddings database
 	r_vdb_free (db);
 	db = r_vdb_new (VDBDIM);
-	eprintf ("NEW VDB\n");
 	// enumerate .txt files in directory
 	const char *path = r_config_get (core->config, "r2ai.data.path");
 	RList *files = r_sys_dir (path);
@@ -59,11 +58,11 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -m", "show selected model, list suggested ones, choose one",
 	"r2ai", " -M", "show suggested models for each api",
 	"r2ai", " -n", "suggest a better name for the current function",
-	"r2ai", " -r", "enter the repl",
-	"r2ai", " -Rq ([text])", "refresh and query embeddings (see r2ai.data)",
+	"r2ai", " -r", "enter the chat repl",
 	"r2ai", " -L", "show chat logs (See -Lj for json)",
 	"r2ai", " -L-[N]", "delete the last (or N last messages from the chat history)",
 	"r2ai", " -R", "reset the chat conversation context",
+	"r2ai", " -Rq ([text])", "refresh and query embeddings (see r2ai.data)",
 	"r2ai", " -s", "function signature",
 	"r2ai", " -x", "explain current function",
 	"r2ai", " -v", "suggest better variables names and types",
@@ -72,6 +71,8 @@ static RCoreHelpMessage help_msg_r2ai = {
 	NULL
 };
 
+#if 0
+// TODO: use it for r2ai.data.reason
 static char *vdb_from(RCore *core, const char *prompt) {
 	char *q = r_str_newf (
 		"# Instruction\n"
@@ -93,7 +94,7 @@ static char *vdb_from(RCore *core, const char *prompt) {
 	return r;
 }
 
-static char *rag (RCore *core, const char *content, const char *prompt) {
+static char *rag(RCore *core, const char *content, const char *prompt) {
 	char *q = r_str_newf (
 		"# Instruction\n"
 		"Filter the statements. Respond ONLY the subset of statements matching the prompt. Do not introduce the output. Do not use markdown\n"
@@ -112,9 +113,9 @@ static char *rag (RCore *core, const char *content, const char *prompt) {
 		free (r);
 		return NULL;
 	}
-	eprintf ("RESULT (%s)\n", r);
 	return r;
 }
+#endif
 
 R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 	R2AI_ChatResponse *res = NULL;
@@ -180,9 +181,9 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 	if (!args.messages) {
 		args.messages = r2ai_msgs_new ();
 	}
+	int context_pullback = -1;
 	// context and user message
 	if (args.input && r_config_get_b (core->config, "r2ai.data")) {
-		eprintf ("DATASET\n");
 		const int K = r_config_get_i (core->config, "r2ai.data.nth");
 		if (!db) {
 			db = r_vdb_new (VDBDIM);
@@ -205,6 +206,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 			.role = "user",
 			.content = m
 		};
+		context_pullback = args.messages->n_messages;
 		r2ai_msgs_add (args.messages, &msg);
 		free (m);
 		// TODO: we can save the msg without context
@@ -231,6 +233,11 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 		res = r2ai_anthropic (core, args);
 	} else {
 		res = r2ai_openai (core, args);
+	}
+	if (context_pullback != -1) {
+		R2AI_Message *msg = &args.messages->messages[context_pullback];
+		free ((char *)msg->content);
+		msg->content = strdup (args.input);
 	}
 	if (*args.error) {
 		R_LOG_ERROR ("%s", *args.error);
@@ -656,7 +663,6 @@ static void cmd_r2ai(RCore *core, const char *input) {
 		}
 		const char *arg = r_str_trim_head_ro (input + 2);
 		const int K = 10;
-		eprintf ("vector search\n");
 		RVdbResultSet *rs = r_vdb_query (db, arg, K);
 		if (rs) {
 			int i;
@@ -681,7 +687,8 @@ static void cmd_r2ai(RCore *core, const char *input) {
 	} else if (r_str_startswith (input, "-r")) {
 		cmd_r2ai_repl (core);
 	} else if (r_str_startswith (input, "-R")) {
-		if (strlen (input) <= 2 || input[2] == ' ' || input[2] == '\t' || input[2] == '\n') {
+#if 0
+		if (strlen (input) <= 2 || isspace (input[2])) {
 			R2AI_Messages *messages = r2ai_conversation_get ();
 			if (!messages || messages->n_messages == 0) {
 				r_cons_printf ("No conversation history to reset\n");
@@ -692,6 +699,9 @@ static void cmd_r2ai(RCore *core, const char *input) {
 		} else {
 			cmd_r2ai_R (core, r_str_trim_head_ro (input + 2));
 		}
+#else
+		cmd_r2ai_R (core, r_str_trim_head_ro (input + 2));
+#endif
 	} else if (r_str_startswith (input, "-Rq")) {
 		cmd_r2ai_R (core, r_str_trim_head_ro (input + 3));
 	} else if (r_str_startswith (input, "-M")) {

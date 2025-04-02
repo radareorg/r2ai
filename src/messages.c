@@ -8,7 +8,7 @@ static R2AI_Messages *conversation = NULL;
 #define INITIAL_CAPACITY 8
 #define GROWTH_FACTOR    1.5
 
-R_API void r2ai_message_free (R2AI_Message *msg) {
+R_API void r2ai_message_free(R2AI_Message *msg) {
 	if (!msg) {
 		return;
 	}
@@ -32,7 +32,7 @@ R_API void r2ai_message_free (R2AI_Message *msg) {
 }
 
 // Initialize conversation container (call this during plugin init)
-R_API void r2ai_conversation_init (void) {
+R_API void r2ai_conversation_init(void) {
 	if (conversation) {
 		// Already initialized
 		return;
@@ -55,7 +55,7 @@ R_API R2AI_Messages *r2ai_conversation_get (void) {
 }
 
 // Create a new temporary messages container
-R_API R2AI_Messages *r2ai_msgs_new (void) {
+R_API R2AI_Messages *r2ai_msgs_new(void) {
 	R2AI_Messages *msgs = R_NEW0 (R2AI_Messages);
 	if (!msgs) {
 		return NULL;
@@ -121,7 +121,7 @@ R_API void r2ai_msgs_clear (R2AI_Messages *msgs) {
 	msgs->n_messages = 0;
 }
 
-R_API bool r2ai_msgs_add (R2AI_Messages *msgs, const R2AI_Message *msg) {
+R_API bool r2ai_msgs_add(R2AI_Messages *msgs, const R2AI_Message *msg) {
 	if (!msgs || !msg) {
 		return false;
 	}
@@ -173,7 +173,7 @@ R_API bool r2ai_msgs_add (R2AI_Messages *msgs, const R2AI_Message *msg) {
 	return true;
 }
 
-R_API bool r2ai_msgs_add_tool_call (R2AI_Messages *msgs, const R2AI_ToolCall *tc) {
+R_API bool r2ai_msgs_add_tool_call(R2AI_Messages *msgs, const R2AI_ToolCall *tc) {
 	if (!msgs || !tc || msgs->n_messages == 0) {
 		return false;
 	}
