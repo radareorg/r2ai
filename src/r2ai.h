@@ -26,8 +26,25 @@ typedef struct {
 } R2AI_ToolCall;
 
 typedef struct {
+	const char *type;
+	const char *id;
+	const char *name;
+	const char *input;
+	const char *data;
+	const char *thinking;
+	const char *signature;
+	const char *text;
+} R2AI_ContentBlock;
+
+typedef struct {
+	R2AI_ContentBlock *blocks;
+	int n_blocks;
+} R2AI_ContentBlocks;
+
+typedef struct {
 	const char *role;
 	const char *content;
+	const R2AI_ContentBlocks *content_blocks;
 	const char *tool_call_id;
 	const R2AI_ToolCall *tool_calls;
 	int n_tool_calls;
@@ -60,6 +77,7 @@ typedef struct {
 	const char *provider;
 	const char *api_key;
 	int max_tokens;
+	int thinking_tokens;
 	float temperature;
 	bool dorag;
 	char **error;
@@ -212,5 +230,15 @@ R_API R2AI_Messages *create_conversation (const char *system_prompt, const char 
  * Process messages through LLM and handle tool calls recursively
  */
 R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *system_prompt, int n_run);
+
+/**
+ * Helper function to convert RJson to string
+ */
+R_API char *r_json_to_string(const RJson *json);
+
+/**
+ * Helper function to convert RJson to PJ
+ */
+R_API PJ *r_json_to_pj(const RJson *json, PJ *existing_pj);
 
 #endif

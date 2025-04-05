@@ -69,7 +69,12 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic (RCore *core, R2AIArgs args) {
 	pj_o (pj);
 	pj_ks (pj, "model", modelname (model));
 	pj_kn (pj, "max_tokens", 4096);
-
+	if (args.thinking_tokens >= 1024) {
+		pj_ko (pj, "thinking");
+		pj_ks (pj, "type", "enabled");
+		pj_kn (pj, "budget_tokens", args.thinking_tokens);
+		pj_end (pj);
+	}
 	// Add system message if available
 	if (system_message) {
 		pj_ks (pj, "system", system_message);
@@ -198,15 +203,37 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic (RCore *core, R2AIArgs args) {
 				// Process each content item
 				int tool_idx = 0;
 				if (content_array && content_array->type == R_JSON_ARRAY) {
+					R2AI_ContentBlocks *cb = R_NEW0 (R2AI_ContentBlocks);
+					if (!cb) {
+						r_json_free (jres);
+						free (response_copy);
+						r2ai_message_free (message);
+						free (res);
+						return NULL;
+					}
+					cb->n_blocks = content_array->children.count;
+					cb->blocks = R_NEWS0 (R2AI_ContentBlock, cb->n_blocks);
+					if (!cb->blocks) {
+						free (cb);
+						r_json_free (jres);
+						free (response_copy);
+						r2ai_message_free (message);
+						free (res);
+						return NULL;
+					}
+					int block_idx = 0;
 					const RJson *content_item = content_array->children.first;
-					while (content_item) {
+					while (content_item && block_idx < cb->n_blocks) {
 						const RJson *type = r_json_get (content_item, "type");
 						if (type && type->type == R_JSON_STRING) {
+							R2AI_ContentBlock *block = &cb->blocks[block_idx];
 							if (!strcmp (type->str_value, "text")) {
 								// Text content
 								const RJson *text = r_json_get (content_item, "text");
 								if (text && text->type == R_JSON_STRING) {
 									r_strbuf_append (content_buf, text->str_value);
+									block->type = strdup ("text");
+									block->text = strdup (text->str_value);
 								}
 							} else if (!strcmp (type->str_value, "tool_use") && tool_idx < n_tool_calls) {
 								// Tool call - convert from Anthropic format to OpenAI format
@@ -214,71 +241,55 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic (RCore *core, R2AIArgs args) {
 								const RJson *id = r_json_get (content_item, "id");
 								const RJson *input = r_json_get (content_item, "input");
 
+								block->type = strdup ("tool_use");
 								if (name && name->type == R_JSON_STRING) {
+									block->name = strdup (name->str_value);
 									R2AI_ToolCall *tc = (R2AI_ToolCall *)&message->tool_calls[tool_idx];
 									tc->name = strdup (name->str_value);
 								}
 
 								if (id && id->type == R_JSON_STRING) {
+									block->id = strdup (id->str_value);
 									R2AI_ToolCall *tc = (R2AI_ToolCall *)&message->tool_calls[tool_idx];
 									tc->id = strdup (id->str_value);
 								}
 
 								if (input && input->type == R_JSON_OBJECT) {
-									// Convert input object to JSON string
-									PJ *args_pj = pj_new ();
-									if (args_pj) {
-										pj_o (args_pj);
-
-										// Process all properties in the input object
-										const RJson *prop = input->children.first;
-										while (prop) {
-											if (prop->key) {
-												switch (prop->type) {
-												case R_JSON_STRING:
-													pj_ks (args_pj, prop->key, prop->str_value);
-													break;
-												case R_JSON_INTEGER:
-													pj_kn (args_pj, prop->key, prop->num.u_value);
-													break;
-												case R_JSON_BOOLEAN:
-													pj_kb (args_pj, prop->key, prop->num.u_value ? true : false);
-													break;
-												case R_JSON_NULL:
-													pj_knull (args_pj, prop->key);
-													break;
-												case R_JSON_DOUBLE: {
-													char buf[64];
-													snprintf (buf, sizeof (buf), "%f", prop->num.dbl_value);
-													pj_ks (args_pj, prop->key, buf);
-												} break;
-												case R_JSON_OBJECT:
-												case R_JSON_ARRAY:
-													// For complex types, we'll just use a simplified approach
-													pj_ks (args_pj, prop->key, "[complex value]");
-													break;
-												default:
-													// Skip unknown types
-													break;
-												}
-											}
-											prop = prop->next;
-										}
-
-										pj_end (args_pj);
-										char *args_str = pj_drain (args_pj);
-										if (args_str) {
-											R2AI_ToolCall *tc = (R2AI_ToolCall *)&message->tool_calls[tool_idx];
-											tc->arguments = args_str;
-										}
+									char *input_str = r_json_to_string (input);
+									if (input_str) {
+										R_LOG_DEBUG ("Input string: %s", input_str);
+										block->input = strdup (input_str);
+										R2AI_ToolCall *tc = (R2AI_ToolCall *)&message->tool_calls[tool_idx];
+										tc->arguments = strdup (input_str);
+										free (input_str);
 									}
 								}
 
 								tool_idx++;
+							} else if (!strcmp (type->str_value, "thinking")) {
+								const RJson *data = r_json_get (content_item, "data");
+								const RJson *thinking = r_json_get (content_item, "thinking");
+								const RJson *signature = r_json_get (content_item, "signature");
+								if (data && data->type == R_JSON_STRING) {
+									block->data = strdup (data->str_value);
+								}
+								if (thinking && thinking->type == R_JSON_STRING) {
+									block->thinking = strdup (thinking->str_value);
+								}
+								if (signature && signature->type == R_JSON_STRING) {
+									block->signature = strdup (signature->str_value);
+								}
+								block->type = strdup ("thinking");
+
+								r_strbuf_append (content_buf, "\n\x1b[90m<thinking>\n");
+								r_strbuf_append (content_buf, block->thinking);
+								r_strbuf_append (content_buf, "\n</thinking>\x1b[0m\n");
 							}
+							block_idx++;
 						}
 						content_item = content_item->next;
 					}
+					message->content_blocks = cb;
 				}
 
 				// Store the content

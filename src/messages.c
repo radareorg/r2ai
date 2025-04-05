@@ -27,6 +27,22 @@ R_API void r2ai_message_free(R2AI_Message *msg) {
 		free ((void *)msg->tool_calls);
 	}
 
+	if (msg->content_blocks) {
+		for (int i = 0; i < msg->content_blocks->n_blocks; i++) {
+			R2AI_ContentBlock *block = &msg->content_blocks->blocks[i];
+			free ((void *)block->type);
+			free ((void *)block->data);
+			free ((void *)block->thinking);
+			free ((void *)block->signature);
+			free ((void *)block->text);
+			free ((void *)block->id);
+			free ((void *)block->name);
+			free ((void *)block->input);
+		}
+		free ((void *)msg->content_blocks->blocks);
+		free ((void *)msg->content_blocks);
+	}
+
 	// Clear the struct but don't free it
 	memset (msg, 0, sizeof (R2AI_Message));
 }
@@ -145,6 +161,37 @@ R_API bool r2ai_msgs_add(R2AI_Messages *msgs, const R2AI_Message *msg) {
 	R2AI_Message *dest = &msgs->messages[msgs->n_messages++];
 	dest->role = msg->role ? strdup (msg->role) : NULL;
 	dest->content = msg->content ? strdup (msg->content) : NULL;
+
+	if (msg->content_blocks) {
+		R2AI_ContentBlocks *cb = R_NEW0 (R2AI_ContentBlocks);
+		if (!cb) {
+			r2ai_message_free (dest);
+			msgs->n_messages--;
+			return false;
+		}
+		cb->n_blocks = msg->content_blocks->n_blocks;
+		cb->blocks = R_NEWS0 (R2AI_ContentBlock, cb->n_blocks);
+		if (!cb->blocks) {
+			free (cb);
+			r2ai_message_free (dest);
+			msgs->n_messages--;
+			return false;
+		}
+		for (int i = 0; i < cb->n_blocks; i++) {
+			R2AI_ContentBlock *src = &msg->content_blocks->blocks[i];
+			R2AI_ContentBlock *dst = &cb->blocks[i];
+			dst->type = src->type ? strdup (src->type) : NULL;
+			dst->data = src->data ? strdup (src->data) : NULL;
+			dst->thinking = src->thinking ? strdup (src->thinking) : NULL;
+			dst->signature = src->signature ? strdup (src->signature) : NULL;
+			dst->text = src->text ? strdup (src->text) : NULL;
+			dst->id = src->id ? strdup (src->id) : NULL;
+			dst->name = src->name ? strdup (src->name) : NULL;
+			dst->input = src->input ? strdup (src->input) : NULL;
+		}
+		dest->content_blocks = cb;
+	}
+
 	dest->tool_call_id = msg->tool_call_id ? strdup (msg->tool_call_id) : NULL;
 	dest->tool_calls = NULL;
 	dest->n_tool_calls = 0;
@@ -246,6 +293,7 @@ R_API bool r2ai_msgs_from_json (R2AI_Messages *msgs, const RJson *json) {
 
 	const RJson *role = r_json_get (message, "role");
 	const RJson *content = r_json_get (message, "content");
+	const RJson *content_blocks = r_json_get (message, "content_blocks");
 
 	// Create a new message to add
 	R2AI_Message new_msg = { 0 };
@@ -255,8 +303,48 @@ R_API bool r2ai_msgs_from_json (R2AI_Messages *msgs, const RJson *json) {
 	new_msg.tool_calls = NULL;
 	new_msg.n_tool_calls = 0;
 
+	if (content_blocks && content_blocks->type == R_JSON_ARRAY && content_blocks->children.count > 0) {
+		R2AI_ContentBlocks *cb = R_NEW0 (R2AI_ContentBlocks);
+		if (!cb) {
+			r2ai_message_free (&new_msg);
+			return false;
+		}
+		cb->n_blocks = content_blocks->children.count;
+		cb->blocks = R_NEWS0 (R2AI_ContentBlock, cb->n_blocks);
+		if (!cb->blocks) {
+			free (cb);
+			r2ai_message_free (&new_msg);
+			return false;
+		}
+		for (int i = 0; i < cb->n_blocks; i++) {
+			const RJson *block = r_json_item (content_blocks, i);
+			if (!block)
+				continue;
+			R2AI_ContentBlock *dst = &cb->blocks[i];
+			const RJson *type = r_json_get (block, "type");
+			const RJson *data = r_json_get (block, "data");
+			const RJson *thinking = r_json_get (block, "thinking");
+			const RJson *signature = r_json_get (block, "signature");
+			const RJson *text = r_json_get (block, "text");
+			const RJson *id = r_json_get (block, "id");
+			const RJson *name = r_json_get (block, "name");
+			const RJson *input = r_json_get (block, "input");
+
+			dst->type = (type && type->type == R_JSON_STRING) ? strdup (type->str_value) : NULL;
+			dst->data = (data && data->type == R_JSON_STRING) ? strdup (data->str_value) : NULL;
+			dst->thinking = (thinking && thinking->type == R_JSON_STRING) ? strdup (thinking->str_value) : NULL;
+			dst->signature = (signature && signature->type == R_JSON_STRING) ? strdup (signature->str_value) : NULL;
+			dst->text = (text && text->type == R_JSON_STRING) ? strdup (text->str_value) : NULL;
+			dst->id = (id && id->type == R_JSON_STRING) ? strdup (id->str_value) : NULL;
+			dst->name = (name && name->type == R_JSON_STRING) ? strdup (name->str_value) : NULL;
+			dst->input = (input && input->type == R_JSON_STRING) ? strdup (input->str_value) : NULL;
+		}
+		new_msg.content_blocks = cb;
+	}
+
 	// Add the message without tool calls first
 	if (!r2ai_msgs_add (msgs, &new_msg)) {
+		r2ai_message_free (&new_msg);
 		return false;
 	}
 
@@ -313,7 +401,6 @@ R_API char *r2ai_msgs_to_json (const R2AI_Messages *msgs) {
 		// Add role
 		pj_ks (pj, "role", msg->role ? msg->role : "user");
 
-		// Add content if present
 		if (msg->content) {
 			pj_ks (pj, "content", msg->content);
 		}
@@ -387,53 +474,107 @@ R_API char *r2ai_msgs_to_anthropic_json (const R2AI_Messages *msgs) {
 		pj_o (pj); // Start message object
 
 		// Add role
-
 		const char *role = msg->role ? msg->role : "user";
-
 		pj_ks (pj, "role", strcmp (role, "tool") == 0 ? "user" : role);
 
-		pj_ka (pj, "content"); // Start content array
-
-		if (strcmp (role, "tool") == 0) {
-			pj_o (pj); // Start content object
-			pj_ks (pj, "type", "tool_result");
-			pj_ks (pj, "tool_use_id", msg->tool_call_id);
-			pj_ks (pj, "content", msg->content && strcmp (msg->content, "") != 0 ? msg->content : "<no content>");
-			pj_end (pj); // End content object
-		}
-		if (msg->content && strcmp (msg->content, "") != 0) {
-			pj_o (pj); // Start content object
-			pj_ks (pj, "type", "text");
-			pj_ks (pj, "text", msg->content);
-			pj_end (pj); // End content object
-		}
-		for (int j = 0; j < msg->n_tool_calls; j++) {
-			const R2AI_ToolCall *tc = &msg->tool_calls[j];
-			pj_o (pj); // Start tool_calls object
-			pj_ks (pj, "type", "tool_use");
-			pj_ks (pj, "id", tc->id ? tc->id : "");
-			pj_ks (pj, "name", tc->name ? tc->name : "");
-
-			// Create a non-const copy for r_json_parse
-			char *arguments_copy = tc->arguments ? strdup (tc->arguments) : NULL;
-			RJson *arguments = arguments_copy ? r_json_parse (arguments_copy) : NULL;
-
-			pj_ko (pj, "input"); // Start input object
-			if (arguments) {
-				for (int k = 0; k < arguments->children.count; k++) {
-					const RJson *arg = r_json_item (arguments, k);
-					if (arg && arg->type == R_JSON_STRING) {
-						pj_ks (pj, arg->key, arg->str_value);
-					}
+		if (msg->content_blocks) {
+			pj_ka (pj, "content"); // Start content array
+			for (int j = 0; j < msg->content_blocks->n_blocks; j++) {
+				const R2AI_ContentBlock *block = &msg->content_blocks->blocks[j];
+				pj_o (pj); // Start content block object
+				if (R_STR_ISNOTEMPTY (block->type)) {
+					pj_ks (pj, "type", block->type);
 				}
-				r_json_free (arguments);
+				if (R_STR_ISNOTEMPTY (block->data)) {
+					pj_ks (pj, "data", block->data);
+				}
+				if (R_STR_ISNOTEMPTY (block->thinking)) {
+					pj_ks (pj, "thinking", block->thinking);
+				}
+				if (R_STR_ISNOTEMPTY (block->signature)) {
+					pj_ks (pj, "signature", block->signature);
+				}
+				if (R_STR_ISNOTEMPTY (block->text)) {
+					pj_ks (pj, "text", block->text);
+				}
+				if (R_STR_ISNOTEMPTY (block->id)) {
+					pj_ks (pj, "id", block->id);
+				}
+				if (R_STR_ISNOTEMPTY (block->name)) {
+					pj_ks (pj, "name", block->name);
+				}
+				if (R_STR_ISNOTEMPTY (block->input)) {
+					// Try to parse the input as JSON first
+					char *input_str = strdup (block->input);
+					RJson *input_json = r_json_parse (input_str);
+					if (input_json) {
+						// If it's valid JSON, add it directly
+						pj_ko (pj, "input");
+						r_json_to_pj (input_json, pj);
+						pj_end (pj);
+						r_json_free (input_json);
+					} else {
+						// If not valid JSON, create a basic object with command
+						pj_ko (pj, "input");
+						pj_ks (pj, "command", block->input);
+						pj_end (pj);
+					}
+					free (input_str);
+				}
+				pj_end (pj); // End content block object
 			}
-			free (arguments_copy);
+			pj_end (pj); // End content array
+		} else {
+			pj_ka (pj, "content"); // Start content array
 
-			pj_end (pj); // End input object
-			pj_end (pj); // End tool_calls object
+			if (msg->content) {
+				pj_o (pj); // Start content block object
+				if (strcmp (msg->role, "tool") == 0) {
+					pj_ks (pj, "type", "tool_result");
+					pj_ks (pj, "tool_use_id", msg->tool_call_id);
+					pj_ks (pj, "content", msg->content);
+				} else {
+					pj_ks (pj, "type", "text");
+					pj_ks (pj, "text", msg->content);
+				}
+				pj_end (pj); // End content block object
+			}
+
+			if (msg->tool_calls && msg->n_tool_calls > 0) {
+				pj_k (pj, "tool_calls");
+				pj_a (pj); // Start tool_calls array
+
+				for (int j = 0; j < msg->n_tool_calls; j++) {
+					const R2AI_ToolCall *tc = &msg->tool_calls[j];
+					pj_o (pj); // Start tool_calls object
+					pj_ks (pj, "type", "tool_use");
+					pj_ks (pj, "id", tc->id ? tc->id : "");
+					pj_ks (pj, "name", tc->name ? tc->name : "");
+
+					// Create a non-const copy for r_json_parse
+					char *arguments_copy = tc->arguments ? strdup (tc->arguments) : NULL;
+					RJson *arguments = arguments_copy ? r_json_parse (arguments_copy) : NULL;
+
+					pj_ko (pj, "input"); // Start input object
+					if (arguments) {
+						for (int k = 0; k < arguments->children.count; k++) {
+							const RJson *arg = r_json_item (arguments, k);
+							if (arg && arg->type == R_JSON_STRING) {
+								pj_ks (pj, arg->key, arg->str_value);
+							}
+						}
+						r_json_free (arguments);
+					}
+					free (arguments_copy);
+
+					pj_end (pj); // End input object
+					pj_end (pj); // End tool_calls object
+				}
+
+				pj_end (pj); // End tool_calls array
+			}
+			pj_end (pj); // End content array
 		}
-		pj_end (pj); // End content array
 		pj_end (pj); // End message object
 	}
 
@@ -466,4 +607,158 @@ R_API void r2ai_delete_last_messages (R2AI_Messages *messages, int n) {
 
 	// Update the message count
 	messages->n_messages -= n;
+}
+
+// Helper function to convert RJson to PJ without draining
+R_API PJ *r_json_to_pj (const RJson *json, PJ *existing_pj) {
+	if (!json) {
+		return existing_pj;
+	}
+
+	PJ *pj = existing_pj ? existing_pj : pj_new ();
+	if (!pj) {
+		return NULL;
+	}
+
+	switch (json->type) {
+	case R_JSON_STRING:
+		pj_s (pj, json->str_value);
+		break;
+	case R_JSON_INTEGER:
+		pj_n (pj, json->num.u_value);
+		break;
+	case R_JSON_DOUBLE:
+		pj_d (pj, json->num.dbl_value);
+		break;
+	case R_JSON_BOOLEAN:
+		pj_b (pj, json->num.u_value);
+		break;
+	case R_JSON_NULL:
+		pj_null (pj);
+		break;
+	case R_JSON_OBJECT:
+		if (!existing_pj) {
+			pj_o (pj);
+		}
+
+		// Handle object's properties
+		const RJson *prop = json->children.first;
+		while (prop) {
+			if (prop->key) {
+				switch (prop->type) {
+				case R_JSON_STRING:
+					pj_ks (pj, prop->key, prop->str_value);
+					break;
+				case R_JSON_INTEGER:
+					pj_kn (pj, prop->key, prop->num.u_value);
+					break;
+				case R_JSON_DOUBLE:
+					pj_kd (pj, prop->key, prop->num.dbl_value);
+					break;
+				case R_JSON_BOOLEAN:
+					pj_kb (pj, prop->key, prop->num.u_value);
+					break;
+				case R_JSON_NULL:
+					pj_knull (pj, prop->key);
+					break;
+				case R_JSON_OBJECT:
+					pj_ko (pj, prop->key);
+					if (!r_json_to_pj (prop, pj)) {
+						if (!existing_pj)
+							pj_free (pj);
+						return NULL;
+					}
+					pj_end (pj);
+					break;
+				case R_JSON_ARRAY:
+					pj_ka (pj, prop->key);
+					if (!r_json_to_pj (prop, pj)) {
+						if (!existing_pj)
+							pj_free (pj);
+						return NULL;
+					}
+					pj_end (pj);
+					break;
+				default:
+					break;
+				}
+			}
+			prop = prop->next;
+		}
+
+		if (!existing_pj) {
+			pj_end (pj);
+		}
+		break;
+
+	case R_JSON_ARRAY:
+		if (!existing_pj) {
+			pj_a (pj);
+		}
+
+		// Handle array items
+		const RJson *item = json->children.first;
+		while (item) {
+			switch (item->type) {
+			case R_JSON_STRING:
+				pj_s (pj, item->str_value);
+				break;
+			case R_JSON_INTEGER:
+				pj_n (pj, item->num.u_value);
+				break;
+			case R_JSON_DOUBLE:
+				pj_d (pj, item->num.dbl_value);
+				break;
+			case R_JSON_BOOLEAN:
+				pj_b (pj, item->num.u_value);
+				break;
+			case R_JSON_NULL:
+				pj_null (pj);
+				break;
+			case R_JSON_OBJECT:
+				pj_o (pj);
+				if (!r_json_to_pj (item, pj)) {
+					if (!existing_pj)
+						pj_free (pj);
+					return NULL;
+				}
+				pj_end (pj);
+				break;
+			case R_JSON_ARRAY:
+				pj_a (pj);
+				if (!r_json_to_pj (item, pj)) {
+					if (!existing_pj)
+						pj_free (pj);
+					return NULL;
+				}
+				pj_end (pj);
+				break;
+			default:
+				break;
+			}
+			item = item->next;
+		}
+
+		if (!existing_pj) {
+			pj_end (pj);
+		}
+		break;
+
+	default:
+		if (!existing_pj)
+			pj_free (pj);
+		return NULL;
+	}
+
+	return pj;
+}
+
+// Helper function to clone RJson to string
+R_API char *r_json_to_string (const RJson *json) {
+	PJ *pj = r_json_to_pj (json, NULL);
+	if (!pj) {
+		return NULL;
+	}
+	char *result = pj_drain (pj);
+	return result;
 }

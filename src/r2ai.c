@@ -228,6 +228,8 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 		r2ai_msgs_add (args.messages, &msg);
 	}
 
+	args.thinking_tokens = r_config_get_i (core->config, "r2ai.thinking_tokens");
+
 	R_LOG_DEBUG ("Using provider: %s", provider);
 	if (strcmp (provider, "anthropic") == 0) {
 		res = r2ai_anthropic (core, args);
@@ -754,6 +756,7 @@ static int r2ai_init (void *user, const char *input) {
 	r_config_set (core->config, "r2ai.base_url", "");
 	r_config_set (core->config, "r2ai.api_key", ""); // TODO: deprecate for privacy reasons
 	r_config_set_i (core->config, "r2ai.max_tokens", 5128);
+	r_config_set_i (core->config, "r2ai.thinking_tokens", 0);
 	r_config_set (core->config, "r2ai.temperature", "0.01");
 	r_config_set (core->config, "r2ai.cmds", "pdc");
 	r_config_set (core->config, "r2ai.lang", "C");
@@ -803,8 +806,8 @@ static int r2ai_fini (void *user, const char *input) {
 	r2ai_conversation_free ();
 
 	// Free the OpenAI resources
-	r2ai_openai_fini();
-	
+	r2ai_openai_fini ();
+
 	// Free the vector database if we have one
 	if (db) {
 		r_vdb_free (db);
