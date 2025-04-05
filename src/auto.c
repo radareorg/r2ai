@@ -83,6 +83,7 @@ static void r2ai_print_run_end (RCore *core, const R2AI_Usage *usage, int n_run,
 		stats.run_completion_tokens,
 		run_time_str,
 		total_time_str);
+	r_cons_newline ();
 	r_cons_flush ();
 
 	free (run_time_str);
@@ -145,7 +146,7 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 		.tools = r2ai_get_tools (),
 		.system_prompt = system_prompt
 	};
-	
+
 	// Call r2ai_llmcall to get a response
 	R2AI_ChatResponse *response = r2ai_llmcall (core, args);
 
@@ -166,6 +167,7 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 	if (message->content) {
 		char *assistant_msg = r_str_newf ("\x1b[31m[Assistant]\x1b[0m\n\n%s\n", message->content);
 		r_cons_printf ("%s", assistant_msg);
+		r_cons_newline ();
 		r_cons_flush ();
 		free (assistant_msg);
 	}
@@ -196,21 +198,21 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 				free (tool_args);
 				continue;
 			}
-			
+
 			char *cmd_output = NULL;
 			if (interrupted) {
-				cmd_output = strdup("<user interrupted>");
+				cmd_output = strdup ("<user interrupted>");
 			} else {
 				cmd_output = execute_tool (core, tool_name, tool_args);
 			}
 
 			free (tool_name);
 			free (tool_args);
-			if (strcmp(cmd_output, "R2AI_SIGINT") == 0) {
-				r_cons_printf("\n\n\x1b[1;31m[r2ai] Processing interrupted after tool execution\x1b[0m\n\n");
-				r_cons_flush();
+			if (strcmp (cmd_output, "R2AI_SIGINT") == 0) {
+				r_cons_printf ("\n\n\x1b[1;31m[r2ai] Processing interrupted after tool execution\x1b[0m\n\n");
+				r_cons_flush ();
 				free (cmd_output);
-				cmd_output = strdup("<user interrupted>");
+				cmd_output = strdup ("<user interrupted>");
 				interrupted = true;
 			}
 
@@ -366,7 +368,6 @@ R_IPI void cmd_r2ai_logs (RCore *core) {
 		} else if (!strcmp (role, "assistant")) {
 			r_cons_printf ("\x1b[1;36m[assistant]:\x1b[0m ");
 			print_content_with_length (msg->content, "<no content>", false);
-
 			// Show tool calls if present
 			if (msg->tool_calls && msg->n_tool_calls > 0) {
 				for (int j = 0; j < msg->n_tool_calls; j++) {
@@ -390,8 +391,8 @@ R_IPI void cmd_r2ai_logs (RCore *core) {
 			print_content_with_length (msg->content, "<no content>", false);
 		}
 
-		// Add a blank line between messages for readability
-		r_cons_printf ("\n");
+		r_cons_newline ();
+		r_cons_flush ();
 	}
 }
 
