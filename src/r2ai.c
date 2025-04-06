@@ -136,6 +136,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 
 	const char *api_key_env = r_str_newf ("%s_API_KEY", provider);
 	char *api_key_env_copy = strdup (api_key_env);
+
 	r_str_case (api_key_env_copy, true);
 	const char *api_key_filename = r_str_newf ("~/.r2ai.%s-key", provider);
 	char *api_key = NULL;
@@ -144,19 +145,17 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 	if (R_STR_ISNOTEMPTY (e_api_key)) {
 		api_key = strdup (e_api_key);
 	} else {
-		char *absolute_apikey = r_file_abspath (api_key_filename);
-		if (r_file_exists (absolute_apikey)) {
-			api_key = r_file_slurp (absolute_apikey, NULL);
-			if (R_STR_ISEMPTY (api_key)) {
-				char *s = r_sys_getenv (api_key_env_copy);
-				if (R_STR_ISNOTEMPTY (s)) {
-					api_key = s;
-				} else {
-					free (s);
-				}
+		char *s = r_sys_getenv (api_key_env_copy);
+		if (R_STR_ISNOTEMPTY (s)) {
+			api_key = s;
+		} else {
+			free (s);
+			char *absolute_apikey = r_file_abspath (api_key_filename);
+			if (r_file_exists (absolute_apikey)) {
+				api_key = r_file_slurp (absolute_apikey, NULL);
 			}
+			free (absolute_apikey);
 		}
-		free (absolute_apikey);
 	}
 	free (api_key_env_copy);
 
@@ -714,7 +713,7 @@ static bool cb_r2ai_api(void *user, void *data) {
 
 static bool cb_r2ai_model(void *user, void *data) {
 	RConfigNode *node = (RConfigNode *)data;
-	RCore *core = (RCore*)user;
+	RCore *core = (RCore *)user;
 	const char *api = r_config_get (core->config, "r2ai.api");
 	if (*node->value == '?') {
 		if (!strcmp (api, "anthropic")) {
