@@ -3,14 +3,14 @@
 #include <r_util.h>
 #include "r_vdb.h"
 
-static Vector vector_new (int dim) {
+static Vector vector_new(int dim) {
 	Vector v;
 	v.dim = dim;
 	v.data = (float *)calloc (dim, sizeof (float));
 	return v;
 }
 
-static void vector_free (Vector *v) {
+static void vector_free(Vector *v) {
 	if (v) {
 		free (v->data);
 		v->dim = 0;
@@ -21,7 +21,7 @@ static void vector_free (Vector *v) {
  * Distance Function Using Squared Euclidean Distance
  * For two unit vectors: dist^2 = 2 - 2 * (dot product)
  *-------------------------------*/
-static float squared_distance (const Vector *a, const Vector *b) {
+static float squared_distance(const Vector *a, const Vector *b) {
 	if (a->dim != b->dim) {
 		return 1e30f; // dimension mismatch
 	}
@@ -36,7 +36,7 @@ static float squared_distance (const Vector *a, const Vector *b) {
 /*-------------------------------
   KDNode Utility Functions
   -------------------------------*/
-static KDNode *create_kdnode (const Vector *v, const char *text, int split_dim) {
+static KDNode *create_kdnode(const Vector *v, const char *text, int split_dim) {
 	KDNode *node = (KDNode *)malloc (sizeof (KDNode));
 	node->point.dim = v->dim;
 	node->point.data = (float *)malloc (sizeof (float) * v->dim);
@@ -48,7 +48,7 @@ static KDNode *create_kdnode (const Vector *v, const char *text, int split_dim) 
 	return node;
 }
 
-static void kdnode_free (KDNode *node) {
+static void kdnode_free(KDNode *node) {
 	if (!node) {
 		return;
 	}
@@ -62,14 +62,14 @@ static void kdnode_free (KDNode *node) {
 	free (node);
 }
 
-RVdb *r_vdb_new (int dim) {
+RVdb *r_vdb_new(int dim) {
 	RVdb *db = R_NEW0 (RVdb);
 	db->dimension = dim;
 	db->tokens = r_list_newf (token_free);
 	return db;
 }
 
-void r_vdb_free (RVdb *db) {
+void r_vdb_free(RVdb *db) {
 	if (db) {
 		r_list_free (db->tokens);
 		kdnode_free (db->root);
@@ -78,7 +78,7 @@ void r_vdb_free (RVdb *db) {
 }
 
 /* Recursive KD-tree insertion */
-static KDNode *kd_insert_recursive (KDNode *node, const Vector *v, const char *text, int depth, int dimension) {
+static KDNode *kd_insert_recursive(KDNode *node, const Vector *v, const char *text, int depth, int dimension) {
 	if (node == NULL) {
 		int split_dim = depth % dimension;
 		return create_kdnode (v, text, split_dim);
@@ -94,7 +94,7 @@ static KDNode *kd_insert_recursive (KDNode *node, const Vector *v, const char *t
 
 #include "vdb_embed.inc.c"
 
-void r_vdb_insert (RVdb *db, const char *text) {
+void r_vdb_insert(RVdb *db, const char *text) {
 	if (!db || !text) {
 		return;
 	}
@@ -110,7 +110,7 @@ void r_vdb_insert (RVdb *db, const char *text) {
 }
 
 // K-NN Search Data Structures and Helpers
-static RVdbResultSet *create_knn_result_set (int capacity) {
+static RVdbResultSet *create_knn_result_set(int capacity) {
 	RVdbResultSet *rs = (RVdbResultSet *)malloc (sizeof (RVdbResultSet));
 	rs->results = (RVdbResult *)malloc (sizeof (RVdbResult) * capacity);
 	rs->capacity = capacity;
@@ -118,7 +118,7 @@ static RVdbResultSet *create_knn_result_set (int capacity) {
 	return rs;
 }
 
-void r_vdb_result_free (RVdbResultSet *rs) {
+void r_vdb_result_free(RVdbResultSet *rs) {
 	if (rs) {
 		free (rs->results);
 		free (rs);
@@ -126,14 +126,14 @@ void r_vdb_result_free (RVdbResultSet *rs) {
 }
 
 /* Swap helper */
-static void swap_knn (RVdbResult *a, RVdbResult *b) {
+static void swap_knn(RVdbResult *a, RVdbResult *b) {
 	RVdbResult tmp = *a;
 	*a = *b;
 	*b = tmp;
 }
 
 /* Heapify up (max-heap) */
-static void heapify_up (RVdbResultSet *rs, int idx) {
+static void heapify_up(RVdbResultSet *rs, int idx) {
 	while (idx > 0) {
 		int parent = (idx - 1) / 2;
 		if (rs->results[idx].dist_sq > rs->results[parent].dist_sq) {
@@ -146,7 +146,7 @@ static void heapify_up (RVdbResultSet *rs, int idx) {
 }
 
 /* Heapify down (max-heap) */
-static void heapify_down (RVdbResultSet *rs, int idx) {
+static void heapify_down(RVdbResultSet *rs, int idx) {
 	while (1) {
 		int left = 2 * idx + 1;
 		int right = 2 * idx + 2;
@@ -166,7 +166,7 @@ static void heapify_down (RVdbResultSet *rs, int idx) {
 }
 
 /* Insert a new candidate into the result set. */
-static void knn_insert_result (RVdbResultSet *rs, KDNode *node, float dist_sq) {
+static void knn_insert_result(RVdbResultSet *rs, KDNode *node, float dist_sq) {
 	if (rs->size < rs->capacity) {
 		int idx = rs->size;
 		rs->results[idx].node = node;
@@ -183,14 +183,14 @@ static void knn_insert_result (RVdbResultSet *rs, KDNode *node, float dist_sq) {
 }
 
 /* The largest distance in the set (for max-heap) is at rs->results[0] */
-static float knn_worst_dist (const RVdbResultSet *rs) {
+static float knn_worst_dist(const RVdbResultSet *rs) {
 	if (rs->size == 0) {
 		return 1e30f;
 	}
 	return rs->results[0].dist_sq;
 }
 
-static int compare_knn_result (const void *a, const void *b) {
+static int compare_knn_result(const void *a, const void *b) {
 	const float d1 = ((RVdbResult *)a)->dist_sq;
 	const float d2 = ((RVdbResult *)b)->dist_sq;
 	if (d1 < d2) {
@@ -203,7 +203,7 @@ static int compare_knn_result (const void *a, const void *b) {
 }
 
 /* K-NN Search (using squared Euclidean distance) */
-void kd_search_knn_recursive (KDNode *node, const Vector *query, RVdbResultSet *rs, int depth, int dim) {
+void kd_search_knn_recursive(KDNode *node, const Vector *query, RVdbResultSet *rs, int depth, int dim) {
 	if (!node) {
 		return;
 	}
@@ -228,7 +228,7 @@ void kd_search_knn_recursive (KDNode *node, const Vector *query, RVdbResultSet *
  * Find the k nearest neighbors to the embedding computed from `query_data`.
  * Returns a RVdbResultSet that must be freed by the caller.
  */
-RVdbResultSet *r_vdb_query_embedding (RVdb *db, const float *query_data, int k) {
+RVdbResultSet *r_vdb_query_embedding(RVdb *db, const float *query_data, int k) {
 	if (!db || db->size == 0 || k <= 0) {
 		return NULL;
 	}
@@ -236,7 +236,7 @@ RVdbResultSet *r_vdb_query_embedding (RVdb *db, const float *query_data, int k) 
 	for (int i = 0; i < db->dimension; i++) {
 		query_vec.data[i] = query_data[i];
 	}
-	// query_vec is already normalized by compute_embedding()
+	// query_vec is already normalized by compute_embedding ()
 	RVdbResultSet *rs = create_knn_result_set (k);
 	kd_search_knn_recursive (db->root, &query_vec, rs, 0, db->dimension);
 	/* Optional: sort the result set in ascending order of distance */
@@ -245,7 +245,7 @@ RVdbResultSet *r_vdb_query_embedding (RVdb *db, const float *query_data, int k) 
 	return rs;
 }
 
-RVdbResultSet *r_vdb_query (RVdb *db, const char *text, int k) {
+RVdbResultSet *r_vdb_query(RVdb *db, const char *text, int k) {
 	float *query_embedding = (float *)calloc (db->dimension, sizeof (float));
 	compute_embedding (db, text, query_embedding, db->dimension);
 	// No extra normalization is needed.

@@ -2,7 +2,7 @@
 #include <time.h>
 
 // Forward declaration of the r2ai_llmcall function
-extern R2AI_ChatResponse *r2ai_llmcall (RCore *core, R2AIArgs args);
+extern R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args);
 
 // Add a global structure to track timing and costs
 typedef struct {
@@ -21,7 +21,7 @@ typedef struct {
 static R2AIStats stats = { 0 };
 
 // Helper function to format time duration
-static char *format_time_duration (time_t seconds) {
+static char *format_time_duration(time_t seconds) {
 	if (seconds < 60) {
 		return r_str_newf ("%llds", (long long)seconds);
 	} else if (seconds < 3600) {
@@ -35,7 +35,7 @@ static char *format_time_duration (time_t seconds) {
 }
 
 // Initialize timing and cost tracking for a run
-static void r2ai_stats_init_run (int n_run) {
+static void r2ai_stats_init_run(int n_run) {
 	time_t run_start = time (NULL);
 	if (n_run == 1) {
 		// First run, initialize total timing
@@ -53,7 +53,7 @@ static void r2ai_stats_init_run (int n_run) {
 }
 
 // Print a simple run indicator at the start
-static void r2ai_print_run_end (RCore *core, const R2AI_Usage *usage, int n_run, int max_runs) {
+static void r2ai_print_run_end(RCore *core, const R2AI_Usage *usage, int n_run, int max_runs) {
 	time_t run_time = time (NULL) - stats.start_time;
 	time_t total_time = time (NULL) - stats.total_start_time;
 	if (usage) {
@@ -111,7 +111,7 @@ const char *Gprompt_auto = "You are a reverse engineer and you are using radare2
 			   "- Make sure you call tools and functions correctly.\n";
 
 // Helper function to process messages and handle tool calls recursively
-R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *system_prompt, int n_run) {
+R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *system_prompt, int n_run) {
 	char *error = NULL;
 	bool interrupted = false;
 	const int max_runs = r_config_get_i (core->config, "r2ai.auto.max_runs");
@@ -242,7 +242,7 @@ R_API void process_messages (RCore *core, R2AI_Messages *messages, const char *s
 	free (response);
 }
 
-R_IPI void cmd_r2ai_a (RCore *core, const char *user_query) {
+R_IPI void cmd_r2ai_a(RCore *core, const char *user_query) {
 	// Get conversation
 	R2AI_Messages *messages = r2ai_conversation_get ();
 	if (!messages) {
@@ -267,7 +267,7 @@ R_IPI void cmd_r2ai_a (RCore *core, const char *user_query) {
 }
 
 // Helper function to display content with length indication for long content
-static void print_content_with_length (const char *content, const char *empty_msg, bool always_show_length) {
+static void print_content_with_length(const char *content, const char *empty_msg, bool always_show_length) {
 	if (!content || *content == '\0') {
 		r_cons_printf ("%s\n", empty_msg ? empty_msg : "<no content>");
 		return;
@@ -292,7 +292,7 @@ static void print_content_with_length (const char *content, const char *empty_ms
 }
 
 // Add this function right after cmd_r2ai_a
-R_IPI void cmd_r2ai_logs (RCore *core) {
+R_IPI void cmd_r2ai_logs(RCore *core) {
 	// Get conversation
 	R2AI_Messages *messages = r2ai_conversation_get ();
 	if (!messages || messages->n_messages == 0) {
@@ -328,10 +328,12 @@ R_IPI void cmd_r2ai_logs (RCore *core) {
 
 					pj_o (pj);
 
-					if (tc->name)
+					if (tc->name) {
 						pj_ks (pj, "name", tc->name);
-					if (tc->arguments)
+					}
+					if (tc->arguments) {
 						pj_ks (pj, "arguments", tc->arguments);
+					}
 
 					pj_end (pj);
 				}
@@ -397,7 +399,7 @@ R_IPI void cmd_r2ai_logs (RCore *core) {
 }
 
 // Create a conversation with optional initial user message
-R_API R2AI_Messages *create_conversation (const char *system_prompt, const char *user_message) {
+R_API R2AI_Messages *create_conversation(const char *system_prompt, const char *user_message) {
 	// Create a temporary message container (not using static storage)
 	R2AI_Messages *msgs = r2ai_msgs_new ();
 	if (!msgs) {

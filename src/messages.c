@@ -66,7 +66,7 @@ R_API void r2ai_conversation_init(void) {
 }
 
 // Get the conversation instance (returns NULL if not initialized)
-R_API R2AI_Messages *r2ai_conversation_get (void) {
+R_API R2AI_Messages *r2ai_conversation_get(void) {
 	return conversation;
 }
 
@@ -85,7 +85,7 @@ R_API R2AI_Messages *r2ai_msgs_new(void) {
 	return msgs;
 }
 
-R_API void r2ai_msgs_free (R2AI_Messages *msgs) {
+R_API void r2ai_msgs_free(R2AI_Messages *msgs) {
 	if (!msgs) {
 		return;
 	}
@@ -112,7 +112,7 @@ R_API void r2ai_msgs_free (R2AI_Messages *msgs) {
 }
 
 // Free the conversation when plugin is unloaded
-R_API void r2ai_conversation_free (void) {
+R_API void r2ai_conversation_free(void) {
 	if (conversation) {
 		if (conversation->messages) {
 			for (int i = 0; i < conversation->n_messages; i++) {
@@ -126,7 +126,7 @@ R_API void r2ai_conversation_free (void) {
 }
 
 // Clear messages in a container without freeing the container itself
-R_API void r2ai_msgs_clear (R2AI_Messages *msgs) {
+R_API void r2ai_msgs_clear(R2AI_Messages *msgs) {
 	if (!msgs) {
 		return;
 	}
@@ -255,7 +255,7 @@ R_API bool r2ai_msgs_add_tool_call(R2AI_Messages *msgs, const R2AI_ToolCall *tc)
 	return true;
 }
 
-R_API bool r2ai_msgs_from_response (R2AI_Messages *msgs, const char *json_str) {
+R_API bool r2ai_msgs_from_response(R2AI_Messages *msgs, const char *json_str) {
 	if (!msgs || !json_str) {
 		return false;
 	}
@@ -271,7 +271,7 @@ R_API bool r2ai_msgs_from_response (R2AI_Messages *msgs, const char *json_str) {
 	return result;
 }
 
-R_API bool r2ai_msgs_from_json (R2AI_Messages *msgs, const RJson *json) {
+R_API bool r2ai_msgs_from_json(R2AI_Messages *msgs, const RJson *json) {
 	if (!msgs || !json) {
 		return false;
 	}
@@ -318,8 +318,9 @@ R_API bool r2ai_msgs_from_json (R2AI_Messages *msgs, const RJson *json) {
 		}
 		for (int i = 0; i < cb->n_blocks; i++) {
 			const RJson *block = r_json_item (content_blocks, i);
-			if (!block)
+			if (!block) {
 				continue;
+			}
 			R2AI_ContentBlock *dst = &cb->blocks[i];
 			const RJson *type = r_json_get (block, "type");
 			const RJson *data = r_json_get (block, "data");
@@ -381,7 +382,7 @@ R_API bool r2ai_msgs_from_json (R2AI_Messages *msgs, const RJson *json) {
 	return true;
 }
 
-R_API char *r2ai_msgs_to_json (const R2AI_Messages *msgs) {
+R_API char *r2ai_msgs_to_json(const R2AI_Messages *msgs) {
 	if (!msgs || msgs->n_messages == 0) {
 		return NULL;
 	}
@@ -456,7 +457,7 @@ R_API char *r2ai_msgs_to_json (const R2AI_Messages *msgs) {
 	return result;
 }
 
-R_API char *r2ai_msgs_to_anthropic_json (const R2AI_Messages *msgs) {
+R_API char *r2ai_msgs_to_anthropic_json(const R2AI_Messages *msgs) {
 	if (!msgs || msgs->n_messages == 0) {
 		return NULL;
 	}
@@ -585,7 +586,7 @@ R_API char *r2ai_msgs_to_anthropic_json (const R2AI_Messages *msgs) {
 }
 
 // Function to delete the last N messages from conversation history
-R_API void r2ai_delete_last_messages (R2AI_Messages *messages, int n) {
+R_API void r2ai_delete_last_messages(R2AI_Messages *messages, int n) {
 	if (!messages || messages->n_messages == 0) {
 		return;
 	}
@@ -610,7 +611,7 @@ R_API void r2ai_delete_last_messages (R2AI_Messages *messages, int n) {
 }
 
 // Helper function to convert RJson to PJ without draining
-R_API PJ *r_json_to_pj (const RJson *json, PJ *existing_pj) {
+R_API PJ *r_json_to_pj(const RJson *json, PJ *existing_pj) {
 	if (!json) {
 		return existing_pj;
 	}
@@ -664,8 +665,9 @@ R_API PJ *r_json_to_pj (const RJson *json, PJ *existing_pj) {
 				case R_JSON_OBJECT:
 					pj_ko (pj, prop->key);
 					if (!r_json_to_pj (prop, pj)) {
-						if (!existing_pj)
+						if (!existing_pj) {
 							pj_free (pj);
+						}
 						return NULL;
 					}
 					pj_end (pj);
@@ -673,8 +675,9 @@ R_API PJ *r_json_to_pj (const RJson *json, PJ *existing_pj) {
 				case R_JSON_ARRAY:
 					pj_ka (pj, prop->key);
 					if (!r_json_to_pj (prop, pj)) {
-						if (!existing_pj)
+						if (!existing_pj) {
 							pj_free (pj);
+						}
 						return NULL;
 					}
 					pj_end (pj);
@@ -718,8 +721,9 @@ R_API PJ *r_json_to_pj (const RJson *json, PJ *existing_pj) {
 			case R_JSON_OBJECT:
 				pj_o (pj);
 				if (!r_json_to_pj (item, pj)) {
-					if (!existing_pj)
+					if (!existing_pj) {
 						pj_free (pj);
+					}
 					return NULL;
 				}
 				pj_end (pj);
@@ -727,8 +731,9 @@ R_API PJ *r_json_to_pj (const RJson *json, PJ *existing_pj) {
 			case R_JSON_ARRAY:
 				pj_a (pj);
 				if (!r_json_to_pj (item, pj)) {
-					if (!existing_pj)
+					if (!existing_pj) {
 						pj_free (pj);
+					}
 					return NULL;
 				}
 				pj_end (pj);
@@ -745,8 +750,9 @@ R_API PJ *r_json_to_pj (const RJson *json, PJ *existing_pj) {
 		break;
 
 	default:
-		if (!existing_pj)
+		if (!existing_pj) {
 			pj_free (pj);
+		}
 		return NULL;
 	}
 
@@ -754,7 +760,7 @@ R_API PJ *r_json_to_pj (const RJson *json, PJ *existing_pj) {
 }
 
 // Helper function to clone RJson to string
-R_API char *r_json_to_string (const RJson *json) {
+R_API char *r_json_to_string(const RJson *json) {
 	PJ *pj = r_json_to_pj (json, NULL);
 	if (!pj) {
 		return NULL;

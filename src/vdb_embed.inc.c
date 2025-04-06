@@ -5,14 +5,14 @@
 #define USE_OLLAMA_EMBED 0
 
 // Create a new global DF entry.
-static void gtfidf_add (RList *db_tokens, const char *token) {
+static void gtfidf_add(RList *db_tokens, const char *token) {
 	RVdbToken *t = R_NEW (RVdbToken);
 	t->token = r_str_trim_dup (token);
 	t->count = 1;
 	r_list_append (db_tokens, t);
 }
 
-static RVdbToken *gtfidf_find (RList *db_tokens, const char *token) {
+static RVdbToken *gtfidf_find(RList *db_tokens, const char *token) {
 	RListIter *iter;
 	RVdbToken *t;
 	r_list_foreach (db_tokens, iter, t) {
@@ -23,7 +23,7 @@ static RVdbToken *gtfidf_find (RList *db_tokens, const char *token) {
 	return NULL;
 }
 
-static inline void gtfidf_list (RVdb *db) {
+static inline void gtfidf_list(RVdb *db) {
 	// show global token frequency
 	RListIter *iter;
 	RVdbToken *t;
@@ -33,7 +33,7 @@ static inline void gtfidf_list (RVdb *db) {
 	}
 }
 
-static bool valid_token (const char *a) {
+static bool valid_token(const char *a) {
 	if (!strcmp (a, "pancake")) {
 		return false;
 	}
@@ -48,7 +48,7 @@ static bool valid_token (const char *a) {
 
 #if USE_OLLAMA_EMBED
 // experimental ollama
-static void compute_embedding (RVdb *db, const char *text, float *embedding, unsigned int dim) {
+static void compute_embedding(RVdb *db, const char *text, float *embedding, unsigned int dim) {
 	// curl http://localhost:11434/api/embed -d '{ "model": "llama3:latest", "input": "text" }' |jq -r '.embeddings[0]'
 	char *json_text = r_str_escape_utf8_for_json (text, -1);
 	const char *model = "llama3:latest";
@@ -74,7 +74,7 @@ static void compute_embedding (RVdb *db, const char *text, float *embedding, uns
 	free (s);
 }
 #else
-static void compute_embedding (RVdb *db, const char *text, float *embedding, unsigned int dim) {
+static void compute_embedding(RVdb *db, const char *text, float *embedding, unsigned int dim) {
 	// gtfidf_list (db);
 
 	// Zero the embedding vector.
@@ -133,7 +133,7 @@ static void compute_embedding (RVdb *db, const char *text, float *embedding, uns
 	/* --- Step 3. Compute TF-IDF for Each Token and Update the Embedding --- */
 	RVdbToken *dt;
 	r_list_foreach (doc_tokens, iter, dt) {
-		// Compute term frequency: tf = 1 + log(token_count)
+		// Compute term frequency: tf = 1 + log (token_count)
 		float tf = 1.0f + log ((float)dt->count);
 		RVdbToken *t = gtfidf_find (db->tokens, dt->token);
 		float df_value = t ? t->df : 1.0f;

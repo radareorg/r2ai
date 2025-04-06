@@ -16,8 +16,8 @@ typedef enum {
 
 // Structure to store model compatibility info
 typedef struct {
-	char *model_id;        // Provider:model string
-	int error_flags;       // Bitfield of ModelErrorFlags
+	char *model_id; // Provider:model string
+	int error_flags; // Bitfield of ModelErrorFlags
 } ModelCompat;
 
 // Hash table to store model compatibility info
@@ -28,13 +28,13 @@ static bool model_has_error(const char *provider, const char *model, ModelErrorF
 	if (!model_compat_db) {
 		return false;
 	}
-	
+
 	char *key = r_str_newf ("%s:%s", provider, model ? model : "default");
 	ModelCompat *compat = NULL;
 	bool found_flag = false;
 	compat = ht_pp_find (model_compat_db, key, &found_flag);
-	free(key);
-	
+	free (key);
+
 	if (found_flag && compat) {
 		return (compat->error_flags & flag) != 0;
 	}
@@ -44,22 +44,22 @@ static bool model_has_error(const char *provider, const char *model, ModelErrorF
 // Function to add an error flag to a model
 static void model_add_error(const char *provider, const char *model, ModelErrorFlags flag) {
 	if (!model_compat_db) {
-		model_compat_db = ht_pp_new0();
+		model_compat_db = ht_pp_new0 ();
 	}
-	
-	char *key = r_str_newf("%s:%s", provider, model ? model : "default");
+
+	char *key = r_str_newf ("%s:%s", provider, model ? model : "default");
 	bool found_flag = false;
 	ModelCompat *compat = ht_pp_find (model_compat_db, key, &found_flag);
-	
+
 	if (found_flag && compat) {
 		// Update existing entry
 		compat->error_flags |= flag;
 	} else {
 		// Create new entry
 		compat = R_NEW0 (ModelCompat);
-		compat->model_id = strdup(key);
+		compat->model_id = strdup (key);
 		compat->error_flags = flag;
-		ht_pp_insert(model_compat_db, key, compat);
+		ht_pp_insert (model_compat_db, key, compat);
 	}
 	free (key);
 }
@@ -77,8 +77,8 @@ static bool model_compat_free_cb(void *user, const void *k, const void *v) {
 // Function to free the model_compat_db hash table
 R_IPI void r2ai_openai_fini(void) {
 	if (model_compat_db) {
-		ht_pp_foreach(model_compat_db, model_compat_free_cb, NULL);
-		ht_pp_free(model_compat_db);
+		ht_pp_foreach (model_compat_db, model_compat_free_cb, NULL);
+		ht_pp_free (model_compat_db);
 		model_compat_db = NULL;
 	}
 }
@@ -132,7 +132,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 	if (R_STR_ISNOTEMPTY (args.system_prompt)) {
 		R_LOG_DEBUG ("Using system prompt: %s", args.system_prompt);
 		// if the model name contains "o1" or "o3", it's "developer" role
-		if (strstr(model_name, "o1") || strstr(model_name, "o3")) {
+		if (strstr (model_name, "o1") || strstr (model_name, "o3")) {
 			system_msg.role = "developer";
 			system_msg.content = args.system_prompt;
 		} else {
@@ -145,7 +145,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 		const char *sysprompt = r_config_get (core->config, "r2ai.system");
 		if (R_STR_ISNOTEMPTY (sysprompt)) {
 			R_LOG_DEBUG ("Using system prompt from config: %s", sysprompt);
-			if (strstr(model_name, "o1") || strstr(model_name, "o3")) {
+			if (strstr (model_name, "o1") || strstr (model_name, "o3")) {
 				system_msg.role = "developer";
 			} else {
 				system_msg.role = "system";
@@ -208,11 +208,11 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 	pj_kb (pj, "stream", false);
 
 	// Only add temperature if this provider/model doesn't have the temperature error flag
-	if (!model_has_error(args.provider, model_name, MODEL_ERROR_TEMPERATURE)) {
+	if (!model_has_error (args.provider, model_name, MODEL_ERROR_TEMPERATURE)) {
 		pj_kd (pj, "temperature", args.temperature ? args.temperature : 0.01);
 	}
 
-	if(strcmp(args.provider, "mistral") == 0) {
+	if (strcmp (args.provider, "mistral") == 0) {
 		pj_kn (pj, "max_tokens", args.max_tokens ? args.max_tokens : 5128);
 	} else {
 		pj_kn (pj, "max_completion_tokens", args.max_tokens ? args.max_tokens : 5128);
@@ -286,23 +286,23 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 
 			// Check for temperature errors
 			if (strstr (res, "temperature")) {
-				R_LOG_DEBUG("Detected temperature error for %s model %s", args.provider, model_name);
+				R_LOG_DEBUG ("Detected temperature error for %s model %s", args.provider, model_name);
 				error_flag |= MODEL_ERROR_TEMPERATURE;
 			}
-			
+
 			// Add more error type checks as needed
-			// if (strstr(res, "top_p")) {
+			// if (strstr (res, "top_p")) {
 			//     error_flag |= MODEL_ERROR_TOP_P;
 			// }
 
 			if (error_flag != MODEL_ERROR_NONE) {
 				// Record the error flags for this provider/model
-				model_add_error(args.provider, model_name, error_flag);
-				
+				model_add_error (args.provider, model_name, error_flag);
+
 				// Clean up
 				free (auth_header);
 				free (res);
-				
+
 				// Retry the call (it will skip problematic parameters this time)
 				R_LOG_INFO ("Retrying request with adjusted parameters for %s/%s", args.provider, model_name);
 				return r2ai_openai (core, args);
@@ -419,6 +419,5 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 }
 
 R_IPI char *r2ai_openai_stream(RCore *core, R2AIArgs args) {
-
 	return NULL;
 }

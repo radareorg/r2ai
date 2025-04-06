@@ -38,7 +38,7 @@ static R2AI_Tools r2ai_tools_instance = {
 };
 
 // Function to get the global tools instance
-R_API const R2AI_Tools *r2ai_get_tools (void) {
+R_API const R2AI_Tools *r2ai_get_tools(void) {
 	// Initialize tools array if not done yet
 	if (!r2ai_tools_instance.tools) {
 		static R2AI_Tool tools_array[2];
@@ -50,7 +50,7 @@ R_API const R2AI_Tools *r2ai_get_tools (void) {
 }
 
 // Function to parse input tools_json (OpenAI format) into R2AI_Tool array
-R_API R2AI_Tools *r2ai_tools_parse (const char *tools_json) {
+R_API R2AI_Tools *r2ai_tools_parse(const char *tools_json) {
 	if (!tools_json) {
 		return NULL;
 	}
@@ -136,7 +136,7 @@ R_API R2AI_Tools *r2ai_tools_parse (const char *tools_json) {
 }
 
 // Function to convert R2AI_Tools to OpenAI format JSON
-R_API char *r2ai_tools_to_openai_json (const R2AI_Tools *tools) {
+R_API char *r2ai_tools_to_openai_json(const R2AI_Tools *tools) {
 	if (!tools || tools->n_tools <= 0) {
 		return NULL;
 	}
@@ -186,7 +186,7 @@ R_API char *r2ai_tools_to_openai_json (const R2AI_Tools *tools) {
 }
 
 // Function to convert R2AI_Tools to Anthropic format JSON
-R_API char *r2ai_tools_to_anthropic_json (const R2AI_Tools *tools) {
+R_API char *r2ai_tools_to_anthropic_json(const R2AI_Tools *tools) {
 	if (!tools || tools->n_tools <= 0) {
 		return NULL;
 	}
@@ -230,7 +230,7 @@ R_API char *r2ai_tools_to_anthropic_json (const R2AI_Tools *tools) {
 }
 
 // Function to free a tools structure
-R_API void r2ai_tools_free (R2AI_Tools *tools) {
+R_API void r2ai_tools_free(R2AI_Tools *tools) {
 	if (!tools) {
 		return;
 	}
@@ -248,7 +248,7 @@ R_API void r2ai_tools_free (R2AI_Tools *tools) {
 	R_FREE (tools);
 }
 
-static char *to_cmd (const char *command) {
+static char *to_cmd(const char *command) {
 	PJ *pj = pj_new ();
 	if (!pj) {
 		return NULL;
@@ -262,7 +262,7 @@ static char *to_cmd (const char *command) {
 }
 
 // r2cmd function implementation
-R_API char *r2ai_r2cmd (RCore *core, RJson *args, bool hide_tool_output) {
+R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output) {
 	if (!args) {
 		return strdup ("{ \"res\":\"Command is NULL\" }");
 	}
@@ -352,7 +352,7 @@ R_API char *r2ai_r2cmd (RCore *core, RJson *args, bool hide_tool_output) {
 // R_API char *r_base64_encode_dyn(const char *str, int len);
 
 // qjs function implementation
-R_API char *r2ai_qjs (RCore *core, RJson *args, bool hide_tool_output) {
+R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output) {
 	if (!args) {
 		return strdup ("{ \"res\":\"Script is NULL\" }");
 	}
@@ -452,7 +452,7 @@ R_API char *r2ai_qjs (RCore *core, RJson *args, bool hide_tool_output) {
 	return cmd_output;
 }
 
-R_API char *execute_tool (RCore *core, const char *tool_name, const char *args) {
+R_API char *execute_tool(RCore *core, const char *tool_name, const char *args) {
 	if (!tool_name || !args) {
 		return strdup ("{ \"res\":\"Tool name or arguments are NULL\" }");
 	}

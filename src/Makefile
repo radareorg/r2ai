@@ -47,6 +47,9 @@ doc-install:
 
 vdb.o: vdb_embed.inc.c
 
+indent:
+	for a in *.c ; do python indent.py $$a ; done
+
 install user-install:
 	mkdir -p $(R2PLUGDIR)
 	rm -f $(R2PLUGDIR)/r2ai.$(EXT)

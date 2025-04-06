@@ -5,7 +5,7 @@
 #include "r2ai.h"
 
 // External declaration for cmd_r2ai_a - implemented in auto.c
-R_IPI void cmd_r2ai_a (RCore *core, const char *user_query);
+R_IPI void cmd_r2ai_a(RCore *core, const char *user_query);
 
 static R_TH_LOCAL RVdb *db = NULL;
 
@@ -445,7 +445,7 @@ static void cmd_r2ai_R(RCore *core, const char *q) {
 	}
 }
 
-static void cmd_r2ai_n (RCore *core) {
+static void cmd_r2ai_n(RCore *core) {
 	char *s = r_core_cmd_str (core, "r2ai -d");
 	char *q = r_str_newf ("output only the radare2 commands in plain text without markdown. Give me a better name for this function. the output must be: 'afn NEWNAME'. do not include the function code, only the afn line. consider: \n```c\n%s\n```", s);
 	char *error = NULL;
@@ -461,7 +461,7 @@ static void cmd_r2ai_n (RCore *core) {
 	free (q);
 }
 
-static void cmd_r2ai_i (RCore *core, const char *arg) {
+static void cmd_r2ai_i(RCore *core, const char *arg) {
 	char *fname = strdup (arg);
 	char *query = strchr (fname, ' ');
 	if (query) {
@@ -488,7 +488,7 @@ static void cmd_r2ai_i (RCore *core, const char *arg) {
 	free (q);
 }
 
-static void cmd_r2ai_s (RCore *core) {
+static void cmd_r2ai_s(RCore *core) {
 	char *afv = r_core_cmd_str (core, "afv");
 	r_str_trim (afv);
 	char *s = r_core_cmd_str (core, "r2ai -d");
@@ -525,7 +525,7 @@ static void cmd_r2ai_s (RCore *core) {
 	free (s);
 }
 
-static void cmd_r2ai_v (RCore *core) {
+static void cmd_r2ai_v(RCore *core) {
 	char *s = r_core_cmd_str (core, "r2ai -d");
 	char *afv = r_core_cmd_str (core, "afv");
 	char *q = r_str_newf ("Output only the radare2 command without markdown, guess a better name and type for each local variable and function argument taking using. output an r2 script using afvn and afvt commands:\n```\n%s```", afv);
@@ -592,7 +592,7 @@ static void cmd_r2ai_m(RCore *core, const char *input) {
 	r_cons_printf ("Model set to %s\n", input);
 }
 
-static void load_embeddings (RCore *core, RVdb *db) {
+static void load_embeddings(RCore *core, RVdb *db) {
 	RListIter *iter, *iter2;
 	char *line;
 	char *file;
@@ -727,7 +727,7 @@ static void cmd_r2ai(RCore *core, const char *input) {
 }
 
 static bool cb_r2ai_api(void *user, void *data) {
-	RConfigNode *node = (RConfigNode*) data;
+	RConfigNode *node = (RConfigNode *)data;
 	if (*node->value == '?') {
 		r_cons_println ("ollama");
 		r_cons_println ("openai");
@@ -743,7 +743,7 @@ static bool cb_r2ai_api(void *user, void *data) {
 	return true;
 }
 
-static int r2ai_init (void *user, const char *input) {
+static int r2ai_init(void *user, const char *input) {
 	RCmd *cmd = (RCmd *)user;
 	RCore *core = cmd->data;
 
@@ -783,7 +783,7 @@ static int r2ai_init (void *user, const char *input) {
 	return true;
 }
 
-static int r2ai_fini (void *user, const char *input) {
+static int r2ai_fini(void *user, const char *input) {
 	RCmd *cmd = (RCmd *)user;
 	RCore *core = cmd->data;
 	r_config_lock (core->config, false);
@@ -816,7 +816,7 @@ static int r2ai_fini (void *user, const char *input) {
 	return true;
 }
 
-static int r_cmd_r2ai_client (void *user, const char *input) {
+static int r_cmd_r2ai_client(void *user, const char *input) {
 	RCore *core = (RCore *)user;
 	if (r_str_startswith (input, "r2ai")) {
 		cmd_r2ai (core, r_str_trim_head_ro (input + 4));
