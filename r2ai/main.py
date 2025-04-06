@@ -7,7 +7,7 @@ import builtins
 import traceback
 import appdirs
 import argparse
-
+import litellm
 from r2ai.repl import r2ai_singleton
 from r2ai.utils import slurp
 from r2ai.repl import runline, r2ai_repl, help_message

@@ -34,7 +34,7 @@ def r2_cmd(x):
     res = None
     if r2 is not None:
         oc = r2.cmd('e scr.color').strip()
-        r2.cmd('e scr.color=0')
+        r2.cmd('e scr.color=3')
         res = r2.cmd(x)
         r2.cmd('e scr.color=' + oc)
     return res
