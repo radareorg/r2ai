@@ -261,7 +261,6 @@ static char *to_cmd(const char *command) {
 	return pj_drain (pj);
 }
 
-// r2cmd function implementation
 R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output) {
 	if (!args) {
 		return strdup ("{ \"res\":\"Command is NULL\" }");
