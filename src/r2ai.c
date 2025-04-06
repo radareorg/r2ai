@@ -56,7 +56,6 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -h", "Show this help message",
 	"r2ai", " -i [file] [query]", "read file and ask the llm with the given query",
 	"r2ai", " -m", "show selected model, list suggested ones, choose one",
-	"r2ai", " -M", "show suggested models for each api",
 	"r2ai", " -n", "suggest a better name for the current function",
 	"r2ai", " -r", "enter the chat repl",
 	"r2ai", " -L", "show chat logs (See -Lj for json)",
@@ -559,28 +558,6 @@ static void cmd_r2ai_V(RCore *core, bool recursive) {
 	free (s);
 }
 
-static void cmd_r2ai_M(RCore *core) {
-	r_cons_printf (
-		"r2ai -e api=anthropic\n"
-		"-m claude-3-7-sonnet-20250219\n"
-		"-m claude-3-5-sonnet-20241022\n"
-		"-m claude-3-haiku-20240307\n"
-		"r2ai -e api=gemini\n"
-		"-m gemini-1.5-flash\n"
-		"-m gemini-1.0-pro\n"
-		"r2ai -e api=openai\n"
-		"-m gpt-4\n"
-		"-m gpt-3.5-turbo\n"
-		"r2ai -e api=ollama\n"
-		"-m llama3.2:1b\n"
-		"-m llama3\n"
-		"-m codegeex4\n"
-		"-m qwen2.5-coder:3b\n"
-		"-m benevolentjoker/nsfwvanessa\n"
-		"r2ai -e api=openrouter\n"
-		"-m deepseek/deepseek-r1-zero:free\n");
-}
-
 static void cmd_r2ai_m(RCore *core, const char *input) {
 	if (R_STR_ISEMPTY (input)) {
 		r_cons_printf ("%s\n", r_config_get (core->config, "r2ai.model"));
@@ -706,8 +683,6 @@ static void cmd_r2ai(RCore *core, const char *input) {
 #endif
 	} else if (r_str_startswith (input, "-Rq")) {
 		cmd_r2ai_R (core, r_str_trim_head_ro (input + 3));
-	} else if (r_str_startswith (input, "-M")) {
-		cmd_r2ai_M (core);
 	} else if (r_str_startswith (input, "-m")) {
 		cmd_r2ai_m (core, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-")) {
@@ -743,6 +718,30 @@ static bool cb_r2ai_api(void *user, void *data) {
 	return true;
 }
 
+static bool cb_r2ai_model(void *user, void *data) {
+	RConfigNode *node = (RConfigNode *)data;
+	RCore *core = (RCore*)user;
+	const char *api = r_config_get (core->config, "r2ai.api");
+	if (*node->value == '?') {
+		if (!strcmp (api, "anthropic")) {
+			r_cons_println ("-m claude-3-7-sonnet-20250219");
+			r_cons_println ("-m claude-3-5-sonnet-20241022");
+			r_cons_println ("-m claude-3-haiku-20240307");
+		} else if (!strcmp (api, "gemini")) {
+			r_cons_println ("-m gemini-1.5-flash");
+			r_cons_println ("-m gemini-1.0-pro");
+		} else if (!strcmp (api, "openai")) {
+			r_cons_println ("-m gpt-4");
+			r_cons_println ("-m gpt-4o-mini");
+			r_cons_println ("-m gpt-3.5-turbo");
+		} else if (!strcmp (api, "ollama")) {
+			r_sys_cmd ("ollama ls");
+		}
+		return false;
+	}
+	return true;
+}
+
 static int r2ai_init(void *user, const char *input) {
 	RCmd *cmd = (RCmd *)user;
 	RCore *core = cmd->data;
@@ -752,7 +751,7 @@ static int r2ai_init(void *user, const char *input) {
 
 	r_config_lock (core->config, false);
 	r_config_set_cb (core->config, "r2ai.api", "openai", &cb_r2ai_api);
-	r_config_set (core->config, "r2ai.model", "gpt-4o-mini");
+	r_config_set_cb (core->config, "r2ai.model", "gpt-4o-mini", &cb_r2ai_model);
 	r_config_set (core->config, "r2ai.base_url", "");
 	r_config_set (core->config, "r2ai.api_key", ""); // TODO: deprecate for privacy reasons
 	r_config_set_i (core->config, "r2ai.max_tokens", 5128);
