@@ -102,7 +102,6 @@ Response:
     let decaiLanguage = "C";
     let decaiHumanLanguage = "English";
     let decaiDeterministic = true;
-    let decaiSystem = "";
     let decaiDebug = false;
     let decaiContextFile = "";
     let decaiModel = "";
@@ -123,7 +122,7 @@ Response:
     function getApiKey(provider, envvar) {
         const keyEnv = r2.cmd("'%" + envvar).trim ();
         if (keyEnv.indexOf('=') === -1 && keyEnv !== "") {
-            return [keyEnv.trim(), null, "envp"];
+            return [keyEnv.trim(), null, "env"];
         }
         const keyPath = "~/.r2ai." + provider + "-key";
         if (fileExist(keyPath)) {
@@ -253,10 +252,6 @@ Response:
             }
           }
       },
-      "system": {
-          get: () => decaiSystem,
-          set: (v) => decaiSystem = v
-      },
       "deterministic": {
           get: () => decaiDeterministic,
           set: (v) => { decaiDeterministic = v === 'true' || v === "1" },
@@ -364,9 +359,6 @@ Response:
                 }
             ]
         };
-        if (decaiSystem) {
-            object.system = decaiSystem;
-        }
         if (decaiDeterministic) {
           object.temperature = 0;
           object.top_p = 0;
@@ -434,18 +426,13 @@ Response:
         }
         const geminiModel = (decaiModel.length > 0)? decaiModel: "gemini-1.5-flash";
         const query = hideprompt? msg: decprompt + languagePrompt() + msg;
-        const object = {contents: [{role:"user",parts:[{text: query}]}]};
-        if (decaiSystem) {
-            object.contents = [
-                { role: "system", parts: [{text: decaiSystem}] },
-                object.contents[0]
-            ];
-        }
+        const object = {contents: [{parts:[{text: query}]}]};
         if (decaiDeterministic) {
             object.generationConfig = {
                 "temperature": 0.0,
                 "topP": 1.0,
-                "topK": 1
+                "topK": 1,
+                "maxOutputTokens": 256
             }
         }
         const payload = JSON.stringify(object);
@@ -473,12 +460,6 @@ Response:
                 { "role": "user", "content": query }
             ]
         };
-        if (decaiSystem) {
-            object.messages = [
-                { role: "developer", content: decaiSystem }, // developer is the new system
-                object.messages[0]
-            ];
-        }
         if (decaiDeterministic) {
             object.temperature = 0;
             object.top_p = 0;
@@ -514,12 +495,6 @@ Response:
                 }
             ]
         };
-        if (decaiSystem) {
-            object.messages = [
-                { role: "system", content: decaiSystem },
-                object.messages[0]
-            ];
-        }
         if (decaiDeterministic) {
           object.n = 1;
           object.top_p = 0.001;
@@ -550,48 +525,6 @@ Response:
     function languagePrompt() {
         return "\n.Translate the code into " + decaiLanguage + " programming language\n";
     }
-    function r2aiOpenWebUI(msg, hideprompt) {
-        const owuiKey = r2.cmd("'cat ~/.r2ai.owui-key").trim()
-        if (owuiKey === '') {
-           return "Cannot read ~/.r2ai.owui-key";
-        }
-        const model = decaiModel? decaiModel: "qwen2.5-coder:latest";
-        const query = hideprompt? msg: decprompt + languagePrompt() + msg;
-        const object = {
-            // stream: false,
-            model: model,
-            messages: [ { role: "user", content: query, } ]
-        };
-        if (decaiSystem) {
-            object.messages = [
-                { role: "system", content: decaiSystem },
-                object.messages[0]
-            ];
-        }
-        if (decaiDeterministic) {
-          object.options = {
-              repeat_last_n: 0,
-              top_p: 0.0,
-              top_k: 1.0,
-              temperature: 0.0,
-              repeat_penalty: 1.0,
-              seed: 123,
-          };
-        }
-        const payload = JSON.stringify(object);
-        debug.log(payload);
-        const url = decaiHost + ":" + decaiPort + "/api/chat/completions";
-        const headers = [
-           "Authorization: Bearer " + owuiKey
-        ];
-        const res = curlPost(url, headers, payload);
-	debug.log(JSON.stringify(res, null, 2));
-	try {
-            return res.choices[0].message.content;
-	} catch (e) {
-            return "ERROR: " + res.error;
-	}
-    }
     function r2aiOllama(msg, hideprompt) {
         const model = decaiModel? decaiModel: "qwen2.5-coder:latest";
         const query = hideprompt? msg: decprompt + languagePrompt() + msg;
@@ -600,12 +533,6 @@ Response:
             model: model,
             messages: [ { role: "user", content: query, } ]
         };
-        if (decaiSystem) {
-            object.messages = [
-                { role: "system", content: decaiSystem },
-                object.messages[0]
-            ];
-        }
         if (decaiDeterministic) {
           object.options = {
               repeat_last_n: 0,
@@ -662,14 +589,7 @@ Response:
        }
        const xaiModel = (decaiModel.length > 0)? decaiModel: "grok-beta";
         const query = hideprompt? msg: decprompt + languagePrompt() + msg;
-        const object = {messages:[{ role:'user', "content": query}], "model": xaiModel, stream:false};
-        if (decaiSystem) {
-            object.messages = [
-                { role: "system", content: decaiSystem },
-                object.messages[0]
-            ];
-        }
-        const payload = JSON.stringify(object);
+        const payload = JSON.stringify({messages:[{ role:'user', "content": query}], "model": xaiModel, stream:false});
         const url = "https://api.x.ai/v1/chat/completions";
         const headers = [ "Authorization: Bearer " + xaiKey ];
         const res = curlPost(url, headers, payload);
@@ -819,25 +739,6 @@ Response:
         const d = b64(fileData);
         r2.cmd("p6ds " + d + " > " + fileName);
     }
-    function stripMarkdownCodeBlock(input) {
-        // input is a json markdown block. 
-        // this function strips out the initial ```json and trailing ```
-        const lines = input.split('\n');
-        let startIndex = 0;
-        let endIndex = lines.length;
-
-        // remove first and last line if they begin with ```
-        if (lines.length > 0 && lines[0].trim().startsWith('```')) {
-            startIndex = 1;
-        }
-        if (lines.length > 0 && lines[lines.length - 1].trim().startsWith('```')) {
-            endIndex = lines.length - 1;
-        }
-        
-        const contentLines = lines.slice(startIndex, endIndex);
-        return contentLines.join('\n');
-    }
-
     function decaiAuto(queryText) {
         r2ai("-R");
         let autoQuery = autoPrompt;
@@ -849,22 +750,19 @@ Response:
                 q += replies.join("\n");
             }
             q += '## User prompt\n' + queryText;
-            
-            /*console.log('#### input');
+            /*
+            console.log('#### input');
             console.log(q);
-            console.log('#### /input');*/
-            
+            console.log('#### /input');
+            */
             out = r2ai('', q, true);
-            out = stripMarkdownCodeBlock(out);
-            
-            /*console.log('#### output');
+            /*
+            console.log('#### output');
             console.log(out);
-            console.log('#### /output');*/
-            
+            console.log('#### /output');
+            */
             try {
-
                     const o = JSON.parse(out);
-                    console.log("[+] successfully parsed output");
                     if (o.action === 'execute_function' && o.function_name === 'r2cmd') {
                             const cmd = o.parameters.r2cmd;
                             console.log("[r2cmd] Running: " + cmd)
@@ -918,9 +816,6 @@ Response:
         }
         if (decaiApi === "google" || decaiApi === "gemini") {
             return r2aiGemini(q, hideprompt);
-        }
-        if (decaiApi === "openwebui") {
-            return r2aiOpenWebUI(q, hideprompt);
         }
         if (decaiApi === "ollama") {
             return r2aiOllama(q, hideprompt);

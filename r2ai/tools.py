@@ -32,6 +32,7 @@ def r2cmd(command: str):
         The output of the r2 command
     """
     r2 = get_r2_inst()
+    r2.cmd('e scr.color=3')
     if command.startswith('r2 '):
         return "You are already in r2!"
     cmd = '{"cmd":' + json.dumps(command) + '}'

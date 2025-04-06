@@ -209,12 +209,6 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 		r2ai_msgs_add (args.messages, &msg);
 		free (m);
 		// TODO: we can save the msg without context
-	} else {
-		R2AI_Message msg = {
-			.role = "user",
-			.content = args.input
-		};
-		r2ai_msgs_add (args.messages, &msg);
 	}
 
 	// Add the rest of the messages one by one
