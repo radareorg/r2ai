@@ -224,7 +224,7 @@ R_IPI void cmd_r2ai_logs (RCore *core);
 /**
  * Create a conversation with system prompt and optional user message
  */
-R_API R2AI_Messages *create_conversation (const char *system_prompt, const char *user_message);
+R_API R2AI_Messages *create_conversation (const char *user_message);
 
 /**
  * Process messages through LLM and handle tool calls recursively

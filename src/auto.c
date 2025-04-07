@@ -398,22 +398,3 @@ R_IPI void cmd_r2ai_logs(RCore *core) {
 	}
 }
 
-// Create a conversation with optional initial user message
-R_API R2AI_Messages *create_conversation(const char *system_prompt, const char *user_message) {
-	// Create a temporary message container (not using static storage)
-	R2AI_Messages *msgs = r2ai_msgs_new ();
-	if (!msgs) {
-		return NULL;
-	}
-
-	// Add user message if provided (no system message - that's added during processing)
-	if (user_message) {
-		R2AI_Message user_msg = {
-			.role = "user",
-			.content = user_message
-		};
-		r2ai_msgs_add (msgs, &user_msg);
-	}
-
-	return msgs;
-}
