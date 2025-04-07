@@ -250,10 +250,21 @@ R_IPI char *r2ai(RCore *core, R2AIArgs args) {
 		return NULL;
 	}
 
-	// Set system_prompt from config if it's not already set
-	if (!args.system_prompt) {
+	if (R_STR_ISEMPTY (args.system_prompt)) {
 		args.system_prompt = r_config_get (core->config, "r2ai.system");
 	}
+
+	R2AI_Messages *msgs = r2ai_msgs_new ();
+	
+	if (args.input) {
+		R2AI_Message msg = {
+			.role = "user",
+			.content = args.input
+		};
+		r2ai_msgs_add (msgs, &msg);
+	}
+
+	args.messages = msgs;
 
 	// Call the r2ai_llmcall function to get the message
 	R2AI_ChatResponse *res = r2ai_llmcall (core, args);
@@ -283,8 +294,6 @@ R_IPI char *r2ai(RCore *core, R2AIArgs args) {
 }
 
 static void cmd_r2ai_d(RCore *core, const char *input, const bool recursive) {
-	const bool r2ai_stream = r_config_get_b (core->config, "r2ai.stream");
-	r_config_set_b (core->config, "r2ai.stream", false);
 	const char *prompt = r_config_get (core->config, "r2ai.prompt");
 	char *cmds = strdup (r_config_get (core->config, "r2ai.cmds"));
 	RStrBuf *sb = r_strbuf_new (prompt);
@@ -337,7 +346,6 @@ static void cmd_r2ai_d(RCore *core, const char *input, const bool recursive) {
 	}
 	free (res);
 	r_list_free (cmdslist);
-	r_config_set_b (core->config, "r2ai.stream", r2ai_stream);
 }
 
 static void cmd_r2ai_x(RCore *core) {
@@ -346,7 +354,7 @@ static void cmd_r2ai_x(RCore *core) {
 	char *s = r_core_cmd_str (core, "r2ai -d");
 
 	// Create conversation
-	R2AI_Messages *msgs = create_conversation (NULL, s);
+	R2AI_Messages *msgs = create_conversation (s);
 	if (!msgs) {
 		R_LOG_ERROR ("Failed to create conversation");
 		free (s);
