@@ -351,12 +351,17 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 					if (message_json) {
 						const RJson *role = r_json_get (message_json, "role");
 						const RJson *content = r_json_get (message_json, "content");
+						const RJson *reasoning_content = r_json_get (message_json, "reasoning_content");
 
 						// Set the basic message properties
 						message->role = (role && role->type == R_JSON_STRING) ? strdup (role->str_value) : strdup ("assistant");
 
 						if (content && content->type == R_JSON_STRING) {
 							message->content = strdup (content->str_value);
+						}
+
+						if (reasoning_content && reasoning_content->type == R_JSON_STRING) {
+							message->reasoning_content = strdup (reasoning_content->str_value);
 						}
 
 						// Handle tool calls if present

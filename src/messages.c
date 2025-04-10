@@ -15,6 +15,7 @@ R_API void r2ai_message_free(R2AI_Message *msg) {
 
 	free ((void *)msg->role);
 	free ((void *)msg->content);
+	free ((void *)msg->reasoning_content);
 	free ((void *)msg->tool_call_id);
 
 	// Free tool calls
@@ -161,6 +162,7 @@ R_API bool r2ai_msgs_add(R2AI_Messages *msgs, const R2AI_Message *msg) {
 	R2AI_Message *dest = &msgs->messages[msgs->n_messages++];
 	dest->role = msg->role ? strdup (msg->role) : NULL;
 	dest->content = msg->content ? strdup (msg->content) : NULL;
+	dest->reasoning_content = msg->reasoning_content ? strdup (msg->reasoning_content) : NULL;
 
 	if (msg->content_blocks) {
 		R2AI_ContentBlocks *cb = R_NEW0 (R2AI_ContentBlocks);
@@ -404,6 +406,10 @@ R_API char *r2ai_msgs_to_json(const R2AI_Messages *msgs) {
 
 		if (msg->content) {
 			pj_ks (pj, "content", msg->content);
+		}
+
+		if (msg->reasoning_content) {
+			pj_ks (pj, "reasoning_content", msg->reasoning_content);
 		}
 
 		// Add tool_call_id if present

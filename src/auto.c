@@ -164,12 +164,18 @@ R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *sy
 	}
 
 	// Process the response - we need to add it to our messages array
-	if (message->content) {
-		char *assistant_msg = r_str_newf ("\x1b[31m[Assistant]\x1b[0m\n\n%s\n", message->content);
-		r_cons_printf ("%s", assistant_msg);
-		r_cons_newline ();
-		r_cons_flush ();
-		free (assistant_msg);
+	if (message->content || message->reasoning_content) {
+		r_cons_printf ("\x1b[31m[Assistant]\x1b[0m\n\n");
+		if (message->reasoning_content) {
+			r_cons_printf ("\x1b[90m<thinking>\n%s\n</thinking>\x1b[0m\n", message->reasoning_content);
+			r_cons_newline ();
+			r_cons_flush ();
+		}
+		if (message->content) {
+			r_cons_printf ("%s", message->content);
+			r_cons_newline ();
+			r_cons_flush ();
+		}
 	}
 
 	// Add the response to our messages array

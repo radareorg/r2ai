@@ -44,6 +44,7 @@ typedef struct {
 typedef struct {
 	const char *role;
 	const char *content;
+	const char *reasoning_content;
 	const R2AI_ContentBlocks *content_blocks;
 	const char *tool_call_id;
 	const R2AI_ToolCall *tool_calls;
