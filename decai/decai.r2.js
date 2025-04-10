@@ -196,6 +196,9 @@ Response:
         case "openapi":
             console.log(openApiListModels());
             break;
+        case "groq":
+            console.log("meta-llama/llama-4-scout-17b-16e-instruct");
+            break;
         case "openai":
             console.log("o1");
             console.log("o1-mini");
@@ -409,6 +412,25 @@ Response:
        const query = hideprompt? msg: decprompt + languagePrompt() + msg;
        const payload = JSON.stringify({model:deepseekModel, messages: [{role:"user", content: query}]});
        const curlcmd = `curl -X POST "https://api.deepseek.com/v1/chat" -H "Authorization: Bearer ${deepseekKey}" -H "Content-Type: application/json" -d '${payload}'`; // .replace(/\n/g, "");
+        debug.log(curlcmd);
+        const res = r2.syscmds(curlcmd);
+        try {
+            return JSON.parse(res).choices[0].message.content;
+        } catch(e) {
+            console.error(e);
+            console.log(res);
+        }
+        return "error invalid response";
+    }
+    function r2aiGroq(msg, hideprompt) {
+       const groqKey = r2.cmd("'cat ~/.r2ai.groq-key").trim()
+       if (groqKey === '') {
+           return "Cannot read ~/.r2ai.groq-key";
+       }
+       const groqModel = (decaiModel.length > 0)? decaiModel: "meta-llama/llama-4-scout-17b-16e-instruct";
+       const query = hideprompt? msg: decprompt + languagePrompt() + msg;
+       const payload = JSON.stringify({model:groqModel, messages: [{role:"user", content: query}]});
+       const curlcmd = `curl -X POST "https://api.groq.com/v1/chat" -H "Authorization: Bearer ${groqKey}" -H "Content-Type: application/json" -d '${payload}'`; // .replace(/\n/g, "");
         debug.log(curlcmd);
         const res = r2.syscmds(curlcmd);
         try {
@@ -810,6 +832,9 @@ Response:
         }
         if (decaiApi === "mistral") {
             return r2aiMistral(q, hideprompt);
+        }
+        if (decaiApi === "groq") {
+            return r2aiGroq(q, hideprompt);
         }
         if (decaiApi === "deepseek") {
             return r2aiDeepseek(q, hideprompt);
