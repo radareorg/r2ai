@@ -430,7 +430,7 @@ Response:
        const groqModel = (decaiModel.length > 0)? decaiModel: "meta-llama/llama-4-scout-17b-16e-instruct";
        const query = hideprompt? msg: decprompt + languagePrompt() + msg;
        const payload = JSON.stringify({model:groqModel, messages: [{role:"user", content: query}]});
-       const curlcmd = `curl -X POST "https://api.groq.com/v1/chat" -H "Authorization: Bearer ${groqKey}" -H "Content-Type: application/json" -d '${payload}'`; // .replace(/\n/g, "");
+       const curlcmd = `curl -X POST "https://api.groq.com/openai/v1/chat/completions" -H "Authorization: Bearer ${groqKey}" -H "Content-Type: application/json" -d '${payload}'`; // .replace(/\n/g, "");
         debug.log(curlcmd);
         const res = r2.syscmds(curlcmd);
         try {
