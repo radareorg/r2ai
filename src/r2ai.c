@@ -777,10 +777,10 @@ static int r2ai_init(void *user, const char *input) {
 	r_config_set (core->config, "r2ai.data.path", "/tmp/embeds");
 	r_config_set_i (core->config, "r2ai.data.nth", 10);
 	r_config_set (core->config, "r2ai.hlang", "english");
-	r_config_set (core->config, "r2ai.system", "Your name is r2clippy");
+	r_config_set (core->config, "r2ai.system", "You are a reverse engineer. The user is reversing a binary, using radare2. The user will ask questions about the binary and you will respond with the answer to the best of your ability.");
 	r_config_set (core->config, "r2ai.prompt", "Rewrite this function and respond ONLY with code, replace goto/labels with if/else/for, use NO explanations, NO markdown, Simplify as much as possible, use better variable names, take function arguments and strings from comments like 'string:'");
 	r_config_set_b (core->config, "r2ai.stream", false);
-	r_config_set_i (core->config, "r2ai.auto.max_runs", 100);
+	r_config_set_i (core->config, "r2ai.auto.max_runs", 50);
 	r_config_set_b (core->config, "r2ai.auto.hide_tool_output", false);
 	r_config_set (core->config, "r2ai.auto.init_commands", "aaa;iI;afl");
 	r_config_set_b (core->config, "r2ai.auto.ask_to_execute", true);
