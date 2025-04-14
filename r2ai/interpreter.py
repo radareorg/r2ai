@@ -163,7 +163,7 @@ class Interpreter:
         self.env["chat.rawdog"] = "false"
         self.env["chat.reasoning_effort"] = "high"
         self.env["chat.stream"] = "true"
-        self.env["chat.show_cost"] = "true"
+        self.env["chat.show_cost"] = "false"
         self.env["chat.drop_params"] = "false"
         self.env["chat.openai_store"] = "false"
         self.env["auto.max_runs"] = "100"
