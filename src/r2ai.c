@@ -735,6 +735,11 @@ static bool cb_r2ai_model(void *user, void *data) {
 			r_cons_println ("-m gpt-4");
 			r_cons_println ("-m gpt-4o-mini");
 			r_cons_println ("-m gpt-3.5-turbo");
+		} else if (!strcmp (api, "mistral")) {
+		    r_cons_println ("-m mistral-large-latest");
+			r_cons_println ("-m codestral-latest");
+		} else if (!strcmp (api, "groq")) {
+			r_cons_println ("-m qwen-2.5-coder-32b");
 		} else if (!strcmp (api, "ollama")) {
 			r_sys_cmd ("ollama ls");
 		}
