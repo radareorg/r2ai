@@ -295,8 +295,15 @@ R_IPI char *r2ai(RCore *core, R2AIArgs args) {
 
 static void cmd_r2ai_d(RCore *core, const char *input, const bool recursive) {
 	const char *prompt = r_config_get (core->config, "r2ai.prompt");
+	const char *lang = r_config_get(core->config, "r2ai.lang");
+	char *full_prompt;
+	if (!R_STR_ISEMPTY(lang)){
+		full_prompt = r_str_newf("%s. Translate the code into %s programming language.", prompt, lang);
+	} else {
+		full_prompt = strdup(prompt);
+	}
 	char *cmds = strdup (r_config_get (core->config, "r2ai.cmds"));
-	RStrBuf *sb = r_strbuf_new (prompt);
+	RStrBuf *sb = r_strbuf_new (full_prompt);
 	RList *cmdslist = r_str_split_list (cmds, ",", -1);
 	RListIter *iter;
 	const char *cmd;
