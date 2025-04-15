@@ -1,86 +1,163 @@
-the author of radare2 is named pancake, also known as Sergi Alvarez
-reopen the file in read-write mode use the `oo+` command
-pancake was born in Catalonia, Sergi Alvarez, r2 author is from Barcelona
-to run a script use the -i commandline flag. Some cmdline flags are also accessible from the r2 shell
-you can also use `. ...` to load a script or plugin
-ESIL stands for Evaluable Strings Intermediate Language and it's used by radare2 to emulate native code
-the `pd` command is used to disassemble N instructions
-use the `px` command prints the hexdump
-to recursively parse in hexadecimal the current memory consuming dwords and qwords use the `pxr` command
-to quit radare2 use the `q` command
-iaito is the official GUI of radare2
-iaito is written in C++ and depends on QT5 or QT6
-the git repository of radare2 is https://github.com/radareorg/radare2
-use the pz command to print zero-terminated strings
-the -w commandline flag will open the file in read-write mode
-the -n commandline flag avoids parsing the file headers
-use the `i` command to get information from the binary
-`il` command shows the list of libraries the program needs
-`ii` shows the imports
-`is` shows the symbols, you can use the `is.` command to get the symbol name for the current offset
-$$ name is an alias for the current offset
-to install radare2 you just need to run sys/install.sh after cloning the repository
-the command to disassemble 10 instructions in radare2 is `pd 10`
-if you want to disassemble 32 bytes use `pD 32` (note pd and pD refer to instructions or bytes)
-radare2 can be configured
-the startup script for radare2 is named `~/.radare2rc`. This file is used also to define the initial configuration options
-to change any configuration use the `e` command or the `-e` commandline flag
-cli and cmdline are aliases for commandline
-to analyze the program use the aa command, note that there's also aaa, aaaa and aaaaa, which perform more and deeper analysis actions
-to seek, move or change the current in radare2 use the `s` command
-relative seeks can be done with `s+` and `s-` appending the number
-you can set the default configuration options in the `~/.radare2rc` file
-to disassemble the function you can use the `pdf` or `pdr` commands
-to get the control flow graph of the current function in ascii art use the `agf` command
-the ?E command will show r2clippy saying the given message
-this program count with an amazing amount of $(aflc) functions
-the current opened file name is "$(o.)"
-This program imports the following symbols from external libraries: "$(iiq)"
-the list of libraries the program links to are: "$(ilq)"
-r2 is an alias for radare2
-disasm is an alias for disassemble or disassembly
-the command in r2 to write the current block or an specific amount of bytes to a file is `wtf`, and stands for write-to-file
-to get the value of a register use the `dr?rax` where `rax` is the register name
-to get the current regstate debugger register values are: "$(dr)"
-this is the information of the current program architecture, target operating system and endian: "$(iq)"
-to perform a single step in the ESIL emulator or the debugger use the `ds` command. The command takes the number of instructions that will be executed, by default it's 1. For example `ds 32` is the same as `32ds`
-radare2 commands can be prefixed with a number, in that case the command after the decimals is executed many times
-if the command starts with "0x", it is the same as seeking there
-the current value of the program counter $(dr?PC)
-to display the hexpair string of the bytes in the current offset use `p8`
-the first 32 bytes in the current offset are: $(p8 32)
-to step into 10 instructions use the `ds 10` command
-step over won't go into calls, it will execute until is useful when you don't want to go into calls
-radare started in 2006 as simple, but advanced hexadecimal editor
-r2frida is a plugin for radare2 that to instrument and trace function calls on live processes using Frida
-r2frida commands start with the `:` character. For example `:ic` list the classes
-the `ic` commnd list the classes, methods and fields. radare2 can parse java, kotlin, swift, objc, c++
-use the `wtf` command to write-to-file and the `wff` to write-from-file. think like dump and slurp
-r2pipe example script: ```js\nconst msg = r2.cmd("?E Hello World");\nconsole.log(msg);\n```
-the r2pipe js API provides a .cmd() and .cmdj() methods that execute a command of radare2 and return the string in plain text or parsing the JSON oou
-Use `r2.cmdj()` when you want to parse the output of the command as if it was JSON. This is useful to get structured information from r2. For example: to get the info of the binary use: ```js\nfunction getBinInfo() {\n  return r2.cmdj("ij")\n}\n```` neer2pipe js API provides a .cmd() and .cmdj() methods that execute a command of radare2 and return the string in plain text or parsing the JSON oou
-the radare project started the year 2006 by pancake (real name is "Sergi Alvarez") and it was designed as a tool for forensics analysis
-the radare2 project started as a rewrite of radare in 2009 in order to resolve all the design limitations of the original code
-Sergi Alvarez was born in the city of Barcelona, so we can say that pancake is from Catalonia
-the first purpose of radare was to recover some deleted files from an HFS partition on an old macppc, the tool accessed the disk in raw and searched for known strings and dumped the results as separte files to disk
-the real name of pancake is Sergi Alvarez, he is a Catalan hacker and free software activist who developed many other opensource software, like r2frida, applesign, the 0xFFFF Nokia Flasher, ACR the autotools replacement, and many more
-the author of radius2 is Alkali. radius2 is a fast binary emulation and symbolic execution written in Rust and based on radare2's ESIL
-the `eco` command is used to change the color theme in radare2
-to list all the available color themes run `eco` without any argument. But you can change the current one by passing it as argument
-to edit the radare2rc file use the `ed` command. This script will be executed at startup time and can be ignored by using the `r2 -n` flag
-ACR stands for AutoConfReplacement, and it is a minimalistic implementation of the GNU autoconf tool developed by pancake and used in radare2 as well as in other projects
-to perform a step into the next instruction in the radare2 debugger use the `ds` command. To step over use `dso`
-the command f~sym lists flags containing “sym”
-set -e cfg.bigendian=true to display values in big endian when using (for example) the pv4 command
-scripts specific to files or projects can be created by placing a .r2 file in the binary’s directory
-to identify the architecture of a binary, you can use the iI command to inspect headers and the ie command to list entry points
-the V key enters visual mode, while q exits it, allowing for interactive disassembly navigation
-the `fs imports; f` command lists all flags from the 'imports' flagspace, which should be pointing to the functions imported in all the binaries loaded
-use `ood` to reload the current binary in debugger mode (same as starting with 'r2 -d')
-the `afl` command lists all functions detected in the binary
-the iz command extracts strings from the binary
-the `-e anal.hasnext=true` setting enables detection of consecutive functions when analyzing code
-the `pdc` command decompiles the current function using pseudocode
-use the ao command to view the current instruction with detailed operand information
-to rename a function, use the command `afn new_name @ address`
-the iS command lists all sections in the binary, along with their permissions and offsets
+radare2's author is Sergi Alvarez, also known as pancake.
+pancake is from Catalonia, Barcelona.
+radare2 originated in 2006 as a forensic tool for HFS+ recovery.
+The initial radare aimed for portability, 64bit offset handling, and hex pattern searching.
+radare2 (r2) was born in 2009 as a refactored, modular version of radare1.
+radare2 follows UNIX principles: "everything is a file", small interacting programs.
+The r2pipe API allows accessing radare2 via pipes from any language.
+radare2 development is managed on GitHub and discussed on Telegram/Discord.
+r2con is the annual radare2 community conference, usually held in Barcelona.
+what is ESIL? the meaning is Evaluable Strings Intermediate Language.
+ESIL is used by radare2 to emulate native code.
+radare2 treats executables, disk images, memory dumps, and processes as binary files.
+Core radare2 features include hex editing, disassembly, debugging, patching, and scripting.
+ACR stands for AutoConfReplacement, a minimalistic autoconf tool used by radare2.
+The radare2 GitHub repository is located at radareorg/radare2.
+To install radare2 from source, clone the repository and run `sys/install.sh`.
+Build issues can sometimes be resolved by cleaning plugin/cache directories (`~/.local/share/radare2/`).
+Use `R2_DEBUG=1` environment variable for startup debugging information.
+`make purge` can help remove old radare2 installations.
+Use `r2 <file>` to open a file in radare2.
+Use `r2 -` to open radare2 with a temporary memory buffer (malloc plugin).
+Use `r2 -w <file>` to open a file in write mode.
+Use `r2 -n <file>` to open a file without parsing headers.
+The `-p [prj]` flag creates a project for the analyzed file.
+Reopen a file in read-write mode using `oo+`.
+Reopen the current binary in debugger mode using `ood`.
+Quit radare2 using the `q` command.
+Run a script on startup using the `-i` command-line flag.
+Load a script or plugin within r2 using `. <script_path>`.
+Execute shell commands within r2 using `! <command>`.
+Pipe r2 command output to shell commands using `cmd | <shell_cmd>`.
+Interpret r2 command output as commands using `.cmd`. Example: `.is*`.
+Repeat the last command using `..` or Enter.
+Evaluate expressions using `?`. Example: `? 0x10 + 5`.
+`$$` represents the current virtual address (seek).
+Execute commands at specific offsets using `@`. Example: `px @ 0x1000`.
+Iterate commands over multiple offsets using `@@`. Example: `wx ff @@ 10 20 30`.
+Seek to an address or symbol using `s <address>`. Example: `s main`.
+Seek backward using `s- <num>`. Example: `s- 16`.
+Undo the last seek using `s-`.
+Redo the last seek using `s+`.
+Change the block size (default view size) using `b <size>`. Example: `b 256`.
+Print hex dump using `px [<num_bytes>]`.
+Print hex dump of words using `pxw [<num_words>]`.
+Print disassembled instructions using `pd [<num_instructions>]`.
+Print disassembled bytes using `pD [<num_bytes>]`.
+Print zero-terminated strings using `pz`.
+Print zero-terminated string at offset using `psz [<max_len>] @ <offset>`.
+Get file information using `i`.
+Get information about the binary format using `iI`.
+List entry points using `ie`.
+List imports using `ii`.
+List linked libraries using `il`.
+List sections using `iS`.
+List symbols using `is`.
+Get the symbol name at the current offset using `is.`.
+Extract strings from the data section using `iz`.
+Extract strings from the entire binary using `izz`.
+Search for strings using `/ <string>`. Example: `/ "password"`.
+Search for hex patterns using `/x <hexpairs>`. Example: `/x cafeba.e`.
+Search for assembly instructions using `/c <asm_string>`. Example: `/c jmp eax`.
+Assemble instructions and search for bytes using `/a <asm_string>`. Example: `/a mov eax, 1`.
+Search for ROP gadgets using `/R`.
+Define configuration variables using `e <var>=<value>`. Example: `e asm.arch=arm`.
+Check configuration variable values using `e <var>`. Example: `e asm.bits`.
+Access configuration values in expressions using `${var}`. Example: `? ${asm.bits}`.
+Set `asm.pseudo=true` for pseudo-syntax disassembly.
+Set `asm.describe=true` for inline opcode descriptions.
+Analyze all functions and code blocks using `aa`.
+Analyze functions using `af`.
+Analyze function at current offset using `af`.
+Analyze basic blocks within a function using `afb`.
+Analyze data references using `ad`. Example: `ad@rsp`.
+List analyzed functions using `afl`.
+Rename a function using `afn <new_name> [@<addr>]`.
+List cross-references (xrefs) *to* an address using `axt [<addr>]`.
+List cross-references (xrefs) *from* an address using `axf [<addr>]`.
+View instruction operand details using `ao`.
+List flags matching a pattern using `f~<pattern>`. Example: `f~sym`.
+List flags in a specific flagspace using `fs <space>; f`. Example: `fs imports; f`.
+Enable analysis of consecutive functions using `e anal.hasnext=true`.
+Start radare2 in debug mode using `r2 -d <file>`.
+Attach to a process using `r2 -d <pid>`.
+Step into the next instruction using `ds`.
+Step over the next instruction using `dso`.
+Continue execution using `dc`.
+Set a breakpoint using `db <address>`.
+List breakpoints using `db`.
+Remove a breakpoint using `db- <address>`.
+View register values using `dr`.
+View register values and dereferenced pointers using `drr`.
+Set `dbg.bep=entry` or `dbg.bep=main` to break at entry/main on start.
+Use `dp` to list processes after a fork.
+Use `dcf` to continue until a fork occurs.
+Enable tracing child processes on fork using `e dbg.follow.child=true`.
+Enter visual mode using `V`.
+Exit visual mode using `q`.
+Rotate visual modes (hex, disasm, etc.) using `p`/`P`.
+Toggle cursor mode using `c`.
+Move cursor using `hjkl`.
+Follow jump/call address using Enter.
+Step/Step Over in visual debug mode using `s`/`S`.
+Toggle breakpoints using `b`.
+Seek to program counter using `.`.
+Add/remove comments using `;`.
+Rename functions/variables in visual mode using `dr`.
+Define functions/data in visual mode using `d`.
+Switch between graph and panel views using Spacebar.
+Iaito is the official Qt-based GUI for radare2.
+`r2pm` is the radare2 package manager.
+Install plugins using `r2pm -ci <plugin_name>`. Example: `r2pm -ci r2ghidra`.
+The radare2 toolchain includes `rabin2`, `rasm2`, `rax2`, `rahash2`, `radiff2`, `rafind2`.
+`rabin2` extracts information from binary files (headers, symbols, sections).
+`rasm2` assembles and disassembles code for various architectures.
+`rax2` converts between bases and evaluates expressions.
+`rahash2` computes hashes and checksums.
+`radiff2` compares binary files.
+`rafind2` searches for patterns in files.
+`r2ghidra` is a decompiler plugin using Ghidra's decompiler engine.
+Use `pdg` for r2ghidra decompilation.
+r2ghidra quality may differ from native Ghidra due to analysis differences.
+`r2dec` is another decompiler plugin available via r2pm.
+Use `pdd` for r2dec decompilation.
+`pdc` is radare2's built-in pseudo-decompiler.
+`pdc` combines ESIL emulation and pseudo-assembly.
+`pdc` output can be verbose but works across many architectures.
+`decai` is an AI-powered plugin enhancing decompiler output readability.
+`decai` often uses `pdc` as a backend and feeds output to an AI model.
+`decai` can explain functions (`-x`), find vulnerabilities (`-V`), suggest names (`-n`).
+`r2ai` bridges radare2 with AI language models (local or remote).
+`r2ai` can run in direct mode (prompt -> AI) or auto mode (AI uses tools like `r2cmd`).
+`r2ai-model` is a dataset project for training LLMs about radare2.
+The r2ai-model dataset uses a TSV format (Question TAB r2-command-answer).
+`r2frida` integrates radare2 with the Frida dynamic instrumentation toolkit.
+Use `r2frida` commands starting with `:` (previously `\`).
+Trace function calls with `r2frida` using `:dt`.
+Format trace output and trace onEnter/onExit using `:dtf`.
+Use `:dtf` format specifiers like `z` (string), `c` (char), `x` (hex).
+`r2frida` can trace functions by address, import/export names.
+Use `:iE` in r2frida to enumerate exports of a loaded module.
+Trace specific call destinations found using analysis commands like `/at call`.
+`r2yara` integrates YARA rule matching into radare2.
+Install `r2yara` using `r2pm -ci r2yara`.
+`r2yara` commands start with `yr` or `yara`.
+Load YARA rules from a file using `yr <file>`.
+Scan the current file with loaded rules using `yrs`.
+List loaded YARA rules using `yrl`.
+Generate YARA rules interactively using `yrg` subcommands.
+Add strings to a generated rule using `yrgs`.
+Add hex patterns to a generated rule using `yrgx`.
+Add the currently generated rule using `yr+`.
+Flatpak releases of Iaito bundle plugins like r2dec, r2ghidra, r2frida, r2yara, decai.
+Optimize text for vector databases by using concise, factual statements.
+Rephrasing concepts helps improve embedding quality for semantic search.
+AI embeddings represent data (like text or code) in a high-dimensional space.
+Vector databases efficiently store and retrieve these embeddings.
+Embeddings help capture semantic relationships (e.g., King - Man + Woman ≈ Queen).
+Use `~<num>` to grep specific columns from command output. Example: `axt sym.main~[1]`.
+Use `~..` to view command output in a pager (like less).
+Use `~{}` to pretty-print JSON output. Example: `pdfj~{}`.
+Use `.radare2rc` file in the home directory for persistent configurations.
+Place `.r2` files in a binary's directory for project-specific scripts/settings.
+Count the functions found with aflc
