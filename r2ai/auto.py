@@ -83,8 +83,8 @@ class ChatAuto:
         init_prompt = ""
         
         if not self.llama_instance:
-
-            model_info = litellm.get_model_info(self.model)
+            rmodel = re.sub(r'ft:([^:]+).*', r'\1', self.model)
+            model_info = litellm.get_model_info(rmodel)
             self.max_tokens = min(self.max_tokens, model_info['max_tokens'])
 
             if self.model.startswith('openai/o'):
