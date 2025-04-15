@@ -403,4 +403,3 @@ R_IPI void cmd_r2ai_logs(RCore *core) {
 		r_cons_flush ();
 	}
 }
-

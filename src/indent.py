@@ -1,18 +1,11 @@
 import re
-import argparse
+import sys
 import subprocess
-# requires clang-format
 
-parser = argparse.ArgumentParser(description="Format a C file using clang-format.")
-parser.add_argument("filename", help="C source file to format")
-args = parser.parse_args()
 
+arg = sys.argv[1]
 # Step 1: Format the file in-place using clang-format
-try:
-    subprocess.run(["clang-format", "-style={Language: C}", "-i", args.filename], check=True)
-except (subprocess.CalledProcessError, FileNotFoundError):
-    print("Error: clang-format is not installed or failed to run.")
-    exit(1)
+subprocess.run(["clang-format", "-i", arg], check=True)
 
 def is_function(s):
     return s and not s[0].isspace()
