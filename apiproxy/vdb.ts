@@ -242,6 +242,7 @@ class VectorDB {
   }
 }
 
+/*
 // Example usage
 function main() {
   // Create a vector database with 64-dimensional embeddings
@@ -262,4 +263,5 @@ function main() {
 // Uncomment to run
 main();
 
+*/
 export default VectorDB;
