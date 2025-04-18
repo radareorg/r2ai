@@ -2,23 +2,23 @@
 
 The AI based Decompiler plugin for radare2
 
-* Written in plain Javascript
-* No dependencies than radare2 and curl in PATH
-* Uses local ollama by default, but also r2ai-server
-* Use services like Anthropic, OpenAI, HF, XAI, DeepSeek, ..
+- Written in plain Javascript
+- No dependencies than radare2 and curl in PATH
+- Uses local ollama by default, but also r2ai-server
+- Use services like Anthropic, OpenAI, HF, XAI, DeepSeek, ..
 
 Features
 
-* Auto mode with function calling with ANY model
-* Uses the r2 pseudo decompiler by default, supports any other
-* Explain purpose and auto-document functions
-* Recursive decompilation to inline stubs
-* Autoname functions and perform type propagation
-* Find vulnerabilities, guide you and write exploits
-* Choose any natural language (not just English)
-* Choose output programming language (not just C)
-* Chain queries to manually fine tune the results
-* Customize decompilation prompt at any time
+- Auto mode with function calling with ANY model
+- Uses the r2 pseudo decompiler by default, supports any other
+- Explain purpose and auto-document functions
+- Recursive decompilation to inline stubs
+- Autoname functions and perform type propagation
+- Find vulnerabilities, guide you and write exploits
+- Choose any natural language (not just English)
+- Choose output programming language (not just C)
+- Chain queries to manually fine tune the results
+- Customize decompilation prompt at any time
 
 ## Installation
 
@@ -70,8 +70,8 @@ decai -e maxinputtokens=-1
 
 ## Examples
 
-See [https://github.com/radareorg/r2ai-examples](https://github.com/radareorg/r2ai-examples)
-
+See
+[https://github.com/radareorg/r2ai-examples](https://github.com/radareorg/r2ai-examples)
 
 ```c
 $ cat stack-overflow/bug.c 
