@@ -112,6 +112,9 @@ Response:
     // const defaultPrompt = "Rewrite this function following these rules:\n* Replace goto statements with structured control flow (if/else/for/while).\n* Simplify logic and remove unused code as much as possible.\n* Rename variables to be more meaningful.\n* Extract and inline function arguments and string values from comments like 'string:'.\n* Strictly return only the transformed code, without any explanations, markdown, or extra formatting."
     let decprompt = defaultPrompt;
 
+    function tmpdir(path) {
+        return r2.cmd("-e dir.tmp").trim() + "/" + path;
+    }
     function fileExist(path) {
         if (r2.cmd2("test -h").logs[0].message.indexOf("-fdx") !== -1) {
             // r2 is old and it doesn't support "test -v"
@@ -679,7 +682,7 @@ Response:
         const origColor = r2.cmd("e scr.color");
         try {
             args = args.slice(2).trim();
-            const file = "/tmp/.pdc.txt";
+            const file = tmpdir(".pdc.txt");
             r2.call("rm .pdc.txt");
             r2.call("rm " + file);
             r2.cmd("echo > " + file);
@@ -810,7 +813,7 @@ Response:
         fileData = fileData.replace(/\`/g, '').replace(/'/g, '"');
         queryText = queryText.replace(/'/g, '');
         if (decaiApi === "r2" || decaiApi === "r2ai") {
-            const fileName = "/tmp/.pdc.txt";
+            const fileName = tmpdir(".pdc.txt");
             fileDump(fileName, fileData);
             const q = queryText.startsWith("-")? queryText: ["-i", fileName, queryText].join(" ");
             const host = decaiHost + ":" + decaiPort + "/cmd"; // "http://localhost:8080/cmd";
