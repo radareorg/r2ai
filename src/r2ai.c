@@ -789,23 +789,40 @@ static bool cb_r2ai_model(void *user, void *data) {
 	const char *api = r_config_get (core->config, "r2ai.api");
 	if (*node->value == '?') {
 		if (!strcmp (api, "anthropic")) {
-			r_cons_println ("-m claude-3-7-sonnet-20250219");
-			r_cons_println ("-m claude-3-5-sonnet-20241022");
-			r_cons_println ("-m claude-3-haiku-20240307");
+			r_cons_println ("claude-3-7-sonnet-20250219");
+			r_cons_println ("claude-3-5-sonnet-20241022");
+			r_cons_println ("claude-3-haiku-20240307");
 		} else if (!strcmp (api, "gemini")) {
-			r_cons_println ("-m gemini-1.5-flash");
-			r_cons_println ("-m gemini-1.0-pro");
+			r_cons_println ("gemini-1.5-flash");
+			r_cons_println ("gemini-1.0-pro");
 		} else if (!strcmp (api, "openai")) {
-			r_cons_println ("-m gpt-4");
-			r_cons_println ("-m gpt-4o-mini");
-			r_cons_println ("-m gpt-3.5-turbo");
+			r_cons_println ("gpt-4");
+			r_cons_println ("gpt-4o-mini");
+			r_cons_println ("gpt-3.5-turbo");
 		} else if (!strcmp (api, "mistral")) {
-			r_cons_println ("-m mistral-large-latest");
-			r_cons_println ("-m codestral-latest");
+			r_cons_println ("mistral-large-latest");
+			r_cons_println ("codestral-latest");
 		} else if (!strcmp (api, "groq")) {
-			r_cons_println ("-m qwen-2.5-coder-32b");
+			r_cons_println ("qwen-2.5-coder-32b");
 		} else if (!strcmp (api, "ollama")) {
-			r_sys_cmd ("ollama ls");
+			char *s = r_sys_cmd_str ("ollama ls", NULL, NULL);
+			if (s) {
+				RList *items = r_str_split_list (s, "\n", 0);
+				RListIter *iter;
+				char *item;
+				r_list_foreach (items, iter, item) {
+					if (R_STR_ISEMPTY (item) || r_str_startswith (item, "NAME")) {
+						continue;
+					}
+					char *s = strchr (item, ' ');
+					if (s) {
+						*s = 0;
+					}
+					r_cons_println (item);
+				}
+				r_list_free (items);
+				free (s);
+			}
 		}
 		return false;
 	}
