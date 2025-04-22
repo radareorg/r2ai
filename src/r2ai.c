@@ -179,21 +179,16 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 	const char *api_key_filename = r_str_newf ("~/.r2ai.%s-key", provider);
 	char *api_key = NULL;
 
-	const char *e_api_key = r_config_get (core->config, "r2ai.api_key");
-	if (R_STR_ISNOTEMPTY (e_api_key)) {
-		api_key = strdup (e_api_key);
+	char *s = r_sys_getenv (api_key_env_copy);
+	if (R_STR_ISNOTEMPTY (s)) {
+		api_key = s;
 	} else {
-		char *s = r_sys_getenv (api_key_env_copy);
-		if (R_STR_ISNOTEMPTY (s)) {
-			api_key = s;
-		} else {
-			free (s);
-			char *absolute_apikey = r_file_abspath (api_key_filename);
-			if (r_file_exists (absolute_apikey)) {
-				api_key = r_file_slurp (absolute_apikey, NULL);
-			}
-			free (absolute_apikey);
+		free (s);
+		char *absolute_apikey = r_file_abspath (api_key_filename);
+		if (r_file_exists (absolute_apikey)) {
+			api_key = r_file_slurp (absolute_apikey, NULL);
 		}
+		free (absolute_apikey);
 	}
 	free (api_key_env_copy);
 
@@ -840,8 +835,6 @@ static int r2ai_init(void *user, const char *input) {
 	r_config_set_cb (core->config, "r2ai.api", "openai", &cb_r2ai_api);
 	r_config_set_cb (core->config, "r2ai.model", "gpt-4o-mini", &cb_r2ai_model);
 	r_config_set (core->config, "r2ai.base_url", "");
-	r_config_set (core->config, "r2ai.api_key",
-		""); // TODO: deprecate for privacy reasons
 	r_config_set_i (core->config, "r2ai.max_tokens", 5128);
 	r_config_set_i (core->config, "r2ai.thinking_tokens", 0);
 	r_config_set (core->config, "r2ai.temperature", "0.01");
