@@ -60,10 +60,10 @@ R2AI is structured into four independent components:
 
 Install the various components via `r2pm`:
 
-- `r2pm -ci r2ai`
-- `r2pm -ci r2ai-plugin`
-- `r2pm -ci decai`
-- `r2pm -ci r2ai-server`
+- `r2pm -ci r2ai-plugin`  # moden native r2 plugin
+- `r2pm -ci r2ai-py`      # old python shell
+- `r2pm -ci decai`        # r2js decompiler
+- `r2pm -ci r2ai-server`  # probably unnecessary
 
 ### From sources
 
