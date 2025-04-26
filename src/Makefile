@@ -1,7 +1,8 @@
 EXT=$(shell r2 -H R2_LIBEXT)
 CFLAGS+=$(shell pkg-config --cflags r_core)
 LDFLAGS+=$(shell pkg-config --libs r_core)
-R2PLUGDIR=$(shell r2 -H R2_USER_PLUGINS)
+R2SYSPLUGDIR=$(shell r2 -H R2_LIBR_PLUGINS)
+R2USRPLUGDIR=$(shell r2 -H R2_USER_PLUGINS)
 CFLAGS+=-I. -fPIC
 CFLAGS+=-Wall
 CFLAGS+=-g
@@ -50,13 +51,18 @@ vdb.o: vdb_embed.inc.c
 indent:
 	for a in *.c ; do python indent.py $$a ; done
 
-install user-install:
-	mkdir -p $(R2PLUGDIR)
-	rm -f $(R2PLUGDIR)/r2ai.$(EXT)
-	cp -f r2ai.$(EXT) $(R2PLUGDIR)
+user-install: user-uninstall
+	mkdir -p $(R2USRPLUGDIR)
+	cp -f r2ai.$(EXT) $(R2USRPLUGDIR)
 
-uninstall user-uninstall:
-	cp -f $(R2PLUGDIR)/r2ai.$(EXT)
+user-uninstall:
+	rm -f $(R2USRPLUGDIR)/r2ai.$(EXT)
+
+install:
+	cp -f r2ai.$(EXT) $(R2SYSPLUGDIR)
+
+uninstall:
+	rm -f $(R2SYSPLUGDIR)/r2ai.$(EXT)
 
 r2check:
 	@r2 -qcq --
