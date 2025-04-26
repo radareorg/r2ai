@@ -24,7 +24,27 @@ endif
 .PHONY: all all.old deps clean deps-global pub lint cilint
 .PHONY: install uninstall user-install user-uninstall
 
-all: venv
+all:
+	@echo "Usage: make [target]"
+	@echo "make r2ai-python       # Build and run the original Python r2ai"
+	@echo "make r2ai-plugin       # Build and install the native radare2 plugin"
+	@echo "make r2ai-decai        # Install the decai r2js plugin"
+	@echo "make r2ai-uninstall    # Uninstall all the r2ai plugins"
+	@false
+
+r2ai-decai:
+	$(MAKE) -C decai user-install
+
+r2ai-plugin:
+	$(MAKE) -C src
+	$(MAKE) -C src user-install
+
+r2ai-uninstall:
+	$(MAKE) user-uninstall
+	$(MAKE) -C src user-uninstall
+	$(MAKE) -C decai user-uninstall
+
+r2ai-python py python r2aipy: venv
 	@./r2ai.sh
 
 large:
