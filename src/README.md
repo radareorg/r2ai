@@ -69,3 +69,41 @@ int main(int argc, char **argv, char **envp) {
 }
 [0x100003f58]> 
 ```
+
+## TODO
+
+* add "undo" command to drop the last message
+* dump / restore conversational states (see -L command)
+* Implement `~`, `|` and `>` and other r2shell features
+
+
+## Messages API
+
+The r2ai project includes a new API for managing messages and tool calls in conversations with AI models. This API is implemented in `messages.c` and `messages.h`.
+
+### Key Functions
+
+- `r2ai_messages_new()`: Create a new messages array
+- `r2ai_messages_free(msgs)`: Free a messages array and all associated data
+- `r2ai_messages_add(msgs, role, content, tool_call_id)`: Add a new message
+- `r2ai_messages_add_tool_call(msgs, name, arguments, id)`: Add a tool call to the last message
+- `r2ai_messages_last(msgs)`: Get the last message in the array
+- `r2ai_messages_parse_json(msgs, json)`: Parse a JSON response into messages
+- `r2ai_messages_clear(msgs)`: Clear all messages
+
+### Example Usage
+
+```c
+// Create a new messages array
+R2AI_Messages *msgs = r2ai_messages_new();
+
+// Add a user message
+r2ai_messages_add(msgs, "user", "What is the disassembly of function main?", NULL);
+
+// Add an assistant message with a tool call
+R2AI_Message *msg = r2ai_messages_add(msgs, "assistant", NULL, NULL);
+r2ai_messages_add_tool_call(msgs, "r2cmd", "{\"command\":\"pdf@main\"}", "tool-123");
+
+// Free all resources when done
+r2ai_messages_free(msgs);
+```
