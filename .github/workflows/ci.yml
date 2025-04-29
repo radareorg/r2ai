@@ -49,8 +49,10 @@ jobs:
         cd ..
     - name: Linting
       run: |
+        cd py
         . venv/bin/activate
         make cilint
+        cd ..
     - name: Running r2ai from the shell
       run: |
         cd py
