@@ -39,6 +39,7 @@ jobs:
         cd py
         python -m venv venv
         . venv/bin/activate
+        pip install .
         pip install pylint
         cd ..
     - name: Linting

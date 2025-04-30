@@ -70,8 +70,11 @@ pub:
 pylint lint cilint:
 	. venv/bin/activate ; pylint $(LINTED)
 
-lint:
+lintall:
 	pylint *.py r2ai/*.py
+
+.PHONY: lint lintall
+
 deps-global:
 	export CMAKE_ARGS="-DLLAMA_METAL=on -DLLAMA_METAL_EMBED_LIBRARY=ON" && \
 		$(PIP) install --force-reinstall -U --break-system-packages --no-cache-dir .
