@@ -1,9 +1,5 @@
 R2_USER_PLUGINS=$(shell r2 -H R2_USER_PLUGINS)
 
-ifeq ($(R2PM_BINDIR),)
-MISSING RADARE2
-endif
-
 PWD=$(shell pwd)
 R2PM_BINDIR=$(shell r2pm -H R2PM_BINDIR)
 PV=3.12
@@ -13,6 +9,10 @@ else
 PYTHON?=python3
 endif
 PIP=$(PYTHON) -m pip
+
+ifeq ($(R2PM_BINDIR),)
+MISSING RADARE2
+endif
 
 LINTED=r2ai/code_block.py
 LINTED+=r2ai/bubble.py
@@ -67,8 +67,8 @@ pub:
 	twine check dist/*
 	twine upload -u __token__ --repository-url https://upload.pypi.org/legacy/ --verbose dist/*
 
-cilint:
-	pylint $(LINTED)
+pylint lint cilint:
+	. venv/bin/activate ; pylint $(LINTED)
 
 lint:
 	pylint *.py r2ai/*.py

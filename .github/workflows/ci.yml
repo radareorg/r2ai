@@ -24,7 +24,7 @@ jobs:
       run: make -C src
     - name: Running r2ai from r2
       run: r2 -q -c 'r2ai -h' --
-  python-linux:
+  lint-python:
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
@@ -34,7 +34,26 @@ jobs:
         wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2-dev_${R2V}_amd64.deb"
         sudo dpkg -i "radare2_${R2V}_amd64.deb"
         sudo dpkg -i "radare2-dev_${R2V}_amd64.deb"
-    - name: Setting up the Python virtual environment
+    - name: Setting up Python
+      run: |
+        cd py
+        python -m venv venv
+        . venv/bin/activate
+        pip install pylint
+        cd ..
+    - name: Linting
+      run: make -C py cilint
+  build-python:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: Installing radare2
+      run: |
+        wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2_${R2V}_amd64.deb"
+        wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2-dev_${R2V}_amd64.deb"
+        sudo dpkg -i "radare2_${R2V}_amd64.deb"
+        sudo dpkg -i "radare2-dev_${R2V}_amd64.deb"
+    - name: Setting up Python
       run: |
         cd py
         python -m venv venv
@@ -46,12 +65,6 @@ jobs:
         cd py
         . venv/bin/activate
         pip install .
-        cd ..
-    - name: Linting
-      run: |
-        cd py
-        . venv/bin/activate
-        make cilint
         cd ..
     - name: Running r2ai from the shell
       run: |

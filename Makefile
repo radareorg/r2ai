@@ -1,9 +1,3 @@
-R2V=$(shell r2 -v)
-
-ifeq ($(R2V),)
-MISSING RADARE2
-endif
-
 .PHONY: all all.old deps clean deps-global pub lint cilint
 .PHONY: install uninstall user-install user-uninstall
 
