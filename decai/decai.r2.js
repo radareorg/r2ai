@@ -862,11 +862,14 @@ Response:
       try {
         const o = JSON.parse(trimDown(out));
         if (o.action === "execute_function" && o.function_name === "r2cmd") {
-          const cmd = o.parameters.r2cmd;
+          const ocmd = o.parameters.r2cmd;
+          console.log("[r2cmd] Prompting to run: " + ocmd);
+          let cmd = r2.cmd("'?ie r2cmd").trim();
+          if (!cmd) {
+            cmd = ocmd;
+          }
           console.log("[r2cmd] Running: " + cmd);
-          r2.cmd("e scr.color=0");
-          res = r2.cmd(cmd);
-          r2.cmd("e scr.color=3");
+          res = r2.cmd(cmd + "@e:scr.color=0");
           replies.push(
             JSON.stringify({
               action: "function_response",
