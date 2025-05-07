@@ -273,7 +273,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 R_IPI char *r2ai(RCore *core, R2AIArgs args) {
 	if (R_STR_ISEMPTY (args.input) && !args.messages) {
 		if (args.error) {
-			*args.error = r_str_newf ("Usage: r2ai [-h] [provider] [prompt]");
+			*args.error = r_str_newf ("Usage: r2ai [-h] [prompt]");
 		}
 		return NULL;
 	}
