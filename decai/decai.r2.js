@@ -830,6 +830,13 @@ Response:
     const d = b64(fileData);
     r2.cmd("p6ds " + d + " > " + fileName);
   }
+  function trimDown(out) {
+    const jsonMatch = out.match(/```json\s*([\s\S]*?)```/);
+    if (jsonMatch && jsonMatch[1]) {
+      return jsonMatch[1].trim();
+    }
+    return out;
+  }
   function decaiAuto(queryText) {
     r2ai("-R");
     let autoQuery = autoPrompt;
@@ -853,7 +860,7 @@ Response:
             console.log('#### /output');
             */
       try {
-        const o = JSON.parse(out);
+        const o = JSON.parse(trimDown(out));
         if (o.action === "execute_function" && o.function_name === "r2cmd") {
           const cmd = o.parameters.r2cmd;
           console.log("[r2cmd] Running: " + cmd);
