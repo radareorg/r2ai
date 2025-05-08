@@ -378,7 +378,7 @@ Response:
     msg("-n         - suggest better function name");
     msg("-q [text]  - query language model with given text");
     msg("-Q [text]  - query on top of the last output");
-    msg("-r         - change role prompt (same as: decai -e prompt)");
+    msg("-r [prompt]- change role prompt (same as: decai -e prompt)");
     msg("-R         - reset role prompt to default prompt");
     msg("-s         - function signature");
     msg("-v         - show local variables");
