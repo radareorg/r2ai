@@ -207,9 +207,8 @@ Response:
   function listModelsFor(decaiApi) {
     switch (decaiApi) {
       case "ollama":
-        // r2.syscmd("ollama ls");
       case "openapi":
-        console.log(openApiListModels());
+        console.log(openApiListModels()); // || "!ollama ls"
         break;
       case "groq":
         console.log("meta-llama/llama-4-scout-17b-16e-instruct");
@@ -368,7 +367,13 @@ Response:
   }
   function buildQuery(msg, hideprompt) {
     if (decaiThink === 0) {
+      msg +=
+        ' Answers directly and concisely, without showing any thinking steps or internal reasoning. Never include phrases like "Let me think".';
       msg += " /no_think";
+    } else if (decaiThink > 0) {
+      msg =
+        "Think step by step and explain the reasoning process, When answering, first output your reasoning inside <think> and </think> tags, then give the final answer." +
+        msg;
     }
     return hideprompt ? msg : decaiPrompt + languagePrompt() + msg;
   }
@@ -376,7 +381,8 @@ Response:
     if (decaiThink !== 2) {
       msg = msg.replace(/<think>[\s\S]*?<\/think>/gi, "");
     }
-    return msg.split('\n').filter(line => !line.trim().startsWith('```')).join('\n');
+    return msg.split("\n").filter((line) => !line.trim().startsWith("```"))
+      .join("\n");
   }
   function usage() {
     const msg = (m) => console.error(" " + command + " " + m);
@@ -419,7 +425,7 @@ Response:
       messages: [
         {
           "role": "user",
-          "content": query
+          "content": query,
         },
       ],
     };
@@ -559,8 +565,10 @@ Response:
       ],
     };
     if (decaiDeterministic) {
-      object.temperature = 0;
-      object.top_p = 0;
+      if (!openaiModel.startsWith("o4") && !openaiModel.startsWith("o1")) {
+        object.temperature = 0;
+        object.top_p = 0;
+      }
       object.frequency_penalty = 0;
       object.presence_penalty = 0;
     }
@@ -572,7 +580,7 @@ Response:
       return filterResponse(res.choices[0].message.content);
     } catch (e) {
       console.error(e, e.stack);
-      console.log(res);
+      console.log(JSON.stringify(res, false, 2));
     }
     return "error invalid response";
   }
