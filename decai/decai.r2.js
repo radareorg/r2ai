@@ -103,6 +103,7 @@ Response:
   let decaiHumanLanguage = "English";
   let decaiDeterministic = true;
   let decaiDebug = false;
+  let decaiThink = 0; // 0 = nothink, 1 = think, 2 = show reasoning
   let decaiContextFile = "";
   let decaiModel = "";
   let lastOutput = "";
@@ -111,7 +112,7 @@ Response:
   const defaultPrompt =
     "Transform this pseudocode and respond ONLY with plain code (NO explanations, comments or markdown), Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and strings from comments like 'string:', Reduce lines of code and fit everything in a single function, Remove all dead code";
   // const defaultPrompt = "Rewrite this function following these rules:\n* Replace goto statements with structured control flow (if/else/for/while).\n* Simplify logic and remove unused code as much as possible.\n* Rename variables to be more meaningful.\n* Extract and inline function arguments and string values from comments like 'string:'.\n* Strictly return only the transformed code, without any explanations, markdown, or extra formatting."
-  let decprompt = defaultPrompt;
+  let decaiPrompt = defaultPrompt;
 
   function tmpdir(path) {
     return r2.cmd("-e dir.tmp").trim() + "/" + path;
@@ -275,6 +276,12 @@ Response:
         decaiDeterministic = v === "true" || v === "1";
       },
     },
+    "think": {
+      get: () => decaiThink,
+      set: (v) => {
+        decaiThink = (v === "true") ? 1 : (v === "false") ? 0 : +v;
+      },
+    },
     "debug": {
       get: () => decaiDebug,
       set: (v) => {
@@ -318,9 +325,9 @@ Response:
       },
     },
     "prompt": {
-      get: () => decprompt,
+      get: () => decaiPrompt,
       set: (v) => {
-        decprompt = v;
+        decaiPrompt = v;
       },
     },
     "ctxfile": {
@@ -359,6 +366,18 @@ Response:
       console.log(config[k].get());
     }
   }
+  function buildQuery(msg, hideprompt) {
+    if (decaiThink === 0) {
+      msg += " /no_think";
+    }
+    return hideprompt ? msg : decaiPrompt + languagePrompt() + msg;
+  }
+  function filterResponse(msg) {
+    if (decaiThink !== 2) {
+      msg = msg.replace(/<think>[\s\S]*?<\/think>/gi, "");
+    }
+    return msg.split('\n').filter(line => !line.trim().startsWith('```')).join('\n');
+  }
   function usage() {
     const msg = (m) => console.error(" " + command + " " + m);
     console.error("Usage: " + command + " (-h) ...");
@@ -393,13 +412,14 @@ Response:
     if (claudeKey === "") {
       return "Cannot read ~/.r2ai.anthropic-key";
     }
+    const query = buildQuery(msg, hideprompt);
     const object = {
       model: claudeModel,
       max_tokens: 5128,
       messages: [
         {
           "role": "user",
-          "content": hideprompt ? msg : decprompt + languagePrompt() + msg,
+          "content": query
         },
       ],
     };
@@ -416,7 +436,7 @@ Response:
     ];
     const res = curlPost(url, headers, payload);
     try {
-      return res.content[0].text;
+      return filterResponse(res.content[0].text);
     } catch (e) {
       return "ERROR: " + res.error.message;
     }
@@ -428,7 +448,7 @@ Response:
       throw new Error(key[1]);
     }
     let hfModel = decaiModel ?? "deepseek-ai/DeepSeek-Coder-V2-Instruct";
-    const query = hideprompt ? msg : decprompt + languagePrompt() + msg;
+    const query = buildQuery(msg, hideprompt);
     const payload = JSON.stringify({
       inputs: query,
       parameters: {
@@ -452,7 +472,7 @@ Response:
     const deepseekModel = (decaiModel.length > 0)
       ? decaiModel
       : "deepseek-coder";
-    const query = hideprompt ? msg : decprompt + languagePrompt() + msg;
+    const query = buildQuery(msg, hideprompt);
     const payload = JSON.stringify({
       model: deepseekModel,
       messages: [{ role: "user", content: query }],
@@ -477,7 +497,7 @@ Response:
     const groqModel = (decaiModel.length > 0)
       ? decaiModel
       : "meta-llama/llama-4-scout-17b-16e-instruct";
-    const query = hideprompt ? msg : decprompt + languagePrompt() + msg;
+    const query = buildQuery(msg, hideprompt);
     const payload = JSON.stringify({
       model: groqModel,
       messages: [{ role: "user", content: query }],
@@ -502,7 +522,7 @@ Response:
     const geminiModel = (decaiModel.length > 0)
       ? decaiModel
       : "gemini-1.5-flash";
-    const query = hideprompt ? msg : decprompt + languagePrompt() + msg;
+    const query = buildQuery(msg, hideprompt);
     const object = { contents: [{ parts: [{ text: query }] }] };
     if (decaiDeterministic) {
       object.generationConfig = {
@@ -530,11 +550,11 @@ Response:
       return "Cannot read ~/.r2ai.openai-key";
     }
     const openaiModel = (decaiModel.length > 0) ? decaiModel : "gpt-4-turbo"; // o-2024-11-20";
-    const query = hideprompt ? msg : decprompt + languagePrompt() + msg;
+    const query = buildQuery(msg, hideprompt);
     const object = {
       model: openaiModel,
       messages: [
-        // { "role": "system", "content": hideprompt? decprompt: "" },
+        // { "role": "system", "content": hideprompt? decaiPrompt: "" },
         { "role": "user", "content": query },
       ],
     };
@@ -549,7 +569,7 @@ Response:
     const headers = ["Authorization: Bearer " + openaiKey];
     const res = curlPost(url, headers, payload);
     try {
-      return res.choices[0].message.content;
+      return filterResponse(res.choices[0].message.content);
     } catch (e) {
       console.error(e, e.stack);
       console.log(res);
@@ -562,7 +582,7 @@ Response:
       return "Cannot read ~/.r2ai.mistral-key";
     }
     const model = decaiModel ? decaiModel : "codestral-latest";
-    const query = hideprompt ? msg : decprompt + languagePrompt() + msg;
+    const query = buildQuery(msg, hideprompt);
     const object = {
       stream: false,
       model: model,
@@ -606,7 +626,7 @@ Response:
   }
   function r2aiOllama(msg, hideprompt) {
     const model = decaiModel ? decaiModel : "qwen2.5-coder:latest";
-    const query = hideprompt ? msg : decprompt + languagePrompt() + msg;
+    const query = buildQuery(msg, hideprompt);
     const object = {
       stream: false,
       model: model,
@@ -627,13 +647,13 @@ Response:
     const url = decaiHost + ":" + decaiPort + "/api/chat";
     const res = curlPost(url, [], payload);
     try {
-      return res.message.content;
+      return filterResponse(res.message.content);
     } catch (e) {
       return "ERROR: " + res.error;
     }
   }
   function r2aiOpenAPI(msg, hideprompt) {
-    const query = hideprompt ? msg : decprompt + languagePrompt() + msg;
+    const query = buildQuery(msg, hideprompt);
     const payload = JSON.stringify({ "prompt": query });
     const url = `${decaiHost}:${decaiPort}/api/generate`;
     const res = curlPost(url, [], payload);
@@ -667,7 +687,7 @@ Response:
       return "Cannot read ~/.r2ai.xai-key";
     }
     const xaiModel = (decaiModel.length > 0) ? decaiModel : "grok-beta";
-    const query = hideprompt ? msg : decprompt + languagePrompt() + msg;
+    const query = buildQuery(msg, hideprompt);
     const payload = JSON.stringify({
       messages: [{ role: "user", "content": query }],
       "model": xaiModel,
@@ -685,7 +705,7 @@ Response:
     return "error invalid response";
   }
   function r2aiVLLM(msg, hideprompt) {
-    const query = hideprompt ? msg : decprompt + languagePrompt() + msg;
+    const query = buildQuery(msg, hideprompt);
     const payload = JSON.stringify({
       "prompt": query,
       "model": "lmsys/vicuna-7b-v1.3",
@@ -704,7 +724,7 @@ Response:
     return "error invalid response";
   }
   function r2aiOpenAPI2(msg, hideprompt) {
-    const query = hideprompt ? msg : decprompt + languagePrompt() + msg;
+    const query = buildQuery(msg, hideprompt);
     const payload = JSON.stringify({
       "prompt": query,
       "model": "qwen2.5_Coder_1.5B_4bit",
@@ -1013,13 +1033,13 @@ Response:
         case "r": // "-r"
           args = args.slice(2).trim();
           if (args) {
-            decprompt = args;
+            decaiPrompt = args;
           } else {
-            console.log(decprompt);
+            console.log(decaiPrompt);
           }
           break;
         case "R": // "-R"
-          decprompt = defaultPrompt;
+          decaiPrompt = defaultPrompt;
           break;
         case "s": // "-s"
           out = r2.cmd("afv;pdc");
