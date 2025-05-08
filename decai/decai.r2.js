@@ -61,35 +61,61 @@ You can write your custom decai commands in your ~/.radare2rc file.
 
 `;
   const autoPrompt = `
-# Function Calling
+# Radare2 Auto Mode
 
-Respond ONLY using JSON. You are a smart assistant designed to process user queries and decide if a local function needs to be executed. Follow these steps:
+You are going to use function calling to execute radare2 commands in order to resolve the user request defined in the "User Prompt" section, taking in consideration all the responses attached in the "Command Results" section.
+
+## Function Calling
+
+Respond ONLY using JSON without using markdown. You are designed to process user queries and decide if a local function needs to be executed. Follow these steps:
+
 1. Analyze the user input to determine if it requires invoking a local function or just returning a direct response.
 2. If it requires a function call:
-    - Use the key "action": "execute_function".
-    - Provide the "function_name" as a string.
-    - Include "parameters" as a dictionary of key-value pairs matching the required function arguments.
-    - Optionally, provide a "response" to summarize your intent.
-3. If no function is required:
-    - Use the key "action": "reply".
-    - Include "response" with the direct answer to the user query.
+ - Use the key "action": "r2cmd".
+ - Provide the "command" as a string.
+ - Optionally, provide a "description" to summarize your intent.
+3. If we think we know the answer and no function call is required:
+ - Use the key "action": "reply".
+ - Include "response" with the direct answer to the user query.
 
 Return the result as a JSON object.
 
 ## Here is an example:
 
-User Query: "Count how many functions."
+Command Results: already performed actions with their responses
+User Prompt: "Count how many functions we have here."
 Response:
 {
-    "action": "execute_function",
-    "function_name": "r2cmd",
-    "parameters": {
-        "r2cmd": "aflc",
-    }
-    "response": "Count how many functions do we have"
+    "action": "r2cmd",
+    "command": "aflc",
+    "description": "Count functions"
 }
 
-# Now, analyze the following user input:
+## Rules
+
+* Do not run the same command twice
+* Decompile functions starting from main to dig into the internal code
+* Perform as many iterations as possible until the problem is solved
+* Run only one command at a time (do not use ";")
+* Suffix the command with "@ address" or "@ symbol" to temporary seek there
+* On Swift binaries run "/az" to find assembly constructed strings
+* Output must be a verbose report in markdown format
+
+## Functions
+
+* If "aflc" command output is "0", analyze the binary
+* "i" : get information from the binary
+* "aaa" : analyze the binary
+* "is" : list symbols
+* "izqq" : list all strings
+* "aflm" : list all functions and their calls
+* "pdsf" :  show strings and function names referenced in function
+* "iic" : imported symbols sorted by class (network, format string, thread unsafe, etc)
+* "pdc" : decompile function
+* "iiq" : enumerate the imported symbols
+* "izqq~http:,https:" : enumerate http network urls
+* "ilq" : Enumerate libraries and frameworks
+
 `;
 
   let decopipe = { use: false };
@@ -103,7 +129,7 @@ Response:
   let decaiHumanLanguage = "English";
   let decaiDeterministic = true;
   let decaiDebug = false;
-  let decaiThink = 0; // 0 = nothink, 1 = think, 2 = show reasoning
+  let decaiThink = -1; // -1 = nothing, 0 = nothink, 1 = think, 2 = show reasoning
   let decaiContextFile = "";
   let decaiModel = "";
   let lastOutput = "";
@@ -366,14 +392,16 @@ Response:
     }
   }
   function buildQuery(msg, hideprompt) {
-    if (decaiThink === 0) {
-      msg +=
-        ' Answers directly and concisely, without showing any thinking steps or internal reasoning. Never include phrases like "Let me think".';
-      msg += " /no_think";
-    } else if (decaiThink > 0) {
-      msg =
-        "Think step by step and explain the reasoning process, When answering, first output your reasoning inside <think> and </think> tags, then give the final answer." +
-        msg;
+    if (+decaiThink >= 0) {
+      if (+decaiThink === 0) {
+        msg +=
+          ' Answers directly and concisely, without showing any thinking steps or internal reasoning. Never include phrases like "Let me think".';
+        msg += " /no_think";
+      } else if (+decaiThink > 0) {
+        msg =
+          "Think step by step and explain the reasoning process, When answering, first output your reasoning inside <think> and </think> tags, then give the final answer." +
+          msg;
+      }
     }
     return hideprompt ? msg : decaiPrompt + languagePrompt() + msg;
   }
@@ -535,7 +563,6 @@ Response:
         "temperature": 0.0,
         "topP": 1.0,
         "topK": 1,
-        "maxOutputTokens": 256,
       };
     }
     const payload = JSON.stringify(object);
@@ -615,9 +642,10 @@ Response:
     ];
     const res = curlPost(url, headers, payload);
     try {
-      return res.choices[0].message.content;
+      return filterResponse(res.choices[0].message.content);
     } catch (e) {
       console.error(e, e.stack);
+      console.error("ERROR:" + JSON.stringify(res, null, 2));
       console.error("ERROR:" + res.detail[0].msg);
     }
   }
@@ -872,42 +900,65 @@ Response:
     while (true) {
       let q = autoPrompt;
       if (replies.length > 0) {
-        q += "## Executed function results\n";
+        q += "## Command Results\n\n";
         q += replies.join("\n");
       }
-      q += "## User prompt\n" + queryText;
-      /*
-            console.log('#### input');
-            console.log(q);
-            console.log('#### /input');
-            */
+      q += "\n## User Prompt\n\n" + queryText;
+      if (decaiDebug) {
+        console.log("#### input");
+        console.log(q);
+        console.log("#### /input");
+      }
+      console.log("Thinking...");
       out = r2ai("", q, true);
-      /*
-            console.log('#### output');
-            console.log(out);
-            console.log('#### /output');
-            */
+      // out = r2ai(q, "", true);
+      if (decaiDebug) {
+        console.log("#### output");
+        console.log(out);
+        console.log("#### /output");
+      }
       try {
-        const o = JSON.parse(trimDown(out));
-        if (o.action === "execute_function" && o.function_name === "r2cmd") {
-          const ocmd = o.parameters.r2cmd;
-          console.log("[r2cmd] Prompting to run: " + ocmd);
-          let cmd = r2.cmd("'?ie r2cmd").trim();
+        const o = JSON.parse(trimDown(filterResponse(out)));
+        if (o.action === "r2cmd" || o.action === "response") {
+          const ocmd = o.command;
+          console.log("[r2cmd] Prompting for : " + ocmd);
+          console.log("[r2cmd] Help message : " + o.description);
+          let cmd = r2.cmd("'?ie r2cmd ('q' to stop reasoning)").trim();
+          if (cmd == "q!") {
+            console.error("Break!");
+            break;
+          }
+          if (cmd == "q") {
+            cmd =
+              "?e You have the solution!. Do not perform more function calls and just respond";
+          }
           if (!cmd) {
             cmd = ocmd;
           }
           console.log("[r2cmd] Running: " + cmd);
-          res = r2.cmd(cmd + "@e:scr.color=0");
+          console.log(cmd);
+          r2.cmd("-e scr.color=0");
+          res = r2.cmd(cmd);
+          r2.cmd("-e scr.color=2");
+          if (decaiDebug) {
+            console.log("<r2output>");
+            console.log(res);
+            console.log("<(r2output>");
+          }
           replies.push(
             JSON.stringify({
-              action: "function_response",
-              function_name: r2cmd,
+              action: "response",
+              command: cmd,
+              description: o.description,
               response: res,
             }),
           );
         } else if (o.action === "reply") {
           console.log(o.response);
           break;
+        } else {
+          console.log("Unknown response");
+          console.log(out);
         }
       } catch (e) {
         console.error(out);

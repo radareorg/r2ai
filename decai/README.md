@@ -108,7 +108,8 @@ openapi
 
 ### Example using a local model and ollama
 
-For example, if Ollama serves model codegeex4:latest (`ollama ls`), set decai API as `ollama` and model `codegeex4:latest`.
+For example, if Ollama serves model codegeex4:latest (`ollama ls`), set decai
+API as `ollama` and model `codegeex4:latest`.
 
 ```
 [0x00002d30]> decai -e api=ollama
@@ -116,7 +117,6 @@ For example, if Ollama serves model codegeex4:latest (`ollama ls`), set decai AP
 [0x00002d30]> decai -q Explain what forkpty does in 2 lines
 The `forkpty` function creates a new process with a pseudo-terminal, allowing the parent to interact with the child via standard input/output/err and controlling its terminal.
 ```
-
 
 ## Examples
 
@@ -152,8 +152,9 @@ int main(int argc, char **argv, char **envp) {
 
 ### Example using a local Mistral model and r2ai-server
 
-For example, assuming we have a *local* Mistral AI server running on port 8080 with `r2ai-server`, we can decompile a given function with `decai -d`.
-The server shows it received the question:
+For example, assuming we have a _local_ Mistral AI server running on port 8080
+with `r2ai-server`, we can decompile a given function with `decai -d`. The
+server shows it received the question:
 
 ```
 GET
@@ -165,11 +166,11 @@ CUSTOM
 RUNLINE: -i /tmp/.pdc.txt Rewrite this function and respond ONLY with code, NO explanations, NO markdown, Change goto into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and and strings from comments like string:. Transform this pseudocode into C
 ```
 
-### Example using a Mistral API key 
+### Example using a Mistral API key
 
 Put the API key in `~/.r2ai.mistral-key`.
 
-```
+````
 [0x000010d0]> decai -e api=mistral
 [0x000010d0]> decai -d main
 ```c
@@ -181,8 +182,7 @@ int main(int argc, char **argv, char **envp) {
     char password[40];
     char input[40];
 ...
-```
-
+````
 
 ### Example with ChatGPT 4
 
@@ -197,6 +197,3 @@ void daemonize() {
 }
 ...
 ```
-
-
-
