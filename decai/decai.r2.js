@@ -127,6 +127,7 @@ Response:
   let decaiApi = "ollama"; // uses /cmd endpoint
   let decaiPipeline = "";
   let decaiCommands = "pdc";
+  let decaiBaby = true;
   let decaiLanguage = "C";
   let decaiHumanLanguage = "English";
   let decaiDeterministic = true;
@@ -349,6 +350,12 @@ Response:
       get: () => decaiCommands,
       set: (v) => {
         decaiCommands = v;
+      },
+    },
+    "baby": {
+      get: () => decaiBaby,
+      set: (v) => {
+        decaiBaby = v === "true" || v == 1;
       },
     },
     "prompt": {
@@ -895,6 +902,9 @@ Response:
     }
     return out;
   }
+  function trimAnsi(str) {
+    return str.replace(/\x1b\[[0-9;]*m/g, "");
+  }
   function trimJson(out) {
     const bob = out.indexOf("{");
     if (bob !== -1) {
@@ -943,32 +953,41 @@ Response:
           const ocmd = o.command;
           console.log("[r2cmd] Action: " + o.description);
           console.log("[r2cmd] Command: " + ocmd);
-          let cmd = r2.cmd(
-            "'?ie Tweak command? ('q' to solve, 'q!' quit, '#' description)",
-          ).trim();
-          if (cmd == "q!") {
-            console.error("Break!");
-            break;
-          }
-          if (cmd == "q") {
-            cmd =
-              "?e All data collected!. Do not call more commands, reply the solutions";
-          }
-          if (!cmd) {
-            cmd = ocmd;
-          } else {
-            const comment = cmd.indexOf("#");
-            if (comment !== -1) {
-              const command = cmd.slice(0, comment);
-              o.description = cmd.slice(comment + 1);
-              cmd = command;
-              // TODO: update vdb with that command
+          let cmd = ocmd;
+          if (decaiBaby) {
+            cmd = r2.cmd(
+              "'?ie Tweak command? ('q' to solve, 'q!' quit, '#' description)",
+            ).trim();
+            if (cmd == "q!") {
+              console.error("Break!");
+              break;
+            }
+            if (cmd == "q") {
+              cmd =
+                "?e All data collected!. Do not call more commands, reply the solutions";
+            }
+            if (!cmd) {
+              cmd = ocmd;
+            } else {
+              const comment = cmd.indexOf("#");
+              if (comment !== -1) {
+                const command = cmd.slice(0, comment).trim();
+                o.description = cmd.slice(comment + 1).trim();
+                cmd = command;
+                // TODO: update vdb with that command
+              }
             }
           }
           console.log("[r2cmd] Running: " + cmd);
-          r2.cmd("-e scr.color=0");
-          res = r2.cmd(cmd).trim();
-          r2.cmd("-e scr.color=2");
+          if (false) {
+            r2.cmd("-e scr.color=0");
+            res = r2.cmd(cmd).trim();
+            r2.cmd("-e scr.color=2");
+          } else {
+            res = r2.cmd(cmd).trim();
+            console.log(res);
+            res = trimAnsi(res);
+          }
           if (decaiDebug) {
             console.log("<r2output>");
             console.log(res);
