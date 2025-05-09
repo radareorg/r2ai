@@ -93,11 +93,13 @@ Response:
 
 ## Rules
 
-* Do not run the same command twice
-* Decompile functions starting from main to dig into the internal code
-* Perform as many iterations as possible until the problem is solved
 * Run only one command at a time (do not use ";")
-* Suffix the command with "@ address" or "@ symbol" to temporary seek there
+* If the program have no functions, analyze it with "aaa"
+* Inspect the relevant functions with decompilation if needed
+* Do not run the same command more than once
+* Decompile functions starting from main to dig into the internal code
+* Run all the commands needed to collect the information needed to solve the user request
+* Commands are suffixed with "@ (address|symbol)" to temporary seek
 * On Swift binaries run "/az" to find assembly constructed strings
 * Output must be a verbose report in markdown format
 
@@ -889,7 +891,18 @@ Response:
   function trimDown(out) {
     const jsonMatch = out.match(/```json\s*([\s\S]*?)```/);
     if (jsonMatch && jsonMatch[1]) {
-      return jsonMatch[1].trim();
+      out = jsonMatch[1].trim();
+    }
+    return out;
+  }
+  function trimJson(out) {
+    const bob = out.indexOf("{");
+    if (bob !== -1) {
+      out = out.slice(bob);
+    }
+    const eob = out.indexOf("}");
+    if (eob !== -1) {
+      out = out.slice(0, eob + 1);
     }
     return out;
   }
@@ -901,9 +914,16 @@ Response:
       let q = autoPrompt;
       if (replies.length > 0) {
         q += "## Command Results\n\n";
-        q += replies.join("\n");
+        for (const rep of replies) {
+          const rp = JSON.parse(rep);
+          q += "### " + rp.command + "\n\n";
+          q += "```\n";
+          q += rp.response;
+          q += "```\n";
+        }
+        // q += replies.join("\n");
       }
-      q += "\n## User Prompt\n\n" + queryText;
+      q += "\n\n## User Prompt\n\n" + queryText;
       if (decaiDebug) {
         console.log("#### input");
         console.log(q);
@@ -918,27 +938,36 @@ Response:
         console.log("#### /output");
       }
       try {
-        const o = JSON.parse(trimDown(filterResponse(out)));
+        const o = JSON.parse(trimJson(trimDown(filterResponse(out))));
         if (o.action === "r2cmd" || o.action === "response") {
           const ocmd = o.command;
-          console.log("[r2cmd] Prompting for : " + ocmd);
-          console.log("[r2cmd] Help message : " + o.description);
-          let cmd = r2.cmd("'?ie r2cmd ('q' to stop reasoning)").trim();
+          console.log("[r2cmd] Action: " + o.description);
+          console.log("[r2cmd] Command: " + ocmd);
+          let cmd = r2.cmd(
+            "'?ie Tweak command? ('q' to solve, 'q!' quit, '#' description)",
+          ).trim();
           if (cmd == "q!") {
             console.error("Break!");
             break;
           }
           if (cmd == "q") {
             cmd =
-              "?e You have the solution!. Do not perform more function calls and just respond";
+              "?e All data collected!. Do not call more commands, reply the solutions";
           }
           if (!cmd) {
             cmd = ocmd;
+          } else {
+            const comment = cmd.indexOf("#");
+            if (comment !== -1) {
+              const command = cmd.slice(0, comment);
+              o.description = cmd.slice(comment + 1);
+              cmd = command;
+              // TODO: update vdb with that command
+            }
           }
           console.log("[r2cmd] Running: " + cmd);
-          console.log(cmd);
           r2.cmd("-e scr.color=0");
-          res = r2.cmd(cmd);
+          res = r2.cmd(cmd).trim();
           r2.cmd("-e scr.color=2");
           if (decaiDebug) {
             console.log("<r2output>");
@@ -954,6 +983,7 @@ Response:
             }),
           );
         } else if (o.action === "reply") {
+          console.log("Done");
           console.log(o.response);
           break;
         } else {
