@@ -287,7 +287,11 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output) {
 		if (is_multiline) {
 			// Use editor for multi-line commands
 			edited_command = strdup (command);
+#if R2_VERSION_NUMBER >= 50909
+			r_cons_editor (core->cons, NULL, edited_command);
+#else
 			r_cons_editor (NULL, edited_command);
+#endif
 			command = edited_command;
 		} else {
 			// For single-line commands, push the command to input buffer
@@ -299,7 +303,11 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output) {
 			r_cons_readpush ("\x05", 1); // Ctrl+E - move to end
 
 			// Get user input with command pre-filled
+#if R2_VERSION_NUMBER >= 50909
+			const char *readline_result = r_line_readline (core->cons);
+#else
 			const char *readline_result = r_line_readline ();
+#endif
 
 			// Check if interrupted or ESC pressed (readline_result is NULL or empty)
 			if (r_cons_is_breaked () || !readline_result || !*readline_result) {
@@ -376,7 +384,11 @@ R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output) {
 		if (is_multiline) {
 			// Use editor for multi-line scripts
 			edited_script = strdup (script);
+#if R2_VERSION_NUMBER >= 50909
+			r_cons_editor (core->cons, NULL, edited_script);
+#else
 			r_cons_editor (NULL, edited_script);
+#endif
 			script = edited_script;
 		} else {
 			// For single-line scripts, push the script to input buffer
@@ -388,7 +400,11 @@ R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output) {
 			r_cons_readpush ("\x05", 1); // Ctrl+E - move to end
 
 			// Get user input with script pre-filled
+#if R2_VERSION_NUMBER >= 50909
+			const char *readline_result = r_line_readline (core->cons);
+#else
 			const char *readline_result = r_line_readline ();
+#endif
 
 			// Check if interrupted or ESC pressed (readline_result is NULL or empty)
 			if (r_cons_is_breaked () || !readline_result || !*readline_result) {

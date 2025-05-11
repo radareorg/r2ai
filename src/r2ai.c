@@ -409,8 +409,13 @@ static void cmd_r2ai_x(RCore *core) {
 static void cmd_r2ai_repl(RCore *core) {
 	RStrBuf *sb = r_strbuf_new ("");
 	while (true) {
+#if R2_VERSION_NUMBER >= 50909
+		r_line_set_prompt (core->cons->line, ">>> ");
+		const char *ptr = r_line_readline (core->cons);
+#else
 		r_line_set_prompt (">>> ");
 		const char *ptr = r_line_readline ();
+#endif
 		if (R_STR_ISEMPTY (ptr)) {
 			break;
 		}
