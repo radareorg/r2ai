@@ -127,7 +127,7 @@ Response:
   let decaiApi = "ollama"; // uses /cmd endpoint
   let decaiPipeline = "";
   let decaiCommands = "pdc";
-  let decaiBaby = true;
+  let decaiYolo = false;
   let decaiLanguage = "C";
   let decaiHumanLanguage = "English";
   let decaiDeterministic = true;
@@ -353,9 +353,9 @@ Response:
       },
     },
     "baby": {
-      get: () => decaiBaby,
+      get: () => decaiYolo,
       set: (v) => {
-        decaiBaby = v === "true" || v == 1;
+        decaiYolo = v === "true" || v == 1;
       },
     },
     "prompt": {
@@ -954,7 +954,7 @@ Response:
           console.log("[r2cmd] Action: " + o.description);
           console.log("[r2cmd] Command: " + ocmd);
           let cmd = ocmd;
-          if (decaiBaby) {
+          if (!decaiYolo) {
             cmd = r2.cmd(
               "'?ie Tweak command? ('q' to solve, 'q!' quit, '#' description)",
             ).trim();
