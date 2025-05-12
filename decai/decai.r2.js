@@ -923,12 +923,14 @@ Response:
       "[END]";
     r2.cmd("e scr.color=" + origColor);
     r2ai("-R");
-    return r2ai(
-      "Analyze function calls, comments and strings, ignore registers and memory accesess. Considering the references and involved loops make explain the purpose of this function in one or two short sentences. Output must be only the translation of the explanation in " +
+    const res = r2ai(
+      "Analyze function calls, references, comments and strings, loops and ignore registers and memory accesess. Explain the purpose of this function in a single short sentences. /no_think Do not introduce or argue the response, translation of the explanation in " +
         decaiHumanLanguage,
       hints,
       true,
     );
+    const lines = res.trim().split(/\n/g);
+    return lines[lines.length-1].trim();
   }
   function decaiSignature() {
     const tmp = decaiLanguage;
