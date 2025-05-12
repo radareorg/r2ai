@@ -916,6 +916,22 @@ Response:
     }
     return out;
   }
+  function decaiSignature() {
+    const tmp = decaiLanguage;
+    const code = r2.cmd("afv;pdc");
+    decaiLanguage = "C";
+    let out = "'afs " +
+      r2ai(
+        "analyze the uses of the arguments and return value to infer the signature, identify which is the correct type for the resturn. Do NOT print the function body, ONLY output the function signature, like if it was going to be used in a C header",
+        code,
+      );
+    let brace = out.indexOf("{");
+    if (brace !== -1) {
+      out = out.substring(0, brace);
+    }
+    decaiLanguage = tmp;
+    return out;
+  }
   function decaiAuto(queryText) {
     r2ai("-R");
     let autoQuery = autoPrompt;
@@ -1150,17 +1166,7 @@ Response:
           decaiPrompt = defaultPrompt;
           break;
         case "s": // "-s"
-          out = r2.cmd("afv;pdc");
-          out = "'afs " +
-            r2ai(
-              "analyze the uses of the arguments and return value to infer the signature, identify which is the correct type for the resturn. Do NOT print the function body, ONLY output the function signature, like if it was going to be used in a C header",
-              out,
-            );
-          let brace = out.indexOf("{");
-          if (brace !== -1) {
-            out = out.substring(0, brace);
-          }
-
+          out = decaiSignature();
           break;
         case "V": // "-V"
           r2aidec(
