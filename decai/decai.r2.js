@@ -445,7 +445,7 @@ Response:
     msg("-s         - function signature");
     msg("-v         - show local variables");
     msg("-V         - find vulnerabilities");
-    msg("-x         - eXplain current function");
+    msg("-x[*]      - eXplain current function (-x* for r2 script)");
   }
   function r2aiAnthropic(msg, hideprompt) {
     const claudeKey = r2.cmd("'cat ~/.r2ai.anthropic-key").trim();
@@ -916,6 +916,20 @@ Response:
     }
     return out;
   }
+  function decaiExplain() {
+    var origColor = r2.cmd("e scr.color");
+    r2.cmd("e scr.color=0");
+    const hints = "[START]" + decaiCommands.split(",").map(r2.cmd).join("\n") +
+      "[END]";
+    r2.cmd("e scr.color=" + origColor);
+    r2ai("-R");
+    return r2ai(
+      "Analyze function calls, comments and strings, ignore registers and memory accesess. Considering the references and involved loops make explain the purpose of this function in one or two short sentences. Output must be only the translation of the explanation in " +
+        decaiHumanLanguage,
+      hints,
+      true,
+    );
+  }
   function decaiSignature() {
     const tmp = decaiLanguage;
     const code = r2.cmd("afv;pdc");
@@ -1198,18 +1212,10 @@ Response:
           out = r2ai(args.slice(2).trim(), lastOutput);
           break;
         case "x": // "-x"
-          var origColor = r2.cmd("e scr.color");
-          r2.cmd("e scr.color=0");
-          out = "[START]" + decaiCommands.split(",").map(r2.cmd).join("\n") +
-            "[END]";
-          r2.cmd("e scr.color=" + origColor);
-          r2ai("-R");
-          out = r2ai(
-            "Analyze function calls, comments and strings, ignore registers and memory accesess. Considering the references and involved loops make explain the purpose of this function in one or two short sentences. Output must be only the translation of the explanation in " +
-              decaiHumanLanguage,
-            out,
-            true,
-          );
+          out = decaiExplain();
+          if (args[2] == "*" || args[2] == "r") { // "-xr"
+            out = "'CC " + out;
+          }
           break;
         case "d": // "-d"
           if (args[2] == "r") { // "dr"
