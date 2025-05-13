@@ -1,7 +1,7 @@
 [project]
 name = "r2ai"
 dynamic = ["readme"]
-version = "0.9.4"
+version = "0.9.6"
 description = "Artificial intelligence tooling for radare2"
 
 license = {text = "MIT License"}

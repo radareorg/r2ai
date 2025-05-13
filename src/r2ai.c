@@ -594,7 +594,7 @@ static void cmd_r2ai_v(RCore *core) {
 		R_LOG_ERROR (error);
 		free (error);
 	} else {
-		r_cons_printf ("%s\n", res);
+		r_cons_println (res);
 	}
 	free (afv);
 	free (res);
@@ -925,7 +925,7 @@ RCorePlugin r_core_plugin_r2ai_client = {
 		.name = "r2ai",
 		.desc = "r2ai plugin in plain C",
 		.author = "pancake",
-		.version = "0.9.4",
+		.version = "0.9.6",
 		.license = "MIT",
 	},
 	.init = r2ai_init,
