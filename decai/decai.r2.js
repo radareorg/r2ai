@@ -695,6 +695,10 @@ Response:
     try {
       return filterResponse(res.message.content);
     } catch (e) {
+      if (res.error.indexOf("try pulling")) {
+        const modelName = res.error.split(/"/g)[1];
+        res.error += "\n!ollama run " + modelName;
+      }
       return "ERROR: " + res.error;
     }
   }
