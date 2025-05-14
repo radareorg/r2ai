@@ -13,7 +13,7 @@
 Run a language model to entertain you or help answering questions about radare2 or reverse engineering in general. The language model may be local (running without Internet on your host) or remote (e.g if you have an API key). Note that models used by r2ai are pulled from external sources which may behave different or respond unreliable information. That's why there's an ongoing effort into improving the post-finetuning using memgpt-like techniques which can't get better without your help!
 
 <p align="center">
-  <img src="doc/r2clippy.jpg">
+  <img src="doc/images/r2clippy.jpg">
 </p>
 
 ## Components
