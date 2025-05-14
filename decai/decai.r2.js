@@ -144,7 +144,8 @@ Response:
   let decaiPrompt = defaultPrompt;
 
   function tmpdir(path) {
-    return r2.cmd("-e dir.tmp").trim() + "/" + path;
+    const dir = r2.cmd("-e dir.tmp").trim() ?? ".";
+    return dir + "/" + path;
   }
   function fileExist(path) {
     if (r2.cmd2("test -h").logs[0].message.indexOf("-fdx") !== -1) {
