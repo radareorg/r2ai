@@ -261,6 +261,8 @@ Response:
       case "anthropic":
         console.log("claude-3-5-sonnet-20241022");
         console.log("claude-3-7-sonnet-20250219");
+        console.log("claude-opus-4-20250514");
+        console.log("claude-sonnet-4-20250514");
         break;
       case "xai":
         console.log("grok-2");
