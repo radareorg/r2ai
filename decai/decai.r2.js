@@ -1035,8 +1035,8 @@ Response:
               break;
             }
             if (cmd == "!") {
-              cmd =
-                "?e do NOT execute '"+ocmd+"' again, continue without it";
+              cmd = "?e do NOT execute '" + ocmd +
+                "' again, continue without it";
             }
             if (cmd == "q") {
               cmd =
@@ -1086,8 +1086,17 @@ Response:
           console.log(JSON.stringify(out));
         }
       } catch (e) {
-        console.log(JSON.stringify(out));
-        console.error(e);
+        const response = out.indexOf('response": "');
+        if (response !== -1) {
+          const res = out.slice(response + 12).replace(/\\n/g, "\n").replace(
+            /\\/g,
+            "",
+          );
+          console.log(res);
+        } else {
+          console.log(out);
+          console.error(e);
+        }
         break;
       }
     }
