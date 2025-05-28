@@ -607,7 +607,7 @@ Response:
     }
     const payload = JSON.stringify(object);
     const url =
-      `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:'generateContent?key='${geminiKey}`;
+      `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`;
     const res = curlPost(url, [], payload);
     try {
       return res.candidates[0].content.parts[0].text;
