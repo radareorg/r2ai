@@ -1016,6 +1016,7 @@ Response:
         console.log(out);
         console.log("#### /output");
       }
+      let myYolo = false;
       try {
         const o = JSON.parse(trimJson(trimDown(filterResponse(out))));
         if (
@@ -1026,7 +1027,7 @@ Response:
           console.log("[r2cmd] Action: " + o.description);
           console.log("[r2cmd] Command: " + ocmd);
           let cmd = ocmd;
-          if (!decaiYolo) {
+          if (!decaiYolo && !myYolo) {
             cmd = r2.cmd(
               "'?ie Tweak command? ('!' skip, 'q' to solve, 'q!' quit, '#' description)",
             ).trim();
@@ -1034,15 +1035,15 @@ Response:
               console.error("Break!");
               break;
             }
-            if (cmd == "!") {
+            if (cmd == "YOLO") {
+              myYolo = true;
+            } else if (cmd == "!") {
               cmd = "?e do NOT execute '" + ocmd +
                 "' again, continue without it";
-            }
-            if (cmd == "q") {
+            } else if (cmd == "q") {
               cmd =
                 "?e All data collected!. Do not call more commands, reply the solutions";
-            }
-            if (!cmd) {
+            } else if (!cmd) {
               cmd = ocmd;
             } else {
               const comment = cmd.indexOf("#");
