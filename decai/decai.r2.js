@@ -988,7 +988,7 @@ Response:
       }
       try {
         const o = JSON.parse(trimJson(trimDown(filterResponse(out))));
-        if (o.action === "r2cmd" || o.action === "response") {
+        if (o.action === "r2cmd" || o.action === "response" || o.action == o.command) {
           const ocmd = o.command;
           console.log("[r2cmd] Action: " + o.description);
           console.log("[r2cmd] Command: " + ocmd);
