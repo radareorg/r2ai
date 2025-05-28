@@ -96,7 +96,7 @@ Response:
 * Run only one command at a time (do not use ";")
 * If the program have no functions, analyze it with "aaa"
 * Inspect the relevant functions with decompilation if needed
-* Do not run the same command more than once
+* Only run each command once to save tokens
 * Decompile functions starting from main to dig into the internal code
 * Run all the commands needed to collect the information needed to solve the user request
 * Commands are suffixed with "@ (address|symbol)" to temporary seek
@@ -109,13 +109,15 @@ Response:
 * "i" : get information from the binary
 * "aaa" : analyze the binary
 * "is" : list symbols
-* "izqq" : list all strings
+* "izqq" : show all strings inside the binary
 * "aflm" : list all functions and their calls
-* "pdsf" :  show strings and function names referenced in function
-* "iic" : imported symbols sorted by class (network, format string, thread unsafe, etc)
+* "aflc" : count the amount of functions analyzed
+* "ies" : show entrypoints symbols
+* "pdsf" : show strings and function names referenced in function
+* "iic" : classify imported symbols (network, format string, thread unsafe, etc)
 * "pdc" : decompile function
 * "iiq" : enumerate the imported symbols
-* "izqq~http:,https:" : enumerate http network urls
+* "izqq~http:,https:" : filter strings for http and https network urls
 * "ilq" : Enumerate libraries and frameworks
 
 `;
@@ -1026,11 +1028,15 @@ Response:
           let cmd = ocmd;
           if (!decaiYolo) {
             cmd = r2.cmd(
-              "'?ie Tweak command? ('q' to solve, 'q!' quit, '#' description)",
+              "'?ie Tweak command? ('!' skip, 'q' to solve, 'q!' quit, '#' description)",
             ).trim();
             if (cmd == "q!") {
               console.error("Break!");
               break;
+            }
+            if (cmd == "!") {
+              cmd =
+                "?e do NOT execute '"+ocmd+"' again, continue without it";
             }
             if (cmd == "q") {
               cmd =
@@ -1077,10 +1083,10 @@ Response:
           break;
         } else {
           console.log("Unknown response");
-          console.log(out);
+          console.log(JSON.stringify(out));
         }
       } catch (e) {
-        console.error(out);
+        console.log(JSON.stringify(out));
         console.error(e);
         break;
       }
