@@ -4,6 +4,9 @@ SPD=$(shell r2 -H R2_LIBR_PLUGINS)
 BF=a.out
 
 all:
+	@echo "Run: make user-install"
+
+test:
 	@echo 'You can now use 'decai' command'
 	r2 -i decai.r2.js -c 'decai -e deterministic=true' -caf $(BF)
 

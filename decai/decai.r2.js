@@ -133,6 +133,7 @@ Response:
   let decaiDeterministic = true;
   let decaiDebug = false;
   let decaiThink = -1; // -1 = nothing, 0 = nothink, 1 = think, 2 = show reasoning
+  let useFiles = false; // use filesystem instead of args when calling curl, supports longer context
   let decaiContextFile = "";
   let decaiModel = "";
   let lastOutput = "";
@@ -193,14 +194,29 @@ Response:
     const curlc = `curl -s ${url} ${heads} -H "Content-Type: application/json"`;
     return JSON.parse(r2.syscmds(curlc));
   }
+
   function curlPost(url, headers, payload) {
     const heads = headers.map((x) => {
       return '-H "' + x + '"';
     }).join(" ");
-    const curlc =
-      `curl -s ${url} ${heads} -d '${payload}' -H "Content-Type: application/json"`;
-    debug.log(curlc);
-    const output = r2.syscmds(curlc);
+    function curlArgs(url, heads, payload) {
+      const curlc =
+        `curl -s '${url}' ${heads} -d '${payload}' -H "Content-Type: application/json"`;
+      debug.log(curlc);
+      return r2.syscmds(curlc);
+    }
+    function curlFile(url, heads, payload) {
+      const tmpfile = r2.fdump(payload);
+      const curlc =
+        `curl -s '${url}' ${heads} -d '@${tmpfile}' -H "Content-Type: application/json"`;
+      console.log(curlc);
+      debug.log(curlc);
+      const output = r2.syscmd(curlc);
+      r2.syscmd("rm " + tmpfile);
+      return output;
+    }
+    const method = useFiles ? curlFile : curlArgs;
+    const output = method(url, heads, payload);
     if (output === "") {
       return { error: "empty response" };
     }
@@ -215,6 +231,7 @@ Response:
 
   const padRight = (str, length) =>
     str + " ".repeat(Math.max(0, length - str.length));
+
   function listMistralModels() {
     const key = getApiKey("mistral", "MISTRAL_API_KEY");
     if (key[1]) {
@@ -234,6 +251,7 @@ Response:
       ].join(" ")
     ).join("\n");
   }
+
   function listModelsFor(decaiApi) {
     switch (decaiApi) {
       case "ollama":
@@ -309,6 +327,12 @@ Response:
       get: () => decaiDeterministic,
       set: (v) => {
         decaiDeterministic = v === "true" || v === "1";
+      },
+    },
+    "files": {
+      get: () => useFiles,
+      set: (v) => {
+        useFiles = v === "true";
       },
     },
     "think": {
@@ -941,7 +965,7 @@ Response:
       true,
     );
     const lines = res.trim().split(/\n/g);
-    return lines[lines.length-1].trim();
+    return lines[lines.length - 1].trim();
   }
   function decaiSignature() {
     const tmp = decaiLanguage;
@@ -992,7 +1016,10 @@ Response:
       }
       try {
         const o = JSON.parse(trimJson(trimDown(filterResponse(out))));
-        if (o.action === "r2cmd" || o.action === "response" || o.action == o.command) {
+        if (
+          o.action === "r2cmd" || o.action === "response" ||
+          o.action == o.command
+        ) {
           const ocmd = o.command;
           console.log("[r2cmd] Action: " + o.description);
           console.log("[r2cmd] Command: " + ocmd);
