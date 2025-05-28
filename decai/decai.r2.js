@@ -246,6 +246,10 @@ Response:
       case "openai":
         console.log("o1");
         console.log("o1-mini");
+        console.log("o3");
+        console.log("gpt-4.1");
+        console.log("gpt-4.1-nano");
+        console.log("gpt-4.1-mini");
         console.log("gpt-4-turbo");
         console.log("gpt-4o");
         console.log("gpt-4o-mini");
@@ -385,7 +389,7 @@ Response:
         decaiPort = v;
       },
     },
-    "maxinputtokens": {
+    "maxtokens": {
       get: () => maxInputTokens,
       set: (v) => {
         maxInputTokens = v;
@@ -594,7 +598,7 @@ Response:
     if (openaiKey === "") {
       return "Cannot read ~/.r2ai.openai-key";
     }
-    const openaiModel = (decaiModel.length > 0) ? decaiModel : "gpt-4-turbo"; // o-2024-11-20";
+    const openaiModel = (decaiModel.length > 0) ? decaiModel : "gpt-4-turbo"; // "o4-mini"; // o-2024-11-20";
     const query = buildQuery(msg, hideprompt);
     const object = {
       model: openaiModel,
