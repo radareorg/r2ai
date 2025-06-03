@@ -234,6 +234,15 @@ Response:
   const padRight = (str, length) =>
     str + " ".repeat(Math.max(0, length - str.length));
 
+  function listClaudeModels() {
+    const key = getApiKey("anthropic", "ANTHROPIC_API_KEY");
+    if (key[1]) {
+      throw new Error(key[1]);
+    }
+    const headers = ["x-api-key: " + key[0], "anthropic-version: 2023-06-01"];
+    const response = curlGet("https://api.anthropic.com/v1/models", headers);
+    return response.data.map((model) => model.id).join("\n");
+  }
   function listMistralModels() {
     const key = getApiKey("mistral", "MISTRAL_API_KEY");
     if (key[1]) {
@@ -283,6 +292,7 @@ Response:
         break;
       case "claude":
       case "anthropic":
+        console.log(listClaudeModels());
         console.log("claude-3-5-sonnet-20241022");
         console.log("claude-3-7-sonnet-20250219");
         console.log("claude-opus-4-20250514");
