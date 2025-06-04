@@ -84,34 +84,12 @@ R_IPI void r2ai_openai_fini(void) {
 }
 
 R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
-	const char *base_url = r_config_get (core->config, "r2ai.base_url");
-
 	// Initialize compatibility database if needed
 	if (!model_compat_db) {
 		model_compat_db = ht_pp_new0 ();
 	}
 
-	if (R_STR_ISEMPTY (base_url)) {
-		if (strcmp (args.provider, "openai") == 0) {
-			base_url = "https://api.openai.com/v1";
-		} else if (strcmp (args.provider, "gemini") == 0) {
-			base_url = "https://generativelanguage.googleapis.com/v1beta/openai";
-		} else if (strcmp (args.provider, "ollama") == 0) {
-			base_url = "http://localhost:11434/v1";
-		} else if (strcmp (args.provider, "xai") == 0) {
-			base_url = "https://api.x.ai/v1";
-		} else if (strcmp (args.provider, "anthropic") == 0) { // also "claude" ?
-			base_url = "https://api.anthropic.com/v1";
-		} else if (strcmp (args.provider, "openapi") == 0) {
-			base_url = "http://127.0.0.1:11434";
-		} else if (strcmp (args.provider, "openrouter") == 0) {
-			base_url = "https://openrouter.ai/api/v1";
-		} else if (strcmp (args.provider, "groq") == 0) { // isnt the same as x.ai?
-			base_url = "https://api.groq.com/openai/v1";
-		} else if (strcmp (args.provider, "mistral") == 0) {
-			base_url = "https://api.mistral.ai/v1";
-		}
-	}
+	const char *base_url = r2ai_get_base_url (core, args.provider);
 	// TODO: default model name should depend on api
 	const char *model_name = args.model ? args.model : "gpt-4o-mini";
 	char **error = args.error;

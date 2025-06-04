@@ -766,6 +766,135 @@ static void cmd_r2ai(RCore *core, const char *input) {
 	}
 }
 
+R_IPI const char *r2ai_get_base_url(RCore *core, const char *provider) {
+	const char *base_url = r_config_get (core->config, "r2ai.base_url");
+
+	if (R_STR_ISNOTEMPTY (base_url)) {
+		return base_url;
+	}
+
+	if (strcmp (provider, "openai") == 0) {
+		return "https://api.openai.com/v1";
+	} else if (strcmp (provider, "gemini") == 0) {
+		return "https://generativelanguage.googleapis.com/v1beta/openai";
+	} else if (strcmp (provider, "ollama") == 0) {
+		return "http://localhost:11434/v1";
+	} else if (strcmp (provider, "xai") == 0) {
+		return "https://api.x.ai/v1";
+	} else if (strcmp (provider, "anthropic") == 0) {
+		return "https://api.anthropic.com/v1";
+	} else if (strcmp (provider, "openapi") == 0) {
+		return "http://127.0.0.1:11434";
+	} else if (strcmp (provider, "openrouter") == 0) {
+		return "https://openrouter.ai/api/v1";
+	} else if (strcmp (provider, "groq") == 0) {
+		return "https://api.groq.com/openai/v1";
+	} else if (strcmp (provider, "mistral") == 0) {
+		return "https://api.mistral.ai/v1";
+	}
+
+	return NULL;
+}
+
+static RList *fetch_available_models(RCore *core, const char *provider) {
+	const char *base_url = r2ai_get_base_url (core, provider);
+
+	if (!base_url) {
+		return NULL;
+	}
+
+	// Create models endpoint URL
+	char *models_url = r_str_newf ("%s/models", base_url);
+	if (!models_url) {
+		return NULL;
+	}
+
+	// Get API key for authentication (except for ollama and openapi)
+	char *api_key = NULL;
+	if (strcmp (provider, "ollama") != 0 && strcmp (provider, "openapi") != 0) {
+		const char *api_key_env = r_str_newf ("%s_API_KEY", provider);
+		char *api_key_env_copy = strdup (api_key_env);
+		r_str_case (api_key_env_copy, true);
+
+		char *s = r_sys_getenv (api_key_env_copy);
+		if (R_STR_ISNOTEMPTY (s)) {
+			api_key = s;
+		} else {
+			free (s);
+			const char *api_key_filename = r_str_newf ("~/.r2ai.%s-key", provider);
+			char *absolute_apikey = r_file_abspath (api_key_filename);
+			if (r_file_exists (absolute_apikey)) {
+				api_key = r_file_slurp (absolute_apikey, NULL);
+				if (api_key) {
+					r_str_trim (api_key);
+				}
+			}
+			free (absolute_apikey);
+		}
+		free (api_key_env_copy);
+	}
+
+	// Setup headers based on provider
+	const char *headers[4] = { "Content-Type: application/json", NULL, NULL, NULL };
+	char *auth_header = NULL;
+	char *version_header = NULL;
+
+	if (api_key) {
+		if (strcmp (provider, "anthropic") == 0) {
+			// Anthropic uses different header format
+			auth_header = r_str_newf ("x-api-key: %s", api_key);
+			version_header = strdup ("anthropic-version: 2023-06-01");
+			headers[1] = auth_header;
+			headers[2] = version_header;
+		} else {
+			// Standard OpenAI-compatible format
+			auth_header = r_str_newf ("Authorization: Bearer %s", api_key);
+			headers[1] = auth_header;
+		}
+	}
+
+	// Make HTTP GET request
+	int code = 0;
+	char *response = r2ai_http_get (models_url, headers, &code, NULL);
+
+	free (models_url);
+	free (auth_header);
+	free (version_header);
+	free (api_key);
+
+	if (!response || code != 200) {
+		R_LOG_DEBUG ("Failed to fetch models from %s (code: %d)", provider, code);
+		free (response);
+		return NULL;
+	}
+
+	// Parse JSON response
+	RList *models = r_list_newf (free);
+	if (!models) {
+		free (response);
+		return NULL;
+	}
+
+	RJson *json = r_json_parse (response);
+	if (json) {
+		const RJson *data = r_json_get (json, "data");
+		if (data && data->type == R_JSON_ARRAY) {
+			const RJson *model_item = data->children.first;
+			while (model_item) {
+				const RJson *id = r_json_get (model_item, "id");
+				if (id && id->type == R_JSON_STRING && R_STR_ISNOTEMPTY (id->str_value)) {
+					r_list_append (models, strdup (id->str_value));
+				}
+				model_item = model_item->next;
+			}
+		}
+		r_json_free (json);
+	}
+
+	free (response);
+	return models;
+}
+
 static bool cb_r2ai_api(void *user, void *data) {
 	RConfigNode *node = (RConfigNode *)data;
 	if (*node->value == '?') {
@@ -788,40 +917,52 @@ static bool cb_r2ai_model(void *user, void *data) {
 	RCore *core = (RCore *)user;
 	const char *api = r_config_get (core->config, "r2ai.api");
 	if (*node->value == '?') {
-		if (!strcmp (api, "anthropic")) {
-			r_cons_println ("claude-3-7-sonnet-20250219");
-			r_cons_println ("claude-3-5-sonnet-20241022");
-			r_cons_println ("claude-3-haiku-20240307");
-		} else if (!strcmp (api, "gemini")) {
-			r_cons_println ("gemini-1.5-flash");
-			r_cons_println ("gemini-1.0-pro");
-		} else if (!strcmp (api, "openai")) {
-			r_cons_println ("gpt-4");
-			r_cons_println ("gpt-4o-mini");
-			r_cons_println ("gpt-3.5-turbo");
-		} else if (!strcmp (api, "mistral")) {
-			r_cons_println ("mistral-large-latest");
-			r_cons_println ("codestral-latest");
-		} else if (!strcmp (api, "groq")) {
-			r_cons_println ("qwen-2.5-coder-32b");
-		} else if (!strcmp (api, "ollama")) {
-			char *s = r_sys_cmd_str ("ollama ls", NULL, NULL);
-			if (s) {
-				RList *items = r_str_split_list (s, "\n", 0);
-				RListIter *iter;
-				char *item;
-				r_list_foreach (items, iter, item) {
-					if (R_STR_ISEMPTY (item) || r_str_startswith (item, "NAME")) {
-						continue;
+		// Try to fetch models dynamically first
+		RList *models = fetch_available_models (core, api);
+		if (models && !r_list_empty (models)) {
+			RListIter *iter;
+			char *model;
+			r_list_foreach (models, iter, model) {
+				r_cons_println (model);
+			}
+			r_list_free (models);
+		} else {
+			// Fallback to static lists if dynamic fetching fails
+			if (!strcmp (api, "anthropic")) {
+				r_cons_println ("claude-3-7-sonnet-20250219");
+				r_cons_println ("claude-3-5-sonnet-20241022");
+				r_cons_println ("claude-3-haiku-20240307");
+			} else if (!strcmp (api, "gemini")) {
+				r_cons_println ("gemini-1.5-flash");
+				r_cons_println ("gemini-1.0-pro");
+			} else if (!strcmp (api, "openai")) {
+				r_cons_println ("gpt-4");
+				r_cons_println ("gpt-4o-mini");
+				r_cons_println ("gpt-3.5-turbo");
+			} else if (!strcmp (api, "mistral")) {
+				r_cons_println ("mistral-large-latest");
+				r_cons_println ("codestral-latest");
+			} else if (!strcmp (api, "groq")) {
+				r_cons_println ("qwen-2.5-coder-32b");
+			} else if (!strcmp (api, "ollama")) {
+				char *s = r_sys_cmd_str ("ollama ls", NULL, NULL);
+				if (s) {
+					RList *items = r_str_split_list (s, "\n", 0);
+					RListIter *iter;
+					char *item;
+					r_list_foreach (items, iter, item) {
+						if (R_STR_ISEMPTY (item) || r_str_startswith (item, "NAME")) {
+							continue;
+						}
+						char *s = strchr (item, ' ');
+						if (s) {
+							*s = 0;
+						}
+						r_cons_println (item);
 					}
-					char *s = strchr (item, ' ');
-					if (s) {
-						*s = 0;
-					}
-					r_cons_println (item);
+					r_list_free (items);
+					free (s);
 				}
-				r_list_free (items);
-				free (s);
 			}
 		}
 		return false;
