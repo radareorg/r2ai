@@ -928,22 +928,9 @@ static bool cb_r2ai_model(void *user, void *data) {
 			r_list_free (models);
 		} else {
 			// Fallback to static lists if dynamic fetching fails
-			if (!strcmp (api, "anthropic")) {
-				r_cons_println ("claude-3-7-sonnet-20250219");
-				r_cons_println ("claude-3-5-sonnet-20241022");
-				r_cons_println ("claude-3-haiku-20240307");
-			} else if (!strcmp (api, "gemini")) {
+			if (!strcmp (api, "gemini")) {
 				r_cons_println ("gemini-1.5-flash");
 				r_cons_println ("gemini-1.0-pro");
-			} else if (!strcmp (api, "openai")) {
-				r_cons_println ("gpt-4");
-				r_cons_println ("gpt-4o-mini");
-				r_cons_println ("gpt-3.5-turbo");
-			} else if (!strcmp (api, "mistral")) {
-				r_cons_println ("mistral-large-latest");
-				r_cons_println ("codestral-latest");
-			} else if (!strcmp (api, "groq")) {
-				r_cons_println ("qwen-2.5-coder-32b");
 			} else if (!strcmp (api, "ollama")) {
 				char *s = r_sys_cmd_str ("ollama ls", NULL, NULL);
 				if (s) {
