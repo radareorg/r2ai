@@ -21,19 +21,20 @@ RUN r2pm -ci r2ai-server r2ai-plugin   # r2ai-py is deprecated
 RUN r2pm -ci decai r2dec
 
 # r2 tunning
-RUN echo 'e io.unalloc=true' >> /root/.radare2rc && \
-    echo 'e cfg.fortunes=false' >> /root/.radare2rc && \
-    echo 'e emu.str=true' >> /root/.radare2rc && \
-    echo 'e bin.relocs.apply=true' >> /root/.radare2rc && \
-    echo 'e dir.tmp=/tmp/' >> /root/.radare2rc && \
-    echo 'e scr.prompt.flag=1' >> /root/.radare2rc && \
-    echo 'e cfg.editor=nvim' >> /root/.radare2rc && \
-    echo 'decai -e deterministic=true' >> /root/.radare2rc && \
-    echo 'decai -e lang=Python' >> /root/.radare2rc && \
-    echo 'decai -e cmds=pdd,pdg' >> /root/.radare2rc && \
-    echo 'decai -e prompt=..' >> /root/.radare2rc && \
-    echo 'decai -e api=ollama' >> /root/.radare2rc && \
-    echo 'decai -e model=qwen2.5-coder:latest' >> /root/.radare2rc >> /root/.radare2rc
+RUN echo 'e io.unalloc=true' >> /root/.radare2rc
+RUN echo 'e cfg.fortunes=false' >> /root/.radare2rc
+RUN echo 'e emu.str=true' >> /root/.radare2rc
+RUN echo 'e bin.relocs.apply=true' >> /root/.radare2rc
+RUN echo 'e dir.tmp=/tmp/' >> /root/.radare2rc
+RUN echo 'e scr.prompt.flag=1' >> /root/.radare2rc
+RUN echo 'e cfg.editor=nvim' >> /root/.radare2rc
+RUN echo 'decai -e deterministic=true' >> /root/.radare2rc
+RUN echo 'decai -e lang=Python' >> /root/.radare2rc
+RUN echo 'decai -e cmds=pdd,pdg' >> /root/.radare2rc
+RUN echo 'decai -e prompt=..' >> /root/.radare2rc
+RUN echo 'decai -e api=ollama' >> /root/.radare2rc
+RUN echo 'decai -e model=qwen2.5-coder:latest' >> /root/.radare2rc
+
 
 # Uncomment to have ollama inside the docker (will not use gpu)
 #RUN curl -fsSL https://ollama.com/install.sh | sh 
