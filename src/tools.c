@@ -277,7 +277,7 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output) {
 		return strdup ("{ \"res\":\"You are already in r2!\" }");
 	}
 
-	bool ask_to_execute = r_config_get_b (core->config, "r2ai.auto.ask_to_execute");
+	bool ask_to_execute = r_config_get_b (core->config, "r2ai.auto.yolo") != true;
 	char *edited_command = NULL;
 
 	if (ask_to_execute) {
@@ -373,7 +373,7 @@ R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output) {
 		return strdup ("{ \"res\":\"Script value is NULL or empty\" }");
 	}
 
-	bool ask_to_execute = r_config_get_b (core->config, "r2ai.auto.ask_to_execute");
+	bool ask_to_execute = r_config_get_b (core->config, "r2ai.auto.yolo") != true;
 	const char *script = script_json->str_value;
 	char *edited_script = NULL;
 

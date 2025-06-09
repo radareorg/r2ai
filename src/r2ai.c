@@ -993,7 +993,7 @@ static int r2ai_init(void *user, const char *input) {
 	r_config_set_i (core->config, "r2ai.auto.max_runs", 50);
 	r_config_set_b (core->config, "r2ai.auto.hide_tool_output", false);
 	r_config_set (core->config, "r2ai.auto.init_commands", "aaa;iI;afl");
-	r_config_set_b (core->config, "r2ai.auto.ask_to_execute", true);
+	r_config_set_b (core->config, "r2ai.auto.yolo", false);
 	r_config_set_b (core->config, "r2ai.auto.reset_on_query", false);
 	r_config_set_b (core->config, "r2ai.chat.show_cost", true);
 	// Configure HTTP timeout in seconds
