@@ -63,19 +63,18 @@ You can write your custom decai commands in your ~/.radare2rc file.
   const autoPrompt = `
 # Radare2 Auto Mode
 
-You are going to use function calling to execute radare2 commands in order to resolve the user request defined in the "User Prompt" section, taking in consideration all the responses attached in the "Command Results" section.
+Use function calling to execute radare2 commands in order to resolve the user request defined in the "User Prompt" section, analyze the responses attached in the "Command Results" section.
 
 ## Function Calling
 
-Respond ONLY using JSON without using markdown. You are designed to process user queries and decide if a local function needs to be executed. Follow these steps:
+Respond ONLY using plain JSON. Process user query and decide which function calls are necessary to solve the task.
 
-1. Analyze the user input to determine if it requires invoking a local function or just returning a direct response.
-2. If it requires a function call:
- - Use the key "action": "r2cmd".
- - Provide the "command" as a string.
- - Provide the "reason" to perform this action as a string.
- - Optionally, provide a "description" to summarize your intent.
-3. If we think we know the answer and no function call is required:
+1. Analyze the user request to determine if we need to run commands to extend the knowledge and context of the problem.
+2. If function call is needed, construct the JSON like this:
+ - Fill the "action" key with the "r2cmd" value.
+ - Specify the "command" as a string.
+ - Optionally, provide a "reason" and "description"
+3. If the answer can be provided and no more function calls are required:
  - Use the key "action": "reply".
  - Include "response" with the direct answer to the user query.
 
