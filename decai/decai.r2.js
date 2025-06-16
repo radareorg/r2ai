@@ -73,6 +73,7 @@ Respond ONLY using JSON without using markdown. You are designed to process user
 2. If it requires a function call:
  - Use the key "action": "r2cmd".
  - Provide the "command" as a string.
+ - Provide the "reason" to perform this action as a string.
  - Optionally, provide a "description" to summarize your intent.
 3. If we think we know the answer and no function call is required:
  - Use the key "action": "reply".
@@ -94,19 +95,19 @@ Response:
 
 ## Rules
 
-Your task is to resolve user requests using radare2 commands
+Use radare2 to resolve user requests.
 
-* Follow the instructions defined in the initial analysis section
-* Respond only with the JSON format defined previously
-* Inspect the relevant functions with decompilation if needed
-* Decompile functions starting from main to dig into the internal code
-* Run all the commands needed to collect the information needed to solve the user request
-* Commands are suffixed with "@ (address|symbol)" to temporary seek
-* Output must be a verbose report in markdown format
+* Explain each step in the "reason" field of the JSON.
+* Follow the initial analysis instructions.
+* Output only valid JSON as specified.
+* Decompile and inspect functions, starting from main.
+* Run only the needed commands to gather info.
+* Use "@ (address|symbol)" to seek temporarily.
+* Output should be a verbose markdown report.
+* Use "sym." or "fcn." prefixes if "pdc" is empty.
+* If a seek fails, use "f~name" to find the symbol's address.
 
 ### Initial Analysis
-
-Follow these instructions in order before starting the plan
 
 1. Run "aflc" to count the number of functions
 2. If the output of "aflc" is "0" run "aaa" once, then "aflc" again
@@ -117,16 +118,14 @@ Follow these instructions in order before starting the plan
 * On Swift binaries run "/az" to find assembly constructed strings
 * For better function decompilation results use "pdd"
 
-### Planification
+### Planing Steps
 
-Think about the steps to reach the solution before starting the run the commands using the function calling chat
-
-1. Rephrase user request and create a list of tasks to be made
-2. Choose the actions carefully before firing them
-3. Follow the list item by item, in order to understand 
-4. Do not perform redundant operations or commands
-5. Study the available functions and commands
-6. Do not repeat actions more than once
+1. Rephrase the user request into clear tasks.
+2. Review available commands and choose only what's needed.
+3. Follow the task list step-by-step.
+4. Avoid redundant or repeated actions.
+5. Minimize token use by acting efficiently.
+6. Solve the problem quickly and accurately.
 
 ## Functions or Commands
 
@@ -1068,7 +1067,7 @@ Think about the steps to reach the solution before starting the run the commands
             console.log("[r2cmd] Reasoning: " + o.reason);
             if (decaiTts) {
               r2.syscmd("pkill say");
-              r2.syscmd("say -v Alex -r 250 " + o.reason + " &");
+              r2.syscmd("say -v Alex -r 250 '" + o.reason.replace(/'/g, "") + "' &");
 	    }
 	  }
           console.log("[r2cmd] Action: " + o.description);
