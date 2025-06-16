@@ -80,7 +80,7 @@ Respond ONLY using JSON without using markdown. You are designed to process user
 
 Return the result as a JSON object.
 
-## Here is an example:
+### Sample Function Calling Communication
 
 Command Results: already performed actions with their responses
 User Prompt: "Count how many functions we have here."
@@ -89,25 +89,48 @@ Response:
     "action": "r2cmd",
     "command": "aflc",
     "description": "Count functions"
+    "reason": "Evaluate if the program is analyzed before running aaa"
 }
 
 ## Rules
 
-* Run only one command at a time (do not use ";")
-* If the program have no functions, analyze it with "aaa"
+Your task is to resolve user requests using radare2 commands
+
+* Follow the instructions defined in the initial analysis section
+* Respond only with the JSON format defined previously
 * Inspect the relevant functions with decompilation if needed
-* Only run each command once to save tokens
 * Decompile functions starting from main to dig into the internal code
 * Run all the commands needed to collect the information needed to solve the user request
 * Commands are suffixed with "@ (address|symbol)" to temporary seek
-* On Swift binaries run "/az" to find assembly constructed strings
 * Output must be a verbose report in markdown format
 
-## Functions
+### Initial Analysis
 
-* If "aflc" command output is "0", analyze the binary
+Follow these instructions in order before starting the plan
+
+1. Run "aflc" to count the number of functions
+2. If the output of "aflc" is "0" run "aaa" once, then "aflc" again
+3. Run only one command at a time (do not use ";")
+
+### Special cases
+
+* On Swift binaries run "/az" to find assembly constructed strings
+* For better function decompilation results use "pdd"
+
+### Planification
+
+Think about the steps to reach the solution before starting the run the commands using the function calling chat
+
+1. Rephrase user request and create a list of tasks to be made
+2. Choose the actions carefully before firing them
+3. Follow the list item by item, in order to understand 
+4. Do not perform redundant operations or commands
+5. Study the available functions and commands
+6. Do not repeat actions more than once
+
+## Functions or Commands
+
 * "i" : get information from the binary
-* "aaa" : analyze the binary
 * "is" : list symbols
 * "izqq" : show all strings inside the binary
 * "aflm" : list all functions and their calls
@@ -130,6 +153,7 @@ Response:
   let decaiPipeline = "";
   let decaiCommands = "pdc";
   let decaiYolo = false;
+  let decaiTts = false;
   let decaiLanguage = "C";
   let decaiHumanLanguage = "English";
   let decaiDeterministic = true;
@@ -395,7 +419,13 @@ Response:
         decaiCommands = v;
       },
     },
-    "baby": {
+    "tts": {
+      get: () => decaiTts,
+      set: (v) => {
+        decaiTts = v === "true" || v == 1;
+      },
+    },
+    "yolo": {
       get: () => decaiYolo,
       set: (v) => {
         decaiYolo = v === "true" || v == 1;
@@ -1034,6 +1064,13 @@ Response:
           o.action == o.command
         ) {
           const ocmd = o.command;
+          if (o.reason) {
+            console.log("[r2cmd] Reasoning: " + o.reason);
+            if (decaiTts) {
+              r2.syscmd("pkill say");
+              r2.syscmd("say -v Alex -r 250 " + o.reason + " &");
+	    }
+	  }
           console.log("[r2cmd] Action: " + o.description);
           console.log("[r2cmd] Command: " + ocmd);
           let cmd = ocmd;
