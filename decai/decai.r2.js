@@ -1106,7 +1106,9 @@ Use radare2 to resolve user requests.
             res = r2.cmd(cmd).trim();
             r2.cmd("-e scr.color=2");
           } else {
-            res = r2.cmd(cmd).trim();
+            const obj = r2.cmd2(cmd);
+            const logs = (obj.logs)? obj.logs.map((x)=>x.type + ": " + x.message).join("\n"): "";
+            res = (obj.res + logs).trim();
             console.log(res);
             res = trimAnsi(res);
           }
