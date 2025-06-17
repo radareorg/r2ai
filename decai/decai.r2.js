@@ -1023,6 +1023,54 @@ Use radare2 to resolve user requests.
     decaiLanguage = tmp;
     return out;
   }
+  function decaiAutoHelp() {
+    console.log(" '!'     do not run this command");
+    console.log(" '!c'    run system command");
+    console.log(" 'q'     to quit auto and try to solve");
+    console.log(" 'q!'    quit auto without solving");
+    console.log(" 'c # C' use given command with comment");
+    console.log(" ':c'    run r2 command without feeding auto");
+    console.log(" '-e'    set decai configuration variables");
+  }
+  function decaiAutoRepl(ocmd) {
+    while (true) {
+      cmd = r2.cmd("'?ie Tweak command? ('?' for help)").trim();
+      if (cmd == "q!") {
+        console.error("Break!");
+        break;
+      }
+      if (cmd == "?") {
+        decaiAutoHelp();
+        continue;
+      } else if (cmd.startsWith(":")) {
+        console.log(r2.cmd(cmd.slice(1)));
+        continue;
+      } else if (cmd.startsWith("-e")) {
+        r2aidec(cmd);
+        continue;
+      } else if (cmd == "!") {
+        cmd = "?e do NOT execute '" + ocmd +
+          "' again, continue without it";
+      } else if (cmd.startsWith("!")) {
+        console.log(r2.syscmd(cmd.slice(1)));
+      } else if (cmd == "q") {
+        cmd =
+          "?e All data collected!. Do not call more commands, reply the solutions";
+      } else if (!cmd) {
+        cmd = ocmd;
+      } else {
+        const comment = cmd.indexOf("#");
+        if (comment !== -1) {
+          const command = cmd.slice(0, comment).trim();
+          o.description = cmd.slice(comment + 1).trim();
+          cmd = command;
+          // TODO: update vdb with that command
+        }
+      }
+      break;
+    }
+    return cmd;
+  }
   function decaiAuto(queryText) {
     r2ai("-R");
     let autoQuery = autoPrompt;
@@ -1066,39 +1114,16 @@ Use radare2 to resolve user requests.
             console.log("[r2cmd] Reasoning: " + o.reason);
             if (decaiTts) {
               r2.syscmd("pkill say");
-              r2.syscmd("say -v Alex -r 250 '" + o.reason.replace(/'/g, "") + "' &");
-	    }
-	  }
+              r2.syscmd(
+                "say -v Alex -r 250 '" + o.reason.replace(/'/g, "") + "' &",
+              );
+            }
+          }
           console.log("[r2cmd] Action: " + o.description);
           console.log("[r2cmd] Command: " + ocmd);
           let cmd = ocmd;
           if (!decaiYolo && !myYolo) {
-            cmd = r2.cmd(
-              "'?ie Tweak command? ('!' skip, 'q' to solve, 'q!' quit, '#' description)",
-            ).trim();
-            if (cmd == "q!") {
-              console.error("Break!");
-              break;
-            }
-            if (cmd == "YOLO") {
-              myYolo = true;
-            } else if (cmd == "!") {
-              cmd = "?e do NOT execute '" + ocmd +
-                "' again, continue without it";
-            } else if (cmd == "q") {
-              cmd =
-                "?e All data collected!. Do not call more commands, reply the solutions";
-            } else if (!cmd) {
-              cmd = ocmd;
-            } else {
-              const comment = cmd.indexOf("#");
-              if (comment !== -1) {
-                const command = cmd.slice(0, comment).trim();
-                o.description = cmd.slice(comment + 1).trim();
-                cmd = command;
-                // TODO: update vdb with that command
-              }
-            }
+            cmd = decaiAutoRepl(ocmd);
           }
           console.log("[r2cmd] Running: " + cmd);
           if (false) {
@@ -1107,7 +1132,9 @@ Use radare2 to resolve user requests.
             r2.cmd("-e scr.color=2");
           } else {
             const obj = r2.cmd2(cmd);
-            const logs = (obj.logs)? obj.logs.map((x)=>x.type + ": " + x.message).join("\n"): "";
+            const logs = (obj.logs)
+              ? obj.logs.map((x) => x.type + ": " + x.message).join("\n")
+              : "";
             res = (obj.res + logs).trim();
             console.log(res);
             res = trimAnsi(res);
