@@ -1064,7 +1064,12 @@ RCorePlugin r_core_plugin_r2ai_client = {
 };
 
 #ifndef R2_PLUGIN_INCORE
-R_API RLibStruct radare_plugin = { .type = R_LIB_TYPE_CORE,
+R_API RLibStruct radare_plugin = {
+	.type = R_LIB_TYPE_CORE,
 	.data = &r_core_plugin_r2ai_client,
-	.version = R2_VERSION };
+#if R2_VERSION_NUMBER >= 50909
+	.abi_version = R_LIB_CURRENT_ABI_VERSION,
+#endif
+	.version = R2_VERSION
+};
 #endif
