@@ -216,6 +216,7 @@ R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *sy
 			} else {
 				char *edited_command = NULL;
 				cmd_output = execute_tool (core, tool_name, tool_args, &edited_command);
+				// TODO: need to edit the R2AI_Messages* and modify the command of the last tool_use
 				free(edited_command);
 			}
 
