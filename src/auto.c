@@ -118,7 +118,6 @@ R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *sy
 	char *error = NULL;
 	bool interrupted = false;
 	const int max_runs = r_config_get_i (core->config, "r2ai.auto.max_runs");
-	const int max_input_tokens = r_config_get_i (core->config, "r2ai.auto.max_input_tokens");
 
 	if (n_run > max_runs) {
 		r_cons_printf ("\x1b[1;31m[r2ai] Max runs reached\x1b[0m\n");
@@ -132,14 +131,7 @@ R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *sy
 			if (init_commands) {
 				char *cmd_output = execute_tool (core, "r2cmd", r_str_newf ("{\"command\":\"%s\"}", init_commands));
 				if (cmd_output) {
-					if (max_input_tokens > 0 && strlen(cmd_output) > max_input_tokens) {
-						R_LOG_DEBUG("Truncating initial command prompt to %d tokens", max_input_tokens);
-						char *truncated = r_str_ndup (cmd_output, max_input_tokens);
-						R_LOG_DEBUG("Truncated: %s", truncated);
-						system_prompt = r_str_newf ("%s\n\nHere is some information about the binary to get you started:\n>%s\n%s", Gprompt_auto, init_commands, truncated);	
-					} else {
-						system_prompt = r_str_newf ("%s\n\nHere is some information about the binary to get you started:\n>%s\n%s", Gprompt_auto, init_commands, cmd_output);
-					}
+					system_prompt = r_str_newf ("%s\n\nHere is some information about the binary to get you started:\n>%s\n%s", Gprompt_auto, init_commands, cmd_output);
 					free (cmd_output);
 				}
 			}
@@ -232,14 +224,6 @@ R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *sy
 				free (cmd_output);
 				cmd_output = strdup ("<user interrupted>");
 				interrupted = true;
-			}
-
-			if (max_input_tokens > 0 && strlen(cmd_output) > max_input_tokens) {
-				R_LOG_DEBUG("Truncating command output to %d tokens", max_input_tokens);
-				char *truncated = r_str_ndup (cmd_output, max_input_tokens);
-				free(cmd_output);
-				cmd_output = truncated;
-				R_LOG_DEBUG("cmd_output = %s", cmd_output);
 			}
 
 			// Create a tool call response message
