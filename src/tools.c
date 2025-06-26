@@ -427,8 +427,8 @@ R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output) {
 	if (!hide_tool_output) {
 		char *print_script = r_str_newf ("\n```js\n%s\n```", script);
 		char *print_script_rendered = r2ai_markdown (print_script);
-		r_cons_write (core->cons, print_script_rendered, strlen (print_script_rendered));
-		r_cons_flush (core->cons);
+		R2_PRINTF ("%s\n", print_script_rendered);
+		R2_FLUSH ();
 		free (print_script);
 		free (print_script_rendered);
 	}
@@ -487,8 +487,8 @@ R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, c
 	bool hide_tool_output = r_config_get_b (core->config, "r2ai.auto.hide_tool_output");
 
 	char *print_name = r_str_newf ("\x1b[1;32m\x1b[4m[%s]>\x1b[0m ", tool_name);
-	r_cons_write (core->cons, print_name, strlen (print_name));
-	r_cons_flush (core->cons);
+	R2_PRINTF ("%s\n", print_name);
+	R2_FLUSH ();
 
 	free (print_name);
 	char *tool_result = NULL;
@@ -633,10 +633,10 @@ R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, c
 	}
 	RCons *cons = core->cons; 
 	if (!hide_tool_output) {
-		r_cons_newline (cons);
-		r_cons_write (cons, result, strlen (result));
-		r_cons_newline (cons);
-		r_cons_flush (cons);
+		R2_NEWLINE ();
+		R2_PRINTF ("%s\n", result);
+		R2_NEWLINE ();
+		R2_FLUSH ();
 	}
 
 	r_str_ansi_strip (result);
