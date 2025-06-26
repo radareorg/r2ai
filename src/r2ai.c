@@ -379,7 +379,7 @@ static void cmd_r2ai_d(RCore *core, const char *input, const bool recursive) {
 		R_LOG_ERROR (error);
 		free (error);
 	} else {
-		r_cons_printf ("%s\n", res);
+		r_cons_printf (core->cons, "%s\n", res);
 	}
 	free (res);
 	r_list_free (cmdslist);
@@ -416,6 +416,7 @@ static void cmd_r2ai_x(RCore *core) {
 
 static void cmd_r2ai_repl(RCore *core) {
 	RStrBuf *sb = r_strbuf_new ("");
+	RCons *cons = core->cons;
 	while (true) {
 #if R2_VERSION_NUMBER >= 50909
 		r_line_set_prompt (core->cons->line, ">>> ");
@@ -429,9 +430,9 @@ static void cmd_r2ai_repl(RCore *core) {
 		}
 		if (*ptr == '/') {
 			if (ptr[1] == '?' || r_str_startswith (ptr, "/help")) {
-				r_cons_println ("/help    show this help");
-				r_cons_println ("/reset   reset conversation");
-				r_cons_println ("/quit    same as ^D, leave the repl");
+				r_cons_println (cons, "/help    show this help");
+				r_cons_println (cons, "/reset   reset conversation");
+				r_cons_println (cons, "/quit    same as ^D, leave the repl");
 			} else if (r_str_startswith (ptr, "/reset")) {
 				r_strbuf_free (sb);
 				sb = r_strbuf_new ("");
@@ -450,8 +451,8 @@ static void cmd_r2ai_repl(RCore *core) {
 			free (error);
 		} else if (res) {
 			r_strbuf_appendf (sb, "Assistant: %s\n", res);
-			r_cons_println (res);
-			r_cons_flush ();
+			r_cons_println (cons, res);
+			r_cons_flush (cons);
 		}
 		free (res);
 	}
@@ -509,7 +510,7 @@ static void cmd_r2ai_n(RCore *core) {
 		R_LOG_ERROR (error);
 		free (error);
 	} else {
-		r_cons_printf ("%s\n", res);
+		r_cons_printf (core->cons, "%s\n", res);
 	}
 	free (res);
 	free (q);
@@ -536,7 +537,7 @@ static void cmd_r2ai_i(RCore *core, const char *arg) {
 		R_LOG_ERROR (error);
 		free (error);
 	} else {
-		r_cons_printf ("%s\n", res);
+		r_cons_printf (core->cons, "%s\n", res);
 	}
 	free (fname);
 	free (res);
@@ -577,7 +578,7 @@ static void cmd_r2ai_s(RCore *core) {
 					*end = 0;
 				}
 				r_str_trim (nl);
-				r_cons_printf ("'afs %s\n", nl);
+				r_cons_printf (core->cons, "'afs %s\n", nl);
 			}
 		}
 	}
@@ -602,7 +603,7 @@ static void cmd_r2ai_v(RCore *core) {
 		R_LOG_ERROR (error);
 		free (error);
 	} else {
-		r_cons_println (res);
+		r_cons_println (core->cons, res);
 	}
 	free (afv);
 	free (res);
@@ -623,7 +624,7 @@ static void cmd_r2ai_V(RCore *core, bool recursive) {
 		R_LOG_ERROR (error);
 		free (error);
 	} else {
-		r_cons_printf ("%s\n", res);
+		r_cons_printf (core->cons, "%s\n", res);
 	}
 	free (res);
 	free (q);
@@ -632,13 +633,13 @@ static void cmd_r2ai_V(RCore *core, bool recursive) {
 
 static void cmd_r2ai_m(RCore *core, const char *input) {
 	if (R_STR_ISEMPTY (input)) {
-		r_cons_printf ("%s\n", r_config_get (core->config, "r2ai.model"));
+		r_cons_printf (core->cons, "%s\n", r_config_get (core->config, "r2ai.model"));
 		return;
 	}
 	r_config_lock (core->config, false);
 	r_config_set (core->config, "r2ai.model", input);
 	r_config_lock (core->config, true);
-	r_cons_printf ("Model set to %s\n", input);
+	r_cons_printf (core->cons, "Model set to %s\n", input);
 }
 
 static void load_embeddings(RCore *core, RVdb *db) {
@@ -691,10 +692,10 @@ static void cmd_r2ai(RCore *core, const char *input) {
 		const int N = atoi (arg);
 		R2AI_Messages *messages = r2ai_conversation_get ();
 		if (!messages || messages->n_messages == 0) {
-			r_cons_printf ("No conversation history available\n");
+			r_cons_printf (core->cons, "No conversation history available\n");
 		} else {
 			r2ai_delete_last_messages (messages, N);
-			r_cons_printf ("Deleted %d message%s from chat history\n", N > 0 ? N : 1,
+			r_cons_printf (core->cons, "Deleted %d message%s from chat history\n", N > 0 ? N : 1,
 				(N > 0 && N != 1) ? "s" : "");
 		}
 	} else if (r_str_startswith (input, "-L")) {
@@ -721,7 +722,7 @@ static void cmd_r2ai(RCore *core, const char *input) {
 			for (i = 0; i < rs->size; i++) {
 				RVdbResult *r = &rs->results[i];
 				KDNode *n = r->node;
-				r_cons_printf ("- (%.4f) %s\n", r->dist_sq, n->text);
+				r_cons_printf (core->cons, "- (%.4f) %s\n", r->dist_sq, n->text);
 			}
 			r_vdb_result_free (rs);
 		}
@@ -760,7 +761,7 @@ static void cmd_r2ai(RCore *core, const char *input) {
 			R_FREE (err);
 		}
 		if (res) {
-			r_cons_printf ("%s\n", res);
+			r_cons_printf (core->cons, "%s\n", res);
 			free (res);
 		}
 	}
@@ -896,17 +897,11 @@ static RList *fetch_available_models(RCore *core, const char *provider) {
 }
 
 static bool cb_r2ai_api(void *user, void *data) {
+	RCore *core = (RCore *)user;
 	RConfigNode *node = (RConfigNode *)data;
 	if (*node->value == '?') {
-		r_cons_println ("ollama");
-		r_cons_println ("openai");
-		r_cons_println ("openapi");
-		r_cons_println ("anthropic");
-		r_cons_println ("gemini");
-		r_cons_println ("openrouter");
-		r_cons_println ("mistral");
-		r_cons_println ("groq");
-		r_cons_println ("xai");
+		const char apis[] = "ollama\nopenai\nopenapi\nanthropic\ngemini\nopenrouter\nmistral\ngroq\nxai";
+		r_cons_println (core->cons, apis);
 		return false;
 	}
 	return true;
@@ -923,14 +918,14 @@ static bool cb_r2ai_model(void *user, void *data) {
 			RListIter *iter;
 			char *model;
 			r_list_foreach (models, iter, model) {
-				r_cons_println (model);
+				r_cons_println (core->cons, model);
 			}
 			r_list_free (models);
 		} else {
 			// Fallback to static lists if dynamic fetching fails
 			if (!strcmp (api, "gemini")) {
-				r_cons_println ("gemini-1.5-flash");
-				r_cons_println ("gemini-1.0-pro");
+				r_cons_println (core->cons, "gemini-1.5-flash");
+				r_cons_println (core->cons, "gemini-1.0-pro");
 			} else if (!strcmp (api, "ollama")) {
 				char *s = r_sys_cmd_str ("ollama ls", NULL, NULL);
 				if (s) {
@@ -945,7 +940,7 @@ static bool cb_r2ai_model(void *user, void *data) {
 						if (s) {
 							*s = 0;
 						}
-						r_cons_println (item);
+						r_cons_println (core->cons, item);
 					}
 					r_list_free (items);
 					free (s);
@@ -1002,6 +997,9 @@ static int r2ai_init(void *user, const char *input) {
 	// Configure HTTP rate limiting and retry parameters
 	r_config_set_i (core->config, "r2ai.http.max_retries", 10);
 	r_config_set_i (core->config, "r2ai.http.max_backoff", 30);
+	// Configure HTTP backend and options
+	r_config_set (core->config, "r2ai.http.backend", "auto");  // Options: auto, libcurl, socket, system
+	r_config_set_b (core->config, "r2ai.http.use_files", false);
 	r_config_lock (core->config, true);
 	return true;
 }
@@ -1023,6 +1021,8 @@ static int r2ai_fini(void *user, const char *input) {
 	r_config_rm (core->config, "r2ai.http.timeout");
 	r_config_rm (core->config, "r2ai.http.max_retries");
 	r_config_rm (core->config, "r2ai.http.max_backoff");
+	r_config_rm (core->config, "r2ai.http.backend");
+	r_config_rm (core->config, "r2ai.http.use_files");
 	r_config_lock (core->config, true);
 
 	// Free the conversation
@@ -1063,7 +1063,12 @@ RCorePlugin r_core_plugin_r2ai_client = {
 };
 
 #ifndef R2_PLUGIN_INCORE
-R_API RLibStruct radare_plugin = { .type = R_LIB_TYPE_CORE,
+R_API RLibStruct radare_plugin = {
+	.type = R_LIB_TYPE_CORE,
 	.data = &r_core_plugin_r2ai_client,
-	.version = R2_VERSION };
+#if R2_VERSION_NUMBER >= 50909
+	.abi_version = R_LIB_CURRENT_ABI_VERSION,
+#endif
+	.version = R2_VERSION
+};
 #endif

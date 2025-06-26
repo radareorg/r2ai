@@ -224,8 +224,10 @@ Use radare2 to resolve user requests.
       return '-H "' + x + '"';
     }).join(" ");
     function curlArgs(url, heads, payload) {
+      // Escape single quotes in payload to prevent command injection
+      const escapedPayload = payload.replace(/'/g, "'\\''")
       const curlc =
-        `curl -s '${url}' ${heads} -d '${payload}' -H "Content-Type: application/json"`;
+        `curl -s '${url}' ${heads} -d '${escapedPayload}' -H "Content-Type: application/json"`;
       debug.log(curlc);
       return r2.syscmds(curlc);
     }
@@ -1180,7 +1182,7 @@ Use radare2 to resolve user requests.
     if (!fileData) {
       fileData = "";
     }
-    fileData = fileData.replace(/\`/g, "").replace(/'/g, '"');
+    fileData = fileData.replace(/\`/g, ""); // Don't replace single quotes with double quotes here
     queryText = queryText.replace(/'/g, "");
     if (decaiApi === "r2" || decaiApi === "r2ai") {
       const fileName = tmpdir(".pdc.txt");
