@@ -76,7 +76,7 @@ static void r2ai_print_run_end(RCore *core, const R2AI_Usage *usage, int n_run, 
 	char *total_time_str = format_time_duration (total_time);
 
 	// Print detailed stats
-	r_cons_printf (core->cons, "\x1b[1;34m%s | total: %d in: %d out: %d | run: %d in: %d out: %d | %s / %s\x1b[0m\n",
+	R2_PRINTF ("\x1b[1;34m%s | total: %d in: %d out: %d | run: %d in: %d out: %d | %s / %s\x1b[0m\n",
 		r_config_get (core->config, "r2ai.model"),
 		stats.total_tokens,
 		stats.total_prompt_tokens,
@@ -86,8 +86,8 @@ static void r2ai_print_run_end(RCore *core, const R2AI_Usage *usage, int n_run, 
 		stats.run_completion_tokens,
 		run_time_str,
 		total_time_str);
-	r_cons_newline (core->cons);
-	r_cons_flush (core->cons);
+	R2_NEWLINE ();
+	R2_FLUSH ();
 
 	free (run_time_str);
 	free (total_time_str);
@@ -121,8 +121,8 @@ R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *sy
 	const int max_input_tokens = r_config_get_i (core->config, "r2ai.auto.max_input_tokens");
 
 	if (n_run > max_runs) {
-		r_cons_printf (core->cons, "\x1b[1;31m[r2ai] Max runs reached\x1b[0m\n");
-		r_cons_flush (core->cons);
+		R2_PRINTF ("\x1b[1;31m[r2ai] Max runs reached\x1b[0m\n");
+		R2_FLUSH ();
 		return;
 	}
 
@@ -179,14 +179,14 @@ R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *sy
 	if (message->content || message->reasoning_content) {
 		r_cons_printf (core->cons, "\x1b[31m[Assistant]\x1b[0m\n\n");
 		if (message->reasoning_content) {
-			r_cons_printf (core->cons, "\x1b[90m<thinking>\n%s\n</thinking>\x1b[0m\n", message->reasoning_content);
-			r_cons_newline (core->cons);
-			r_cons_flush (core->cons);
+			R2_PRINTF ("\x1b[90m<thinking>\n%s\n</thinking>\x1b[0m\n", message->reasoning_content);
+			R2_NEWLINE ();
+			R2_FLUSH ();
 		}
 		if (message->content) {
-			r_cons_printf (core->cons, "%s", message->content);
-			r_cons_newline (core->cons);
-			r_cons_flush (core->cons);
+			R2_PRINTF ("%s", message->content);
+			R2_NEWLINE ();
+			R2_FLUSH ();
 		}
 	}
 
@@ -227,8 +227,8 @@ R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *sy
 			free (tool_name);
 			free (tool_args);
 			if (strcmp (cmd_output, "R2AI_SIGINT") == 0) {
-				r_cons_printf (core->cons, "\n\n\x1b[1;31m[r2ai] Processing interrupted after tool execution\x1b[0m\n\n");
-				r_cons_flush (core->cons);
+				R2_PRINTF ("\n\n\x1b[1;31m[r2ai] Processing interrupted after tool execution\x1b[0m\n\n");
+				R2_FLUSH ();
 				free (cmd_output);
 				cmd_output = strdup ("<user interrupted>");
 				interrupted = true;
@@ -415,11 +415,11 @@ R_IPI void cmd_r2ai_logs(RCore *core) {
 			// Don't show the tool call ID as requested
 		} else {
 			// Other roles (system, etc.)
-			r_cons_printf (core->cons, "\x1b[1;37m[%s]:\x1b[0m ", role);
+			R2_PRINTF ("\x1b[1;37m[%s]:\x1b[0m ", role);
 			print_content_with_length (core, msg->content, "<no content>", false);
 		}
 
-		r_cons_newline (core->cons);
-		r_cons_flush (core->cons);
+		R2_NEWLINE ();
+		R2_FLUSH ();
 	}
 }

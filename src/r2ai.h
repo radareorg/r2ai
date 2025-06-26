@@ -6,6 +6,16 @@
 #include "r_vdb.h"
 #include "markdown.h"
 
+#if R2_VERSION_NUMBER >= 50909
+#define R2_PRINTF(...) r_cons_printf (core->cons, __VA_ARGS__)
+#define R2_FLUSH() r_cons_flush (core->cons)
+#define R2_NEWLINE() r_cons_newline (core->cons)
+#else
+#define R2_PRINTF(...) r_cons_printf (__VA_ARGS__)
+#define R2_FLUSH() r_cons_flush ()
+#define R2_NEWLINE() r_cons_newline()
+#endif
+
 // Tool definition structure
 typedef struct {
 	char *name;

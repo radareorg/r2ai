@@ -371,7 +371,7 @@ static void cmd_r2ai_d(RCore *core, const char *input, const bool recursive) {
 		R_LOG_ERROR (error);
 		free (error);
 	} else {
-		r_cons_printf (core->cons, "%s\n", res);
+		R2_PRINTF ("%s\n", res);
 	}
 	free (res);
 	r_list_free (cmdslist);
@@ -443,8 +443,8 @@ static void cmd_r2ai_repl(RCore *core) {
 			free (error);
 		} else if (res) {
 			r_strbuf_appendf (sb, "Assistant: %s\n", res);
-			r_cons_println (cons, res);
-			r_cons_flush (cons);
+			R2_PRINTF ("%s\n", res);
+			R2_FLUSH ();
 		}
 		free (res);
 	}
@@ -502,7 +502,7 @@ static void cmd_r2ai_n(RCore *core) {
 		R_LOG_ERROR (error);
 		free (error);
 	} else {
-		r_cons_printf (core->cons, "%s\n", res);
+		R2_PRINTF ("%s\n", res);
 	}
 	free (res);
 	free (q);
@@ -529,7 +529,7 @@ static void cmd_r2ai_i(RCore *core, const char *arg) {
 		R_LOG_ERROR (error);
 		free (error);
 	} else {
-		r_cons_printf (core->cons, "%s\n", res);
+		R2_PRINTF ("%s\n", res);
 	}
 	free (fname);
 	free (res);
@@ -570,7 +570,7 @@ static void cmd_r2ai_s(RCore *core) {
 					*end = 0;
 				}
 				r_str_trim (nl);
-				r_cons_printf (core->cons, "'afs %s\n", nl);
+				R2_PRINTF ("'afs %s\n", nl);
 			}
 		}
 	}
@@ -616,7 +616,7 @@ static void cmd_r2ai_V(RCore *core, bool recursive) {
 		R_LOG_ERROR (error);
 		free (error);
 	} else {
-		r_cons_printf (core->cons, "%s\n", res);
+		R2_PRINTF ("%s\n", res);
 	}
 	free (res);
 	free (q);
@@ -625,13 +625,13 @@ static void cmd_r2ai_V(RCore *core, bool recursive) {
 
 static void cmd_r2ai_m(RCore *core, const char *input) {
 	if (R_STR_ISEMPTY (input)) {
-		r_cons_printf (core->cons, "%s\n", r_config_get (core->config, "r2ai.model"));
+		R2_PRINTF ("%s\n", r_config_get (core->config, "r2ai.model"));
 		return;
 	}
 	r_config_lock (core->config, false);
 	r_config_set (core->config, "r2ai.model", input);
 	r_config_lock (core->config, true);
-	r_cons_printf (core->cons, "Model set to %s\n", input);
+	R2_PRINTF ("Model set to %s\n", input);
 }
 
 static void load_embeddings(RCore *core, RVdb *db) {
@@ -684,10 +684,10 @@ static void cmd_r2ai(RCore *core, const char *input) {
 		const int N = atoi (arg);
 		R2AI_Messages *messages = r2ai_conversation_get ();
 		if (!messages || messages->n_messages == 0) {
-			r_cons_printf (core->cons, "No conversation history available\n");
+			R2_PRINTF ("No conversation history available\n");
 		} else {
 			r2ai_delete_last_messages (messages, N);
-			r_cons_printf (core->cons, "Deleted %d message%s from chat history\n", N > 0 ? N : 1,
+			R2_PRINTF ("Deleted %d message%s from chat history\n", N > 0 ? N : 1,
 				(N > 0 && N != 1) ? "s" : "");
 		}
 	} else if (r_str_startswith (input, "-L")) {
@@ -714,7 +714,7 @@ static void cmd_r2ai(RCore *core, const char *input) {
 			for (i = 0; i < rs->size; i++) {
 				RVdbResult *r = &rs->results[i];
 				KDNode *n = r->node;
-				r_cons_printf (core->cons, "- (%.4f) %s\n", r->dist_sq, n->text);
+				R2_PRINTF ("- (%.4f) %s\n", r->dist_sq, n->text);
 			}
 			r_vdb_result_free (rs);
 		}
@@ -761,7 +761,7 @@ static void cmd_r2ai(RCore *core, const char *input) {
 			R_FREE (err);
 		}
 		if (res) {
-			r_cons_printf (core->cons, "%s\n", res);
+			R2_PRINTF ("%s\n", res);
 			free (res);
 		}
 	}
@@ -1055,7 +1055,7 @@ RCorePlugin r_core_plugin_r2ai_client = {
 		.name = "r2ai",
 		.desc = "r2ai plugin in plain C",
 		.author = "pancake",
-		.version = "0.9.6",
+		.version = "0.9.8",
 		.license = "MIT",
 	},
 	.init = r2ai_init,
@@ -1068,7 +1068,7 @@ R_API RLibStruct radare_plugin = {
 	.type = R_LIB_TYPE_CORE,
 	.data = &r_core_plugin_r2ai_client,
 #if R2_VERSION_NUMBER >= 50909
-	.abi_version = R_LIB_CURRENT_ABI_VERSION,
+	.abiversion = R2_ABIVERSION,
 #endif
 	.version = R2_VERSION
 };
