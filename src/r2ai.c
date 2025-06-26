@@ -416,7 +416,6 @@ static void cmd_r2ai_x(RCore *core) {
 
 static void cmd_r2ai_repl(RCore *core) {
 	RStrBuf *sb = r_strbuf_new ("");
-	RCons *cons = core->cons;
 	while (true) {
 #if R2_VERSION_NUMBER >= 50909
 		r_line_set_prompt (core->cons->line, ">>> ");
@@ -430,9 +429,9 @@ static void cmd_r2ai_repl(RCore *core) {
 		}
 		if (*ptr == '/') {
 			if (ptr[1] == '?' || r_str_startswith (ptr, "/help")) {
-				r_cons_println (cons, "/help    show this help");
-				r_cons_println (cons, "/reset   reset conversation");
-				r_cons_println (cons, "/quit    same as ^D, leave the repl");
+				R2_PRINTLN ("/help    show this help");
+				R2_PRINTLN ("/reset   reset conversation");
+				R2_PRINTLN ("/quit    same as ^D, leave the repl");
 			} else if (r_str_startswith (ptr, "/reset")) {
 				r_strbuf_free (sb);
 				sb = r_strbuf_new ("");
@@ -603,7 +602,7 @@ static void cmd_r2ai_v(RCore *core) {
 		R_LOG_ERROR (error);
 		free (error);
 	} else {
-		r_cons_println (core->cons, res);
+		R2_PRINTLN (res);
 	}
 	free (afv);
 	free (res);
@@ -741,10 +740,10 @@ static void cmd_r2ai(RCore *core, const char *input) {
 	} else if (r_str_startswith (input, "-R")) {
 		R2AI_Messages *messages = r2ai_conversation_get ();
 		if (!messages || messages->n_messages == 0) {
-			r_cons_printf ("No conversation history to reset\n");
+			R2_PRINTF ("No conversation history to reset\n");
 		} else {
 			r2ai_msgs_clear (messages);
-			r_cons_printf ("Chat conversation context has been reset\n");
+			R2_PRINTF ("Chat conversation context has been reset\n");
 		}
 	} else if (r_str_startswith (input, "-Rq")) {
 		cmd_r2ai_R (core, r_str_trim_head_ro (input + 3));
@@ -901,7 +900,7 @@ static bool cb_r2ai_api(void *user, void *data) {
 	RConfigNode *node = (RConfigNode *)data;
 	if (*node->value == '?') {
 		const char apis[] = "ollama\nopenai\nopenapi\nanthropic\ngemini\nopenrouter\nmistral\ngroq\nxai";
-		r_cons_println (core->cons, apis);
+		R2_PRINTLN (apis);
 		return false;
 	}
 	return true;
@@ -918,14 +917,14 @@ static bool cb_r2ai_model(void *user, void *data) {
 			RListIter *iter;
 			char *model;
 			r_list_foreach (models, iter, model) {
-				r_cons_println (core->cons, model);
+				R2_PRINTLN (model);
 			}
 			r_list_free (models);
 		} else {
 			// Fallback to static lists if dynamic fetching fails
 			if (!strcmp (api, "gemini")) {
-				r_cons_println (core->cons, "gemini-1.5-flash");
-				r_cons_println (core->cons, "gemini-1.0-pro");
+				R2_PRINTLN ("gemini-1.5-flash");
+				R2_PRINTLN ("gemini-1.0-pro");
 			} else if (!strcmp (api, "ollama")) {
 				char *s = r_sys_cmd_str ("ollama ls", NULL, NULL);
 				if (s) {
@@ -940,7 +939,7 @@ static bool cb_r2ai_model(void *user, void *data) {
 						if (s) {
 							*s = 0;
 						}
-						r_cons_println (core->cons, item);
+						R2_PRINTLN (item);
 					}
 					r_list_free (items);
 					free (s);
