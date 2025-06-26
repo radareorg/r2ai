@@ -731,21 +731,13 @@ static void cmd_r2ai(RCore *core, const char *input) {
 	} else if (r_str_startswith (input, "-r")) {
 		cmd_r2ai_repl (core);
 	} else if (r_str_startswith (input, "-R")) {
-#if 0
-		if (strlen (input) <= 2 || isspace (input[2])) {
-			R2AI_Messages *messages = r2ai_conversation_get ();
-			if (!messages || messages->n_messages == 0) {
-				r_cons_printf ("No conversation history to reset\n");
-			} else {
-				r2ai_msgs_clear (messages);
-				r_cons_printf ("Chat conversation context has been reset\n");
-			}
+		R2AI_Messages *messages = r2ai_conversation_get ();
+		if (!messages || messages->n_messages == 0) {
+			r_cons_printf ("No conversation history to reset\n");
 		} else {
-			cmd_r2ai_R (core, r_str_trim_head_ro (input + 2));
+			r2ai_msgs_clear (messages);
+			r_cons_printf ("Chat conversation context has been reset\n");
 		}
-#else
-		cmd_r2ai_R (core, r_str_trim_head_ro (input + 2));
-#endif
 	} else if (r_str_startswith (input, "-Rq")) {
 		cmd_r2ai_R (core, r_str_trim_head_ro (input + 3));
 	} else if (r_str_startswith (input, "-m")) {
@@ -990,7 +982,6 @@ static int r2ai_init(void *user, const char *input) {
 	r_config_set (core->config, "r2ai.auto.init_commands", "aaa;iI;afl");
 	r_config_set_b (core->config, "r2ai.auto.yolo", false);
 	r_config_set_b (core->config, "r2ai.auto.reset_on_query", false);
-	r_config_set_i (core->config, "r2ai.auto.max_input_tokens", 10000);
 	r_config_set_b (core->config, "r2ai.chat.show_cost", true);
 
 	// Configure HTTP timeout in seconds
