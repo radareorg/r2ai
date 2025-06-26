@@ -741,10 +741,10 @@ static void cmd_r2ai(RCore *core, const char *input) {
 	} else if (r_str_startswith (input, "-R")) {
 		R2AI_Messages *messages = r2ai_conversation_get ();
 		if (!messages || messages->n_messages == 0) {
-			r_cons_printf ("No conversation history to reset\n");
+			r_cons_printf (core->cons, "No conversation history to reset\n");
 		} else {
 			r2ai_msgs_clear (messages);
-			r_cons_printf ("Chat conversation context has been reset\n");
+			r_cons_printf (core->cons, "Chat conversation context has been reset\n");
 		}
 	} else if (r_str_startswith (input, "-Rq")) {
 		cmd_r2ai_R (core, r_str_trim_head_ro (input + 3));
@@ -1067,7 +1067,7 @@ R_API RLibStruct radare_plugin = {
 	.type = R_LIB_TYPE_CORE,
 	.data = &r_core_plugin_r2ai_client,
 #if R2_VERSION_NUMBER >= 50909
-	.abi_version = R_LIB_CURRENT_ABI_VERSION,
+	.abiversion = R2_ABIVERSION,
 #endif
 	.version = R2_VERSION
 };

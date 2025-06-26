@@ -332,7 +332,7 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 	
 	if (!hide_tool_output) {
 		char *red_command = r_str_newf ("\x1b[31m%s\x1b[0m\n", *edited_command);
-		r_cons_write (core->cons, strlen (red_command));
+		r_cons_write (core->cons, red_command, strlen (red_command));
 		r_cons_flush (core->cons);
 		free (red_command);
 	}
