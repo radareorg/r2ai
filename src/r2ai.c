@@ -998,6 +998,9 @@ static int r2ai_init(void *user, const char *input) {
 	// Configure HTTP rate limiting and retry parameters
 	r_config_set_i (core->config, "r2ai.http.max_retries", 10);
 	r_config_set_i (core->config, "r2ai.http.max_backoff", 30);
+	// Configure HTTP backend and options
+	r_config_set (core->config, "r2ai.http.backend", "auto");  // Options: auto, libcurl, socket, system
+	r_config_set_b (core->config, "r2ai.http.use_files", false);
 	r_config_lock (core->config, true);
 	return true;
 }
@@ -1019,6 +1022,8 @@ static int r2ai_fini(void *user, const char *input) {
 	r_config_rm (core->config, "r2ai.http.timeout");
 	r_config_rm (core->config, "r2ai.http.max_retries");
 	r_config_rm (core->config, "r2ai.http.max_backoff");
+	r_config_rm (core->config, "r2ai.http.backend");
+	r_config_rm (core->config, "r2ai.http.use_files");
 	r_config_lock (core->config, true);
 
 	// Free the conversation
