@@ -68,7 +68,7 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCore *core, R2AIArgs args) {
 	PJ *pj = pj_new ();
 	pj_o (pj);
 	pj_ks (pj, "model", modelname (model));
-	pj_kn (pj, "max_tokens", 4096);
+	pj_kn (pj, "max_tokens", args.max_tokens);
 	if (args.thinking_tokens >= 1024) {
 		pj_ko (pj, "thinking");
 		pj_ks (pj, "type", "enabled");
