@@ -968,7 +968,7 @@ static int r2ai_init(void *user, const char *input) {
 	r_config_set_cb (core->config, "r2ai.api", "openai", &cb_r2ai_api);
 	r_config_set_cb (core->config, "r2ai.model", "gpt-4o-mini", &cb_r2ai_model);
 	r_config_set (core->config, "r2ai.base_url", "");
-	r_config_set_i (core->config, "r2ai.max_tokens", 5128);
+	r_config_set_i (core->config, "r2ai.max_tokens", 4096); // max output tokens, or max total tokens
 	r_config_set_i (core->config, "r2ai.thinking_tokens", 0);
 	r_config_set (core->config, "r2ai.temperature", "0.01");
 	r_config_set (core->config, "r2ai.cmds", "pdc");
