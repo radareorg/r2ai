@@ -80,6 +80,8 @@ $
 
 Running `make` on the root directory will instruct you where the sub-projects are, just run the `install`/`user-install` targets in there.
 
+For example:
+
 ```console
 $ make
 Usage: Run 'make' in the following subdirectories instead
@@ -87,7 +89,8 @@ src/    - Modern C rewrite in form of a native r2 plugin
 py/     - The old Python cli and r2 plugin
 decai/  - r2js plugin with focus on decompiling
 server/ - shellscript to easily run llamacpp and other
-$
+$ cd src
+$ make
 ```
 
 ## Running r2ai
@@ -114,6 +117,18 @@ Example using an Anthropic API key:
 $ cat ~/.r2ai.anthropic-key 
 sk-ant-api03-CENSORED
 ```
+
+### Saving configuration settings
+
+You may customize and save your configuration settings using your OS's default settings file (e.g `~/.radare2rc` on Linux).
+For example, the following configuration sets Claude 3.7 by default, with max output tokens to 64000.
+
+```
+r2ai -e api=anthropic
+r2ai -e model=claude-3-7-sonnet-20250219
+r2ai -e max_tokens=64000
+```
+
 
 ## Videos
 

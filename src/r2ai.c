@@ -83,7 +83,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"enter the chat repl",
 	"r2ai",
 	" -L",
-	"show chat logs (See -Lj for json)",
+	"show chat logs (See -Lj for json). Only for auto mode.",
 	"r2ai",
 	" -L-[N]",
 	"delete the last (or N last messages from the chat history)",
