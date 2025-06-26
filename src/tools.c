@@ -295,9 +295,9 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 			command = *edited_command;
 		} else {
 			// For single-line commands, push the command to input buffer
-			r_cons_newline (core->cons);
-			r_cons_printf (core->cons, "\x1b[31m[edit cmd]>\x1b[0m ");
-			r_cons_flush (core->cons);
+			R2_NEWLINE ();
+			R2_PRINTF ("\x1b[31m[edit cmd]>\x1b[0m ");
+			R2_FLUSH ();
 			// Push the command to the input buffer
 			r_cons_readpush (command, strlen (command));
 			r_cons_readpush ("\x05", 1); // Ctrl+E - move to end
@@ -392,8 +392,8 @@ R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output) {
 			script = edited_script;
 		} else {
 			// For single-line scripts, push the script to input buffer
-			r_cons_printf (core->cons, "\x1b[31m[edit js]>\x1b[0m ");
-			r_cons_flush (core->cons);
+			R2_PRINTF ("\x1b[31m[edit js]>\x1b[0m ");
+			R2_FLUSH ();
 
 			// Push the script to the input buffer
 			r_cons_readpush (script, strlen (script));
@@ -631,7 +631,6 @@ R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, c
 	if (!result) {
 		return r_str_newf ("Error running tool: Unknown error\nCommand: %s", args);
 	}
-	RCons *cons = core->cons; 
 	if (!hide_tool_output) {
 		R2_NEWLINE ();
 		R2_PRINTF ("%s\n", result);
