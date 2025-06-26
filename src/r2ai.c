@@ -55,6 +55,9 @@ static RCoreHelpMessage help_msg_r2ai = {
 	" -d",
 	"Decompile current function",
 	"r2ai",
+	" -d [query]",
+	"Ask a question on the current function",
+	"r2ai",
 	" -dr",
 	"Decompile current function (+ 1 level of recursivity)",
 	"r2ai",
@@ -322,11 +325,16 @@ static void cmd_r2ai_d(RCore *core, const char *input, const bool recursive) {
 	const char *prompt = r_config_get (core->config, "r2ai.prompt");
 	const char *lang = r_config_get (core->config, "r2ai.lang");
 	char *full_prompt;
-	if (!R_STR_ISEMPTY (lang)) {
-		full_prompt = r_str_newf (
-			"%s. Translate the code into %s programming language.", prompt, lang);
+	if (!R_STR_ISEMPTY (input)) {
+		R_LOG_DEBUG("User question: %s", input);
+		full_prompt = strdup (input);
 	} else {
-		full_prompt = strdup (prompt);
+		if (!R_STR_ISEMPTY (lang)) {
+			full_prompt = r_str_newf (
+				"%s. Translate the code into %s programming language.", prompt, lang);
+		} else {
+			full_prompt = strdup (prompt);
+		}
 	}
 	char *cmds = strdup (r_config_get (core->config, "r2ai.cmds"));
 	RStrBuf *sb = r_strbuf_new (full_prompt);
