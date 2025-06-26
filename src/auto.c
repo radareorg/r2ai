@@ -24,14 +24,14 @@ static R2AIStats stats = { 0 };
 static char *format_time_duration(time_t seconds) {
 	if (seconds < 60) {
 		return r_str_newf ("%llds", (long long)seconds);
-	} else if (seconds < 3600) {
+	}
+	if (seconds < 3600) {
 		return r_str_newf ("%lldm%llds", (long long)(seconds / 60), (long long)(seconds % 60));
-	} else {
-		return r_str_newf ("%lldh%lldm%llds",
+	}
+	return r_str_newf ("%lldh%lldm%llds",
 			(long long)(seconds / 3600),
 			(long long)((seconds % 3600) / 60),
 			(long long)(seconds % 60));
-	}
 }
 
 // Initialize timing and cost tracking for a run
@@ -171,7 +171,7 @@ R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *sy
 
 	// Process the response - we need to add it to our messages array
 	if (message->content || message->reasoning_content) {
-		r_cons_printf (core->cons, "\x1b[31m[Assistant]\x1b[0m\n\n");
+		R2_PRINTF ("\x1b[31m[Assistant]\x1b[0m\n\n");
 		if (message->reasoning_content) {
 			R2_PRINTF ("\x1b[90m<thinking>\n%s\n</thinking>\x1b[0m\n", message->reasoning_content);
 			R2_NEWLINE ();
@@ -283,7 +283,7 @@ R_IPI void cmd_r2ai_a(RCore *core, const char *user_query) {
 // Helper function to display content with length indication for long content
 static void print_content_with_length(RCore *core, const char *content, const char *empty_msg, bool always_show_length) {
 	if (!content || *content == '\0') {
-		r_cons_printf (core->cons, "%s\n", empty_msg ? empty_msg : "<no content>");
+		R2_PRINTF ("%s\n", empty_msg ? empty_msg : "<no content>");
 		return;
 	}
 
@@ -293,15 +293,15 @@ static void print_content_with_length(RCore *core, const char *content, const ch
 	if (content_len > max_display) {
 		// Truncate long content and show length
 		char *truncated = r_str_ndup (content, max_display);
-		r_cons_printf (core->cons, "%s... \x1b[1;37m(length: %zu chars)\x1b[0m\n",
+		R2_PRINTF ("%s... \x1b[1;37m(length: %zu chars)\x1b[0m\n",
 			truncated, content_len);
 		free (truncated);
 	} else if (always_show_length) {
 		// Always show length for certain types (like tool responses)
-		r_cons_printf (core->cons, "%s \x1b[1;37m(length: %zu chars)\x1b[0m\n",
+		R2_PRINTF ("%s \x1b[1;37m(length: %zu chars)\x1b[0m\n",
 			content, content_len);
 	} else {
-		r_cons_printf (core->cons, "%s\n", content);
+		R2_PRINTF ("%s\n", content);
 	}
 }
 
@@ -310,7 +310,7 @@ R_IPI void cmd_r2ai_logs(RCore *core) {
 	// Get conversation
 	R2AI_Messages *messages = r2ai_conversation_get ();
 	if (!messages || messages->n_messages == 0) {
-		r_cons_printf (core->cons, "No conversation history available\n");
+		R2_PRINTF ("No conversation history available\n");
 		return;
 	}
 
@@ -361,16 +361,16 @@ R_IPI void cmd_r2ai_logs(RCore *core) {
 		pj_end (pj);
 
 		char *json_str = pj_drain (pj);
-		r_cons_printf (core->cons, "%s\n", json_str);
+		R2_PRINTF ("%s\n", json_str);
 		free (json_str);
 
 		return;
 	}
 
-	r_cons_printf (core->cons, "\x1b[1;34m[r2ai] Chat Logs (%d messages)\x1b[0m\n",
+	R2_PRINTF ("\x1b[1;34m[r2ai] Chat Logs (%d messages)\x1b[0m\n",
 		core->cons, messages->n_messages);
 
-	r_cons_printf (core->cons, "\x1b[1;33mNote: System prompt is applied automatically but not stored in history\x1b[0m\n\n");
+	R2_PRINTF ("\x1b[1;33mNote: System prompt is applied automatically but not stored in history\x1b[0m\n\n");
 
 	// Display each message in the conversation
 	for (int i = 0; i < messages->n_messages; i++) {
@@ -379,25 +379,25 @@ R_IPI void cmd_r2ai_logs(RCore *core) {
 
 		// Format based on role
 		if (!strcmp (role, "user")) {
-			r_cons_printf (core->cons, "\x1b[1;32m[user]:\x1b[0m ");
+			R2_PRINTF ("\x1b[1;32m[user]:\x1b[0m ");
 			print_content_with_length (core, msg->content, "<no content>", false);
 		} else if (!strcmp (role, "assistant")) {
-			r_cons_printf (core->cons, "\x1b[1;36m[assistant]:\x1b[0m ");
+			R2_PRINTF ("\x1b[1;36m[assistant]:\x1b[0m ");
 			print_content_with_length (core, msg->content, "<no content>", false);
 			// Show tool calls if present
 			if (msg->tool_calls && msg->n_tool_calls > 0) {
 				for (int j = 0; j < msg->n_tool_calls; j++) {
 					const R2AI_ToolCall *tc = &msg->tool_calls[j];
-					r_cons_printf (core->cons, "  \x1b[1;35m[tool call]:\x1b[0m %s\n",
+					R2_PRINTF ("  \x1b[1;35m[tool call]:\x1b[0m %s\n",
 						tc->name ? tc->name : "<unnamed>");
 
 					if (tc->arguments) {
-						r_cons_printf (core->cons, "    %s\n", tc->arguments);
+						R2_PRINTF ("    %s\n", tc->arguments);
 					}
 				}
 			}
 		} else if (!strcmp (role, "tool")) {
-			r_cons_printf (core->cons, "\x1b[1;35m[tool]:\x1b[0m ");
+			R2_PRINTF ("\x1b[1;35m[tool]:\x1b[0m ");
 			print_content_with_length (core, msg->content, "<no result>", true);
 
 			// Don't show the tool call ID as requested

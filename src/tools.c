@@ -299,13 +299,15 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 			R2_PRINTF ("\x1b[31m[edit cmd]>\x1b[0m ");
 			R2_FLUSH ();
 			// Push the command to the input buffer
-			r_cons_readpush (command, strlen (command));
-			r_cons_readpush ("\x05", 1); // Ctrl+E - move to end
 
 			// Get user input with command pre-filled
 #if R2_VERSION_NUMBER >= 50909
+			r_cons_readpush (core->cons, command, strlen (command));
+			r_cons_readpush (core->cons, "\x05", 1); // Ctrl+E - move to end
 			const char *readline_result = r_line_readline (core->cons);
 #else
+			r_cons_readpush (command, strlen (command));
+			r_cons_readpush ("\x05", 1); // Ctrl+E - move to end
 			const char *readline_result = r_line_readline ();
 #endif
 
@@ -395,14 +397,13 @@ R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output) {
 			R2_PRINTF ("\x1b[31m[edit js]>\x1b[0m ");
 			R2_FLUSH ();
 
-			// Push the script to the input buffer
-			r_cons_readpush (script, strlen (script));
-			r_cons_readpush ("\x05", 1); // Ctrl+E - move to end
-
-			// Get user input with script pre-filled
 #if R2_VERSION_NUMBER >= 50909
+			r_cons_readpush (core->cons, script, strlen (script));
+			r_cons_readpush (core->cons, "\x05", 1); // Ctrl+E - move to end
 			const char *readline_result = r_line_readline (core->cons);
 #else
+			r_cons_readpush (script, strlen (script));
+			r_cons_readpush ("\x05", 1); // Ctrl+E - move to end
 			const char *readline_result = r_line_readline ();
 #endif
 
