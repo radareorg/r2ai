@@ -201,9 +201,13 @@ R_API char *r2ai_tools_to_anthropic_json(const R2AI_Tools *tools);
 R_API void r2ai_tools_free(R2AI_Tools *tools);
 
 /**
- * Execute a tool and return the output
+ * Execute a tool and return the output 
+ * The command to execute is within args. The user may interactively
+ * modify this command, hence edited_command contains the real
+ * command which was run
+ * Caller must free edited_command
  */
-R_API char *execute_tool(RCore *core, const char *tool_name, const char *args);
+R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, char **edited_command);
 
 /**
  * Send an HTTP POST request
