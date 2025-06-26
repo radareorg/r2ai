@@ -261,7 +261,7 @@ static char *to_cmd(const char *command) {
 	return pj_drain (pj);
 }
 
-R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output) {
+R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **edited_command) {
 	if (!args) {
 		return strdup ("{ \"res\":\"Command is NULL\" }");
 	}
@@ -278,7 +278,7 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output) {
 	}
 
 	bool ask_to_execute = r_config_get_b (core->config, "r2ai.auto.yolo") != true;
-	char *edited_command = NULL;
+	*edited_command = NULL; // keeps track of the command that was really executed in case user modifies it
 
 	if (ask_to_execute) {
 		// Check if command contains newlines to determine if it's multi-line
@@ -286,13 +286,13 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output) {
 
 		if (is_multiline) {
 			// Use editor for multi-line commands
-			edited_command = strdup (command);
+			*edited_command = strdup (command);
 #if R2_VERSION_NUMBER >= 50909
-			r_cons_editor (core->cons, NULL, edited_command);
+			r_cons_editor (core->cons, NULL, *edited_command);
 #else
-			r_cons_editor (NULL, edited_command);
+			r_cons_editor (NULL, *edited_command);
 #endif
-			command = edited_command;
+			command = *edited_command;
 		} else {
 			// For single-line commands, push the command to input buffer
 			r_cons_newline ();
@@ -317,34 +317,34 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output) {
 
 			// Process the result
 			if (readline_result && *readline_result) {
-				edited_command = strdup (readline_result);
-				command = edited_command;
+				*edited_command = strdup (readline_result);
+				command = *edited_command;
 			} else {
 				// If user just pressed enter, keep the original command
-				edited_command = strdup (command);
-				command = edited_command;
+				*edited_command = strdup (command);
+				command = *edited_command;
 			}
 		}
+		R_LOG_DEBUG("Edited command: %s", *edited_command);
+	} else {
+		*edited_command = strdup (command);
 	}
-
+	
 	if (!hide_tool_output) {
-		char *red_command = r_str_newf ("\x1b[31m%s\x1b[0m\n", command);
+		char *red_command = r_str_newf ("\x1b[31m%s\x1b[0m\n", *edited_command);
 		r_cons_write (red_command, strlen (red_command));
 		r_cons_flush ();
 		free (red_command);
 	}
 
-	char *json_cmd = to_cmd (command);
+	char *json_cmd = to_cmd (*edited_command);
 	if (!json_cmd) {
-		free (edited_command); // Free edited_command if allocated
+		// caller should free edited_command
 		return strdup ("{ \"res\":\"Failed to create JSON command\" }");
 	}
 
 	char *cmd_output = r_core_cmd_str (core, json_cmd);
 	free (json_cmd);
-
-	// Free edited_command if we allocated it
-	free (edited_command);
 
 	if (!cmd_output) {
 		return strdup ("{ \"res\":\"Command returned no output or failed\" }");
@@ -467,7 +467,7 @@ R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output) {
 	return cmd_output;
 }
 
-R_API char *execute_tool(RCore *core, const char *tool_name, const char *args) {
+R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, char **edited_command) {
 	if (!tool_name || !args) {
 		return strdup ("{ \"res\":\"Tool name or arguments are NULL\" }");
 	}
@@ -494,7 +494,7 @@ R_API char *execute_tool(RCore *core, const char *tool_name, const char *args) {
 	char *tool_result = NULL;
 
 	if (strcmp (tool_name, "r2cmd") == 0) {
-		tool_result = r2ai_r2cmd (core, args_json, hide_tool_output);
+		tool_result = r2ai_r2cmd (core, args_json, hide_tool_output, edited_command);
 	} else if (strcmp (tool_name, "execute_js") == 0) {
 		tool_result = r2ai_qjs (core, args_json, hide_tool_output);
 	} else {
