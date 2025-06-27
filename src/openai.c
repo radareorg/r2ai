@@ -251,7 +251,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 	// Make the API call
 	char *res = NULL;
 	int code = 0;
-	res = r2ai_http_post (openai_url, headers, complete_json, &code, NULL);
+	res = r2ai_http_post (core, openai_url, headers, complete_json, &code, NULL);
 	free (complete_json);
 
 	if (code != 200) {

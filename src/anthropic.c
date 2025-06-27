@@ -104,7 +104,7 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCore *core, R2AIArgs args) {
 
 	// Make the API call
 	int code = 0;
-	char *res = r2ai_http_post (anthropic_url, headers, data, &code, NULL);
+	char *res = r2ai_http_post (core, anthropic_url, headers, data, &code, NULL);
 	free (data);
 	free (auth_header);
 
