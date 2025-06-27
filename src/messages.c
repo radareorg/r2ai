@@ -615,6 +615,27 @@ R_API void r2ai_delete_last_messages(R2AI_Messages *messages, int n) {
 	// Update the message count
 	messages->n_messages -= n;
 }
+// Update the arguments JSON string for a specific tool call in the last assistant message
+R_API bool r2ai_msgs_update_tool_call(R2AI_Messages *msgs, const char *tool_call_id, const char *new_arguments_json) {
+    if (!msgs || msgs->n_messages == 0 || !tool_call_id || !new_arguments_json) {
+        return false;
+    }
+    // The last message should be the assistant message containing the tool call
+    R2AI_Message *last = &msgs->messages[msgs->n_messages - 1];
+    if (!last->tool_calls || last->n_tool_calls == 0) {
+        return false;
+    }
+    // Find the matching tool call by id and update its arguments
+    for (int i = 0; i < last->n_tool_calls; i++) {
+        R2AI_ToolCall *tc = (R2AI_ToolCall *)&last->tool_calls[i];
+        if (tc->id && strcmp(tc->id, tool_call_id) == 0) {
+            free((void *)tc->arguments);
+            tc->arguments = strdup(new_arguments_json);
+            return true;
+        }
+    }
+    return false;
+}
 
 // Helper function to convert RJson to PJ without draining
 R_API PJ *r_json_to_pj(const RJson *json, PJ *existing_pj) {
