@@ -216,14 +216,16 @@ R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, c
 /**
  * Send an HTTP POST request
  *
+ * @param core The RCore instance
  * @param url The URL to send the request to
  * @param headers Array of headers, NULL terminated
  * @param data The data to send in the request
  * @param code Pointer to store the response code
  * @param rlen Pointer to store the response length
+ * @param use_files Use files instead of arguments
  * @return Response body as string (must be freed by caller) or NULL on error
  */
-R_API char *r2ai_http_post(const char *url, const char *headers[], const char *data, int *code, int *rlen);
+R_API char *r2ai_http_post(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen);
 
 /**
  * Send an HTTP GET request

@@ -280,32 +280,24 @@ static char *curl_http_post(const char *url, const char *headers[], const char *
  * @param rlen Pointer to store the response length
  * @return Response body as string (must be freed by caller) or NULL on error
  */
-static char *system_curl_post_file(const char *url, const char *headers[], const char *data, int *code, int *rlen) {
+static char *system_curl_post_file(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen, bool use_files) {
 	if (!url || !headers || !data || !code) {
 		return NULL;
 	}
 
-	// Get timeout and retry configuration from config if available
-	int timeout = 120; // Default timeout in seconds
-	int max_retries = 10; // Default max retries
-	int max_backoff = 30; // Default max backoff in seconds
+	int timeout = r_config_get_i (core->config, "r2ai.http.timeout");
+	if (timeout <= 0) {
+		timeout = 120; // Use default if invalid
+	}
 
-	RCore *core = r_cons_singleton ()->user;
-	if (core) {
-		timeout = r_config_get_i (core->config, "r2ai.http.timeout");
-		if (timeout <= 0) {
-			timeout = 120; // Use default if invalid
-		}
+	int max_retries = r_config_get_i (core->config, "r2ai.http.max_retries");
+	if (max_retries < 0) {
+		max_retries = 10; // Use default if invalid
+	}
 
-		max_retries = r_config_get_i (core->config, "r2ai.http.max_retries");
-		if (max_retries < 0) {
-			max_retries = 10; // Use default if invalid
-		}
-
-		max_backoff = r_config_get_i (core->config, "r2ai.http.max_backoff");
-		if (max_backoff <= 0) {
-			max_backoff = 30; // Use default if invalid
-		}
+	int max_backoff = r_config_get_i (core->config, "r2ai.http.max_backoff");
+	if (max_backoff <= 0) {
+		max_backoff = 30; // Use default if invalid
 	}
 
 	// Install signal handler for interruption
@@ -336,16 +328,18 @@ static char *system_curl_post_file(const char *url, const char *headers[], const
 			break;
 		}
 
-		// Write data to the temporary file
-		if (!r_file_dump (temp_file, (const ut8*)data, strlen(data), 0)) {
-			R_LOG_ERROR ("Failed to write data to temporary file");
-			free (temp_file);
-			if (retry_count < max_retries) {
-				retry_count++;
-				r2ai_sleep_with_backoff (retry_count, max_backoff);
-				continue;
+		if (use_files) {
+			// Write data to the temporary file
+			if (!r_file_dump (temp_file, (const ut8*)data, strlen(data), 0)) {
+				R_LOG_ERROR ("Failed to write data to temporary file");
+				free (temp_file);
+				if (retry_count < max_retries) {
+					retry_count++;
+					r2ai_sleep_with_backoff (retry_count, max_backoff);
+					continue;
+				}
+				break;
 			}
-			break;
 		}
 
 		// Compose curl command
@@ -359,8 +353,17 @@ static char *system_curl_post_file(const char *url, const char *headers[], const
 			r_strbuf_appendf (cmd, " -H \"%s\"", headers[i]);
 		}
 
-		// Add data file with @ prefix for curl
-		r_strbuf_appendf (cmd, " -X POST -d @%s \"%s\"", temp_file, url);
+		if (use_files) {
+			// Add data file with @ prefix for curl
+			r_strbuf_appendf (cmd, " -X POST -d @%s \"%s\"", temp_file, url);
+		} else {
+			char *s = strdup (data);
+			s = r_str_replace_all (s, "\\", "\\\\");
+			// s = r_str_replace_all (s, "'", "\\'");
+			s = r_str_replace_all (s, "'", "'\\''");
+			r_strbuf_appendf (cmd, " -X POST -d '%s' \"%s\"", s, url);
+			free (s);
+		}
 		
 		// Execute the curl command
 		char *cmd_str = r_strbuf_drain (cmd);
@@ -916,8 +919,7 @@ static char *socket_http_get_with_interrupt(const char *url, const char *headers
 	return result;
 }
 
-R_API char *r2ai_http_post(const char *url, const char *headers[], const char *data, int *code, int *rlen) {
-	RCore *core = r_cons_singleton ()->user;
+R_API char *r2ai_http_post(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
 	const char *backend = "auto";
 	bool use_files = false;
 	
@@ -929,7 +931,7 @@ R_API char *r2ai_http_post(const char *url, const char *headers[], const char *d
 	// Choose implementation based on backend config
 	if (!strcmp (backend, "system")) {
 		// Always use system curl with files for POST requests
-		return system_curl_post_file (url, headers, data, code, rlen);
+		return system_curl_post_file (core, url, headers, data, code, rlen, use_files);
 	} else if (!strcmp (backend, "libcurl")) {
 #if USE_LIBCURL && HAVE_LIBCURL
 		return curl_http_post (url, headers, data, code, rlen);
@@ -943,7 +945,7 @@ R_API char *r2ai_http_post(const char *url, const char *headers[], const char *d
 		// Auto-select best available implementation
 		if (use_files) {
 			// If use_files is true, always use system curl
-			return system_curl_post_file (url, headers, data, code, rlen);
+			return system_curl_post_file (core, url, headers, data, code, rlen, use_files);
 		} else {
 #if USE_LIBCURL && HAVE_LIBCURL
 			return curl_http_post (url, headers, data, code, rlen);
