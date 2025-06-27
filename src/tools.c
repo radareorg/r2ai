@@ -310,15 +310,14 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 			r_cons_readpush ("\x05", 1); // Ctrl+E - move to end
 			const char *readline_result = r_line_readline ();
 #endif
-
 			// Check if interrupted or ESC pressed (readline_result is NULL or empty)
-			if (r_cons_is_breaked (core->cons) || !readline_result || !*readline_result) {
+			if (R2_INTERRUPTED () || R_STR_ISEMPTY (readline_result)) {
 				R_LOG_INFO ("Command execution cancelled %s", readline_result);
 				return strdup ("R2AI_SIGINT");
 			}
 
 			// Process the result
-			if (readline_result && *readline_result) {
+			if (R_STR_ISNOTEMPTY (readline_result)) {
 				*edited_command = strdup (readline_result);
 				command = *edited_command;
 			} else {
@@ -334,7 +333,7 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 	
 	if (!hide_tool_output) {
 		char *red_command = r_str_newf ("\x1b[31m%s\x1b[0m\n", *edited_command);
-		R2_PRINTF (red_command);
+		R2_PRINTF ("%s", red_command);
 		R2_FLUSH ();
 		free (red_command);
 	}
@@ -408,7 +407,7 @@ R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output) {
 #endif
 
 			// Check if interrupted or ESC pressed (readline_result is NULL or empty)
-			if (r_cons_is_breaked (core->cons) || !readline_result || !*readline_result) {
+			if (R2_INTERRUPTED () || R_STR_ISEMPTY (readline_result)) {
 				free (edited_script); // Free if already allocated
 				return strdup ("R2AI_SIGINT");
 			}
@@ -444,7 +443,11 @@ R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output) {
 		return strdup ("{ \"res\":\"Failed to create script payload\" }");
 	}
 
-	char *payload_base64 = r_base64_encode_dyn ((const ut8 *)payload, strlen (payload));
+#if R2_VERSION_NUMBER >= 50909
+	char *payload_base64 = r_base64_encode_dyn ((const ut8*)payload, strlen (payload));
+#else
+	char *payload_base64 = r_base64_encode_dyn ((const char*)payload, strlen (payload));
+#endif
 	if (!payload_base64) {
 		free (payload);
 		return strdup ("{ \"res\":\"Failed to encode script\" }");
