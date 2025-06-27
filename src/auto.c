@@ -216,7 +216,63 @@ R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *sy
 			} else {
 				char *edited_command = NULL;
 				cmd_output = execute_tool (core, tool_name, tool_args, &edited_command);
-				// TODO: need to edit the R2AI_Messages* and modify the command of the last tool_use
+				
+				// Update the message context with the edited command if it was modified
+				if (edited_command && tool_name) {
+					RJson *args_json = r_json_parse(tool_args);
+					if (args_json) {
+						PJ *pj = pj_new();
+						if (pj) {
+							pj_o(pj);
+							
+							if (strcmp(tool_name, "r2cmd") == 0) {
+								// Handle r2cmd tool
+								const RJson *cmd_json = r_json_get(args_json, "command");
+								if (cmd_json && cmd_json->type == R_JSON_STRING && cmd_json->str_value) {
+									// Compare original command with edited command
+									if (strcmp(cmd_json->str_value, edited_command) != 0) {
+										pj_ks(pj, "command", edited_command);
+									} else {
+										// No change, don't update
+										pj_free(pj);
+										r_json_free(args_json);
+										goto no_update_needed;
+									}
+								}
+							} else if (strcmp(tool_name, "execute_js") == 0) {
+								// Handle JavaScript tool
+								const RJson *script_json = r_json_get(args_json, "script");
+								if (script_json && script_json->type == R_JSON_STRING && script_json->str_value) {
+									// Compare original script with edited script
+									if (strcmp(script_json->str_value, edited_command) != 0) {
+										pj_ks(pj, "script", edited_command);
+									} else {
+										// No change, don't update
+										pj_free(pj);
+										r_json_free(args_json);
+										goto no_update_needed;
+									}
+								}
+							} else {
+								// Unknown tool, don't update
+								pj_free(pj);
+								r_json_free(args_json);
+								goto no_update_needed;
+							}
+							
+							pj_end(pj);
+							char *new_args = pj_drain(pj);
+							if (new_args) {
+								r2ai_msgs_update_tool_call_args(messages, -1, new_args);
+								free(new_args);
+							}
+						}
+						r_json_free(args_json);
+					}
+				}
+				
+				no_update_needed:
+				
 				free(edited_command);
 			}
 

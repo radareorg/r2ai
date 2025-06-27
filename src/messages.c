@@ -257,6 +257,51 @@ R_API bool r2ai_msgs_add_tool_call(R2AI_Messages *msgs, const R2AI_ToolCall *tc)
 	return true;
 }
 
+/**
+ * Updates the arguments of the last tool call in an assistant message
+ * This function is used to update the context with the edited command
+ * actually executed by the user when they modify the command interactively.
+ * 
+ * @param msgs The messages array
+ * @param tool_index The index of the tool to update within the last assistant message (-1 for last tool)
+ * @param edited_arguments The new arguments string
+ * @return true on success, false on failure
+ */
+R_API bool r2ai_msgs_update_tool_call_args(R2AI_Messages *msgs, int tool_index, const char *edited_arguments) {
+	if (!msgs || !edited_arguments || msgs->n_messages == 0) {
+		return false;
+	}
+
+	// Find the latest assistant message with tool calls
+	int msg_index = -1;
+	for (int i = msgs->n_messages - 1; i >= 0; i--) {
+		if (!strcmp(msgs->messages[i].role, "assistant") && 
+			msgs->messages[i].tool_calls && 
+			msgs->messages[i].n_tool_calls > 0) {
+			msg_index = i;
+			break;
+		}
+	}
+
+	if (msg_index == -1) {
+		return false; // No assistant message with tool calls found
+	}
+
+	R2AI_Message *msg = &msgs->messages[msg_index];
+	int tc_index = (tool_index >= 0 && tool_index < msg->n_tool_calls) ? 
+		tool_index : (msg->n_tool_calls - 1);
+
+	// Replace the arguments string with the edited version
+	R2AI_ToolCall *tc = (R2AI_ToolCall *)&msg->tool_calls[tc_index];
+	char *old_args = (char *)tc->arguments;
+	tc->arguments = strdup(edited_arguments);
+	
+	// Free old arguments
+	free(old_args);
+	
+	return true;
+}
+
 R_API bool r2ai_msgs_from_response(R2AI_Messages *msgs, const char *json_str) {
 	if (!msgs || !json_str) {
 		return false;

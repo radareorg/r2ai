@@ -131,6 +131,18 @@ R_API bool r2ai_msgs_add(R2AI_Messages *msgs, const R2AI_Message *msg);
 R_API bool r2ai_msgs_add_tool_call(R2AI_Messages *msgs, const R2AI_ToolCall *tc);
 
 /**
+ * Updates the arguments of the last tool call in an assistant message
+ * This function is used to update the context with the edited command
+ * actually executed by the user when they modify the command interactively.
+ * 
+ * @param msgs The messages array
+ * @param tool_index The index of the tool to update within the last assistant message (-1 for last tool)
+ * @param edited_arguments The new arguments string
+ * @return true on success, false on failure
+ */
+R_API bool r2ai_msgs_update_tool_call_args(R2AI_Messages *msgs, int tool_index, const char *edited_arguments);
+
+/**
  * Parse a JSON response string and add the messages to the array
  * Returns true on success, false on failure
  */
