@@ -129,6 +129,14 @@ R_API bool r2ai_msgs_add(R2AI_Messages *msgs, const R2AI_Message *msg);
  * All strings are duplicated, so caller can free their copies
  */
 R_API bool r2ai_msgs_add_tool_call(R2AI_Messages *msgs, const R2AI_ToolCall *tc);
+/**
+ * Update the arguments JSON string for a specific tool call in the last assistant message.
+ * @param msgs Messages container
+ * @param tool_call_id ID of the tool call to update
+ * @param new_arguments_json JSON string of new arguments (caller retains ownership)
+ * @return true if the tool call was found and updated, false otherwise
+ */
+R_API bool r2ai_msgs_update_tool_call(R2AI_Messages *msgs, const char *tool_call_id, const char *new_arguments_json);
 
 /**
  * Parse a JSON response string and add the messages to the array
