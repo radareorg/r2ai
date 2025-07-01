@@ -126,17 +126,15 @@ R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *sy
 	}
 
 	if (!system_prompt) {
-		if (R_STR_ISNOTEMPTY (r_config_get (core->config, "r2ai.auto.init_commands"))) {
-			const char *init_commands = r_config_get (core->config, "r2ai.auto.init_commands");
-			if (init_commands) {
-				char *edited_command = NULL;
-				char *cmd_output = execute_tool (core, "r2cmd", r_str_newf ("{\"command\":\"%s\"}", init_commands), &edited_command);
-				if (cmd_output) {
-					system_prompt = r_str_newf ("%s\n\nHere is some information about the binary to get you started:\n>%s\n%s", Gprompt_auto, edited_command, cmd_output);
-					free (cmd_output);
-				}
-				free (edited_command);
+		const char *init_commands = r_config_get (core->config, "r2ai.auto.init_commands");
+		if (R_STR_ISNOTEMPTY (init_commands)) {
+			char *edited_command = NULL;
+			char *cmd_output = execute_tool (core, "r2cmd", r_str_newf ("{\"command\":\"%s\"}", init_commands), &edited_command);
+			if (cmd_output) {
+				system_prompt = r_str_newf ("%s\n\nHere is some information about the binary to get you started:\n>%s\n%s", Gprompt_auto, edited_command, cmd_output);
+				free (cmd_output);
 			}
+			free (edited_command);
 		} else {
 			system_prompt = Gprompt_auto;
 		}
@@ -217,7 +215,7 @@ R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *sy
 				char *edited_command = NULL;
 				cmd_output = execute_tool (core, tool_name, tool_args, &edited_command);
 				// TODO: need to edit the R2AI_Messages* and modify the command of the last tool_use
-				free(edited_command);
+				free (edited_command);
 			}
 
 			free (tool_name);

@@ -63,10 +63,6 @@ R_API R2AI_Tools *r2ai_tools_parse(const char *tools_json) {
 	}
 
 	R2AI_Tools *tools = R_NEW0 (R2AI_Tools);
-	if (!tools) {
-		r_json_free (json);
-		return NULL;
-	}
 
 	int n_tools = json->children.count;
 	tools->tools = R_NEWS0 (R2AI_Tool, n_tools);
@@ -515,7 +511,7 @@ R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, c
 	char *result = NULL;
 
 	// Check for empty or invalid response that could cause a crash
-	if (!tool_result || !*tool_result) {
+	if (R_STR_ISEMPTY (tool_result)) {
 		free (tool_result);
 		return strdup ("{ \"res\":\"Error: Empty or invalid response from QJS execution\" }");
 	}
@@ -528,9 +524,8 @@ R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, c
 		return result;
 	}
 
-	RJson *json = NULL;
 	// Try to parse the JSON safely
-	json = r_json_parse (tool_result);
+	RJson *json = r_json_parse (tool_result);
 
 	if (!json) {
 		// JSON parsing failed, return original content
