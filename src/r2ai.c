@@ -951,9 +951,14 @@ static bool cb_r2ai_model(void *user, void *data) {
 	return true;
 }
 
+#if R2_VERSION_NUMBER >= 50909
+static bool r2ai_init(RCorePluginSession *cps) {
+	RCore *core = cps->core;
+#else
 static int r2ai_init(void *user, const char *input) {
 	RCmd *cmd = (RCmd *)user;
 	RCore *core = cmd->data;
+#endif
 
 	// Initialize conversation container
 	r2ai_conversation_init ();
@@ -1003,9 +1008,14 @@ static int r2ai_init(void *user, const char *input) {
 	return true;
 }
 
+#if R2_VERSION_NUMBER >= 50909
+static bool r2ai_fini(RCorePluginSession *cps) {
+	RCore *core = cps->core;
+#else
 static int r2ai_fini(void *user, const char *input) {
 	RCmd *cmd = (RCmd *)user;
 	RCore *core = cmd->data;
+#endif
 	r_config_lock (core->config, false);
 	r_config_rm (core->config, "r2ai.api");
 	r_config_rm (core->config, "r2ai.cmds");
@@ -1038,8 +1048,13 @@ static int r2ai_fini(void *user, const char *input) {
 	return true;
 }
 
+#if R2_VERSION_NUMBER >= 50909
+static bool r_cmd_r2ai_client(RCorePluginSession *cps, const char *input) {
+	RCore *core = cps->core;
+#else
 static int r_cmd_r2ai_client(void *user, const char *input) {
 	RCore *core = (RCore *)user;
+#endif
 	if (r_str_startswith (input, "r2ai")) {
 		cmd_r2ai (core, r_str_trim_head_ro (input + 4));
 		return true;
