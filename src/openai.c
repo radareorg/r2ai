@@ -89,7 +89,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 		model_compat_db = ht_pp_new0 ();
 	}
 
-	const char *base_url = r2ai_get_base_url (core, args.provider);
+	const char *base_url = r2ai_get_provider_url (core, args.provider);
 	// TODO: default model name should depend on api
 	const char *model_name = args.model ? args.model : "gpt-4o-mini";
 	char **error = args.error;

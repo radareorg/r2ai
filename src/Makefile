@@ -34,9 +34,12 @@ OBJS+=anthropic.o
 OBJS+=r2ai_http.o
 OBJS+=openai.o
 OBJS+=markdown.o
+# DOTEXE=.exe
+DOTEXE=
 
 all: $(OBJS) r2check
 	$(CC) -fPIC -shared -o r2ai.$(EXT) $(OBJS) $(CFLAGS) $(LDFLAGS)
+	$(CC) -pie -o r2ai$(DOTEXE) $(OBJS) $(CFLAGS) $(LDFLAGS) -lm main.c
 
 try: all
 	$(MAKE) user-install
