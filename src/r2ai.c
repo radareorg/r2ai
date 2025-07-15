@@ -784,7 +784,14 @@ R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider) {
 	} else if (strcmp (provider, "gemini") == 0) {
 		return "https://generativelanguage.googleapis.com/v1beta/openai";
 	} else if (strcmp (provider, "ollama") == 0) {
-		return "http://localhost:11434/v1";
+		if (R_STR_ISNOTEMPTY (host)) {
+			int port = r_config_get_i (core->config, "r2ai.port");
+			if (r_str_startswith (host, "http")) {
+				return r_str_newf("%s:%d/api", host, port);
+			}
+			return r_str_newf ("http://%s:%d/api", host, port);
+		}
+		return "http://localhost:11434/api";
 	} else if (strcmp (provider, "xai") == 0) {
 		return "https://api.x.ai/v1";
 	} else if (strcmp (provider, "anthropic") == 0) {
@@ -809,7 +816,13 @@ static RList *fetch_available_models(RCore *core, const char *provider) {
 	}
 
 	// Create models endpoint URL
-	char *models_url = r_str_newf ("%s/models", purl);
+	char *models_url = NULL;
+	if (strcmp (provider, "ollama") !=0 ) {
+		models_url = r_str_newf ("%s/models", purl);
+	} else {
+
+		models_url = r_str_newf ("%s/tags", purl);
+	}
 	if (!models_url) {
 		return NULL;
 	}
@@ -839,12 +852,13 @@ static RList *fetch_available_models(RCore *core, const char *provider) {
 		free (api_key_env_copy);
 	}
 
-	// Setup headers based on provider
-	const char *headers[4] = { "Content-Type: application/json", NULL, NULL, NULL };
-	char *auth_header = NULL;
-	char *version_header = NULL;
-
+	int code = 0;
+	char *response = NULL;
 	if (api_key) {
+		const char *headers[4] = { "Content-Type: application/json", NULL, NULL, NULL };
+		char *auth_header = NULL;
+		char *version_header = NULL;
+
 		if (strcmp (provider, "anthropic") == 0) {
 			// Anthropic uses different header format
 			auth_header = r_str_newf ("x-api-key: %s", api_key);
@@ -856,16 +870,21 @@ static RList *fetch_available_models(RCore *core, const char *provider) {
 			auth_header = r_str_newf ("Authorization: Bearer %s", api_key);
 			headers[1] = auth_header;
 		}
+
+		// Make HTTP GET request
+		R_LOG_DEBUG ("GET %s Headers: %s", models_url, headers);
+		response = r2ai_http_get (models_url, headers, &code, NULL);
+		free (auth_header);
+		free (version_header);
+		free (api_key);
+	} else {
+		// We have no headers 
+		R_LOG_DEBUG ("GET %s", models_url);
+		response = r2ai_http_get (models_url, NULL, &code, NULL);
 	}
 
-	// Make HTTP GET request
-	int code = 0;
-	char *response = r2ai_http_get (models_url, headers, &code, NULL);
-
 	free (models_url);
-	free (auth_header);
-	free (version_header);
-	free (api_key);
+	
 
 	if (!response || code != 200) {
 		R_LOG_DEBUG ("Failed to fetch models from %s (code: %d)", provider, code);
@@ -882,12 +901,24 @@ static RList *fetch_available_models(RCore *core, const char *provider) {
 
 	RJson *json = r_json_parse (response);
 	if (json) {
-		const RJson *data = r_json_get (json, "data");
+		const RJson *data;
+		if (strcmp ( provider, "ollama") !=0 ) {
+			data = r_json_get (json, "data");
+		} else {
+			data = r_json_get (json, "models");
+		}
+
 		if (data && data->type == R_JSON_ARRAY) {
 			const RJson *model_item = data->children.first;
 			while (model_item) {
-				const RJson *id = r_json_get (model_item, "id");
+				const RJson *id;
+				if (strcmp ( provider, "ollama") !=0 ) {
+					id = r_json_get (model_item, "id");
+				} else {
+					id = r_json_get (model_item, "model");
+				}
 				if (id && id->type == R_JSON_STRING && R_STR_ISNOTEMPTY (id->str_value)) {
+					R_LOG_DEBUG ( "Model: %s", id->str_value);
 					r_list_append (models, strdup (id->str_value));
 				}
 				model_item = model_item->next;
@@ -972,6 +1003,7 @@ static int r2ai_init(void *user, const char *input) {
 	r_config_set_cb (core->config, "r2ai.api", "openai", &cb_r2ai_api);
 	r_config_set_cb (core->config, "r2ai.model", "gpt-4o-mini", &cb_r2ai_model);
 	r_config_set (core->config, "r2ai.baseurl", "");
+	r_config_set_i (core->config, "r2ai.port", 11434);
 	r_config_set_i (core->config, "r2ai.max_tokens", 4096); // max output tokens, or max total tokens
 	r_config_set_i (core->config, "r2ai.thinking_tokens", 0);
 	r_config_set (core->config, "r2ai.temperature", "0.01");
