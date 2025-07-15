@@ -214,7 +214,16 @@ R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *sy
 			} else {
 				char *edited_command = NULL;
 				cmd_output = execute_tool (core, tool_name, tool_args, &edited_command);
-				// TODO: need to edit the R2AI_Messages* and modify the command of the last tool_use
+				// Update the stored tool call arguments to reflect any user-edited command
+				if (edited_command) {
+					R2AI_Message *last_msg = &messages->messages[messages->n_messages - 1];
+					if (last_msg->tool_calls && last_msg->n_tool_calls > i) {
+						// Cast away const to update stored arguments
+						R2AI_ToolCall *tc_array = (R2AI_ToolCall *)last_msg->tool_calls;
+						free ((void *)tc_array[i].arguments);
+						tc_array[i].arguments = strdup (edited_command);
+					}
+				}
 				free (edited_command);
 			}
 
