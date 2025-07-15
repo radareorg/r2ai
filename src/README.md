@@ -55,6 +55,29 @@ Usage: r2ai   [-args] [...]
 [0x100003f58]> 
 ```
 
+## Configuration
+
+These can be set with `r2ai -e <keyname>=<value>`
+
+| Setting name     | Description                                                                                    |
+|------------------|------------------------------------------------------------------------------------------------|
+| r2ai.api         | Name of the provider e.g `openai`. List possibilities with `r2ai -e r2ai.api=?`                |
+| r2ai.model       | Model name. List possibilities with `r2ai -e r2ai.model=?`                                     |
+| r2ai.host        | Remote host. Useful to specify a remote Ollama server for example.                             |
+| r2ai.port        | Port for the remote host. Default is 11434.                                                    |
+| r2ai.max_tokens  | Maximum output tokens or maximum total tokens. Check the appropriate limits for your model     |
+| r2ai.temperature | How creative the model should be. 0=not creative, 1=very creative                              |
+| r2ai.cmds        | R2 command to issue and send output in context to model                                        |
+| r2ai.lang        | Tells LLM which programming language to use for decompilation result. Only works for `r2ai -d` |
+| r2ai.hlang       | Tells LLM in which language to speak                                                           |
+| r2ai.prompt      | User prompt to send to LLM with `r2ai -d` |
+| r2ai.auto.max_runs | Maximum loops when using auto mode `r2ai -a` |
+| r2ai.auto.hide_tool_output | Only for auto mode `r2ai -a`. Will not show the output of the tool which ran locally |
+| r2ai.auto.yolo | Set this to true if you don't want r2ai to ask you for approval before running commands sent by the LLM. This is **dangerous**. Recommendation: **leave this to false** unless you fully trust your LLM not to create havoc! |
+| r2ai.http.use_files | If you get CURL argument too long error, set this to true and arguments will be stored in a file.|
+
+
+
 ## Example
 
 - Get the [substitute example binary](https://github.com/radareorg/r2ai/tree/master/examples)
