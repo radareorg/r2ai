@@ -776,11 +776,15 @@ R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider) {
 		return "https://generativelanguage.googleapis.com/v1beta/openai";
 	} else if (strcmp (provider, "ollama") == 0) {
 		if (R_STR_ISNOTEMPTY (host)) {
-			int port = r_config_get_i (core->config, "r2ai.port");
-			if (r_str_startswith (host, "http")) {
-				return r_str_newf("%s:%d/api", host, port);
+			if (strchr (host, ':')) {
+				return r_str_newf ("%s/api", host);
+			} else {
+				int port = r_config_get_i (core->config, "r2ai.port");
+				if (r_str_startswith (host, "http")) {
+					return r_str_newf("%s:%d/api", host, port);
+				}
+				return r_str_newf ("http://%s:%d/api", host, port);
 			}
-			return r_str_newf ("http://%s:%d/api", host, port);
 		}
 		return "http://localhost:11434/api";
 	} else if (strcmp (provider, "xai") == 0) {
