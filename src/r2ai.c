@@ -1073,7 +1073,7 @@ RCorePlugin r_core_plugin_r2ai_client = {
 		.name = "r2ai",
 		.desc = "r2ai plugin in plain C",
 		.author = "pancake",
-		.version = "0.9.8",
+		.version = "1.0.0",
 		.license = "MIT",
 	},
 	.init = r2ai_init,
