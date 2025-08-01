@@ -20,6 +20,7 @@ These are the most recommended models for decompiling in local:
 * hhao/qwen2.5-coder-tools:32b (24GB of ram required)
 
 ## Common Options
+* 'decai -e baseurl=<url>' override default host and port for API endpoint (e.g., 'http://localhost:11434')
 
 * 'decai -e deterministic=true' to remove randomness from decompilation responses
 * 'decai -e lang=Python' to output the decompilation in Python instead of C
@@ -147,6 +148,8 @@ Use radare2 to resolve user requests.
   const command = "decai";
   let decaiHost = "http://localhost";
   let decaiPort = "11434";
+  // base URL overrides host and port when provided (e.g. "http://example.com:8000")
+  let decaiBaseurl = "";
   let decaiApi = "ollama"; // uses /cmd endpoint
   let decaiPipeline = "";
   let decaiCommands = "pdc";
@@ -443,17 +446,9 @@ Use radare2 to resolve user requests.
         decaiContextFile = v;
       },
     },
-    "host": {
-      get: () => decaiHost,
-      set: (v) => {
-        decaiHost = v;
-      },
-    },
-    "port": {
-      get: () => decaiPort,
-      set: (v) => {
-        decaiPort = v;
-      },
+    "baseurl": {
+      get: () => decaiBaseurl,
+      set: (v) => { decaiBaseurl = v; },
     },
     "maxtokens": {
       get: () => maxInputTokens,
@@ -682,7 +677,7 @@ Use radare2 to resolve user requests.
       object.presence_penalty = 0;
     }
     const payload = JSON.stringify(object);
-    const url = "https://api.openai.com/v1/chat/completions";
+    const url = (decaiBaseurl? decaiBaseurl: "https://api.openai.com/v1") + "/chat/completions";
     const headers = ["Authorization: Bearer " + openaiKey];
     const res = curlPost(url, headers, payload);
     try {
@@ -762,7 +757,8 @@ Use radare2 to resolve user requests.
     }
     const payload = JSON.stringify(object);
     debug.log(payload);
-    const url = decaiHost + ":" + decaiPort + "/api/chat";
+    const base = decaiBaseurl || (decaiHost + ":" + decaiPort);
+    const url = base + "/api/chat";
     const res = curlPost(url, [], payload);
     try {
       return filterResponse(res.message.content);
@@ -777,7 +773,8 @@ Use radare2 to resolve user requests.
   function r2aiOpenAPI(msg, hideprompt) {
     const query = buildQuery(msg, hideprompt);
     const payload = JSON.stringify({ "prompt": query });
-    const url = `${decaiHost}:${decaiPort}/api/generate`;
+    const base = decaiBaseurl || (decaiHost + ":" + decaiPort);
+    const url = `${base}/api/generate`;
     const res = curlPost(url, [], payload);
     try {
       return res.content;
@@ -788,7 +785,8 @@ Use radare2 to resolve user requests.
     return "error invalid response";
   }
   function openApiListModels(msg, hideprompt) {
-    const curlcmd = `curl -s ${decaiHost}:${decaiPort}/api/tags`;
+    const base = decaiBaseurl || (decaiHost + ":" + decaiPort);
+    const curlcmd = `curl -s ${base}/api/tags`;
     const res = r2.syscmds(curlcmd);
     try {
       const models = JSON.parse(res).models;
@@ -832,9 +830,8 @@ Use radare2 to resolve user requests.
       "prompt": query,
       "model": "lmsys/vicuna-7b-v1.3",
     });
-    const curlcmd = `curl -s ${decaiHost}:8000/v1/completions
-          -H "Content-Type: application/json"
-          -d '${payload}' #`.replace(/\n/g, "");
+    const base = decaiBaseurl || (decaiHost + ":8000");
+    const curlcmd = `curl -s ${base}/v1/completions -H "Content-Type: application/json" -d '${payload}'`;
     debug.log(curlcmd);
     const res = r2.syscmds(curlcmd);
     try {
@@ -851,9 +848,8 @@ Use radare2 to resolve user requests.
       "prompt": query,
       "model": "qwen2.5_Coder_1.5B_4bit",
     });
-    const curlcmd = `curl -s ${decaiHost}:${decaiPort}/api/generate
-          -H "Content-Type: application/json"
-          -d '${payload}' #`.replace(/\n/g, "");
+    const base = decaiBaseurl || (decaiHost + ":" + decaiPort);
+    const curlcmd = `curl -s ${base}/api/generate -H "Content-Type: application/json" -d '${payload}'`;
     debug.log(curlcmd);
     const res = r2.syscmds(curlcmd);
     try {
@@ -1190,7 +1186,7 @@ Use radare2 to resolve user requests.
       const q = queryText.startsWith("-")
         ? queryText
         : ["-i", fileName, queryText].join(" ");
-      const host = decaiHost + ":" + decaiPort + "/cmd"; // "http://localhost:8080/cmd";
+      const host = decaiBaseurl ? decaiBaseurl + "/cmd" : decaiHost + ":" + decaiPort + "/cmd";
       const ss = q.replace(/ /g, "%20").replace(/'/g, "\\'");
       const cmd = 'curl -s "' + host + "/" + ss +
         '" || echo "Cannot curl, use r2ai-server or r2ai -w"';
