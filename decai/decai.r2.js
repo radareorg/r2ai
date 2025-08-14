@@ -300,9 +300,11 @@ Use radare2 to resolve user requests.
         console.log("meta-llama/llama-4-scout-17b-16e-instruct");
         break;
       case "openai":
-        console.log("o1");
-        console.log("o1-mini");
-        console.log("o3");
+        console.log("gpt-5");
+        console.log("gpt-5-mini");
+        console.log("gpt-5-nano");
+        console.log("gpt-4o");
+        console.log("gpt-4o-mini");
         console.log("gpt-4.1");
         console.log("gpt-4.1-nano");
         console.log("gpt-4.1-mini");
@@ -310,6 +312,9 @@ Use radare2 to resolve user requests.
         console.log("gpt-4o");
         console.log("gpt-4o-mini");
         console.log("gpt-4.5-preview");
+        console.log("o1");
+        console.log("o1-mini");
+        console.log("o3");
         break;
       case "gemini":
         console.log("gemini-2.0-flash");
@@ -659,7 +664,7 @@ Use radare2 to resolve user requests.
     if (openaiKey === "") {
       return "Cannot read ~/.r2ai.openai-key";
     }
-    const openaiModel = (decaiModel.length > 0) ? decaiModel : "gpt-4-turbo"; // "o4-mini"; // o-2024-11-20";
+    const openaiModel = (decaiModel.length > 0) ? decaiModel : "gpt-5-nano";
     const query = buildQuery(msg, hideprompt);
     const object = {
       model: openaiModel,
@@ -669,10 +674,15 @@ Use radare2 to resolve user requests.
       ],
     };
     if (decaiDeterministic) {
+      // openai no longer supports temperature or top_p.
+      // in the gpt-5 models it's only available for the -chat-latest which is very expensive
+      // o4 and o1 had the same limitations
+    /*
       if (!openaiModel.startsWith("o4") && !openaiModel.startsWith("o1")) {
         object.temperature = 0;
         object.top_p = 0;
       }
+      */
       object.frequency_penalty = 0;
       object.presence_penalty = 0;
     }
