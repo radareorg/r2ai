@@ -767,33 +767,17 @@ static void cmd_r2ai(RCore *core, const char *input) {
 }
 
 R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider) {
-	const char *host = r_config_get (core->config, "r2ai.baseurl");
-
-	if (R_STR_ISNOTEMPTY (host)) {
-		if (r_str_startswith (host, "http")) {
-			return strdup (host);
-		}
-		if (strstr (host, "/v")) {
-			return r_str_newf ("http://%s", host);
-		}
-		return r_str_newf ("http://%s/v1", host);
-	}
-
 	if (strcmp (provider, "openai") == 0) {
 		return "https://api.openai.com/v1";
 	} else if (strcmp (provider, "gemini") == 0) {
 		return "https://generativelanguage.googleapis.com/v1beta/openai";
 	} else if (strcmp (provider, "ollama") == 0) {
+		const char *host = r_config_get (core->config, "r2ai.baseurl");
 		if (R_STR_ISNOTEMPTY (host)) {
-			if (strchr (host, ':')) {
+			if (r_str_startswith (host, "http")) {
 				return r_str_newf ("%s/api", host);
-			} else {
-				int port = r_config_get_i (core->config, "r2ai.port");
-				if (r_str_startswith (host, "http")) {
-					return r_str_newf ("%s:%d/api", host, port);
-				}
-				return r_str_newf ("http://%s:%d/api", host, port);
 			}
+			return r_str_newf ("http://%s/api", host);
 		}
 		return "http://localhost:11434/api";
 	} else if (strcmp (provider, "xai") == 0) {
@@ -1006,7 +990,6 @@ static int r2ai_init(void *user, const char *input) {
 	r_config_set_cb (core->config, "r2ai.api", "openai", &cb_r2ai_api);
 	r_config_set_cb (core->config, "r2ai.model", "gpt-4o-mini", &cb_r2ai_model);
 	r_config_set (core->config, "r2ai.baseurl", "");
-	r_config_set_i (core->config, "r2ai.port", 11434);
 	r_config_set_i (core->config, "r2ai.max_tokens", 4096); // max output tokens, or max total tokens
 	r_config_set_i (core->config, "r2ai.thinking_tokens", 0);
 	r_config_set (core->config, "r2ai.temperature", "0.01");
