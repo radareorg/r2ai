@@ -63,8 +63,7 @@ These can be set with `r2ai -e <keyname>=<value>`
 |------------------|------------------------------------------------------------------------------------------------|
 | r2ai.api         | Name of the provider e.g `openai`. List possibilities with `r2ai -e r2ai.api=?`                |
 | r2ai.model       | Model name. List possibilities with `r2ai -e r2ai.model=?`                                     |
-| r2ai.host        | Remote host. Useful to specify a remote Ollama server for example.                             |
-| r2ai.port        | Port for the remote host. Default is 11434.                                                    |
+| r2ai.baseurl     | Remote LLM HTTP server e.g http://127.0.0.1:11434. |
 | r2ai.max_tokens  | Maximum output tokens or maximum total tokens. Check the appropriate limits for your model     |
 | r2ai.temperature | How creative the model should be. 0=not creative, 1=very creative                              |
 | r2ai.cmds        | R2 command to issue and send output in context to model                                        |
