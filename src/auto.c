@@ -29,9 +29,9 @@ static char *format_time_duration(time_t seconds) {
 		return r_str_newf ("%lldm%llds", (long long)(seconds / 60), (long long)(seconds % 60));
 	}
 	return r_str_newf ("%lldh%lldm%llds",
-			(long long)(seconds / 3600),
-			(long long)((seconds % 3600) / 60),
-			(long long)(seconds % 60));
+		(long long)(seconds / 3600),
+		(long long)((seconds % 3600) / 60),
+		(long long)(seconds % 60));
 }
 
 // Initialize timing and cost tracking for a run
@@ -64,7 +64,7 @@ static void r2ai_print_run_end(RCore *core, const R2AI_Usage *usage, int n_run, 
 		stats.total_prompt_tokens += usage->prompt_tokens;
 		stats.total_completion_tokens += usage->completion_tokens;
 	}
-	
+
 	if (r_config_get_b (core->config, "r2ai.chat.show_cost") == true) {
 		// TODO: calculate cost
 		stats.run_cost = 0.0 * run_time;
@@ -188,7 +188,7 @@ R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *sy
 
 	// Check for tool calls and process them
 	if (message->tool_calls && message->n_tool_calls > 0) {
-		R_LOG_DEBUG ("Found %d tool call(s)", message->n_tool_calls);
+		R_LOG_DEBUG ("Found %d tool call (s)", message->n_tool_calls);
 
 		// Process each tool call
 		for (int i = 0; i < message->n_tool_calls; i++) {

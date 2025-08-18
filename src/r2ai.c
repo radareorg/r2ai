@@ -326,7 +326,7 @@ static void cmd_r2ai_d(RCore *core, const char *input, const bool recursive) {
 	const char *lang = r_config_get (core->config, "r2ai.lang");
 	char *full_prompt;
 	if (!R_STR_ISEMPTY (input)) {
-		R_LOG_DEBUG("User question: %s", input);
+		R_LOG_DEBUG ("User question: %s", input);
 		full_prompt = strdup (input);
 	} else {
 		if (!R_STR_ISEMPTY (lang)) {
@@ -790,7 +790,7 @@ R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider) {
 			} else {
 				int port = r_config_get_i (core->config, "r2ai.port");
 				if (r_str_startswith (host, "http")) {
-					return r_str_newf("%s:%d/api", host, port);
+					return r_str_newf ("%s:%d/api", host, port);
 				}
 				return r_str_newf ("http://%s:%d/api", host, port);
 			}
@@ -821,7 +821,7 @@ static RList *fetch_available_models(RCore *core, const char *provider) {
 
 	// Create models endpoint URL
 	char *models_url = NULL;
-	if (strcmp (provider, "ollama") !=0 ) {
+	if (strcmp (provider, "ollama") != 0) {
 		models_url = r_str_newf ("%s/models", purl);
 	} else {
 
@@ -882,13 +882,12 @@ static RList *fetch_available_models(RCore *core, const char *provider) {
 		free (version_header);
 		free (api_key);
 	} else {
-		// We have no headers 
+		// We have no headers
 		R_LOG_DEBUG ("GET %s", models_url);
 		response = r2ai_http_get (models_url, NULL, &code, NULL);
 	}
 
 	free (models_url);
-	
 
 	if (!response || code != 200) {
 		R_LOG_DEBUG ("Failed to fetch models from %s (code: %d)", provider, code);
@@ -906,7 +905,7 @@ static RList *fetch_available_models(RCore *core, const char *provider) {
 	RJson *json = r_json_parse (response);
 	if (json) {
 		const RJson *data;
-		if (strcmp ( provider, "ollama") !=0 ) {
+		if (strcmp (provider, "ollama") != 0) {
 			data = r_json_get (json, "data");
 		} else {
 			data = r_json_get (json, "models");
@@ -916,13 +915,13 @@ static RList *fetch_available_models(RCore *core, const char *provider) {
 			const RJson *model_item = data->children.first;
 			while (model_item) {
 				const RJson *id;
-				if (strcmp ( provider, "ollama") !=0 ) {
+				if (strcmp (provider, "ollama") != 0) {
 					id = r_json_get (model_item, "id");
 				} else {
 					id = r_json_get (model_item, "model");
 				}
 				if (id && id->type == R_JSON_STRING && R_STR_ISNOTEMPTY (id->str_value)) {
-					R_LOG_DEBUG ( "Model: %s", id->str_value);
+					R_LOG_DEBUG ("Model: %s", id->str_value);
 					r_list_append (models, strdup (id->str_value));
 				}
 				model_item = model_item->next;
@@ -1043,7 +1042,7 @@ static int r2ai_init(void *user, const char *input) {
 	r_config_set_i (core->config, "r2ai.http.max_retries", 10);
 	r_config_set_i (core->config, "r2ai.http.max_backoff", 30);
 	// Configure HTTP backend and options
-	r_config_set (core->config, "r2ai.http.backend", "auto");  // Options: auto, libcurl, socket, system
+	r_config_set (core->config, "r2ai.http.backend", "auto"); // Options: auto, libcurl, socket, system
 	r_config_set_b (core->config, "r2ai.http.use_files", false);
 	r_config_lock (core->config, true);
 	return true;

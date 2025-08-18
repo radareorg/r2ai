@@ -149,14 +149,14 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 
 	const char **headers = NULL;
 	char *auth_header = NULL;
-	if (R_STR_ISNOTEMPTY(args.api_key)) {
+	if (R_STR_ISNOTEMPTY (args.api_key)) {
 		auth_header = r_str_newf ("Authorization: Bearer %s", args.api_key);
 		R_LOG_DEBUG ("Auth header: %s", auth_header);
 		static const char *static_headers[] = { NULL, NULL, NULL };
 		headers = static_headers;
 		headers[0] = "Content-Type: application/json";
 		headers[1] = auth_header;
-	} 
+	}
 
 	const char *openai_url;
 	if (strcmp (args.provider, "ollama") == 0) {
@@ -165,7 +165,6 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 		openai_url = r_str_newf ("%s/chat/completions", base_url);
 	}
 	R_LOG_DEBUG ("OpenAI URL: %s", openai_url);
-
 
 	// Create a messages JSON object, either from input messages or from content
 	char *messages_json = NULL;
