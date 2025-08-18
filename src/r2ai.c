@@ -768,7 +768,13 @@ static void cmd_r2ai(RCore *core, const char *input) {
 
 R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider) {
 	if (strcmp (provider, "openai") == 0) {
-		return "https://api.openai.com/v1";
+		const char *host = r_config_get (core->config, "r2ai.baseurl");
+		if (R_STR_ISNOTEMPTY (host)) {
+			if (r_str_startswith (host, "http")) {
+				return r_str_newf ("%s/v1", host);
+			}
+			return r_str_newf ("http://%s/v1", host);
+		} else return "https://api.openai.com/v1";
 	} else if (strcmp (provider, "gemini") == 0) {
 		return "https://generativelanguage.googleapis.com/v1beta/openai";
 	} else if (strcmp (provider, "ollama") == 0) {
