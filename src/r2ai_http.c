@@ -330,7 +330,7 @@ static char *system_curl_post_file(RCore *core, const char *url, const char *hea
 
 		if (use_files) {
 			// Write data to the temporary file
-			if (!r_file_dump (temp_file, (const ut8*)data, strlen(data), 0)) {
+			if (!r_file_dump (temp_file, (const ut8 *)data, strlen (data), 0)) {
 				R_LOG_ERROR ("Failed to write data to temporary file");
 				free (temp_file);
 				if (retry_count < max_retries) {
@@ -344,7 +344,7 @@ static char *system_curl_post_file(RCore *core, const char *url, const char *hea
 
 		// Compose curl command
 		RStrBuf *cmd = r_strbuf_new ("curl -s");
-		
+
 		// Add timeout
 		r_strbuf_appendf (cmd, " --connect-timeout %d --max-time %d", 10, timeout);
 
@@ -364,25 +364,25 @@ static char *system_curl_post_file(RCore *core, const char *url, const char *hea
 			r_strbuf_appendf (cmd, " -X POST -d '%s' \"%s\"", s, url);
 			free (s);
 		}
-		
+
 		// Execute the curl command
 		char *cmd_str = r_strbuf_drain (cmd);
 		r_sys_setenv ("R2_CURL", "1"); // Ensure R2 uses system curl
-		
+
 		// Set an alarm to limit the request time
 		signal (SIGALRM, r2ai_http_sigint_handler);
 		alarm (timeout + 10); // Add a little extra for process startup
-		
+
 		R_LOG_DEBUG ("Running system curl: %s", cmd_str);
 		char *response = r_sys_cmd_str (cmd_str, NULL, NULL);
-		
+
 		// Clear the alarm
 		alarm (0);
-		
+
 		free (cmd_str);
 		r_file_rm (temp_file);
 		free (temp_file);
-		
+
 		// Check if we were interrupted
 		if (r2ai_http_interrupted) {
 			R_LOG_DEBUG ("HTTP request was interrupted by user");
@@ -391,7 +391,7 @@ static char *system_curl_post_file(RCore *core, const char *url, const char *hea
 			sigaction (SIGINT, &old_action, NULL);
 			return NULL;
 		}
-		
+
 		// We can't easily get the HTTP status code using this method
 		// Let's assume 200 if we got a response, and 0 otherwise
 		if (response) {
@@ -412,10 +412,10 @@ static char *system_curl_post_file(RCore *core, const char *url, const char *hea
 			break;
 		}
 	}
-	
+
 	// Restore the original signal handler
 	sigaction (SIGINT, &old_action, NULL);
-	
+
 	return result;
 }
 
@@ -474,7 +474,7 @@ static char *system_curl_get(const char *url, const char *headers[], int *code, 
 	while (!success && retry_count <= max_retries && !r2ai_http_interrupted) {
 		// Compose curl command
 		RStrBuf *cmd = r_strbuf_new ("curl -s");
-		
+
 		// Add timeout
 		r_strbuf_appendf (cmd, " --connect-timeout %d --max-time %d", 10, timeout);
 
@@ -487,23 +487,23 @@ static char *system_curl_get(const char *url, const char *headers[], int *code, 
 
 		// Add URL
 		r_strbuf_appendf (cmd, " \"%s\"", url);
-		
+
 		// Execute the curl command
 		char *cmd_str = r_strbuf_drain (cmd);
 		r_sys_setenv ("R2_CURL", "1"); // Ensure R2 uses system curl
-		
+
 		// Set an alarm to limit the request time
 		signal (SIGALRM, r2ai_http_sigint_handler);
 		alarm (timeout + 10); // Add a little extra for process startup
-		
+
 		R_LOG_DEBUG ("Running system curl: %s", cmd_str);
 		char *response = r_sys_cmd_str (cmd_str, NULL, NULL);
-		
+
 		// Clear the alarm
 		alarm (0);
-		
+
 		free (cmd_str);
-		
+
 		// Check if we were interrupted
 		if (r2ai_http_interrupted) {
 			R_LOG_DEBUG ("HTTP request was interrupted by user");
@@ -511,7 +511,7 @@ static char *system_curl_get(const char *url, const char *headers[], int *code, 
 			sigaction (SIGINT, &old_action, NULL);
 			return NULL;
 		}
-		
+
 		// We can't easily get the HTTP status code using this method
 		// Let's assume 200 if we got a response, and 0 otherwise
 		if (response) {
@@ -532,10 +532,10 @@ static char *system_curl_get(const char *url, const char *headers[], int *code, 
 			break;
 		}
 	}
-	
+
 	// Restore the original signal handler
 	sigaction (SIGINT, &old_action, NULL);
-	
+
 	return result;
 }
 
@@ -922,7 +922,7 @@ static char *socket_http_get_with_interrupt(const char *url, const char *headers
 R_API char *r2ai_http_post(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
 	const char *backend = "auto";
 	bool use_files = false;
-	
+
 	if (core) {
 		backend = r_config_get (core->config, "r2ai.http.backend");
 		use_files = r_config_get_b (core->config, "r2ai.http.use_files");
@@ -962,7 +962,7 @@ R_API char *r2ai_http_post(RCore *core, const char *url, const char *headers[], 
 R_API char *r2ai_http_get(const char *url, const char *headers[], int *code, int *rlen) {
 	RCore *core = r_cons_singleton ()->user;
 	const char *backend = "auto";
-	
+
 	if (core) {
 		backend = r_config_get (core->config, "r2ai.http.backend");
 	}

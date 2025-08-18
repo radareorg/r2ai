@@ -322,11 +322,11 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 				command = *edited_command;
 			}
 		}
-		R_LOG_DEBUG("Edited command: %s", *edited_command);
+		R_LOG_DEBUG ("Edited command: %s", *edited_command);
 	} else {
 		*edited_command = strdup (command);
 	}
-	
+
 	if (!hide_tool_output) {
 		char *red_command = r_str_newf ("\x1b[31m%s\x1b[0m\n", *edited_command);
 		R2_PRINTF ("%s", red_command);
@@ -440,9 +440,9 @@ R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output) {
 	}
 
 #if R2_VERSION_NUMBER >= 50909
-	char *payload_base64 = r_base64_encode_dyn ((const ut8*)payload, strlen (payload));
+	char *payload_base64 = r_base64_encode_dyn ((const ut8 *)payload, strlen (payload));
 #else
-	char *payload_base64 = r_base64_encode_dyn ((const char*)payload, strlen (payload));
+	char *payload_base64 = r_base64_encode_dyn ((const char *)payload, strlen (payload));
 #endif
 	if (!payload_base64) {
 		free (payload);
