@@ -63,7 +63,7 @@ These can be set with `r2ai -e <keyname>=<value>`
 |------------------|------------------------------------------------------------------------------------------------|
 | r2ai.api         | Name of the provider e.g `openai`. List possibilities with `r2ai -e r2ai.api=?`                |
 | r2ai.model       | Model name. List possibilities with `r2ai -e r2ai.model=?`                                     |
-| r2ai.baseurl     | Remote LLM HTTP server e.g http://127.0.0.1:11434. |
+| r2ai.baseurl     | Remote LLM base URL. Specify host if necessary e.g http://127.0.0.1:11434. |
 | r2ai.max_tokens  | Maximum output tokens or maximum total tokens. Check the appropriate limits for your model     |
 | r2ai.temperature | How creative the model should be. 0=not creative, 1=very creative                              |
 | r2ai.cmds        | R2 command to issue and send output in context to model                                        |
@@ -256,3 +256,16 @@ r2ai_messages_add_tool_call(msgs, "r2cmd", "{\"command\":\"pdf@main\"}", "tool-1
 // Free all resources when done
 r2ai_messages_free(msgs);
 ```
+## lm-studio
+
+Install [LM Studio](https://lmstudio.ai/). On a server, LM Studio must be run as a normal user (not root) + install *FUSE*.
+
+Then, download your preferred model(s). For example to install GPT-OSS,  follow this [cookbook](https://cookbook.openai.com/articles/gpt-oss/run-locally-lmstudio).
+
+When you launch LM Studio, go to developer options, Settings, and select server **port** (1234 by default) and check whether you need "serve on a local network" or not (accessible on localhost only, or on a local network).
+
+In r2ai, as lm-studio uses an OpenAI-like API, configure:
+
+- `r2ai -e api=openai`
+- `r2ai -e baseurl=http://LM-STUDIO-IP:PORT`
+- `r2ai -e model=?` to list available models
