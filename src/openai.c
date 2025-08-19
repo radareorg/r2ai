@@ -23,6 +23,7 @@ typedef struct {
 // Hash table to store model compatibility info
 static HtPP *model_compat_db = NULL;
 
+#if 0
 // Function to check if a model has a specific error flag
 static bool model_has_error(const char *provider, const char *model, ModelErrorFlags flag) {
 	if (!model_compat_db) {
@@ -30,9 +31,8 @@ static bool model_has_error(const char *provider, const char *model, ModelErrorF
 	}
 
 	char *key = r_str_newf ("%s:%s", provider, model ? model : "default");
-	ModelCompat *compat = NULL;
 	bool found_flag = false;
-	compat = ht_pp_find (model_compat_db, key, &found_flag);
+	ModelCompat *compat = ht_pp_find (model_compat_db, key, &found_flag);
 	free (key);
 
 	if (found_flag && compat) {
@@ -40,6 +40,7 @@ static bool model_has_error(const char *provider, const char *model, ModelErrorF
 	}
 	return false;
 }
+#endif
 
 // Function to add an error flag to a model
 static void model_add_error(const char *provider, const char *model, ModelErrorFlags flag) {
@@ -199,10 +200,14 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 	pj_ks (pj, "model", model_name);
 	pj_kb (pj, "stream", false);
 
+#if 0
+	// gpt-5-mini-chat is the only gpt-5 model that supports temperature
+	// gpt-5 gpt-5-mini and gpt-5-nano just throw an error
 	// Only add temperature if this provider/model doesn't have the temperature error flag
 	if (!model_has_error (args.provider, model_name, MODEL_ERROR_TEMPERATURE)) {
 		pj_kd (pj, "temperature", args.temperature ? args.temperature : 0.01);
 	}
+#endif
 
 	if (strcmp (args.provider, "mistral") == 0) {
 		pj_kn (pj, "max_tokens", args.max_tokens ? args.max_tokens : 5128);
@@ -274,7 +279,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 			R_LOG_ERROR ("OpenAI API error response: %s", res);
 			// Check for specific error types in the response
 			ModelErrorFlags error_flag = MODEL_ERROR_NONE;
-			const char *model_name = args.model ? args.model : "gpt-4o-mini";
+			const char *model_name = args.model ? args.model : "gpt-5-mini";
 
 			// Check for temperature errors
 			if (strstr (res, "temperature")) {
