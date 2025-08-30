@@ -886,6 +886,7 @@ Use radare2 to resolve user requests.
     if (decaiDeterministic) {
       object.frequency_penalty = 0;
       object.presence_penalty = 0;
+      object.temperature = 0.1;
     }
     const headers = [
       "Accept: application/json",
