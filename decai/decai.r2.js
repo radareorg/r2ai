@@ -6,7 +6,7 @@ Decai is the radare2 plugin for decompiling functions with the help of language 
 By default uses a local ollama server, but can you can pick any other service by using 'decai -e api=?'.
 
 [0x00000000]> decai -e api=?
-r2ai claude deepseek gemini hf mistral ollama openapi openai vllm xai
+r2ai claude deepseek gemini hf mistral ollama openapi openai vllm xai gpt4all
 
 ## Using Ollama
 
@@ -396,7 +396,7 @@ Use radare2 to resolve user requests.
       set: (v) => {
         if (v === "?") {
           console.error(
-            "r2ai\nclaude\ndeepseek\ngemini\nhf\nmistral\nollama\nopenapi\nopenapi2\nopenai\nvllm\nxai\n",
+            "r2ai\nclaude\ndeepseek\ngemini\nhf\nmistral\nollama\nopenapi\nopenapi2\nopenai\nvllm\nxai\ngpt4all\n",
           );
         } else {
           decaiApi = v;
@@ -870,6 +870,35 @@ Use radare2 to resolve user requests.
     }
     return "error invalid response";
   }
+  function r2aiGPT4all(msg, hideprompt) {
+    // If you are getting an error or no reply from gpt4all, then check and increase the Context Length (restart model for setting to apply)
+    const openaiModel = (decaiModel.length > 0) ? decaiModel : "ibm-granite/granite-3.3-8b-instruct-GGUF";
+    const query = buildQuery(msg.replace(/\r?\n/g, ''), hideprompt);
+    const object = {
+      model: openaiModel,
+      messages: [
+        { "role": "user", "content": query },
+      ],
+    };
+    if (decaiDeterministic) {
+      object.frequency_penalty = 0;
+      object.presence_penalty = 0;
+    }
+    const headers = [
+      "Accept: application/json",
+    ];
+    const payload = JSON.stringify(object);
+    const base = decaiBaseurl || (decaiHost + ":" + decaiPort);
+    const url = base + "/v1/chat/completions";
+    const res = curlPost(url, headers, payload);
+    try {
+      return filterResponse(res.choices[0].message.content);
+    } catch (e) {
+      console.error(e, e.stack);
+      console.log(JSON.stringify(res, false, 2));
+    }
+    return "error invalid response";
+  }
   function decaiDecompile(args, extraQuery, useCache, recursiveCalls) {
     if (useCache) {
       const cachedAnotation = r2.cmd("anos").trim();
@@ -1247,7 +1276,10 @@ Use radare2 to resolve user requests.
     if (decaiApi === "openai") {
       return r2aiOpenAI(q, hideprompt);
     }
-    return "Unknown value for 'decai -e api'. Use r2ai, claude, ollama, hf, openapi, openapi2 or openai";
+    if (decaiApi === "gpt4all") {
+      return r2aiGPT4all(q, hideprompt);
+    }
+    return "Unknown value for 'decai -e api'. Use r2ai, claude, ollama, hf, openapi, openapi2 or openai, gpt4all";
   }
   function r2aidec(args) {
     if (args === "") {
