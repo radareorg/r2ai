@@ -873,12 +873,15 @@ Use radare2 to resolve user requests.
   function r2aiGPT4all(msg, hideprompt) {
     // If you are getting an error or no reply from gpt4all, then check and increase the Context Length (restart model for setting to apply)
     const openaiModel = (decaiModel.length > 0) ? decaiModel : "ibm-granite/granite-3.3-8b-instruct-GGUF";
+    // get maxTokens or set 2049 by default
+    const maxTokens = parseInt((maxInputTokens.length > 0) ? maxInputTokens : 2049,10); 
     const query = buildQuery(msg.replace(/\r?\n/g, ''), hideprompt);
     const object = {
       model: openaiModel,
       messages: [
         { "role": "user", "content": query },
       ],
+      "max_tokens": maxTokens
     };
     if (decaiDeterministic) {
       object.frequency_penalty = 0;
