@@ -163,9 +163,12 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 	// Make sure we have an API key before proceeding
 	if (strcmp (provider, "ollama")) {
 		if (R_STR_ISEMPTY (args.api_key)) {
+			char *Provider = strdup (provider);
+			r_str_case (Provider, true);
 			R_LOG_ERROR ("No API key found for %s provider. Please set one with: r2ai "
-				    "-e %s.api_key=YOUR_KEY",
-				provider, provider);
+				    "%s_API_KEY=YOUR_KEY",
+				provider, Provider);
+			free (Provider);
 			return NULL;
 		}
 	}
