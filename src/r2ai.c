@@ -72,51 +72,32 @@ static RCoreHelpMessage help_msg_r2ai = {
 	NULL
 };
 
-#if 0
-// TODO: use it for r2ai.data.reason
-static char *vdb_from(RCore *core, const char *prompt) {
-	char *q = r_str_newf (
-		"# Instruction\n"
-		"Deconstruct the prompt and respond ONLY with the list of multiple prompts necessary to resolve it\n"
-		"## Prompt\n%s\n",
-		prompt);
-	char *error = NULL;
-	R2AIArgs vdb_args = {
-		.input = q,
-		.error = &error,
-		.dorag = false
-	};
-	char *r = r2ai (core, vdb_args);
-	if (error) {
-		free (q);
-		free (r);
-		return NULL;
+/* Return a malloc'd API key read from the environment or from ~/.r2ai.<provider>-key
+ * Caller is responsible for freeing the returned string (or NULL if not found). */
+static char *r2ai_get_api_key(RCore *core, const char *provider) {
+	char *api_key = NULL;
+	char *api_key_env = r_str_newf ("%s_API_KEY", provider);
+	r_str_case (api_key_env, true);
+	char *s = r_sys_getenv (api_key_env);
+	free (api_key_env);
+	if (R_STR_ISNOTEMPTY (s)) {
+		api_key = s;
+	} else {
+		free (s);
+		char *api_key_filename = r_str_newf ("~/.r2ai.%s-key", provider);
+		char *absolute_apikey = r_file_abspath (api_key_filename);
+		if (r_file_exists (absolute_apikey)) {
+			api_key = r_file_slurp (absolute_apikey, NULL);
+			if (api_key) {
+				r_str_trim (api_key);
+			}
+		}
+		free (api_key_filename);
+		free (absolute_apikey);
 	}
-	return r;
+	return api_key;
 }
 
-static char *rag(RCore *core, const char *content, const char *prompt) {
-	char *q = r_str_newf (
-		"# Instruction\n"
-		"Filter the statements. Respond ONLY the subset of statements matching the prompt. Do not introduce the output. Do not use markdown\n"
-		"## Prompt\n%s\n"
-		"## Statements\n%s\n",
-		prompt, content);
-	char *error = NULL;
-	R2AIArgs rag_args = {
-		.input = q,
-		.error = &error,
-		.dorag = false
-	};
-	char *r = r2ai (core, rag_args);
-	if (error) {
-		free (q);
-		free (r);
-		return NULL;
-	}
-	return r;
-}
-#endif
 
 R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 	R2AI_ChatResponse *res = NULL;
@@ -136,29 +117,12 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 		args.temperature = atof (r_config_get (core->config, "r2ai.temperature"));
 	}
 
-	const char *api_key_env = r_str_newf ("%s_API_KEY", provider);
-	char *api_key_env_copy = strdup (api_key_env);
-
-	r_str_case (api_key_env_copy, true);
-	const char *api_key_filename = r_str_newf ("~/.r2ai.%s-key", provider);
 	char *api_key = NULL;
-
-	char *s = r_sys_getenv (api_key_env_copy);
-	if (R_STR_ISNOTEMPTY (s)) {
-		api_key = s;
-	} else {
-		free (s);
-		char *absolute_apikey = r_file_abspath (api_key_filename);
-		if (r_file_exists (absolute_apikey)) {
-			api_key = r_file_slurp (absolute_apikey, NULL);
+	if (strcmp (provider, "ollama") && strcmp (provider, "openapi")) {
+		api_key = r2ai_get_api_key (core, provider);
+		if (api_key) {
+			args.api_key = api_key;
 		}
-		free (absolute_apikey);
-	}
-	free (api_key_env_copy);
-
-	if (api_key) {
-		r_str_trim (api_key);
-		args.api_key = api_key;
 	}
 	// Make sure we have an API key before proceeding
 	if (strcmp (provider, "ollama")) {
@@ -778,7 +742,6 @@ static RList *fetch_available_models(RCore *core, const char *provider) {
 	if (strcmp (provider, "ollama") != 0) {
 		models_url = r_str_newf ("%s/models", purl);
 	} else {
-
 		models_url = r_str_newf ("%s/tags", purl);
 	}
 	if (!models_url) {
@@ -787,27 +750,9 @@ static RList *fetch_available_models(RCore *core, const char *provider) {
 
 	// Get API key for authentication (except for ollama and openapi)
 	char *api_key = NULL;
-	if (strcmp (provider, "ollama") != 0 && strcmp (provider, "openapi") != 0) {
-		const char *api_key_env = r_str_newf ("%s_API_KEY", provider);
-		char *api_key_env_copy = strdup (api_key_env);
-		r_str_case (api_key_env_copy, true);
-
-		char *s = r_sys_getenv (api_key_env_copy);
-		if (R_STR_ISNOTEMPTY (s)) {
-			api_key = s;
-		} else {
-			free (s);
-			const char *api_key_filename = r_str_newf ("~/.r2ai.%s-key", provider);
-			char *absolute_apikey = r_file_abspath (api_key_filename);
-			if (r_file_exists (absolute_apikey)) {
-				api_key = r_file_slurp (absolute_apikey, NULL);
-				if (api_key) {
-					r_str_trim (api_key);
-				}
-			}
-			free (absolute_apikey);
-		}
-		free (api_key_env_copy);
+	if (strcmp (provider, "ollama") && strcmp (provider, "openapi")) {
+		// Consolidated helper to fetch the API key from env or file
+		api_key = r2ai_get_api_key (core, provider);
 	}
 
 	int code = 0;
