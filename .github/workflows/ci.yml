@@ -94,6 +94,7 @@ jobs:
           mkdir -p release
           cp src/r2ai* release/ 2>/dev/null || true
           cp -r src/build/* release/ 2>/dev/null || true
+          cp decai/decai.r2.js release/ 2>/dev/null || true
           zip -j release/r2ai-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.build_system }}.zip release/* 2>/dev/null || true
 
       - name: Upload artifacts (tags only)
