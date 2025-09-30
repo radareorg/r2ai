@@ -49,18 +49,6 @@ jobs:
           cd radare2
           sys/install.sh
 
-      - name: Setup MSYS2 for Windows (meson builds)
-        if: matrix.os == 'windows-latest' && matrix.build_system == 'meson'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          update: true
-          install: >
-            mingw-w64-x86_64-toolchain
-            mingw-w64-x86_64-pkg-config
-            mingw-w64-x86_64-meson
-            mingw-w64-x86_64-ninja
-
       - name: Build with Make
         if: matrix.build_system == 'make'
         run: make -C src
@@ -72,14 +60,21 @@ jobs:
           meson setup build -Dr2_prefix=${{ secrets.R2_PREFIX }} || meson configure build
           meson compile -C build
 
-      - name: Build with Meson (Windows)
+      - name: Setup Meson/Ninja on Windows
         if: matrix.build_system == 'meson' && matrix.os == 'windows-latest'
-        shell: msystem=MINGW64 bash {0}
         run: |
-          set -e
+          python -m pip install --upgrade pip
+          pip install meson ninja
+        shell: powershell
+
+      - name: Build with Meson (Windows, MSVC)
+        if: matrix.build_system == 'meson' && matrix.os == 'windows-latest'
+        run: |
           cd src
-          meson setup build -Dr2_prefix=/mingw64 || true
-          meson compile -C build || true
+          # Use MSVC (default on windows-latest) and point to optional r2_prefix via secret
+          meson setup build -Dr2_prefix=${{ secrets.R2_PREFIX }} || meson configure build
+          meson compile -C build
+        shell: powershell
 
       - name: Smoke test r2ai (if present)
         run: |
