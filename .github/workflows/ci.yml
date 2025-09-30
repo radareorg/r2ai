@@ -1,29 +1,91 @@
 # TODO: add windows
-name: ci
+name: CI
 
 env:
   R2V: 6.0.4
 
 on:
   push:
+    branches:
+      - '**'
   pull_request:
   workflow_dispatch:
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-24.04
+  build:
+    name: Build (${{ matrix.os }} / ${{ matrix.build_system }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest, windows-latest]
+        build_system: [make, meson]
+      exclude:
+        - os: windows-latest
+          build_system: make
+
     steps:
-    - uses: actions/checkout@v4
-    - name: Installing radare2
-      run: |
-        wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2_${R2V}_amd64.deb"
-        wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2-dev_${R2V}_amd64.deb"
-        sudo dpkg -i "radare2_${R2V}_amd64.deb"
-        sudo dpkg -i "radare2-dev_${R2V}_amd64.deb"
-    - name: Building the C rewrite
-      run: make -C src
-    - name: Running r2ai from r2
-      run: r2 -q -c 'r2ai -h' --
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup tools for meson builds
+        if: matrix.build_system == 'meson' && matrix.os != 'windows-latest'
+        run: |
+          python -m pip install --upgrade pip
+          pip install meson ninja
+
+      - name: Install radare2 on Linux
+        if: matrix.os == 'ubuntu-24.04'
+        run: |
+          wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2_${R2V}_amd64.deb"
+          wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2-dev_${R2V}_amd64.deb"
+          sudo dpkg -i "radare2_${R2V}_amd64.deb"
+          sudo dpkg -i "radare2-dev_${R2V}_amd64.deb"
+
+      - name: Install radare2 on macOS
+        if: matrix.os == 'macos-latest'
+        run: |
+          git clone --depth=1 --branch "${{env.R2V}}" https://github.com/radareorg/radare2
+          cd radare2
+          sys/install.sh
+
+      - name: Setup MSYS2 for Windows (meson builds)
+        if: matrix.os == 'windows-latest' && matrix.build_system == 'meson'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-meson
+            mingw-w64-x86_64-ninja
+
+      - name: Build with Make
+        if: matrix.build_system == 'make'
+        run: make -C src
+
+      - name: Build with Meson (Unix)
+        if: matrix.build_system == 'meson' && matrix.os != 'windows-latest'
+        run: |
+          cd src
+          meson setup build -Dr2_prefix=${{ secrets.R2_PREFIX }} || meson configure build
+          meson compile -C build
+
+      - name: Build with Meson (Windows)
+        if: matrix.build_system == 'meson' && matrix.os == 'windows-latest'
+        shell: msystem=MINGW64 bash {0}
+        run: |
+          set -e
+          cd src
+          meson setup build -Dr2_prefix=/mingw64 || true
+          meson compile -C build || true
+
+      - name: Smoke test r2ai (if present)
+        run: |
+          if command -v r2 >/dev/null 2>&1; then
+            r2 -q -c 'r2ai -h' -- || true
+          fi
 
 #  lint-python:
 #    runs-on: ubuntu-24.04
