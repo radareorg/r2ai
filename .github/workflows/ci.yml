@@ -103,11 +103,11 @@ jobs:
           name: ${{ matrix.os }}-${{ matrix.build_system }}-binary
           path: release/r2ai-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.build_system }}.zip
 
-      - name: Smoke test
-        run: |
-          if command -v r2 >/dev/null 2>&1; then
-            r2 -q -c 'r2ai -h' -- || true
-          fi
+#      - name: Smoke test
+#        run: |
+#          if command -v r2 >/dev/null 2>&1; then
+#            r2 -q -c 'r2ai -h' -- || true
+#          fi
 
   release:
     name: Create Release

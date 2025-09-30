@@ -288,7 +288,7 @@ static void print_content_with_length(RCore *core, const char *content, const ch
 	}
 
 	size_t content_len = strlen (content);
-	const int max_display = 200;
+	const size_t max_display = 200;
 
 	if (content_len > max_display) {
 		// Truncate long content and show length
