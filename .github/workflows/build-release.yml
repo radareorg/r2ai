@@ -74,7 +74,8 @@ jobs:
         if: matrix.build_system == 'meson' && matrix.os == 'windows-latest'
         run: |
           cd src
-          meson setup build -Dr2_prefix=${{ secrets.R2_PREFIX }} || meson configure build
+          meson setup build -Dr2_prefix=${{ secrets.R2_PREFIX }}
+          if ($LASTEXITCODE -ne 0) { meson configure build }
           meson compile -C build
         shell: powershell
 
