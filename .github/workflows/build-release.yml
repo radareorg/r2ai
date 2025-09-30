@@ -1,0 +1,155 @@
+name: Build and publish r2ai
+
+env:
+  R2V: 6.0.4
+  ZIP_PREFIX: r2ai-
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "[0-9]*"
+  workflow_dispatch:
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install radare2 (deb)
+        run: |
+          wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2_${R2V}_amd64.deb"
+          wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2-dev_${R2V}_amd64.deb"
+          sudo dpkg -i "radare2_${R2V}_amd64.deb"
+          sudo dpkg -i "radare2-dev_${R2V}_amd64.deb"
+
+      - name: Build using Make
+        run: make -C src
+
+      - name: Prepare release artifact
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          mkdir -p release
+          # plugin shared object and CLI
+          cp src/r2ai.so release/ || true
+          cp src/r2ai release/ || true
+          zip -j release/${ZIP_PREFIX}${{ github.ref_name }}-linux-x64.zip release/* || true
+
+      - name: Upload Linux artifact
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x64-binary
+          path: release/${ZIP_PREFIX}${{ github.ref_name }}-linux-x64.zip
+
+  macos:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [x86_64, arm64]
+    env:
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Clone radare2
+        run: git clone --depth=1 --branch "${{env.R2V}}" https://github.com/radareorg/radare2
+
+      - name: Install radare2
+        run: |
+          cd radare2
+          sys/install.sh
+
+      - name: Build using Make
+        run: make -C src
+
+      - name: Prepare macOS artifact
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          mkdir -p release
+          cp src/r2ai.dylib release/ || cp src/libr2ai.dylib release/ || true
+          cp src/r2ai release/ || true
+          zip -j release/${ZIP_PREFIX}${{ github.ref_name }}-macos-${{ matrix.arch }}.zip release/* || true
+
+      - name: Upload macOS artifact
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}-binary
+          path: release/${ZIP_PREFIX}${{ github.ref_name }}-macos-${{ matrix.arch }}.zip
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-curl
+
+      - name: Build radare2 and install
+        shell: msystem=MINGW64 bash {0}
+        run: |
+          set -e
+          git clone --depth=1 https://github.com/radareorg/radare2
+          cd radare2
+          sys/install.sh /mingw64
+
+      - name: Build plugin
+        shell: msystem=MINGW64 bash {0}
+        run: |
+          set -e
+          make -C src
+
+      - name: Prepare Windows artifact
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: msystem=MINGW64 bash {0}
+        run: |
+          mkdir -p release
+          cp src/r2ai.dll release/ || true
+          cp src/r2ai.exe release/ || true
+          7z a -tzip release/${ZIP_PREFIX}${{ github.ref_name }}-windows-x64.zip release/* || true
+
+      - name: Upload Windows artifact
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64-binary
+          path: release/${ZIP_PREFIX}${{ github.ref_name }}-windows-x64.zip
+
+  release:
+    needs: [linux, macos, windows]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: List downloaded artifacts
+        run: find release-artifacts -type f -maxdepth 3 -print
+
+      - name: Create GitHub Release and upload artifacts
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            release-artifacts/**/*.zip
+            release-artifacts/**/*.deb
+          generate_release_notes: true
+
