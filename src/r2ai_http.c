@@ -23,6 +23,46 @@ static void r2ai_http_sigint_handler(int sig) {
 	r2ai_http_interrupted = 1;
 }
 
+/*
+ * Portable install/restore helpers for SIGINT handler.
+ * Some platforms may not have struct sigaction available; use signal()
+ * as a fallback. We allocate storage for the old handler when
+ * sigaction is available so the restore function can restore it later.
+ */
+static void install_sigint_handler_local(void **out_old, int *out_old_is_sigaction) {
+#if defined(SIGACTION) || defined(HAVE_SIGACTION) || defined(__unix__) || defined(__APPLE__)
+    struct sigaction *old = malloc (sizeof (struct sigaction));
+    if (!old) {
+        *out_old = NULL;
+        *out_old_is_sigaction = 0;
+        return;
+    }
+    struct sigaction new_action;
+    new_action.sa_handler = r2ai_http_sigint_handler;
+    sigemptyset (&new_action.sa_mask);
+    new_action.sa_flags = 0;
+    sigaction (SIGINT, &new_action, old);
+    *out_old = old;
+    *out_old_is_sigaction = 1;
+#else
+    void (*old)(int) = signal (SIGINT, r2ai_http_sigint_handler);
+    *out_old = (void *)old;
+    *out_old_is_sigaction = 0;
+#endif
+}
+
+static void restore_sigint_handler_local(void *old, int old_is_sigaction) {
+#if defined(SIGACTION) || defined(HAVE_SIGACTION) || defined(__unix__) || defined(__APPLE__)
+    if (old) {
+        struct sigaction *old_action = (struct sigaction *)old;
+        sigaction (SIGINT, old_action, NULL);
+        free (old_action);
+    }
+#else
+    signal (SIGINT, (void (*)(int))old);
+#endif
+}
+
 // Helper function to implement exponential backoff sleep
 static void r2ai_sleep_with_backoff(int retry_count, int max_sleep_seconds) {
 	// Calculate sleep time with exponential backoff: 2^retry * base_time with jitter
@@ -126,12 +166,10 @@ static char *curl_http_post(const char *url, const char *headers[], const char *
 		}
 	}
 
-	// Install signal handler for interruption
-	struct sigaction new_action, old_action;
-	new_action.sa_handler = r2ai_http_sigint_handler;
-	sigemptyset (&new_action.sa_mask);
-	new_action.sa_flags = 0;
-	sigaction (SIGINT, &new_action, &old_action);
+	// Install signal handler for interruption (portable)
+	void *r2ai_old_sig = NULL;
+	int r2ai_old_is_sigaction = 0;
+	install_sigint_handler_local(&r2ai_old_sig, &r2ai_old_is_sigaction);
 
 	// Reset interrupt flag
 	r2ai_http_interrupted = 0;
@@ -155,7 +193,7 @@ static char *curl_http_post(const char *url, const char *headers[], const char *
 				r2ai_sleep_with_backoff (retry_count, max_backoff);
 				continue;
 			}
-			sigaction (SIGINT, &old_action, NULL); // Restore signal handler
+			restore_sigint_handler_local(r2ai_old_sig, r2ai_old_is_sigaction); // Restore signal handler
 			return NULL;
 		}
 		response.data[0] = '\0';
@@ -169,7 +207,7 @@ static char *curl_http_post(const char *url, const char *headers[], const char *
 				r2ai_sleep_with_backoff (retry_count, max_backoff);
 				continue;
 			}
-			sigaction (SIGINT, &old_action, NULL); // Restore signal handler
+			restore_sigint_handler_local(r2ai_old_sig, r2ai_old_is_sigaction); // Restore signal handler
 			return NULL;
 		}
 
@@ -264,7 +302,7 @@ static char *curl_http_post(const char *url, const char *headers[], const char *
 	}
 
 	// Restore the original signal handler
-	sigaction (SIGINT, &old_action, NULL);
+	restore_sigint_handler_local(r2ai_old_sig, r2ai_old_is_sigaction);
 
 	return result;
 }
@@ -300,12 +338,10 @@ static char *system_curl_post_file(RCore *core, const char *url, const char *hea
 		max_backoff = 30; // Use default if invalid
 	}
 
-	// Install signal handler for interruption
-	struct sigaction new_action, old_action;
-	new_action.sa_handler = r2ai_http_sigint_handler;
-	sigemptyset (&new_action.sa_mask);
-	new_action.sa_flags = 0;
-	sigaction (SIGINT, &new_action, &old_action);
+	// Install signal handler for interruption (portable)
+	void *r2ai_old_sig = NULL;
+	int r2ai_old_is_sigaction = 0;
+	install_sigint_handler_local(&r2ai_old_sig, &r2ai_old_is_sigaction);
 
 	// Reset interrupt flag
 	r2ai_http_interrupted = 0;
@@ -388,7 +424,7 @@ static char *system_curl_post_file(RCore *core, const char *url, const char *hea
 			R_LOG_DEBUG ("HTTP request was interrupted by user");
 			free (response);
 			response = NULL;
-			sigaction (SIGINT, &old_action, NULL);
+			restore_sigint_handler_local(r2ai_old_sig, r2ai_old_is_sigaction);
 			return NULL;
 		}
 
@@ -414,7 +450,7 @@ static char *system_curl_post_file(RCore *core, const char *url, const char *hea
 	}
 
 	// Restore the original signal handler
-	sigaction (SIGINT, &old_action, NULL);
+		restore_sigint_handler_local(r2ai_old_sig, r2ai_old_is_sigaction);
 
 	return result;
 }
@@ -456,12 +492,10 @@ static char *system_curl_get(const char *url, const char *headers[], int *code, 
 		}
 	}
 
-	// Install signal handler for interruption
-	struct sigaction new_action, old_action;
-	new_action.sa_handler = r2ai_http_sigint_handler;
-	sigemptyset (&new_action.sa_mask);
-	new_action.sa_flags = 0;
-	sigaction (SIGINT, &new_action, &old_action);
+	// Install signal handler for interruption (portable)
+	void *r2ai_old_sig = NULL;
+	int r2ai_old_is_sigaction = 0;
+	install_sigint_handler_local(&r2ai_old_sig, &r2ai_old_is_sigaction);
 
 	// Reset interrupt flag
 	r2ai_http_interrupted = 0;
@@ -508,7 +542,7 @@ static char *system_curl_get(const char *url, const char *headers[], int *code, 
 		if (r2ai_http_interrupted) {
 			R_LOG_DEBUG ("HTTP request was interrupted by user");
 			free (response);
-			sigaction (SIGINT, &old_action, NULL);
+			restore_sigint_handler_local(r2ai_old_sig, r2ai_old_is_sigaction);
 			return NULL;
 		}
 
@@ -534,7 +568,7 @@ static char *system_curl_get(const char *url, const char *headers[], int *code, 
 	}
 
 	// Restore the original signal handler
-	sigaction (SIGINT, &old_action, NULL);
+		restore_sigint_handler_local(r2ai_old_sig, r2ai_old_is_sigaction);
 
 	return result;
 }
@@ -564,12 +598,10 @@ static char *socket_http_post_with_interrupt(const char *url, const char *header
 		}
 	}
 
-	// Install signal handler for interruption
-	struct sigaction new_action, old_action;
-	new_action.sa_handler = r2ai_http_sigint_handler;
-	sigemptyset (&new_action.sa_mask);
-	new_action.sa_flags = 0;
-	sigaction (SIGINT, &new_action, &old_action);
+	// Install signal handler for interruption (portable)
+	void *r2ai_old_sig = NULL;
+	int r2ai_old_is_sigaction = 0;
+	install_sigint_handler_local(&r2ai_old_sig, &r2ai_old_is_sigaction);
 
 	// Reset interrupt flag
 	r2ai_http_interrupted = 0;
@@ -635,7 +667,7 @@ static char *socket_http_post_with_interrupt(const char *url, const char *header
 	}
 
 	// Restore the original signal handler
-	sigaction (SIGINT, &old_action, NULL);
+		restore_sigint_handler_local(r2ai_old_sig, r2ai_old_is_sigaction);
 
 	return result;
 }
@@ -669,12 +701,10 @@ static char *curl_http_get(const char *url, const char *headers[], int *code, in
 		}
 	}
 
-	// Install signal handler for interruption
-	struct sigaction new_action, old_action;
-	new_action.sa_handler = r2ai_http_sigint_handler;
-	sigemptyset (&new_action.sa_mask);
-	new_action.sa_flags = 0;
-	sigaction (SIGINT, &new_action, &old_action);
+	// Install signal handler for interruption (portable)
+	void *r2ai_old_sig = NULL;
+	int r2ai_old_is_sigaction = 0;
+	install_sigint_handler_local(&r2ai_old_sig, &r2ai_old_is_sigaction);
 
 	// Reset interrupt flag
 	r2ai_http_interrupted = 0;
@@ -698,7 +728,7 @@ static char *curl_http_get(const char *url, const char *headers[], int *code, in
 				r2ai_sleep_with_backoff (retry_count, max_backoff);
 				continue;
 			}
-			sigaction (SIGINT, &old_action, NULL); // Restore signal handler
+			restore_sigint_handler_local(r2ai_old_sig, r2ai_old_is_sigaction); // Restore signal handler
 			return NULL;
 		}
 		response.data[0] = '\0';
@@ -712,7 +742,7 @@ static char *curl_http_get(const char *url, const char *headers[], int *code, in
 				r2ai_sleep_with_backoff (retry_count, max_backoff);
 				continue;
 			}
-			sigaction (SIGINT, &old_action, NULL); // Restore signal handler
+			restore_sigint_handler_local(r2ai_old_sig, r2ai_old_is_sigaction); // Restore signal handler
 			return NULL;
 		}
 
@@ -809,7 +839,7 @@ static char *curl_http_get(const char *url, const char *headers[], int *code, in
 	}
 
 	// Restore the original signal handler
-	sigaction (SIGINT, &old_action, NULL);
+		restore_sigint_handler_local(r2ai_old_sig, r2ai_old_is_sigaction);
 
 	return result;
 }
@@ -840,12 +870,10 @@ static char *socket_http_get_with_interrupt(const char *url, const char *headers
 		}
 	}
 
-	// Install signal handler for interruption
-	struct sigaction new_action, old_action;
-	new_action.sa_handler = r2ai_http_sigint_handler;
-	sigemptyset (&new_action.sa_mask);
-	new_action.sa_flags = 0;
-	sigaction (SIGINT, &new_action, &old_action);
+	// Install signal handler for interruption (portable)
+	void *r2ai_old_sig = NULL;
+	int r2ai_old_is_sigaction = 0;
+	install_sigint_handler_local(&r2ai_old_sig, &r2ai_old_is_sigaction);
 
 	// Reset interrupt flag
 	r2ai_http_interrupted = 0;
@@ -914,7 +942,7 @@ static char *socket_http_get_with_interrupt(const char *url, const char *headers
 	}
 
 	// Restore the original signal handler
-	sigaction (SIGINT, &old_action, NULL);
+		restore_sigint_handler_local(r2ai_old_sig, r2ai_old_is_sigaction);
 
 	return result;
 }
