@@ -66,9 +66,9 @@ typedef struct {
 } R2AI_Message;
 
 typedef struct {
-	u_int64_t prompt_tokens;
-	u_int64_t completion_tokens;
-	u_int64_t total_tokens;
+	uint64_t prompt_tokens;
+	uint64_t completion_tokens;
+	uint64_t total_tokens;
 } R2AI_Usage;
 
 typedef struct {
