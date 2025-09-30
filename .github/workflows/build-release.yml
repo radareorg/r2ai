@@ -7,88 +7,53 @@ env:
 on:
   push:
     branches:
-      - main
+      - '**'
     tags:
-      - "[0-9]*"
+      - '[0-9]*'
+  pull_request:
   workflow_dispatch:
 
 jobs:
-  linux:
-    runs-on: ubuntu-24.04
+  build:
+    name: Build (${{ matrix.os }} / ${{ matrix.build_system }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest, windows-latest]
+        build_system: [make, meson]
+        # Windows builds should be meson-only
+      exclude:
+        - os: windows-latest
+          build_system: make
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install radare2 (deb)
+      - name: Setup common tools (meson/ninja when needed)
+        if: matrix.build_system == 'meson' && matrix.os != 'windows-latest'
+        run: |
+          python -m pip install --upgrade pip
+          pip install meson ninja
+
+      - name: Install radare2 on Linux
+        if: matrix.os == 'ubuntu-24.04'
         run: |
           wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2_${R2V}_amd64.deb"
           wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2-dev_${R2V}_amd64.deb"
           sudo dpkg -i "radare2_${R2V}_amd64.deb"
           sudo dpkg -i "radare2-dev_${R2V}_amd64.deb"
 
-      - name: Build using Make
-        run: make -C src
-
-      - name: Prepare release artifact
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Install radare2 on macOS
+        if: matrix.os == 'macos-latest'
         run: |
-          mkdir -p release
-          # plugin shared object and CLI
-          cp src/r2ai.so release/ || true
-          cp src/r2ai release/ || true
-          zip -j release/${ZIP_PREFIX}${{ github.ref_name }}-linux-x64.zip release/* || true
-
-      - name: Upload Linux artifact
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-x64-binary
-          path: release/${ZIP_PREFIX}${{ github.ref_name }}-linux-x64.zip
-
-  macos:
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        arch: [x86_64, arm64]
-    env:
-      ARCH: ${{ matrix.arch }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Clone radare2
-        run: git clone --depth=1 --branch "${{env.R2V}}" https://github.com/radareorg/radare2
-
-      - name: Install radare2
-        run: |
+          git clone --depth=1 --branch "${{env.R2V}}" https://github.com/radareorg/radare2
           cd radare2
           sys/install.sh
 
-      - name: Build using Make
-        run: make -C src
-
-      - name: Prepare macOS artifact
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          mkdir -p release
-          cp src/r2ai.dylib release/ || cp src/libr2ai.dylib release/ || true
-          cp src/r2ai release/ || true
-          zip -j release/${ZIP_PREFIX}${{ github.ref_name }}-macos-${{ matrix.arch }}.zip release/* || true
-
-      - name: Upload macOS artifact
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-${{ matrix.arch }}-binary
-          path: release/${ZIP_PREFIX}${{ github.ref_name }}-macos-${{ matrix.arch }}.zip
-
-  windows:
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup MSYS2
+      - name: Setup MSYS2 for Windows (meson builds)
+        if: matrix.os == 'windows-latest' && matrix.build_system == 'meson'
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
@@ -96,46 +61,67 @@ jobs:
           install: >
             mingw-w64-x86_64-toolchain
             mingw-w64-x86_64-pkg-config
-            mingw-w64-x86_64-curl
+            mingw-w64-x86_64-meson
+            mingw-w64-x86_64-ninja
 
-      - name: Build radare2 and install
+      - name: Build with Make
+        if: matrix.build_system == 'make'
+        run: make -C src
+
+      - name: Build with Meson (Unix)
+        if: matrix.build_system == 'meson' && matrix.os != 'windows-latest'
+        run: |
+          cd src
+          meson setup build -Dr2_prefix=${{ secrets.R2_PREFIX }} || meson configure build
+          meson compile -C build
+
+      - name: Build with Meson (Windows)
+        if: matrix.build_system == 'meson' && matrix.os == 'windows-latest'
         shell: msystem=MINGW64 bash {0}
         run: |
           set -e
-          git clone --depth=1 https://github.com/radareorg/radare2
-          cd radare2
-          sys/install.sh /mingw64
+          cd src
+          meson setup build -Dr2_prefix=/mingw64 || true
+          meson compile -C build || true
 
-      - name: Build plugin
-        shell: msystem=MINGW64 bash {0}
-        run: |
-          set -e
-          make -C src
-
-      - name: Prepare Windows artifact
+      - name: Prepare artifact (only for tag pushes)
         if: startsWith(github.ref, 'refs/tags/')
-        shell: msystem=MINGW64 bash {0}
         run: |
           mkdir -p release
-          cp src/r2ai.dll release/ || true
-          cp src/r2ai.exe release/ || true
-          7z a -tzip release/${ZIP_PREFIX}${{ github.ref_name }}-windows-x64.zip release/* || true
+          # Copy likely outputs into release/ for zipping
+          cp src/r2ai* release/ || true
+          # Also copy meson build outputs if present
+          cp -r src/build/* release/ 2>/dev/null || true
+          zip -j release/${ZIP_PREFIX}${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.build_system }}.zip release/* || true
 
-      - name: Upload Windows artifact
+      - name: Upload artifact (tag only)
         if: startsWith(github.ref, 'refs/tags/')
         uses: actions/upload-artifact@v4
         with:
-          name: windows-x64-binary
-          path: release/${ZIP_PREFIX}${{ github.ref_name }}-windows-x64.zip
+          name: ${{ matrix.os }}-${{ matrix.build_system }}-binary
+          path: release/${ZIP_PREFIX}${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.build_system }}.zip
 
   release:
-    needs: [linux, macos, windows]
+    name: Publish release (tags only, only if tag points to main)
+    needs: build
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure tag commit is on main
+        run: |
+          git fetch origin main:refs/remotes/origin/main
+          # If the tagged commit is not contained in origin/main, skip publishing
+          if git branch -r --contains ${GITHUB_SHA} | grep -q "origin/main"; then
+            echo "Tag commit is on origin/main, continuing release."
+          else
+            echo "Tag commit is not on origin/main — skipping release.";
+            exit 0
+          fi
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -143,13 +129,11 @@ jobs:
           path: release-artifacts
 
       - name: List downloaded artifacts
-        run: find release-artifacts -type f -maxdepth 3 -print
+        run: find release-artifacts -type f -maxdepth 4 -print
 
       - name: Create GitHub Release and upload artifacts
         uses: softprops/action-gh-release@v1
         with:
           files: |
             release-artifacts/**/*.zip
-            release-artifacts/**/*.deb
           generate_release_notes: true
-
