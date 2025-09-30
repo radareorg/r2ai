@@ -20,7 +20,8 @@ static volatile sig_atomic_t r2ai_http_interrupted = 0;
 
 // Signal handler for SIGINT
 static void r2ai_http_sigint_handler(int sig) {
-	r2ai_http_interrupted = 1;
+    (void)sig;
+    r2ai_http_interrupted = 1;
 }
 
 /*
@@ -30,37 +31,14 @@ static void r2ai_http_sigint_handler(int sig) {
  * sigaction is available so the restore function can restore it later.
  */
 static void install_sigint_handler_local(void **out_old, int *out_old_is_sigaction) {
-#if defined(SIGACTION) || defined(HAVE_SIGACTION) || defined(__unix__) || defined(__APPLE__)
-    struct sigaction *old = malloc (sizeof (struct sigaction));
-    if (!old) {
-        *out_old = NULL;
-        *out_old_is_sigaction = 0;
-        return;
-    }
-    struct sigaction new_action;
-    new_action.sa_handler = r2ai_http_sigint_handler;
-    sigemptyset (&new_action.sa_mask);
-    new_action.sa_flags = 0;
-    sigaction (SIGINT, &new_action, old);
-    *out_old = old;
-    *out_old_is_sigaction = 1;
-#else
     void (*old)(int) = signal (SIGINT, r2ai_http_sigint_handler);
     *out_old = (void *)old;
     *out_old_is_sigaction = 0;
-#endif
 }
 
 static void restore_sigint_handler_local(void *old, int old_is_sigaction) {
-#if defined(SIGACTION) || defined(HAVE_SIGACTION) || defined(__unix__) || defined(__APPLE__)
-    if (old) {
-        struct sigaction *old_action = (struct sigaction *)old;
-        sigaction (SIGINT, old_action, NULL);
-        free (old_action);
-    }
-#else
+    (void)old_is_sigaction;
     signal (SIGINT, (void (*)(int))old);
-#endif
 }
 
 // Helper function to implement exponential backoff sleep
