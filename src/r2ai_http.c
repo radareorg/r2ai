@@ -384,14 +384,18 @@ static char *system_curl_post_file(RCore *core, const char *url, const char *hea
 		r_sys_setenv ("R2_CURL", "1"); // Ensure R2 uses system curl
 
 		// Set an alarm to limit the request time
+#if R2__UNIX__
 		signal (SIGALRM, r2ai_http_sigint_handler);
 		alarm (timeout + 10); // Add a little extra for process startup
+#endif
 
 		R_LOG_DEBUG ("Running system curl: %s", cmd_str);
 		char *response = r_sys_cmd_str (cmd_str, NULL, NULL);
 
 		// Clear the alarm
+#if R2__UNIX__
 		alarm (0);
+#endif
 
 		free (cmd_str);
 		r_file_rm (temp_file);
@@ -505,14 +509,18 @@ static char *system_curl_get(const char *url, const char *headers[], int *code, 
 		r_sys_setenv ("R2_CURL", "1"); // Ensure R2 uses system curl
 
 		// Set an alarm to limit the request time
+#if R2__UNIX__
 		signal (SIGALRM, r2ai_http_sigint_handler);
 		alarm (timeout + 10); // Add a little extra for process startup
+#endif
 
 		R_LOG_DEBUG ("Running system curl: %s", cmd_str);
 		char *response = r_sys_cmd_str (cmd_str, NULL, NULL);
 
 		// Clear the alarm
+#if R2__UNIX__
 		alarm (0);
+#endif
 
 		free (cmd_str);
 
@@ -591,8 +599,10 @@ static char *socket_http_post_with_interrupt(const char *url, const char *header
 
 	while (!success && retry_count <= max_retries && !r2ai_http_interrupted) {
 		// Set an alarm to limit the request time
+#if R2__UNIX__
 		signal (SIGALRM, r2ai_http_sigint_handler);
 		alarm (timeout); // Use configured timeout
+#endif
 
 		// Make the request
 #if R2_VERSION_NUMBER >= 50909
@@ -602,7 +612,9 @@ static char *socket_http_post_with_interrupt(const char *url, const char *header
 #endif
 
 		// Clear the alarm
+#if R2__UNIX__
 		alarm (0);
+#endif
 
 		// Check if we were interrupted
 		if (r2ai_http_interrupted) {
@@ -863,8 +875,10 @@ static char *socket_http_get_with_interrupt(const char *url, const char *headers
 
 	while (!success && retry_count <= max_retries && !r2ai_http_interrupted) {
 		// Set an alarm to limit the request time
+#if R2__UNIX__
 		signal (SIGALRM, r2ai_http_sigint_handler);
 		alarm (timeout); // Use configured timeout
+#endif
 
 		// Make the request - use r_socket_http_get if available
 #if R2_VERSION_NUMBER >= 50909
@@ -877,7 +891,9 @@ static char *socket_http_get_with_interrupt(const char *url, const char *headers
 #endif
 
 		// Clear the alarm
+#if R2__UNIX__
 		alarm (0);
+#endif
 
 		// Check if we were interrupted
 		if (r2ai_http_interrupted) {
