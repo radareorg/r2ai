@@ -1,3 +1,23 @@
+[![ci](https://github.com/radareorg/r2ai/actions/workflows/ci.yml/badge.svg)](https://github.com/radareorg/r2ai/actions/workflows/ci.yml)
+
+Integrating language models with radare2.
+
+<p align="center">
+  <img src="doc/images/r2clippy.jpg">
+</p>
+
+## Components
+
+This repository contains two plugins for radare2:
+
+* **r2ai** - native plugin for radare2
+* **decai** - r2js plugin with special focus on decompilation
+
+If you are looking to use radare2 with other agents via MCP:
+
+* **r2mcp** - the [official radare2 mcp](https://github.com/radare2/radare2-mcp)
+* **r2copilot** - the mcp with focus on CTF [r2copilot](https://github.com/darallium/r2-copilot)
+
 ```
 ,______  .______ .______  ,___
 : __   \ \____  |:      \ : __|
@@ -7,41 +27,6 @@
 |___|        :       |___||___|
              *
 ```
-
-[![ci](https://github.com/radareorg/r2ai/actions/workflows/ci.yml/badge.svg)](https://github.com/radareorg/r2ai/actions/workflows/ci.yml)
-
-Run a language model to entertain you or help answering questions about radare2 or reverse engineering in general. The language model may be local (running without Internet on your host) or remote (e.g if you have an API key). Note that models used by r2ai are pulled from external sources which may behave different or respond unreliable information. That's why there's an ongoing effort into improving the post-finetuning using memgpt-like techniques which can't get better without your help!
-
-<p align="center">
-  <img src="doc/images/r2clippy.jpg">
-</p>
-
-## Components
-
-R2AI repository contains four different projects:
-
-Recommended plugins:
-
-* **r2ai-plugin** (`src/` directory)
-  * Native plugin written in C
-  * adds r2ai command inside r2
-* **decai** (r2js plugin focus on decompilation)
-  * adds 'decai' command to the r2 shell
-  * talks to local or remote services with curl
-  * focus on decompilation
-
-Deprecated implementations:
-
-* **r2ai-python** cli tool (`py/` directory)
-  * r2-like repl using r2pipe to comunicate with r2
-  * supports auto solving mode
-  * client and server openapi protocol
-  * download and manage models from huggingface
-* **r2ai-server**
-  * favour *ollama* instead
-  * list and select models downloaded from r2ai
-  * simple cli tool to start local openapi webservers
-  * supports llamafile, llamacpp, r2ai-w and kobaldcpp
 
 ## Features
 
@@ -60,48 +45,25 @@ Deprecated implementations:
 
 ## Installation
 
-### Radare2 Package Manager
-
 The recommended way to install any of the r2ai components is via r2pm:
 
-You can find all the packages with `r2pm -s r2ai`:
-
 ```console
-$ r2pm -s r2ai
-r2ai-py             run a local language model integrated with radare2
-r2ai-py-plugin      r2ai plugin for radare2
-r2ai-plugin         r2ai plugin rewritten in plain C
-r2ai-server         start a language model webserver in local
-decai               r2ai r2js subproject with focus on LLM decompilation for radare2
-$
+$ r2pm -Uci r2ai
+$ r2pm -Uci decai
 ```
 
-### From sources
+## Using r2ai
 
-Running `make` on the root directory will instruct you where the sub-projects are, just run the `install`/`user-install` targets in there.
+- Adds the **r2ai** command to the radare2 shell: `r2 -qc r2ai`
+- You can also run the wrapper in $PATH: `r2pm -r r2ai`
 
-For example:
+Drop your API keys in environment variables or files in your home:
 
 ```console
-$ make
-Usage: Run 'make' in the following subdirectories instead
-src/    - Modern C rewrite in form of a native r2 plugin
-py/     - The old Python cli and r2 plugin
-decai/  - r2js plugin with focus on decompiling
-server/ - shellscript to easily run llamacpp and other
-$ cd src
-$ make
+$ cat ~/.r2ai.anthropic-key 
+sk-ant-api03-CENSORED
+$ export OPENAI_API_KEY=sk-proj-6rlSPS-zN1v...
 ```
-
-## Running r2ai
-
-### Launch r2ai
-
-- The r2ai-plugin adds the **r2ai** command to the radare2 shell: `r2 -qc r2ai-r`
-- If you installed via r2pm, you can execute it like this: `r2pm -r r2ai`
-- Otherwise, `./r2ai.sh [/absolute/path/to/binary]`
-
-If you have an **API key**, put it in the adequate file:
 
 | AI        | API key                    |
 | --------- | -------------------------- |
@@ -109,16 +71,9 @@ If you have an **API key**, put it in the adequate file:
 | Gemini    | `$HOME/.r2ai.gemini-key` |
 | Anthropic | `$HOME/.r2ai.anthropic-key` |
 | Mistral   | `$HOME/.r2ai.mistral-key` |
-...
 
-Example using an Anthropic API key:
 
-```
-$ cat ~/.r2ai.anthropic-key 
-sk-ant-api03-CENSORED
-```
-
-### Saving configuration settings
+## Saving settings
 
 You may customize and save your configuration settings using your OS's default settings file (e.g `~/.radare2rc` on Linux).
 For example, the following configuration sets Claude 3.7 by default, with max output tokens to 64000.
@@ -129,6 +84,20 @@ r2ai -e model=claude-3-7-sonnet-20250219
 r2ai -e max_tokens=64000
 ```
 
+## Examples
+
+Some practical use cases that can be achieved:
+
+* Enhanced decompilation with `r2ai -d`
+* Autoname functions with `r2ai -n`
+* Explain function with `r2ai -x`
+* Find vulnerabilities with `r2ai -V`
+
+## Documentation
+
+* There's [a chapter](https://book.rada.re/plugins/r2ai.html) in the official r2book
+* Cryptax on [lmstudio+gptoss](https://cryptax.medium.com/r2ai-with-lmstudio-and-gpt-oss-08efa5ea2476) blog post
+* Malware analysis [with r2ai](https://github.com/cryptax/talks/blob/master/BSidesKristiansand-2025/r2ai.pdf) by Cryptax
 
 ## Videos
 
