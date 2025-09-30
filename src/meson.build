@@ -112,6 +112,67 @@ if not r_core_dep.found()
   endif
 endif
 
+# Resolve other r_* dependencies assuming same paths as r_core
+r_util_dep = dependency('r_util', method: 'pkg-config', required: false)
+if not r_util_dep.found() and r2_libdirs.length() > 0
+  foreach name : ['r_util', 'libr_util']
+    ulib = cc.find_library(name, dirs: r2_libdirs, required: false)
+    if ulib.found()
+      uinc = include_directories(r2_incdirs)
+      r_util_dep = declare_dependency(dependencies: [ulib], include_directories: uinc)
+      break
+    endif
+  endforeach
+endif
+if not r_util_dep.found()
+  warning('r_util dependency not found via pkg-config or same paths as r_core; build may fail on systems without radare2 dev files')
+endif
+
+r_cons_dep = dependency('r_cons', method: 'pkg-config', required: false)
+if not r_cons_dep.found() and r2_libdirs.length() > 0
+  foreach name : ['r_cons', 'libr_cons']
+    clib = cc.find_library(name, dirs: r2_libdirs, required: false)
+    if clib.found()
+      cinc = include_directories(r2_incdirs)
+      r_cons_dep = declare_dependency(dependencies: [clib], include_directories: cinc)
+      break
+    endif
+  endforeach
+endif
+if not r_cons_dep.found()
+  warning('r_cons dependency not found via pkg-config or same paths as r_core; console helpers may be unavailable')
+endif
+
+r_config_dep = dependency('r_config', method: 'pkg-config', required: false)
+if not r_config_dep.found() and r2_libdirs.length() > 0
+  foreach name : ['r_config', 'libr_config']
+    clib = cc.find_library(name, dirs: r2_libdirs, required: false)
+    if clib.found()
+      cinc = include_directories(r2_incdirs)
+      r_config_dep = declare_dependency(dependencies: [clib], include_directories: cinc)
+      break
+    endif
+  endforeach
+endif
+if not r_config_dep.found()
+  warning('r_config dependency not found via pkg-config or same paths as r_core; console helpers may be unavailable')
+endif
+
+r_socket_dep = dependency('r_socket', method: 'pkg-config', required: false)
+if not r_socket_dep.found() and r2_libdirs.length() > 0
+  foreach name : ['r_socket', 'libr_socket']
+    slib = cc.find_library(name, dirs: r2_libdirs, required: false)
+    if slib.found()
+      sinc = include_directories(r2_incdirs)
+      r_socket_dep = declare_dependency(dependencies: [slib], include_directories: sinc)
+      break
+    endif
+  endforeach
+endif
+if not r_socket_dep.found()
+  warning('r_socket dependency not found via pkg-config or same paths as r_core; socket helpers may be unavailable')
+endif
+
 # Math library dependency (needed for log, sqrt, etc.)
 m_dep = cc.find_library('m', required: false)
 
@@ -141,7 +202,7 @@ shared_lib = shared_library(
   srcs,
   install: true,
   c_args: c_args,
-  dependencies: [r_core_dep, m_dep]
+  dependencies: [r_core_dep, r_util_dep, r_cons_dep, r_config_dep, r_socket_dep, m_dep]
 )
 
 # Command-line executable (links the same objects plus main.c)
@@ -151,5 +212,5 @@ exe = executable(
   link_with: shared_lib,
   install: true,
   c_args: c_args,
-  dependencies: [r_core_dep, m_dep]
+  dependencies: [r_core_dep, r_util_dep, r_cons_dep, r_config_dep, r_socket_dep, m_dep]
 )
