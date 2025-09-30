@@ -316,6 +316,8 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCore *core, R2AIArgs args) {
 }
 
 R_IPI char *r2ai_anthropic_stream(RCore *core, R2AIArgs args) {
+	(void)core;
+	(void)args;
 	// Not implemented yet
 	return NULL;
 }

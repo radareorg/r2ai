@@ -67,6 +67,8 @@ static void model_add_error(const char *provider, const char *model, ModelErrorF
 
 // Free a ModelCompat item (for hash table)
 static bool model_compat_free_cb(void *user, const void *k, const void *v) {
+	(void)user;
+	(void)k;
 	ModelCompat *compat = (ModelCompat *)v;
 	if (compat) {
 		free (compat->model_id);
@@ -368,7 +370,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 							R2AI_ToolCall *tool_calls_array = R_NEWS0 (R2AI_ToolCall, n_tool_calls);
 
 							if (tool_calls_array) {
-								for (size_t i = 0; i < n_tool_calls; i++) {
+								for (int i = 0; i < n_tool_calls; i++) {
 									const RJson *tool_call = r_json_item (tool_calls, i);
 									if (!tool_call) {
 										continue;
@@ -421,5 +423,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 }
 
 R_IPI char *r2ai_openai_stream(RCore *core, R2AIArgs args) {
+	(void)core;
+	(void)args;
 	return NULL;
 }
