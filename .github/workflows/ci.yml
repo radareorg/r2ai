@@ -67,41 +67,82 @@ jobs:
            pip install meson ninja
          shell: powershell
 
-       - name: Download and extract radare2 release (Windows)
-         if: matrix.build_system == 'meson' && matrix.os == 'windows-latest'
-         shell: powershell
-         run: |
-           $R2V = '${{ env.R2V }}'
-           $url = "https://github.com/radareorg/radare2/releases/download/$R2V/radare2-$R2V-w64.zip"
-           $dest = "$env:TEMP\radare2.zip"
-           Write-Output "Downloading $url"
-           Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
-           $prefix = 'C:\\radare2'
-           if (Test-Path $prefix) { Remove-Item -Path $prefix -Recurse -Force }
-           New-Item -ItemType Directory -Force -Path $prefix | Out-Null
-           Expand-Archive -Path $dest -DestinationPath $prefix -Force
-           # Some zips include a top-level folder; move its contents up if needed
-           $inner = Get-ChildItem -Path $prefix | Where-Object { $_.PSIsContainer } | Select-Object -First 1
-           if ($inner -and (Get-ChildItem -Path $inner.FullName | Measure-Object).Count -gt 0) {
-             Get-ChildItem -Path $inner.FullName -Force | Move-Item -Destination $prefix -Force
-             Remove-Item -Path $inner.FullName -Recurse -Force
-           }
-           Write-Output "Extracted radare2 contents to $prefix"
+        - name: Download and extract radare2 release (Windows)
+          if: matrix.build_system == 'meson' && matrix.os == 'windows-latest'
+          shell: powershell
+          run: |
+            $R2V = '${{ env.R2V }}'
+            $url = "https://github.com/radareorg/radare2/releases/download/$R2V/radare2-$R2V-w64.zip"
+            $dest = "$env:TEMP\radare2.zip"
+            Write-Output "Downloading $url"
+            Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
+            $prefix = 'C:\\radare2'
+            if (Test-Path $prefix) { Remove-Item -Path $prefix -Recurse -Force }
+            New-Item -ItemType Directory -Force -Path $prefix | Out-Null
+            Expand-Archive -Path $dest -DestinationPath $prefix -Force
+            # Some zips include a top-level folder; move its contents up if needed
+            $inner = Get-ChildItem -Path $prefix | Where-Object { $_.PSIsContainer } | Select-Object -First 1
+            if ($inner -and (Get-ChildItem -Path $inner.FullName | Measure-Object).Count -gt 0) {
+              Get-ChildItem -Path $inner.FullName -Force | Move-Item -Destination $prefix -Force
+              Remove-Item -Path $inner.FullName -Recurse -Force
+            }
+            Write-Output "Extracted radare2 contents to $prefix"
 
-       - name: Build with Meson (Windows, MSVC)
-         if: matrix.build_system == 'meson' && matrix.os == 'windows-latest'
-         run: |
-           cd src
-           # Use MSVC (default on windows-latest) and point to downloaded radare2
-           $prefix = 'C:\\radare2'
-           Write-Output "Using radare2 prefix: $prefix"
-           # Meson on Windows expects absolute paths; normalize to forward-slash style
-           $posix = $prefix -replace '\\','/'
-           Write-Output "Passing r2_prefix as: $posix"
-           meson setup build -Dr2_prefix="$posix"
-           if ($LASTEXITCODE -ne 0) { meson configure build }
-           meson compile -C build
-         shell: powershell
+        - name: Show extracted radare2 contents
+          if: matrix.build_system == 'meson' && matrix.os == 'windows-latest'
+          shell: powershell
+          run: |
+            $prefix = 'C:\\radare2'
+            Write-Output "Listing contents of $prefix"
+            Get-ChildItem -Path $prefix -Recurse -Depth 2 | Select-Object FullName, Mode, Length | Format-Table -AutoSize
+
+        - name: Show radare2 candidate include/lib dirs
+          if: matrix.build_system == 'meson' && matrix.os == 'windows-latest'
+          shell: powershell
+          run: |
+            $prefix = 'C:\\radare2'
+            $posix = $prefix -replace '\\','/'
+            Write-Output "Normalized r2_prefix (posix): $posix"
+            # Construct candidate paths explicitly to avoid Join-Path parsing
+            $candidates = @(
+              "$prefix\\include",
+              "$prefix\\include\\libr",
+              "$prefix\\radare2\\include",
+              "$prefix\\lib",
+              "$prefix\\radare2\\lib",
+              "$prefix\\bin"
+            )
+            foreach ($d in $candidates) {
+              if (Test-Path $d) {
+                Write-Output "Contents of ${d}:"
+                Get-ChildItem -Path $d -Recurse -Depth 1 | Select-Object FullName, Mode, Length | Format-Table -AutoSize
+              } else {
+                Write-Output "Not found: ${d}"
+              }
+            }
+            Write-Output "Looking for likely radare2 artifacts (libs/dlls/headers):"
+            Get-ChildItem -Path (Join-Path $prefix 'lib') -Filter 'r_core*' -ErrorAction SilentlyContinue | Select-Object FullName, Mode | Format-Table -AutoSize
+            Get-ChildItem -Path (Join-Path $prefix 'lib') -Filter 'libr_core*' -ErrorAction SilentlyContinue | Select-Object FullName, Mode | Format-Table -AutoSize
+            Get-ChildItem -Path (Join-Path $prefix 'bin') -Filter 'r_core*' -ErrorAction SilentlyContinue | Select-Object FullName, Mode | Format-Table -AutoSize
+            Get-ChildItem -Path (Join-Path $prefix 'include') -Filter '*r_core*' -Recurse -ErrorAction SilentlyContinue | Select-Object FullName | Format-Table -AutoSize
+
+        - name: Build with Meson (Windows, MSVC)
+          if: matrix.build_system == 'meson' && matrix.os == 'windows-latest'
+          run: |
+            cd src
+            # Use MSVC (default on windows-latest) and point to downloaded radare2
+            $prefix = 'C:\\radare2'
+            Write-Output "Using radare2 prefix: $prefix"
+            # Meson on Windows expects absolute paths; normalize to forward-slash style
+            $posix = $prefix -replace '\\','/'
+            Write-Output "Passing r2_prefix as: $posix"
+            # Tell Meson where to find radare2 and set install prefix accordingly.
+            # Use the Ninja backend (instead of Visual Studio) so the MSYS2
+            # environment builds with Ninja rather than generating a .sln file.
+            meson setup builddir --backend ninja --prefix="$posix" --buildtype=release -Dr2_prefix="$posix"
+            if ($LASTEXITCODE -ne 0) { meson configure builddir }
+            meson compile -C builddir
+          shell: powershell
 
       - name: Smoke test r2ai (if present)
         run: |

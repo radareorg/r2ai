@@ -1,4 +1,8 @@
 build
+b
+src/b
+src/r2ai
+src/r2ai.dSYM
 venv
 **/__pycache__
 *.pyc
@@ -7,3 +11,4 @@ venv
 *.so
 *.dylib
 *.a
+third_party
