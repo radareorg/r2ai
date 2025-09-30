@@ -112,6 +112,9 @@ if not r_core_dep.found()
   endif
 endif
 
+# Math library dependency (needed for log, sqrt, etc.)
+m_dep = cc.find_library('m', required: false)
+
 # Common compile flags similar to the Makefile
 c_args = []
 if cc.get_id() == 'gcc' or cc.get_id() == 'clang'
@@ -138,7 +141,7 @@ shared_lib = shared_library(
   srcs,
   install: true,
   c_args: c_args,
-  dependencies: [r_core_dep]
+  dependencies: [r_core_dep, m_dep]
 )
 
 # Command-line executable (links the same objects plus main.c)
@@ -148,5 +151,5 @@ exe = executable(
   link_with: shared_lib,
   install: true,
   c_args: c_args,
-  dependencies: [r_core_dep]
+  dependencies: [r_core_dep, m_dep]
 )
