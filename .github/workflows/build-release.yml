@@ -23,9 +23,9 @@ jobs:
         os: [ubuntu-24.04, macos-latest, windows-latest]
         build_system: [make, meson]
         # Windows builds should be meson-only
-      exclude:
-        - os: windows-latest
-          build_system: make
+        exclude:
+          - os: windows-latest
+            build_system: make
 
     steps:
       - name: Checkout
