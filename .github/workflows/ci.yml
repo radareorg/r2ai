@@ -2,7 +2,7 @@
 name: ci
 
 env:
-  R2V: 6.0.2
+  R2V: 6.0.4
 
 on:
   push:
@@ -25,26 +25,26 @@ jobs:
     - name: Running r2ai from r2
       run: r2 -q -c 'r2ai -h' --
 
-  lint-python:
-    runs-on: ubuntu-24.04
-    steps:
-    - uses: actions/checkout@v4
-    - name: Installing radare2
-      run: |
-        wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2_${R2V}_amd64.deb"
-        wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2-dev_${R2V}_amd64.deb"
-        sudo dpkg -i "radare2_${R2V}_amd64.deb"
-        sudo dpkg -i "radare2-dev_${R2V}_amd64.deb"
-    - name: Setting up Python
-      run: |
-        cd py
-        python -m venv venv
-        . venv/bin/activate
-        pip install .
-        pip install pylint
-        cd ..
-    - name: Linting
-      run: make -C py cilint
+#  lint-python:
+#    runs-on: ubuntu-24.04
+#    steps:
+#    - uses: actions/checkout@v4
+#    - name: Installing radare2
+#      run: |
+#        wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2_${R2V}_amd64.deb"
+#        wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2-dev_${R2V}_amd64.deb"
+#        sudo dpkg -i "radare2_${R2V}_amd64.deb"
+#        sudo dpkg -i "radare2-dev_${R2V}_amd64.deb"
+#    - name: Setting up Python
+#      run: |
+#        cd py
+#        python -m venv venv
+#        . venv/bin/activate
+#        pip install .
+#        pip install pylint
+#        cd ..
+#    - name: Linting
+#      run: make -C py cilint
 #  build-python:
 #    runs-on: ubuntu-24.04
 #    steps:

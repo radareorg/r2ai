@@ -1,12 +1,18 @@
-[![ci](https://github.com/radareorg/r2ai/actions/workflows/ci.yml/badge.svg)](https://github.com/radareorg/r2ai/actions/workflows/ci.yml)
+Integrating language models with radare2. [![ci](https://github.com/radareorg/r2ai/actions/workflows/ci.yml/badge.svg)](https://github.com/radareorg/r2ai/actions/workflows/ci.yml)
 
-Integrating language models with radare2.
+```console
+         ╭─────────────────────────────────╮
+         │ ,______  .______ .______  ,___  │
+ ╭──╮    │ : __   \ \____  |:      \ : __| │
+ │ _│_   │ |  \____|/  ____||  _,_  || : | │
+ │ O O  <  |   :  \ \   .  ||   :   ||   | │
+ │  │╷   │ |   |___\ \__:__||___|   ||   | │
+ │  ││   │ |___|        :       |___||___| │
+ │ ─╯│   ╰─────────────────────────────────╯
+ ╰───╯
+```
 
-<p align="center">
-  <img src="doc/images/r2clippy.jpg">
-</p>
-
-## Components
+## r2ai components
 
 This repository contains two plugins for radare2:
 
@@ -17,16 +23,6 @@ If you are looking to use radare2 with other agents via MCP:
 
 * **r2mcp** - the [official radare2 mcp](https://github.com/radare2/radare2-mcp)
 * **r2copilot** - the mcp with focus on CTF [r2copilot](https://github.com/darallium/r2-copilot)
-
-```
-,______  .______ .______  ,___
-: __   \ \____  |:      \ : __|
-|  \____|/  ____||  _,_  || : |
-|   :  \ \   .  ||   :   ||   |
-|   |___\ \__:__||___|   ||   |
-|___|        :       |___||___|
-             *
-```
 
 ## Features
 
