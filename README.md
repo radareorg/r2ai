@@ -1,4 +1,4 @@
-Integrating language models with radare2. [![ci](https://github.com/radareorg/r2ai/actions/workflows/ci.yml/badge.svg)](https://github.com/radareorg/r2ai/actions/workflows/ci.yml)
+# R2AI - Augmented reversing with LLM for radare2
 
 ```console
          ╭─────────────────────────────────╮
@@ -12,7 +12,9 @@ Integrating language models with radare2. [![ci](https://github.com/radareorg/r2
  ╰───╯
 ```
 
-## r2ai components
+[![ci](https://github.com/radareorg/r2ai/actions/workflows/ci.yml/badge.svg)](https://github.com/radareorg/r2ai/actions/workflows/ci.yml)
+
+## Components
 
 This repository contains two plugins for radare2:
 
@@ -26,18 +28,20 @@ If you are looking to use radare2 with other agents via MCP:
 
 ## Features
 
-* Support Auto mode to solve tasks using function calling
-* Use local and remote language models (llama, ollama, openai, anthropic, ..)
-* Support OpenAI, Anthropic, Bedrock
-* Index large codebases or markdown books using a vector database
-* Slurp file and perform actions on that
-* Embed the output of an r2 command and resolve questions on the given data
-* Define different system-level assistant role
-* Set environment variables to provide context to the language model
+* Configure different roles and customize prompts
+* Scriptable via r2pipe via the r2ai command
 * Live with repl and batch mode from cli or r2 prompt
-* Scriptable via r2pipe
-* Use different models, dynamically adjust query template
-* Load multiple models and make them talk between them
+* Support Automatic (ReAct) mode to solve tasks using function calling
+* Use local and remote language models (ollama, openai, grok, anthropic, ..)
+* RAG markdown, code or textfiles using its native vector database
+* Embed the output of an r2 command and resolve questions on the given data
+
+## Practical Examples
+
+* Enhanced decompilation with `r2ai -d`
+* Autoname functions with `r2ai -n`
+* Explain function with `r2ai -x`
+* Find vulnerabilities with `r2ai -V`
 
 ## Installation
 
@@ -79,15 +83,6 @@ r2ai -e api=anthropic
 r2ai -e model=claude-3-7-sonnet-20250219
 r2ai -e max_tokens=64000
 ```
-
-## Examples
-
-Some practical use cases that can be achieved:
-
-* Enhanced decompilation with `r2ai -d`
-* Autoname functions with `r2ai -n`
-* Explain function with `r2ai -x`
-* Find vulnerabilities with `r2ai -V`
 
 ## Documentation
 
