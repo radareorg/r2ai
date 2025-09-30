@@ -37,7 +37,7 @@ endif
 c_args = []
 if cc.get_id() == 'gcc' or cc.get_id() == 'clang'
   c_args += ['-Wall', '-g', '-fPIC']
-elseif cc.get_id() == 'msvc'
+elif cc.get_id() == 'msvc'
   c_args += ['/Zi']
 endif
 
@@ -51,7 +51,6 @@ srcs = files(
   'r2ai_http.c',
   'openai.c',
   'markdown.c',
-  'vdb_embed.inc.c'
 )
 
 # Shared library (plugin)
@@ -72,4 +71,3 @@ exe = executable(
   c_args: c_args,
   dependencies: [r_core_dep]
 )
-
