@@ -1,5 +1,4 @@
-# TODO: add windows
-name: CI
+name: CI and Release
 
 env:
   R2V: 6.0.4
@@ -8,6 +7,8 @@ on:
   push:
     branches:
       - '**'
+    tags:
+      - '[0-9]*'
   pull_request:
   workflow_dispatch:
 
@@ -20,16 +21,16 @@ jobs:
       matrix:
         os: [ubuntu-24.04, macos-latest, windows-latest]
         build_system: [make, meson]
-      exclude:
-        - os: windows-latest
-          build_system: make
+        exclude:
+          - os: windows-latest
+            build_system: make
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup tools for meson builds
-        if: matrix.build_system == 'meson' && matrix.os != 'windows-latest'
+      - name: Setup Meson/Ninja
+        if: matrix.build_system == 'meson'
         run: |
           python -m pip install --upgrade pip
           pip install meson ninja
@@ -49,6 +50,24 @@ jobs:
           cd radare2
           sys/install.sh
 
+      - name: Install radare2 on Windows
+        if: matrix.os == 'windows-latest'
+        shell: powershell
+        run: |
+          $url = "https://github.com/radareorg/radare2/releases/download/${{ env.R2V }}/radare2-${{ env.R2V }}-w64.zip"
+          $dest = "$env:TEMP\radare2.zip"
+          Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
+          $prefix = 'C:\radare2'
+          if (Test-Path $prefix) { Remove-Item -Path $prefix -Recurse -Force }
+          Expand-Archive -Path $dest -DestinationPath $prefix -Force
+          # Move contents from subdirectory if present
+          $subdirs = Get-ChildItem -Path $prefix -Directory
+          if ($subdirs.Count -eq 1) {
+            $subdir = $subdirs[0]
+            Get-ChildItem -Path $subdir.FullName | Move-Item -Destination $prefix -Force
+            Remove-Item -Path $subdir.FullName -Recurse -Force
+          }
+
       - name: Build with Make
         if: matrix.build_system == 'make'
         run: make -C src
@@ -60,154 +79,64 @@ jobs:
           meson setup build -Dr2_prefix=${{ secrets.R2_PREFIX }} || meson configure build
           meson compile -C build
 
-       - name: Setup Meson/Ninja on Windows
-         if: matrix.build_system == 'meson' && matrix.os == 'windows-latest'
-         run: |
-           python -m pip install --upgrade pip
-           pip install meson ninja
-         shell: powershell
+      - name: Build with Meson (Windows)
+        if: matrix.build_system == 'meson' && matrix.os == 'windows-latest'
+        shell: powershell
+        run: |
+          cd src
+          $prefix = 'C:\radare2'
+          meson setup build --backend ninja --prefix="$prefix" -Dr2_prefix="$prefix"
+          if ($LASTEXITCODE -ne 0) { meson configure build }
+          meson compile -C build
 
-        - name: Download and extract radare2 release (Windows)
-          if: matrix.build_system == 'meson' && matrix.os == 'windows-latest'
-          shell: powershell
-          run: |
-            $R2V = '${{ env.R2V }}'
-            $url = "https://github.com/radareorg/radare2/releases/download/$R2V/radare2-$R2V-w64.zip"
-            $dest = "$env:TEMP\radare2.zip"
-            Write-Output "Downloading $url"
-            Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
-            $prefix = 'C:\\radare2'
-            if (Test-Path $prefix) { Remove-Item -Path $prefix -Recurse -Force }
-            New-Item -ItemType Directory -Force -Path $prefix | Out-Null
-            Expand-Archive -Path $dest -DestinationPath $prefix -Force
-            # Some zips include a top-level folder; move its contents up if needed
-            $inner = Get-ChildItem -Path $prefix | Where-Object { $_.PSIsContainer } | Select-Object -First 1
-            if ($inner -and (Get-ChildItem -Path $inner.FullName | Measure-Object).Count -gt 0) {
-              Get-ChildItem -Path $inner.FullName -Force | Move-Item -Destination $prefix -Force
-              Remove-Item -Path $inner.FullName -Recurse -Force
-            }
-            Write-Output "Extracted radare2 contents to $prefix"
+      - name: Create release artifacts (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          mkdir -p release
+          cp src/r2ai* release/ 2>/dev/null || true
+          cp -r src/build/* release/ 2>/dev/null || true
+          zip -j release/r2ai-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.build_system }}.zip release/* 2>/dev/null || true
 
-        - name: Show extracted radare2 contents
-          if: matrix.build_system == 'meson' && matrix.os == 'windows-latest'
-          shell: powershell
-          run: |
-            $prefix = 'C:\\radare2'
-            Write-Output "Listing contents of $prefix"
-            Get-ChildItem -Path $prefix -Recurse -Depth 2 | Select-Object FullName, Mode, Length | Format-Table -AutoSize
+      - name: Upload artifacts (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-${{ matrix.build_system }}-binary
+          path: release/r2ai-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.build_system }}.zip
 
-        - name: Show radare2 candidate include/lib dirs
-          if: matrix.build_system == 'meson' && matrix.os == 'windows-latest'
-          shell: powershell
-          run: |
-            $prefix = 'C:\\radare2'
-            $posix = $prefix -replace '\\','/'
-            Write-Output "Normalized r2_prefix (posix): $posix"
-            # Construct candidate paths explicitly to avoid Join-Path parsing
-            $candidates = @(
-              "$prefix\\include",
-              "$prefix\\include\\libr",
-              "$prefix\\radare2\\include",
-              "$prefix\\lib",
-              "$prefix\\radare2\\lib",
-              "$prefix\\bin"
-            )
-            foreach ($d in $candidates) {
-              if (Test-Path $d) {
-                Write-Output "Contents of ${d}:"
-                Get-ChildItem -Path $d -Recurse -Depth 1 | Select-Object FullName, Mode, Length | Format-Table -AutoSize
-              } else {
-                Write-Output "Not found: ${d}"
-              }
-            }
-            Write-Output "Looking for likely radare2 artifacts (libs/dlls/headers):"
-            Get-ChildItem -Path (Join-Path $prefix 'lib') -Filter 'r_core*' -ErrorAction SilentlyContinue | Select-Object FullName, Mode | Format-Table -AutoSize
-            Get-ChildItem -Path (Join-Path $prefix 'lib') -Filter 'libr_core*' -ErrorAction SilentlyContinue | Select-Object FullName, Mode | Format-Table -AutoSize
-            Get-ChildItem -Path (Join-Path $prefix 'bin') -Filter 'r_core*' -ErrorAction SilentlyContinue | Select-Object FullName, Mode | Format-Table -AutoSize
-            Get-ChildItem -Path (Join-Path $prefix 'include') -Filter '*r_core*' -Recurse -ErrorAction SilentlyContinue | Select-Object FullName | Format-Table -AutoSize
-
-        - name: Build with Meson (Windows, MSVC)
-          if: matrix.build_system == 'meson' && matrix.os == 'windows-latest'
-          run: |
-            cd src
-            # Use MSVC (default on windows-latest) and point to downloaded radare2
-            $prefix = 'C:\\radare2'
-            Write-Output "Using radare2 prefix: $prefix"
-            # Meson on Windows expects absolute paths; normalize to forward-slash style
-            $posix = $prefix -replace '\\','/'
-            Write-Output "Passing r2_prefix as: $posix"
-            # Tell Meson where to find radare2 and set install prefix accordingly.
-            # Use the Ninja backend (instead of Visual Studio) so the MSYS2
-            # environment builds with Ninja rather than generating a .sln file.
-            meson setup builddir --backend ninja --prefix="$posix" --buildtype=release -Dr2_prefix="$posix"
-            if ($LASTEXITCODE -ne 0) { meson configure builddir }
-            meson compile -C builddir
-          shell: powershell
-
-      - name: Smoke test r2ai (if present)
+      - name: Smoke test
         run: |
           if command -v r2 >/dev/null 2>&1; then
             r2 -q -c 'r2ai -h' -- || true
           fi
 
-#  lint-python:
-#    runs-on: ubuntu-24.04
-#    steps:
-#    - uses: actions/checkout@v4
-#    - name: Installing radare2
-#      run: |
-#        wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2_${R2V}_amd64.deb"
-#        wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2-dev_${R2V}_amd64.deb"
-#        sudo dpkg -i "radare2_${R2V}_amd64.deb"
-#        sudo dpkg -i "radare2-dev_${R2V}_amd64.deb"
-#    - name: Setting up Python
-#      run: |
-#        cd py
-#        python -m venv venv
-#        . venv/bin/activate
-#        pip install .
-#        pip install pylint
-#        cd ..
-#    - name: Linting
-#      run: make -C py cilint
-#  build-python:
-#    runs-on: ubuntu-24.04
-#    steps:
-#    - uses: actions/checkout@v4
-#    - name: Installing radare2
-#      run: |
-#        wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2_${R2V}_amd64.deb"
-#        wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2-dev_${R2V}_amd64.deb"
-#        sudo dpkg -i "radare2_${R2V}_amd64.deb"
-#        sudo dpkg -i "radare2-dev_${R2V}_amd64.deb"
-#    - name: Setting up Python
-#      run: |
-#        cd py
-#        python -m venv venv
-#        . venv/bin/activate
-#        pip install pylint
-#        cd ..
-#    - name: Install Python dependencies
-#      run: |
-#        cd py
-#        . venv/bin/activate
-#        pip install .
-#        cd ..
-#    - name: Running r2ai from the shell
-#      run: |
-#        cd py
-#        . venv/bin/activate
-#        python -m r2ai.cli -h
-#        cd ..
-#    - name: Running r2ai from r2pipe
-#      run: |
-#        cd py
-#        . venv/bin/activate
-#        r2 -q -c '#!pipe python -m r2ai.cli -h' /bin/ls
-#        cd ..
-#    - name: Running r2ai from r2
-#      run: |
-#        cd py
-#        . venv/bin/activate
-#        r2 -q -i r2ai/plugin.py -c r2ai /bin/ls
-#        cd ..
+  release:
+    name: Create Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify tag is on main
+        run: |
+          git fetch origin main:refs/remotes/origin/main
+          if ! git branch -r --contains ${GITHUB_SHA} | grep -q "origin/main"; then
+            echo "Tag commit is not on origin/main — skipping release."
+            exit 0
+          fi
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            release-artifacts/**/*.zip
+          generate_release_notes: true
