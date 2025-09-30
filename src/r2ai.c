@@ -75,6 +75,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 /* Return a malloc'd API key read from the environment or from ~/.r2ai.<provider>-key
  * Caller is responsible for freeing the returned string (or NULL if not found). */
 static char *r2ai_get_api_key(RCore *core, const char *provider) {
+	(void)core;
 	char *api_key = NULL;
 	char *api_key_env = r_str_newf ("%s_API_KEY", provider);
 	r_str_case (api_key_env, true);
@@ -201,7 +202,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 	return res;
 }
 
-R_IPI char *r2ai(RCore *core, R2AIArgs args) {
+R_API char *r2ai(RCore *core, R2AIArgs args) {
 	if (R_STR_ISEMPTY (args.input) && !args.messages) {
 		if (args.error) {
 			*args.error = r_str_newf ("Usage: r2ai [-h] [prompt]");

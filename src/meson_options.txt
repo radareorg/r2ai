@@ -1,0 +1,6 @@
+option('r2_prefix',
+  type: 'string',
+  value: '',
+  description: 'Path prefix where radare2 is installed (include/ and lib/).'
+)
+

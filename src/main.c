@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	const char *prompt = argv[optind];
+	const char *prompt = argv[1];
 
 	RCore *core = r_core_new ();
 	char *err = NULL;

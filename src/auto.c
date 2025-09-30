@@ -54,6 +54,8 @@ static void r2ai_stats_init_run(int n_run) {
 
 // Print a simple run indicator at the start
 static void r2ai_print_run_end(RCore *core, const R2AI_Usage *usage, int n_run, int max_runs) {
+	(void)n_run;
+	(void)max_runs;
 	time_t run_time = time (NULL) - stats.start_time;
 	time_t total_time = time (NULL) - stats.total_start_time;
 	if (usage) {
@@ -286,7 +288,7 @@ static void print_content_with_length(RCore *core, const char *content, const ch
 	}
 
 	size_t content_len = strlen (content);
-	const int max_display = 200;
+	const size_t max_display = 200;
 
 	if (content_len > max_display) {
 		// Truncate long content and show length

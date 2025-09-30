@@ -66,9 +66,9 @@ typedef struct {
 } R2AI_Message;
 
 typedef struct {
-	u_int64_t prompt_tokens;
-	u_int64_t completion_tokens;
-	u_int64_t total_tokens;
+	uint64_t prompt_tokens;
+	uint64_t completion_tokens;
+	uint64_t total_tokens;
 } R2AI_Usage;
 
 typedef struct {
@@ -256,7 +256,7 @@ R_IPI void r2ai_openai_fini(void);
 
 // auto mode
 R_IPI void cmd_r2ai_a(RCore *core, const char *user_query);
-R_IPI char *r2ai(RCore *core, R2AIArgs args);
+R_API char *r2ai(RCore *core, R2AIArgs args);
 
 R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args);
 

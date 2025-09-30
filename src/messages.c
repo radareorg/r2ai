@@ -564,7 +564,7 @@ R_API char *r2ai_msgs_to_anthropic_json(const R2AI_Messages *msgs) {
 
 					pj_ko (pj, "input"); // Start input object
 					if (arguments) {
-						for (int k = 0; k < arguments->children.count; k++) {
+						for (size_t k = 0; k < arguments->children.count; k++) {
 							const RJson *arg = r_json_item (arguments, k);
 							if (arg && arg->type == R_JSON_STRING) {
 								pj_ks (pj, arg->key, arg->str_value);
