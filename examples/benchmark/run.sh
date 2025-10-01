@@ -7,6 +7,9 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
+# Timeout in seconds for each command (configurable via TIMEOUT environment variable)
+TIMEOUT=${TIMEOUT:-30}
+
 cat << 'EOF'
 <!DOCTYPE html>
 <html lang="en">
@@ -118,8 +121,13 @@ for cmd in "$@"; do
 
     # Execute command and time it
     start_time=$(date +%s.%N)
-    #output=$(eval "$exec_cmd" 2>&1)
-    output=$(eval "$exec_cmd")
+    tmpfile=$(mktemp)
+    eval "$exec_cmd" > "$tmpfile" 2>&1 &
+    pid=$!
+    (sleep $TIMEOUT && kill $pid 2>/dev/null) &
+    wait $pid 2>/dev/null
+    output=$(cat "$tmpfile")
+    rm "$tmpfile"
     exit_code=$?
     end_time=$(date +%s.%N)
     
