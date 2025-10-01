@@ -113,7 +113,8 @@
         "openai": "OPENAI_API_KEY",
         "gemini": "GEMINI_API_KEY",
         "deepseek": "DEEPSEEK_API_KEY",
-        "xai": "XAI_API_KEY"
+        "xai": "XAI_API_KEY",
+       "ollama": "OLLAMA_API_KEY"
       };
       
       Object.entries(providers).forEach(([key, env]) => {
@@ -211,7 +212,7 @@
         get: () => state.api,
         set: (v) => {
           if (v === "?") {
-            console.error("r2ai\nclaude\ndeepseek\ngemini\nhf\nmistral\nollama\nopenapi\nopenapi2\nopenai\nvllm\nxai\n");
+            console.error("r2ai\nclaude\ndeepseek\ngemini\nhf\nmistral\nollama\nollamacloud\nopenapi\nopenapi2\nopenai\nvllm\nxai\n");
           } else {
             state.api = v;
           }
@@ -310,20 +311,29 @@
       ).join("\n");
     },
 
-    listOllama: () => {
-      const base = state.baseurl || (state.host + ":" + state.port);
-      const cmd = `curl -s ${base}/api/tags`;
-      const res = r2.syscmds(cmd);
-      
-      try {
-        const models = JSON.parse(res).models;
-        return models.map(model => model.name).join("\n");
-      } catch (e) {
-        console.error(e);
-        console.log(res);
-        return "error invalid response";
-      }
-    },
+     listOllama: () => {
+       const base = state.baseurl || (state.host + ":" + state.port);
+       const cmd = `curl -s ${base}/api/tags`;
+       const res = r2.syscmds(cmd);
+
+       try {
+         const models = JSON.parse(res).models;
+         return models.map(model => model.name).join("\n");
+       } catch (e) {
+         console.error(e);
+         console.log(res);
+         return "error invalid response";
+       }
+     },
+
+     listOllamaCloud: () => {
+       const key = apiKeys.get("ollama", "OLLAMA_API_KEY");
+       if (key[1]) throw new Error(key[1]);
+
+       const headers = ["Authorization: Bearer " + key[0]];
+       const response = http.get("https://ollama.com/v1/models", headers);
+       return response.data.map(model => model.id).join("\n");
+     },
 
     listFor: (api) => {
       const modelLists = {
@@ -369,7 +379,14 @@
             console.error(e, e.stack);
           }
           console.log("codestral-latest");
-        }
+        },
+         ollamacloud: () => {
+           try {
+             console.log(models.listOllamaCloud());
+           } catch (e) {
+             console.error(e);
+           }
+         }
       };
 
       const listFunction = modelLists[api];
@@ -428,7 +445,7 @@
     ollama: (msg, hideprompt) => {
       const model = state.model || "qwen2.5-coder:latest";
       const query = providers.buildQuery(msg, hideprompt);
-      
+
       const payload = {
         stream: false,
         model: model,
@@ -448,7 +465,7 @@
 
       const base = state.baseurl || (state.host + ":" + state.port);
       const url = base + "/api/chat";
-      
+
       try {
         const res = http.post(url, [], JSON.stringify(payload));
         return utils.filterResponse(res.message.content);
@@ -458,6 +475,35 @@
           res.error += "\n!ollama run " + modelName;
         }
         return "ERROR: " + (res.error || e.message);
+      }
+    },
+
+    ollamacloud: (msg, hideprompt) => {
+      const key = apiKeys.get("ollama", "OLLAMA_API_KEY");
+      if (key[1]) return "Cannot read ~/.r2ai.ollama-key";
+
+      const model = state.model || "gpt-oss:120b";
+      const query = providers.buildQuery(msg, hideprompt);
+
+      const payload = {
+        model: model,
+        messages: [{ role: "user", content: query }]
+      };
+
+      if (state.deterministic) {
+        payload.temperature = 0;
+        payload.top_p = 0;
+      }
+
+      const headers = [
+        "Authorization: Bearer " + key[0]
+      ];
+
+      try {
+        const res = http.post("https://ollama.com/v1/chat/completions", headers, JSON.stringify(payload));
+        return utils.filterResponse(res.choices[0].message.content);
+      } catch (e) {
+        return "ERROR: " + (res.error?.message || e.message);
       }
     }
 
@@ -493,6 +539,7 @@
       "anthropic": providers.anthropic,
       "claude": providers.anthropic,
       "ollama": providers.ollama,
+      "ollamacloud": providers.ollamacloud,
       // Add other providers as needed
     };
 
@@ -501,7 +548,7 @@
       return provider(q, hideprompt);
     }
 
-    return "Unknown value for 'decai -e api'. Use r2ai, claude, ollama, hf, openapi, openapi2 or openai";
+    return "Unknown value for 'decai -e api'. Use r2ai, claude, ollama, ollamacloud, hf, openapi, openapi2 or openai";
   }
 
   // Command handlers
