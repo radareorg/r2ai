@@ -134,15 +134,15 @@ jobs:
             exit 0
           fi
 
-       - name: Download artifacts
+      - name: Download artifacts
          uses: actions/download-artifact@v4
          with:
            path: release-artifacts
 
-       - name: Add decai.r2.js to release artifacts
+      - name: Add decai.r2.js to release artifacts
          run: cp decai/decai.r2.js release-artifacts/
 
-       - name: Create GitHub Release
+      - name: Create GitHub Release
          uses: softprops/action-gh-release@v1
          with:
            files: |
