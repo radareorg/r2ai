@@ -1,8 +1,13 @@
-EXT=$(shell r2 -H R2_LIBEXT)
+DOTEXE=
+# DOTEXE=.exe
+DOTLIB=.$(shell r2 -H R2_LIBEXT)
+
 CFLAGS+=$(shell pkg-config --cflags r_core)
 LDFLAGS+=$(shell pkg-config --libs r_core)
 R2SYSPLUGDIR=$(shell r2 -H R2_LIBR_PLUGINS)
 R2USRPLUGDIR=$(shell r2 -H R2_USER_PLUGINS)
+R2BINDIR=$(shell r2pm -H R2PM_BINDIR)
+
 CFLAGS+=-I. -fPIC
 CFLAGS+=-Wall
 CFLAGS+=-g
@@ -34,11 +39,9 @@ OBJS+=anthropic.o
 OBJS+=r2ai_http.o
 OBJS+=openai.o
 OBJS+=markdown.o
-# DOTEXE=.exe
-DOTEXE=
 
 all: $(OBJS) r2check
-	$(CC) -fPIC -shared -o r2ai.$(EXT) $(OBJS) $(CFLAGS) $(LDFLAGS)
+	$(CC) -fPIC -shared -o r2ai$(DOTLIB) $(OBJS) $(CFLAGS) $(LDFLAGS)
 	$(CC) -pie -o r2ai$(DOTEXE) $(OBJS) $(CFLAGS) $(LDFLAGS) -lm main.c
 
 try: all
@@ -56,16 +59,17 @@ indent:
 
 user-install: user-uninstall
 	mkdir -p $(R2USRPLUGDIR)
-	cp -f r2ai.$(EXT) $(R2USRPLUGDIR)
+	cp -f r2ai$(DOTLIB) $(R2USRPLUGDIR)
+	cp -f r2ai$(DOTEXE) $(R2BINDIR)
 
 user-uninstall:
-	rm -f $(R2USRPLUGDIR)/r2ai.$(EXT)
+	rm -f $(R2USRPLUGDIR)/r2ai$(DOTLIB)
 
 install:
-	cp -f r2ai.$(EXT) $(R2SYSPLUGDIR)
+	cp -f r2ai$(DOTLIB) $(R2SYSPLUGDIR)
 
 uninstall:
-	rm -f $(R2SYSPLUGDIR)/r2ai.$(EXT)
+	rm -f $(R2SYSPLUGDIR)/r2ai$(DOTLIB)
 
 r2check:
 	@r2 -qcq --

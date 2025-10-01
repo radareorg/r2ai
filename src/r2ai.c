@@ -107,7 +107,8 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 		provider = "gemini";
 	}
 	if (!args.model) {
-		args.model = strdup (r_config_get (core->config, "r2ai.model"));
+		const char *config_model = r_config_get (core->config, "r2ai.model");
+		args.model = strdup (config_model? config_model: "");
 	}
 	args.provider = strdup (provider);
 
@@ -115,7 +116,8 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 		args.max_tokens = r_config_get_i (core->config, "r2ai.max_tokens");
 	}
 	if (!args.temperature) {
-		args.temperature = atof (r_config_get (core->config, "r2ai.temperature"));
+		const char *configtemp = r_config_get (core->config, "r2ai.temperature");
+		args.temperature = configtemp? atof (configtemp): 0;
 	}
 
 	char *api_key = NULL;
@@ -703,7 +705,8 @@ R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider) {
 				return r_str_newf ("%s/v1", host);
 			}
 			return r_str_newf ("http://%s/v1", host);
-		} else return "https://api.openai.com/v1";
+		}
+		return "https://api.openai.com/v1";
 	} else if (strcmp (provider, "gemini") == 0) {
 		return "https://generativelanguage.googleapis.com/v1beta/openai";
 	} else if (strcmp (provider, "ollama") == 0) {
@@ -1007,7 +1010,7 @@ RCorePlugin r_core_plugin_r2ai_client = {
 		.name = "r2ai",
 		.desc = "r2ai plugin in plain C",
 		.author = "pancake",
-		.version = "1.0.0",
+		.version = "1.1.0",
 		.license = "MIT",
 	},
 	.init = r2ai_init,

@@ -2,6 +2,7 @@
 
 #include "r2ai.h"
 
+// AITODO: remove globals
 // Static global message store for session persistence
 static R2AI_Messages *conversation = NULL;
 
@@ -13,10 +14,10 @@ R_API void r2ai_message_free(R2AI_Message *msg) {
 		return;
 	}
 
-	free ((void *)msg->role);
-	free ((void *)msg->content);
-	free ((void *)msg->reasoning_content);
-	free ((void *)msg->tool_call_id);
+	free (msg->role);
+	free (msg->content);
+	free (msg->reasoning_content);
+	free (msg->tool_call_id);
 
 	// Free tool calls
 	if (msg->tool_calls) {
@@ -31,21 +32,18 @@ R_API void r2ai_message_free(R2AI_Message *msg) {
 	if (msg->content_blocks) {
 		for (int i = 0; i < msg->content_blocks->n_blocks; i++) {
 			R2AI_ContentBlock *block = &msg->content_blocks->blocks[i];
-			free ((void *)block->type);
-			free ((void *)block->data);
-			free ((void *)block->thinking);
-			free ((void *)block->signature);
-			free ((void *)block->text);
-			free ((void *)block->id);
-			free ((void *)block->name);
-			free ((void *)block->input);
+			free (block->type);
+			free (block->data);
+			free (block->thinking);
+			free (block->signature);
+			free (block->text);
+			free (block->id);
+			free (block->name);
+			free (block->input);
 		}
-		free ((void *)msg->content_blocks->blocks);
-		free ((void *)msg->content_blocks);
+		free (msg->content_blocks->blocks);
+		free (msg->content_blocks);
 	}
-
-	// Clear the struct but don't free it
-	memset (msg, 0, sizeof (R2AI_Message));
 }
 
 // Initialize conversation container (call this during plugin init)
@@ -56,9 +54,6 @@ R_API void r2ai_conversation_init(void) {
 	}
 
 	conversation = R_NEW0 (R2AI_Messages);
-	if (!conversation) {
-		return;
-	}
 	conversation->cap_messages = INITIAL_CAPACITY;
 	conversation->messages = R_NEWS0 (R2AI_Message, conversation->cap_messages);
 	if (!conversation->messages) {
@@ -647,7 +642,6 @@ R_API PJ *r_json_to_pj(const RJson *json, PJ *existing_pj) {
 		if (!existing_pj) {
 			pj_o (pj);
 		}
-
 		// Handle object's properties
 		const RJson *prop = json->children.first;
 		while (prop) {
@@ -694,17 +688,14 @@ R_API PJ *r_json_to_pj(const RJson *json, PJ *existing_pj) {
 			}
 			prop = prop->next;
 		}
-
 		if (!existing_pj) {
 			pj_end (pj);
 		}
 		break;
-
 	case R_JSON_ARRAY:
 		if (!existing_pj) {
 			pj_a (pj);
 		}
-
 		// Handle array items
 		const RJson *item = json->children.first;
 		while (item) {
@@ -749,12 +740,10 @@ R_API PJ *r_json_to_pj(const RJson *json, PJ *existing_pj) {
 			}
 			item = item->next;
 		}
-
 		if (!existing_pj) {
 			pj_end (pj);
 		}
 		break;
-
 	default:
 		if (!existing_pj) {
 			pj_free (pj);
@@ -768,11 +757,7 @@ R_API PJ *r_json_to_pj(const RJson *json, PJ *existing_pj) {
 // Helper function to clone RJson to string
 R_API char *r_json_to_string(const RJson *json) {
 	PJ *pj = r_json_to_pj (json, NULL);
-	if (!pj) {
-		return NULL;
-	}
-	char *result = pj_drain (pj);
-	return result;
+	return pj? pj_drain (pj): NULL;
 }
 
 // Create a conversation with optional initial user message

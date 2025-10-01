@@ -946,10 +946,12 @@ R_API char *r2ai_http_post(RCore *core, const char *url, const char *headers[], 
 	bool use_files = false;
 
 	if (core) {
-		backend = r_config_get (core->config, "r2ai.http.backend");
+		const char *config_backend = r_config_get (core->config, "r2ai.http.backend");
+		if (config_backend) {
+			backend = config_backend;
+		}
 		use_files = r_config_get_b (core->config, "r2ai.http.use_files");
 	}
-
 	// Choose implementation based on backend config
 	if (!strcmp (backend, "system")) {
 		// Always use system curl with files for POST requests

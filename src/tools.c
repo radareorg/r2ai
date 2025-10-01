@@ -1,3 +1,4 @@
+#include <string.h>
 #include "r2ai.h"
 
 // Define the radare2 command tool
@@ -349,11 +350,6 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 
 	return cmd_output;
 }
-
-// R_API int r_base64_encode(char *bout, const ut8 *bin, int len);
-// R_API int r_base64_decode(ut8 *bout, const char *bin, int len);
-// R_API ut8 *r_base64_decode_dyn(const char *in, int len);
-// R_API char *r_base64_encode_dyn(const char *str, int len);
 
 // qjs function implementation
 R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output) {
