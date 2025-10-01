@@ -118,7 +118,8 @@ for cmd in "$@"; do
 
     # Execute command and time it
     start_time=$(date +%s.%N)
-    output=$(eval "$exec_cmd" 2>&1)
+    #output=$(eval "$exec_cmd" 2>&1)
+    output=$(eval "$exec_cmd")
     exit_code=$?
     end_time=$(date +%s.%N)
     
@@ -134,7 +135,7 @@ for cmd in "$@"; do
     escaped_output=$(echo "$output" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
 
     cat << EOF
-        <div class="command-section">
+        <div class="command-section expanded">
             <button class="command-title" onclick="toggleSection(this)">$title<span class="command-time">${execution_time}s</span></button>
             <div class="command-body">
                 <div class="command-output">$escaped_output</div>
