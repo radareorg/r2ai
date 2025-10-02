@@ -653,36 +653,69 @@ Use radare2 to resolve user requests.
        }
      },
 
-     gemini: (msg, hideprompt) => {
-       const key = apiKeys.get("gemini", "GEMINI_API_KEY");
-       if (key[1]) return "Cannot read ~/.r2ai.gemini-key";
+      gemini: (msg, hideprompt) => {
+        const key = apiKeys.get("gemini", "GEMINI_API_KEY");
+        if (key[1]) return "Cannot read ~/.r2ai.gemini-key";
 
-       const model = state.model || "gemini-1.5-flash";
-       const query = providers.buildQuery(msg, hideprompt);
+        const model = state.model || "gemini-1.5-flash";
+        const query = providers.buildQuery(msg, hideprompt);
 
-       const payload = {
-         contents: [{ parts: [{ text: query }] }]
-       };
+        const payload = {
+          contents: [{ parts: [{ text: query }] }]
+        };
 
-       if (state.deterministic) {
-         payload.generationConfig = {
-           temperature: 0.0,
-           topP: 1.0,
-           topK: 1
-         };
-       }
+        if (state.deterministic) {
+          payload.generationConfig = {
+            temperature: 0.0,
+            topP: 1.0,
+            topK: 1
+          };
+        }
 
-       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key[0]}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key[0]}`;
 
-       try {
-         const res = http.post(url, [], JSON.stringify(payload));
-         return utils.filterResponse(res.candidates[0].content.parts[0].text);
-       } catch (e) {
-         return "ERROR: " + (res.error || e.message);
-       }
-     }
+        try {
+          const res = http.post(url, [], JSON.stringify(payload));
+          return utils.filterResponse(res.candidates[0].content.parts[0].text);
+        } catch (e) {
+          return "ERROR: " + (res.error || e.message);
+        }
+      },
 
-     // Additional providers would follow similar pattern...
+      mistral: (msg, hideprompt) => {
+        const key = apiKeys.get("mistral", "MISTRAL_API_KEY");
+        if (key[1]) return "Cannot read ~/.r2ai.mistral-key";
+
+        const model = state.model || "codestral-latest";
+        const query = providers.buildQuery(msg, hideprompt);
+
+        const payload = {
+          stream: false,
+          model: model,
+          messages: [{ role: "user", content: query }]
+        };
+
+        if (state.deterministic) {
+          payload.n = 1;
+          payload.top_p = 0.001;
+          payload.random_seed = 1;
+          payload.temperature = 0.001;
+        }
+
+        const headers = [
+          "Accept: application/json",
+          "Authorization: Bearer " + key[0]
+        ];
+
+        try {
+          const res = http.post("https://api.mistral.ai/v1/chat/completions", headers, JSON.stringify(payload));
+          return utils.filterResponse(res.choices[0].message.content);
+        } catch (e) {
+          return "ERROR: " + (res.error?.message || e.message);
+        }
+      }
+
+      // Additional providers would follow similar pattern...
    };
 
   // Main AI function dispatcher
@@ -718,6 +751,7 @@ Use radare2 to resolve user requests.
       "openai": providers.openai,
       "gemini": providers.gemini,
       "google": providers.gemini,
+      "mistral": providers.mistral,
       // Add other providers as needed
     };
 
@@ -726,7 +760,7 @@ Use radare2 to resolve user requests.
       return provider(q, hideprompt);
     }
 
-    return "Unknown value for 'decai -e api'. Use r2ai, claude, ollama, ollamacloud, openai, gemini, google or hf";
+    return "Unknown value for 'decai -e api'. Use r2ai, claude, ollama, ollamacloud, openai, gemini, google, mistral or hf";
   }
 
   // Command handlers
