@@ -713,6 +713,31 @@ Use radare2 to resolve user requests.
         } catch (e) {
           return "ERROR: " + (res.error?.message || e.message);
         }
+      },
+
+      xai: (msg, hideprompt) => {
+        const key = apiKeys.get("xai", "XAI_API_KEY");
+        if (key[1]) return "Cannot read ~/.r2ai.xai-key";
+
+        const model = state.model || "grok-beta";
+        const query = providers.buildQuery(msg, hideprompt);
+
+        const payload = {
+          messages: [{ role: "user", content: query }],
+          model: model,
+          stream: false
+        };
+
+        const headers = [
+          "Authorization: Bearer " + key[0]
+        ];
+
+        try {
+          const res = http.post("https://api.x.ai/v1/chat/completions", headers, JSON.stringify(payload));
+          return utils.filterResponse(res.choices[0].message.content);
+        } catch (e) {
+          return "ERROR: " + (res.error || e.message);
+        }
       }
 
       // Additional providers would follow similar pattern...
@@ -752,6 +777,7 @@ Use radare2 to resolve user requests.
       "gemini": providers.gemini,
       "google": providers.gemini,
       "mistral": providers.mistral,
+      "xai": providers.xai,
       // Add other providers as needed
     };
 
@@ -760,7 +786,7 @@ Use radare2 to resolve user requests.
       return provider(q, hideprompt);
     }
 
-    return "Unknown value for 'decai -e api'. Use r2ai, claude, ollama, ollamacloud, openai, gemini, google, mistral or hf";
+    return "Unknown value for 'decai -e api'. Use r2ai, claude, ollama, ollamacloud, openai, gemini, google, mistral, xai or hf";
   }
 
   // Command handlers
