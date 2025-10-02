@@ -1,8 +1,9 @@
 (function () {
   // Constants and configuration
   const COMMAND = "decai";
-  const DEFAULT_PROMPT = "Transform this pseudocode and respond ONLY with plain code (NO explanations, comments or markdown), Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and strings from comments like 'string:', Reduce lines of code and fit everything in a single function, Remove all dead code";
-  
+  const DEFAULT_PROMPT =
+    "Transform this pseudocode and respond ONLY with plain code (NO explanations, comments or markdown), Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and strings from comments like 'string:', Reduce lines of code and fit everything in a single function, Remove all dead code";
+
   const HELP_TEXT = {
     decai: `# Using Decai
 
@@ -115,7 +116,7 @@ Use radare2 to resolve user requests.
 ### Special cases
 
 * On Swift binaries run...
-`
+`,
   };
 
   // Configuration state
@@ -140,7 +141,7 @@ Use radare2 to resolve user requests.
     cache: false,
     maxInputTokens: -1,
     prompt: DEFAULT_PROMPT,
-    lastOutput: ""
+    lastOutput: "",
   };
 
   // Utility functions
@@ -157,7 +158,8 @@ Use radare2 to resolve user requests.
       return r2.cmd("'test -vf " + path).startsWith("found");
     },
 
-    padRight: (str, length) => str + " ".repeat(Math.max(0, length - str.length)),
+    padRight: (str, length) =>
+      str + " ".repeat(Math.max(0, length - str.length)),
 
     trimAnsi: (str) => str.replace(/\x1b\[[0-9;]*m/g, ""),
 
@@ -186,13 +188,13 @@ Use radare2 to resolve user requests.
         msg = msg.replace(/<think>[\s\S]*?<\/think>/gi, "");
       }
       return msg.split("\n")
-        .filter(line => !line.trim().startsWith("```"))
+        .filter((line) => !line.trim().startsWith("```"))
         .join("\n");
     },
 
     debug: {
-      log: (msg) => state.debug && console.log(msg)
-    }
+      log: (msg) => state.debug && console.log(msg),
+    },
   };
 
   // API key management
@@ -202,11 +204,11 @@ Use radare2 to resolve user requests.
       if (keyEnv.indexOf("=") === -1 && keyEnv !== "") {
         return [keyEnv.trim(), null, "env"];
       }
-      
+
       const keyPath = "~/.r2ai." + provider + "-key";
       if (utils.fileExists(keyPath)) {
         const keyFile = r2.cmd("'cat " + keyPath);
-        return keyFile === "" 
+        return keyFile === ""
           ? [null, "Cannot read " + keyPath, "no"]
           : [keyFile.trim(), null, "file"];
       }
@@ -216,44 +218,46 @@ Use radare2 to resolve user requests.
     list: () => {
       const providers = {
         "mistral": "MISTRAL_API_KEY",
-        "anthropic": "ANTHROPIC_API_KEY", 
+        "anthropic": "ANTHROPIC_API_KEY",
         "huggingface": "HUGGINGFACE_API_KEY",
         "openai": "OPENAI_API_KEY",
         "gemini": "GEMINI_API_KEY",
         "deepseek": "DEEPSEEK_API_KEY",
         "xai": "XAI_API_KEY",
         "ollama": "OLLAMA_API_KEY",
-        "ollamacloud": "OLLAMA_API_KEY"
+        "ollamacloud": "OLLAMA_API_KEY",
       };
-      
+
       Object.entries(providers).forEach(([key, env]) => {
         const status = apiKeys.get(key, env)[2];
         console.log(status, "\t", key);
       });
-    }
+    },
   };
 
   // HTTP utilities
   const http = {
     get: (url, headers) => {
-      const heads = headers.map(x => `-H "${x}"`).join(" ");
+      const heads = headers.map((x) => `-H "${x}"`).join(" ");
       const cmd = `curl -s ${url} ${heads} -H "Content-Type: application/json"`;
       return JSON.parse(r2.syscmds(cmd));
     },
 
     post: (url, headers, payload) => {
-      const heads = headers.map(x => `-H "${x}"`).join(" ");
-      
+      const heads = headers.map((x) => `-H "${x}"`).join(" ");
+
       const curlArgs = (url, heads, payload) => {
         const escapedPayload = payload.replace(/'/g, "'\\''");
-        const cmd = `curl -s '${url}' ${heads} -d '${escapedPayload}' -H "Content-Type: application/json"`;
+        const cmd =
+          `curl -s '${url}' ${heads} -d '${escapedPayload}' -H "Content-Type: application/json"`;
         utils.debug.log(cmd);
         return r2.syscmds(cmd);
       };
 
       const curlFile = (url, heads, payload) => {
         const tmpfile = r2.fdump(payload);
-        const cmd = `curl -s '${url}' ${heads} -d '@${tmpfile}' -H "Content-Type: application/json"`;
+        const cmd =
+          `curl -s '${url}' ${heads} -d '@${tmpfile}' -H "Content-Type: application/json"`;
         utils.debug.log(cmd);
         const output = r2.syscmd(cmd);
         r2.syscmd("rm " + tmpfile);
@@ -262,11 +266,11 @@ Use radare2 to resolve user requests.
 
       const method = state.useFiles ? curlFile : curlArgs;
       const output = method(url, heads, payload);
-      
+
       if (output === "") {
         return { error: "empty response" };
       }
-      
+
       try {
         return JSON.parse(output);
       } catch (e) {
@@ -274,9 +278,243 @@ Use radare2 to resolve user requests.
         console.error(e, e.stack);
         return { error: e.stack };
       }
-    }
+    },
   };
 
+  // Model management
+  const models = {
+    listClaude: () => {
+      const key = apiKeys.get("anthropic", "ANTHROPIC_API_KEY");
+      if (key[1]) throw new Error(key[1]);
+
+      const headers = ["x-api-key: " + key[0], "anthropic-version: 2023-06-01"];
+      const response = http.get("https://api.anthropic.com/v1/models", headers);
+      return response.data.map((model) => model.id).join("\n");
+    },
+
+    listMistral: () => {
+      const key = apiKeys.get("mistral", "MISTRAL_API_KEY");
+      if (key[1]) throw new Error(key[1]);
+
+      const headers = ["Authorization: Bearer " + key[0]];
+      const response = http.get("https://api.mistral.ai/v1/models", headers);
+      const uniqByName = (arr) =>
+        arr.filter((obj, i, self) =>
+          self.findIndex((o) => o.name === obj.name) === i
+        );
+
+      return uniqByName(response.data).map((model) =>
+        [
+          utils.padRight(model.name, 30),
+          utils.padRight("" + model.max_context_length, 10),
+          model.description,
+        ].join(" ")
+      ).join("\n");
+    },
+
+    listOpenai: () => {
+      const key = apiKeys.get("openai", "OPENAI_API_KEY");
+      if (key[1]) throw new Error(key[1]);
+
+      const headers = ["Authorization: Bearer " + key[0]];
+      const response = http.get("https://api.openai.com/v1/models", headers);
+      return response.data.map((model) => model.id).join("\n");
+    },
+    listOllama: () => {
+      const base = state.baseurl || (state.host + ":" + state.port);
+      const cmd = `curl -s ${base}/api/tags`;
+      const res = r2.syscmds(cmd);
+
+      try {
+        const models = JSON.parse(res).models;
+        return models.map((model) => model.name).join("\n");
+      } catch (e) {
+        console.error(e);
+        console.log(res);
+        return "error invalid response";
+      }
+    },
+
+    listOllamaCloud: () => {
+      const key = apiKeys.get("ollama", "OLLAMA_API_KEY");
+      if (key[1]) throw new Error(key[1]);
+
+      const headers = ["Authorization: Bearer " + key[0]];
+      const response = http.get("https://ollama.com/v1/models", headers);
+      return response.data.map((model) => model.id).join("\n");
+    },
+
+    listFor: (api) => {
+      const providerConfig = providerRegistry[api];
+      if (!providerConfig) {
+        console.error(`Unknown provider: ${api}`);
+        return;
+      }
+
+      // Try to fetch models dynamically for providers that support it
+      try {
+        switch (api) {
+          case "ollama":
+          case "openapi":
+            console.log(models.listOllama());
+            break;
+          case "lmstudio":
+          case "openai":
+            console.log(models.listOpenai());
+            break;
+          case "claude":
+          case "anthropic":
+            console.log(models.listClaude());
+            const claudeModels = [
+              "claude-3-5-sonnet-20241022",
+              "claude-3-7-sonnet-20250219",
+              "claude-opus-4-20250514",
+              "claude-sonnet-4-20250514",
+            ];
+            claudeModels.forEach((model) => console.log(model));
+            break;
+          case "mistral":
+            console.log(models.listMistral());
+            console.log("codestral-latest");
+            break;
+          case "ollamacloud":
+            console.log(models.listOllamaCloud());
+            break;
+          default:
+            // For providers without dynamic listing, show hardcoded models
+            const hardcodedModels = {
+              gemini: [
+                "gemini-2.0-flash",
+                "gemini-2.0-flash-lite",
+                "gemini-1.5-pro",
+                "gemini-1.5-flash",
+              ],
+              google: [
+                "gemini-2.0-flash",
+                "gemini-2.0-flash-lite",
+                "gemini-1.5-pro",
+                "gemini-1.5-flash",
+              ],
+              xai: ["grok-2", "grok-beta"],
+              lmstudio: ["local-model"],
+            };
+            const hardcoded = hardcodedModels[api];
+            if (hardcoded) {
+              hardcoded.forEach((model) => console.log(model));
+            } else {
+              console.log(providerConfig.defaultModel);
+            }
+        }
+      } catch (e) {
+        console.error(`Error listing models for ${api}:`, e.message);
+        // Fallback to default model
+        console.log(providerConfig.defaultModel);
+      }
+    },
+  };
+
+  // Provider registry - standardized provider definitions
+  const providerRegistry = {
+    anthropic: {
+      defaultModel: "claude-3-7-sonnet-20250219",
+      defaultBaseurl: "https://api.anthropic.com",
+      requiresAuth: true,
+      authKey: "ANTHROPIC_API_KEY",
+      apiStyle: "anthropic",
+      hardcodedModels: [
+        "claude-3-5-sonnet-20241022",
+        "claude-3-7-sonnet-20250219",
+        "claude-opus-4-20250514",
+        "claude-sonnet-4-20250514",
+      ],
+    },
+    claude: {
+      defaultModel: "claude-3-7-sonnet-20250219",
+      defaultBaseurl: "https://api.anthropic.com",
+      requiresAuth: true,
+      authKey: "ANTHROPIC_API_KEY",
+      apiStyle: "anthropic",
+      hardcodedModels: [
+        "claude-3-5-sonnet-20241022",
+        "claude-3-7-sonnet-20250219",
+        "claude-opus-4-20250514",
+        "claude-sonnet-4-20250514",
+      ],
+    },
+    openai: {
+      defaultModel: "gpt-4o-mini",
+      defaultBaseurl: "https://api.openai.com",
+      requiresAuth: true,
+      authKey: "OPENAI_API_KEY",
+      apiStyle: "openai",
+      dynamicModels: true,
+    },
+    ollama: {
+      defaultModel: "qwen2.5-coder:latest",
+      defaultBaseurl: "http://localhost:11434",
+      requiresAuth: false,
+      apiStyle: "ollama",
+      dynamicModels: true,
+    },
+    ollamacloud: {
+      defaultModel: "gpt-oss:120b",
+      defaultBaseurl: "https://ollama.com",
+      requiresAuth: true,
+      authKey: "OLLAMA_API_KEY",
+      apiStyle: "openai",
+      dynamicModels: true,
+    },
+    gemini: {
+      defaultModel: "gemini-1.5-flash",
+      defaultBaseurl: "https://generativelanguage.googleapis.com",
+      requiresAuth: true,
+      authKey: "GEMINI_API_KEY",
+      apiStyle: "gemini",
+      hardcodedModels: [
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite",
+        "gemini-1.5-pro",
+        "gemini-1.5-flash",
+      ],
+    },
+    google: {
+      defaultModel: "gemini-1.5-flash",
+      defaultBaseurl: "https://generativelanguage.googleapis.com",
+      requiresAuth: true,
+      authKey: "GEMINI_API_KEY",
+      apiStyle: "gemini",
+      hardcodedModels: [
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite",
+        "gemini-1.5-pro",
+        "gemini-1.5-flash",
+      ],
+    },
+    mistral: {
+      defaultModel: "codestral-latest",
+      defaultBaseurl: "https://api.mistral.ai",
+      requiresAuth: true,
+      authKey: "MISTRAL_API_KEY",
+      apiStyle: "openai",
+      dynamicModels: true,
+      hardcodedModels: ["codestral-latest"],
+    },
+    xai: {
+      defaultModel: "grok-beta",
+      defaultBaseurl: "https://api.x.ai",
+      requiresAuth: true,
+      authKey: "XAI_API_KEY",
+      apiStyle: "openai",
+      hardcodedModels: ["grok-2", "grok-beta"],
+    },
+    lmstudio: {
+      defaultModel: "local-model",
+      defaultBaseurl: "http://127.0.0.1:1234",
+      requiresAuth: false,
+      apiStyle: "openai",
+      hardcodedModels: ["local-model"],
+    },
+  };
   // Configuration management
   const config = {
     handlers: {
@@ -289,7 +527,7 @@ Use radare2 to resolve user requests.
           } catch (e) {
             console.error(e);
           }
-        }
+        },
       },
       model: {
         get: () => state.model,
@@ -299,77 +537,75 @@ Use radare2 to resolve user requests.
           } else {
             state.model = v.trim();
           }
-        }
+        },
       },
       deterministic: {
         get: () => state.deterministic,
-        set: (v) => state.deterministic = v === "true" || v === "1"
+        set: (v) => state.deterministic = v === "true" || v === "1",
       },
       files: {
         get: () => state.useFiles,
-        set: (v) => state.useFiles = v === "true"
+        set: (v) => state.useFiles = v === "true",
       },
       think: {
         get: () => state.think,
-        set: (v) => state.think = (v === "true") ? 1 : (v === "false") ? 0 : +v
+        set: (v) => state.think = (v === "true") ? 1 : (v === "false") ? 0 : +v,
       },
       debug: {
         get: () => state.debug,
-        set: (v) => state.debug = v === "true" || v === "1"
+        set: (v) => state.debug = v === "true" || v === "1",
       },
       api: {
         get: () => state.api,
         set: (v) => {
           if (v === "?") {
-            const providersList = Object.keys(providers).filter((x)=> {
-              return x === x.toLowerCase();
-            }).join("\n");
+            const providersList = Object.keys(providerRegistry).join("\n");
             console.error(providersList);
           } else {
             state.api = v;
           }
-        }
+        },
       },
       lang: {
         get: () => state.language,
-        set: (v) => state.language = v
+        set: (v) => state.language = v,
       },
       hlang: {
         get: () => state.humanLanguage,
-        set: (v) => state.humanLanguage = v
+        set: (v) => state.humanLanguage = v,
       },
       cache: {
         get: () => state.cache,
-        set: (v) => state.cache = v === "true" || v == 1
+        set: (v) => state.cache = v === "true" || v == 1,
       },
       cmds: {
         get: () => state.commands,
-        set: (v) => state.commands = v
+        set: (v) => state.commands = v,
       },
       tts: {
         get: () => state.tts,
-        set: (v) => state.tts = v === "true" || v == 1
+        set: (v) => state.tts = v === "true" || v == 1,
       },
       yolo: {
         get: () => state.yolo,
-        set: (v) => state.yolo = v === "true" || v == 1
+        set: (v) => state.yolo = v === "true" || v == 1,
       },
       prompt: {
         get: () => state.prompt,
-        set: (v) => state.prompt = v
+        set: (v) => state.prompt = v,
       },
       ctxfile: {
         get: () => state.contextFile,
-        set: (v) => state.contextFile = v
+        set: (v) => state.contextFile = v,
       },
       baseurl: {
         get: () => state.baseurl,
-        set: (v) => state.baseurl = v
+        set: (v) => state.baseurl = v,
       },
       maxtokens: {
         get: () => state.maxInputTokens,
-        set: (v) => state.maxInputTokens = v
-      }
+        set: (v) => state.maxInputTokens = v,
+      },
     },
 
     eval: (arg) => {
@@ -378,7 +614,7 @@ Use radare2 to resolve user requests.
         console.error("Unknown config key");
         return;
       }
-      
+
       if (typeof v !== "undefined") {
         config.handlers[k].set(v);
       } else {
@@ -387,198 +623,67 @@ Use radare2 to resolve user requests.
     },
 
     listAll: () => {
-      Object.keys(config.handlers).forEach(key => {
+      Object.keys(config.handlers).forEach((key) => {
         const value = config.handlers[key].get();
         console.log("decai -e " + key + "=" + value);
       });
-    }
+    },
   };
 
-  // Model management
-  const models = {
-    listClaude: () => {
-      const key = apiKeys.get("anthropic", "ANTHROPIC_API_KEY");
-      if (key[1]) throw new Error(key[1]);
-      
-      const headers = ["x-api-key: " + key[0], "anthropic-version: 2023-06-01"];
-      const response = http.get("https://api.anthropic.com/v1/models", headers);
-      return response.data.map(model => model.id).join("\n");
-    },
-
-    listMistral: () => {
-      const key = apiKeys.get("mistral", "MISTRAL_API_KEY");
-      if (key[1]) throw new Error(key[1]);
-      
-      const headers = ["Authorization: Bearer " + key[0]];
-      const response = http.get("https://api.mistral.ai/v1/models", headers);
-      const uniqByName = arr => arr.filter((obj, i, self) => 
-        self.findIndex(o => o.name === obj.name) === i);
-      
-      return uniqByName(response.data).map(model =>
-        [
-          utils.padRight(model.name, 30),
-          utils.padRight("" + model.max_context_length, 10),
-          model.description
-        ].join(" ")
-      ).join("\n");
-    },
-
-     listOpenai: () => {
-        const key = apiKeys.get("openai", "OPENAI_API_KEY");
-        if (key[1]) throw new Error(key[1]);
-
-        const headers = ["Authorization: Bearer " + key[0]];
-        const response = http.get("https://api.openai.com/v1/models", headers);
-        return response.data.map(model => model.id).join("\n");
-      },
-     listOllama: () => {
-       const base = state.baseurl || (state.host + ":" + state.port);
-       const cmd = `curl -s ${base}/api/tags`;
-       const res = r2.syscmds(cmd);
-
-       try {
-         const models = JSON.parse(res).models;
-         return models.map(model => model.name).join("\n");
-       } catch (e) {
-         console.error(e);
-         console.log(res);
-         return "error invalid response";
-       }
-     },
-
-     listOllamaCloud: () => {
-       const key = apiKeys.get("ollama", "OLLAMA_API_KEY");
-       if (key[1]) throw new Error(key[1]);
-
-       const headers = ["Authorization: Bearer " + key[0]];
-       const response = http.get("https://ollama.com/v1/models", headers);
-       return response.data.map(model => model.id).join("\n");
-     },
-
-    listFor: (api) => {
-      const modelLists = {
-        ollama: () => console.log(models.listOllama()),
-        openapi: () => console.log(models.listOllama()),
-        openai: () => console.log(models.listOpenai()),
-        groq: () => console.log("meta-llama/llama-4-scout-17b-16e-instruct"),
-        gemini: () => {
-          const geminiModels = [
-            "gemini-2.0-flash", "gemini-2.0-flash-lite",
-            "gemini-1.5-pro", "gemini-1.5-flash"
-          ];
-          geminiModels.forEach(model => console.log(model));
-        },
-        claude: () => {
-          try {
-            console.log(models.listClaude());
-          } catch (e) {
-            console.error(e);
-          }
-          const claudeModels = [
-            "claude-3-5-sonnet-20241022", "claude-3-7-sonnet-20250219",
-            "claude-opus-4-20250514", "claude-sonnet-4-20250514"
-          ];
-          claudeModels.forEach(model => console.log(model));
-        },
-        anthropic: () => models.listFor("claude"),
-        xai: () => {
-          const xaiModels = ["grok-2", "grok-beta"];
-          xaiModels.forEach(model => console.log(model));
-        },
-        mistral: () => {
-          try {
-            console.log(models.listMistral());
-          } catch (e) {
-            console.error(e, e.stack);
-          }
-          console.log("codestral-latest");
-        },
-         ollamacloud: () => {
-           try {
-             console.log(models.listOllamaCloud());
-           } catch (e) {
-             console.error(e);
-           }
-         }
-      };
-
-      const listFunction = modelLists[api];
-      if (listFunction) {
-        listFunction();
-      }
-    }
-  };
-
-  // AI providers - simplified structure
-  const providers = {
+  // Generic API handlers
+  const apiHandlers = {
     buildQuery: (msg, hideprompt) => {
       if (state.think >= 0) {
         if (state.think === 0) {
-          msg += ' Answers directly and concisely, without showing any thinking steps or internal reasoning. Never include phrases like "Let me think".';
+          msg +=
+            ' Answers directly and concisely, without showing any thinking steps or internal reasoning. Never include phrases like "Let me think".';
           msg += " /no_think";
         } else if (state.think > 0) {
-          msg = "Think step by step and explain the reasoning process, When answering, first output your reasoning inside <think> and </think> tags, then give the final answer." + msg;
+          msg =
+            "Think step by step and explain the reasoning process, When answering, first output your reasoning inside <think> and </think> tags, then give the final answer." +
+            msg;
         }
       }
-      return hideprompt ? msg : state.prompt + providers.languagePrompt() + msg;
+      return hideprompt
+        ? msg
+        : state.prompt + apiHandlers.languagePrompt() + msg;
     },
 
-    languagePrompt: () => "\n.Translate the code into " + state.language + " programming language\n",
+    languagePrompt: () =>
+      "\n.Translate the code into " + state.language +
+      " programming language\n",
 
-    anthropic: (msg, hideprompt) => {
-      const key = apiKeys.get("anthropic", "ANTHROPIC_API_KEY");
-      if (key[1]) return "Cannot read ~/.r2ai.anthropic-key";
-
-      const model = state.model || "claude-3-7-sonnet-20250219";
-      const query = providers.buildQuery(msg, hideprompt);
-      
-      const payload = {
-        model: model,
-        max_tokens: 5128,
-        messages: [{ role: "user", content: query }]
-      };
-
-      if (state.deterministic) {
-        Object.assign(payload, { temperature: 0, top_p: 0, top_k: 1 });
-      }
-
-      const headers = [
-        "anthropic-version: 2023-06-01",
-        "x-api-key: " + key[0]
-      ];
-
-      try {
-        const res = http.post("https://api.anthropic.com/v1/messages", headers, JSON.stringify(payload));
-        return utils.filterResponse(res.content[0].text);
-      } catch (e) {
-        return "ERROR: " + (res.error?.message || e.message);
-      }
-    },
-
-    openai: (msg, hideprompt) => {
-      const model = state.model || "gpt-5-mini";
-      const query = providers.buildQuery(msg, hideprompt);
+    openai: (provider, msg, hideprompt) => {
+      const model = state.model || provider.defaultModel;
+      const query = apiHandlers.buildQuery(msg, hideprompt);
 
       const payload = {
         stream: false,
         model: model,
-        messages: [{ role: "user", content: query }]
+        messages: [{ role: "user", content: query }],
       };
 
       if (state.deterministic) {
-        // payload.options = { };
+        payload.temperature = 0;
+        payload.top_p = 0;
       }
 
-      if (state.baseurl === "") {
-        state.baseurl = "https://api.openai.com/";
-      }
-      const base = state.baseurl || (state.host + ":" + state.port);
+      const base = state.baseurl || provider.defaultBaseurl;
       const url = base + "/v1/chat/completions";
-      const key = apiKeys.get("openai", "OPENAI_API_KEY");
-      if (key[1]) return "Cannot read ~/.r2ai.openai-key";
-      const headers = [
-        "Authorization: Bearer " + key[0]
-      ];
+
+      let headers = [];
+      if (provider.requiresAuth) {
+        const key = apiKeys.get(
+          provider.authKey.split("_")[0].toLowerCase(),
+          provider.authKey,
+        );
+        if (key[1]) {
+          return `Cannot read ~/.r2ai.${
+            provider.authKey.split("_")[0].toLowerCase()
+          }-key`;
+        }
+        headers = ["Authorization: Bearer " + key[0]];
+      }
 
       try {
         const res = http.post(url, headers, JSON.stringify(payload));
@@ -587,14 +692,56 @@ Use radare2 to resolve user requests.
         return "ERROR: " + e.message;
       }
     },
-    ollama: (msg, hideprompt) => {
-      const model = state.model || "qwen2.5-coder:latest";
-      const query = providers.buildQuery(msg, hideprompt);
+
+    anthropic: (provider, msg, hideprompt) => {
+      const key = apiKeys.get(
+        provider.authKey.split("_")[0].toLowerCase(),
+        provider.authKey,
+      );
+      if (key[1]) {
+        return `Cannot read ~/.r2ai.${
+          provider.authKey.split("_")[0].toLowerCase()
+        }-key`;
+      }
+
+      const model = state.model || provider.defaultModel;
+      const query = apiHandlers.buildQuery(msg, hideprompt);
+
+      const payload = {
+        model: model,
+        max_tokens: 5128,
+        messages: [{ role: "user", content: query }],
+      };
+
+      if (state.deterministic) {
+        Object.assign(payload, { temperature: 0, top_p: 0, top_k: 1 });
+      }
+
+      const headers = [
+        "anthropic-version: 2023-06-01",
+        "x-api-key: " + key[0],
+      ];
+
+      try {
+        const res = http.post(
+          provider.defaultBaseurl + "/v1/messages",
+          headers,
+          JSON.stringify(payload),
+        );
+        return utils.filterResponse(res.content[0].text);
+      } catch (e) {
+        return "ERROR: " + (res.error?.message || e.message);
+      }
+    },
+
+    ollama: (provider, msg, hideprompt) => {
+      const model = state.model || provider.defaultModel;
+      const query = apiHandlers.buildQuery(msg, hideprompt);
 
       const payload = {
         stream: false,
         model: model,
-        messages: [{ role: "user", content: query }]
+        messages: [{ role: "user", content: query }],
       };
 
       if (state.deterministic) {
@@ -604,18 +751,18 @@ Use radare2 to resolve user requests.
           top_k: 1.0,
           temperature: 0.0,
           repeat_penalty: 1.0,
-          seed: 123
+          seed: 123,
         };
       }
 
-      const base = state.baseurl || (state.host + ":" + state.port);
+      const base = state.baseurl || provider.defaultBaseurl;
       const url = base + "/api/chat";
 
       try {
         const res = http.post(url, [], JSON.stringify(payload));
         return utils.filterResponse(res.message.content);
       } catch (e) {
-        if (res.error?.indexOf("try pulling")) {
+        if (res.error && res.error.indexOf("try pulling")) {
           const modelName = res.error.split(/"/g)[1];
           res.error += "\n!ollama run " + modelName;
         }
@@ -623,140 +770,71 @@ Use radare2 to resolve user requests.
       }
     },
 
-     ollamacloud: (msg, hideprompt) => {
-       const key = apiKeys.get("ollama", "OLLAMA_API_KEY");
-       if (key[1]) return "Cannot read ~/.r2ai.ollama-key";
-
-       const model = state.model || "gpt-oss:120b";
-       const query = providers.buildQuery(msg, hideprompt);
-
-       const payload = {
-         model: model,
-         messages: [{ role: "user", content: query }]
-       };
-
-       if (state.deterministic) {
-         payload.temperature = 0;
-         payload.top_p = 0;
-       }
-
-       const headers = [
-         "Authorization: Bearer " + key[0]
-       ];
-
-       // NOTE: ollama cloud is actually openai. so we are dupping logic here
-       try {
-         const res = http.post("https://ollama.com/v1/chat/completions", headers, JSON.stringify(payload));
-         return utils.filterResponse(res.choices[0].message.content);
-       } catch (e) {
-         return "ERROR: " + (res.error?.message || e.message);
-       }
-     },
-
-      gemini: (msg, hideprompt) => {
-        const key = apiKeys.get("gemini", "GEMINI_API_KEY");
-        if (key[1]) return "Cannot read ~/.r2ai.gemini-key";
-
-        const model = state.model || "gemini-1.5-flash";
-        const query = providers.buildQuery(msg, hideprompt);
-
-        const payload = {
-          contents: [{ parts: [{ text: query }] }]
-        };
-
-        if (state.deterministic) {
-          payload.generationConfig = {
-            temperature: 0.0,
-            topP: 1.0,
-            topK: 1
-          };
-        }
-
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key[0]}`;
-
-        try {
-          const res = http.post(url, [], JSON.stringify(payload));
-          return utils.filterResponse(res.candidates[0].content.parts[0].text);
-        } catch (e) {
-          return "ERROR: " + (res.error || e.message);
-        }
-      },
-
-      mistral: (msg, hideprompt) => {
-        const key = apiKeys.get("mistral", "MISTRAL_API_KEY");
-        if (key[1]) return "Cannot read ~/.r2ai.mistral-key";
-
-        const model = state.model || "codestral-latest";
-        const query = providers.buildQuery(msg, hideprompt);
-
-        const payload = {
-          stream: false,
-          model: model,
-          messages: [{ role: "user", content: query }]
-        };
-
-        if (state.deterministic) {
-          payload.n = 1;
-          payload.top_p = 0.001;
-          payload.random_seed = 1;
-          payload.temperature = 0.001;
-        }
-
-        const headers = [
-          "Accept: application/json",
-          "Authorization: Bearer " + key[0]
-        ];
-
-        try {
-          const res = http.post("https://api.mistral.ai/v1/chat/completions", headers, JSON.stringify(payload));
-          return utils.filterResponse(res.choices[0].message.content);
-        } catch (e) {
-          return "ERROR: " + (res.error?.message || e.message);
-        }
-      },
-
-      xai: (msg, hideprompt) => {
-        const key = apiKeys.get("xai", "XAI_API_KEY");
-        if (key[1]) return "Cannot read ~/.r2ai.xai-key";
-
-        const model = state.model || "grok-beta";
-        const query = providers.buildQuery(msg, hideprompt);
-
-        const payload = {
-          messages: [{ role: "user", content: query }],
-          model: model,
-          stream: false
-        };
-
-        const headers = [
-          "Authorization: Bearer " + key[0]
-        ];
-
-        try {
-          const res = http.post("https://api.x.ai/v1/chat/completions", headers, JSON.stringify(payload));
-          return utils.filterResponse(res.choices[0].message.content);
-        } catch (e) {
-          return "ERROR: " + (res.error || e.message);
-        }
+    gemini: (provider, msg, hideprompt) => {
+      const key = apiKeys.get(
+        provider.authKey.split("_")[0].toLowerCase(),
+        provider.authKey,
+      );
+      if (key[1]) {
+        return `Cannot read ~/.r2ai.${
+          provider.authKey.split("_")[0].toLowerCase()
+        }-key`;
       }
 
-      // Additional providers would follow similar pattern...
-   };
+      const model = state.model || provider.defaultModel;
+      const query = apiHandlers.buildQuery(msg, hideprompt);
+
+      const payload = {
+        contents: [{ parts: [{ text: query }] }],
+      };
+
+      if (state.deterministic) {
+        payload.generationConfig = {
+          temperature: 0.0,
+          topP: 1.0,
+          topK: 1,
+        };
+      }
+
+      const url =
+        `${provider.defaultBaseurl}/v1beta/models/${model}:generateContent?key=${
+          key[0]
+        }`;
+
+      try {
+        const res = http.post(url, [], JSON.stringify(payload));
+        return utils.filterResponse(res.candidates[0].content.parts[0].text);
+      } catch (e) {
+        return "ERROR: " + (res.error || e.message);
+      }
+    },
+  };
+
+  // Legacy providers object for backward compatibility
+  const providers = {
+    buildQuery: apiHandlers.buildQuery,
+    languagePrompt: apiHandlers.languagePrompt,
+  };
 
   // Main AI function dispatcher
   function r2ai(queryText, fileData, hideprompt) {
     if (!fileData) fileData = "";
-    
+
     fileData = fileData.replace(/`/g, "");
     queryText = queryText.replace(/'/g, "");
 
     if (state.api === "r2" || state.api === "r2ai") {
       const fileName = utils.tmpdir(".pdc.txt");
       utils.fileDump(fileName, fileData);
-      const q = queryText.startsWith("-") ? queryText : ["-i", fileName, queryText].join(" ");
-      const host = state.baseurl ? state.baseurl + "/cmd" : state.host + ":" + state.port + "/cmd";
+      const q = queryText.startsWith("-")
+        ? queryText
+        : ["-i", fileName, queryText].join(" ");
+      const host = state.baseurl
+        ? state.baseurl + "/cmd"
+        : state.host + ":" + state.port + "/cmd";
       const ss = q.replace(/ /g, "%20").replace(/'/g, "\\'");
-      const cmd = 'curl -s "' + host + "/" + ss + '" || echo "Cannot curl, use r2ai-server or r2ai -w"';
+      const cmd = 'curl -s "' + host + "/" + ss +
+        '" || echo "Cannot curl, use r2ai-server or r2ai -w"';
       utils.debug.log(cmd);
       return r2.syscmds(cmd);
     }
@@ -768,25 +846,16 @@ Use radare2 to resolve user requests.
       q = q.slice(0, state.maxInputTokens);
     }
 
-    const providerMap = {
-      "anthropic": providers.anthropic,
-      "claude": providers.anthropic,
-      "ollama": providers.ollama,
-      "ollamacloud": providers.ollamacloud,
-      "openai": providers.openai,
-      "gemini": providers.gemini,
-      "google": providers.gemini,
-      "mistral": providers.mistral,
-      "xai": providers.xai,
-      // Add other providers as needed
-    };
-
-    const provider = providerMap[state.api];
-    if (provider) {
-      return provider(q, hideprompt);
+    const providerConfig = providerRegistry[state.api];
+    if (providerConfig) {
+      const handler = apiHandlers[providerConfig.apiStyle];
+      if (handler) {
+        return handler(providerConfig, q, hideprompt);
+      }
     }
 
-    return "Unknown value for 'decai -e api'. Use r2ai, claude, ollama, ollamacloud, openai, gemini, google, mistral, xai or hf";
+    const availableApis = Object.keys(providerRegistry).join(", ");
+    return `Unknown value for 'decai -e api'. Available: ${availableApis}`;
   }
 
   // Command handlers
@@ -837,31 +906,37 @@ Use radare2 to resolve user requests.
 
       const appendQuery = extraQuery ? " " + args : "";
       const origColor = r2.cmd("e scr.color");
-      
+
       try {
         args = args.slice(2).trim();
         let count = 0;
         let text = "";
-        
-        if (state.contextFile !== "" && r2.cmd2("test -f " + state.contextFile).value === 0) {
-          text += "## Context:\n[START]\n" + r2.cmd("cat " + state.contextFile) + "\n[END]\n";
+
+        if (
+          state.contextFile !== "" &&
+          r2.cmd2("test -f " + state.contextFile).value === 0
+        ) {
+          text += "## Context:\n[START]\n" +
+            r2.cmd("cat " + state.contextFile) + "\n[END]\n";
         }
 
         r2.cmd("e scr.color=0");
         let body = "## Before:\n";
-        
+
         for (const c of state.commands.split(",")) {
           if (c.trim() === "") continue;
-          
-          const oneliner = (extraQuery || args.trim().length === 0) ? c : c + "@@= " + args;
+
+          const oneliner = (extraQuery || args.trim().length === 0)
+            ? c
+            : c + "@@= " + args;
           const output = r2.cmd(oneliner);
-          
+
           if (output.length > 5) {
             body += "Output of " + c + ":\n[START]\n" + output + "\n[END]\n";
             count++;
           }
         }
-        
+
         body += "## After:\n";
         r2.cmd("e scr.color=" + origColor);
 
@@ -875,13 +950,20 @@ Use radare2 to resolve user requests.
           const dpipe = state.decopipe[state.decopipe.default];
           const origModel = state.model;
           let code = text + body;
-          
+
           for (var dp of dpipe.pipeline) {
             if (dp.model) state.model = dp.model;
             const query = dp.query + ". " + dpipe.globalQuery;
             out = r2ai(query, code, true);
             if (state.debug) {
-              console.log("QUERY\n", query, "\nINPUT\n", code, "\nOUTPUT\n", out);
+              console.log(
+                "QUERY\n",
+                query,
+                "\nINPUT\n",
+                code,
+                "\nOUTPUT\n",
+                out,
+              );
             }
             code = out;
           }
@@ -911,15 +993,17 @@ Use radare2 to resolve user requests.
     explain: () => {
       const origColor = r2.cmd("e scr.color");
       r2.cmd("e scr.color=0");
-      const hints = "[START]" + state.commands.split(",").map(r2.cmd).join("\n") + "[END]";
+      const hints = "[START]" +
+        state.commands.split(",").map(r2.cmd).join("\n") + "[END]";
       r2.cmd("e scr.color=" + origColor);
-      
+
       const res = r2ai(
-        "Analyze function calls, references, comments and strings, loops and ignore registers and memory accesses. Explain the purpose of this function in a single short sentence. /no_think Do not introduce or argue the response, translation of the explanation in " + state.humanLanguage,
+        "Analyze function calls, references, comments and strings, loops and ignore registers and memory accesses. Explain the purpose of this function in a single short sentence. /no_think Do not introduce or argue the response, translation of the explanation in " +
+          state.humanLanguage,
         hints,
-        true
+        true,
       );
-      
+
       const lines = res.trim().split(/\n/g);
       return lines[lines.length - 1].trim();
     },
@@ -928,27 +1012,27 @@ Use radare2 to resolve user requests.
       const tmp = state.language;
       const code = r2.cmd("afv;pdc");
       state.language = "C";
-      
+
       let out = "'afs " + r2ai(
         "analyze the uses of the arguments and return value to infer the signature, identify which is the correct type for the return. Do NOT print the function body, ONLY output the function signature, like if it was going to be used in a C header",
-        code
+        code,
       );
-      
+
       let brace = out.indexOf("{");
       if (brace !== -1) {
         out = out.substring(0, brace);
       }
-      
+
       state.language = tmp;
       return out;
     },
 
     auto: (queryText) => {
       const replies = [];
-      
+
       while (true) {
         let q = HELP_TEXT.auto;
-        
+
         if (replies.length > 0) {
           q += "## Command Results\n\n";
           for (const rep of replies) {
@@ -956,61 +1040,69 @@ Use radare2 to resolve user requests.
             q += "### " + rp.command + "\n\n```\n" + rp.response + "\n```\n";
           }
         }
-        
+
         q += "\n\n## User Prompt\n\n" + queryText;
-        
+
         if (state.debug) {
           console.log("#### input\n", q, "\n#### /input");
         }
-        
+
         console.log("Thinking...");
         const out = r2ai("", q, true);
-        
+
         if (state.debug) {
           console.log("#### output\n", out, "\n#### /output");
         }
-        
+
         try {
-          const o = JSON.parse(utils.trimJson(utils.trimDown(utils.filterResponse(out))));
-          
-          if (o.action === "r2cmd" || o.action === "response" || o.action == o.command) {
+          const o = JSON.parse(
+            utils.trimJson(utils.trimDown(utils.filterResponse(out))),
+          );
+
+          if (
+            o.action === "r2cmd" || o.action === "response" ||
+            o.action == o.command
+          ) {
             const ocmd = o.command;
-            
+
             if (o.reason) {
               console.log("[r2cmd] Reasoning: " + o.reason);
               if (state.tts) {
                 r2.syscmd("pkill say");
-                r2.syscmd("say -v Alex -r 250 '" + o.reason.replace(/'/g, "") + "' &");
+                r2.syscmd(
+                  "say -v Alex -r 250 '" + o.reason.replace(/'/g, "") + "' &",
+                );
               }
             }
-            
+
             console.log("[r2cmd] Action: " + o.description);
             console.log("[r2cmd] Command: " + ocmd);
-            
+
             let cmd = ocmd;
             if (!state.yolo) {
               cmd = commands.autoRepl(ocmd);
             }
-            
+
             console.log("[r2cmd] Running: " + cmd);
             const obj = r2.cmd2(cmd);
-            const logs = obj.logs ? obj.logs.map(x => x.type + ": " + x.message).join("\n") : "";
+            const logs = obj.logs
+              ? obj.logs.map((x) => x.type + ": " + x.message).join("\n")
+              : "";
             const res = (obj.res + logs).trim();
-            
+
             console.log(res);
             const cleanRes = utils.trimAnsi(res);
-            
+
             if (state.debug) {
               console.log("<r2output>\n", cleanRes, "\n<(r2output>");
             }
-            
+
             replies.push(JSON.stringify({
               action: "response",
               command: cmd,
               description: o.description,
-              response: cleanRes
+              response: cleanRes,
             }));
-            
           } else if (o.action === "reply") {
             console.log("Done\n", o.response);
             break;
@@ -1036,7 +1128,7 @@ Use radare2 to resolve user requests.
     autoRepl: (ocmd) => {
       while (true) {
         const cmd = r2.cmd("'?ie Tweak command? ('?' for help)").trim();
-        
+
         if (cmd == "q!") {
           console.error("Break!");
           break;
@@ -1080,7 +1172,7 @@ Use radare2 to resolve user requests.
       console.log(" 'c # C' use given command with comment");
       console.log(" ':c'    run r2 command without feeding auto");
       console.log(" '-e'    set decai configuration variables");
-    }
+    },
   };
 
   // Main command processor
@@ -1097,16 +1189,16 @@ Use radare2 to resolve user requests.
 
     let output = "";
     const flag = args[1];
-    
+
     switch (flag) {
       case "H":
         console.log(HELP_TEXT.decai);
         break;
-        
+
       case "a":
         commands.auto(args.slice(2).trim());
         break;
-        
+
       case "m":
         const arg0 = args.slice(2).trim();
         if (arg0 === "=") {
@@ -1117,30 +1209,31 @@ Use radare2 to resolve user requests.
           config.eval("model");
         }
         break;
-        
+
       case "n":
       case "f":
         output = r2.cmd("axff~$[3]");
         const considerations = r2.cmd("fd.").trim()
           .split(/\n/)
-          .filter(x => !x.startsWith("secti"))
+          .filter((x) => !x.startsWith("secti"))
           .join(",");
-        
+
         output = r2ai(
-          "give me a better name for this function. the output must be: 'afn NEWNAME'. do not include the function code, only the afn line. consider: " + considerations,
-          output
+          "give me a better name for this function. the output must be: 'afn NEWNAME'. do not include the function code, only the afn line. consider: " +
+            considerations,
+          output,
         ).trim();
         output += " @ " + r2.cmd("?v $FB").trim();
         break;
-        
+
       case "v":
         output = r2.cmd("afv;pdc");
         output = r2ai(
           "guess a better name and type for each local variable and function argument taking using. output an r2 script using afvn and afvt commands",
-          output
+          output,
         );
         break;
-        
+
       case "i":
         const parts = args.slice(2).trim().split(/ /g, 2);
         if (parts.length === 2) {
@@ -1152,7 +1245,7 @@ Use radare2 to resolve user requests.
           console.log("Use: decai -i [file] [query ...]");
         }
         break;
-        
+
       case "r":
         const prompt = args.slice(2).trim();
         if (prompt) {
@@ -1161,26 +1254,26 @@ Use radare2 to resolve user requests.
           console.log(state.prompt);
         }
         break;
-        
+
       case "R":
         state.prompt = DEFAULT_PROMPT;
         break;
-        
+
       case "s":
         output = commands.signature();
         break;
-        
+
       case "V":
         output = r2ai(
           "find vulnerabilities, dont show the code, only show the response, provide a sample exploit",
-          state.lastOutput
+          state.lastOutput,
         );
         break;
-        
+
       case "k":
         apiKeys.list();
         break;
-        
+
       case "e":
         const evalArg = args.slice(2).trim();
         if (evalArg) {
@@ -1189,7 +1282,7 @@ Use radare2 to resolve user requests.
           config.listAll();
         }
         break;
-        
+
       case "q":
         try {
           output = r2ai(args.slice(2).trim(), null, true);
@@ -1197,18 +1290,18 @@ Use radare2 to resolve user requests.
           console.error(e, e.stack);
         }
         break;
-        
+
       case "Q":
         output = r2ai(args.slice(2).trim(), state.lastOutput);
         break;
-        
+
       case "x":
         output = commands.explain();
         if (args[2] === "*" || args[2] === "r") {
           output = "'CC " + output;
         }
         break;
-        
+
       case "d":
         if (args[2] === "r") {
           output = commands.decompile(args.slice(2), true, state.cache, true);
@@ -1220,7 +1313,7 @@ Use radare2 to resolve user requests.
           output = commands.decompile(args, false, state.cache, false);
         }
         break;
-        
+
       default:
         commands.help();
         break;
@@ -1245,9 +1338,9 @@ Use radare2 to resolve user requests.
 
     return {
       "name": COMMAND,
-      "license": "MIT", 
+      "license": "MIT",
       "desc": "r2 decompiler based on r2ai",
-      "call": coreCall
+      "call": coreCall,
     };
   });
 })();
