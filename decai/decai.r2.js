@@ -4,9 +4,118 @@
   const DEFAULT_PROMPT = "Transform this pseudocode and respond ONLY with plain code (NO explanations, comments or markdown), Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and strings from comments like 'string:', Reduce lines of code and fit everything in a single function, Remove all dead code";
   
   const HELP_TEXT = {
-	// AITODO: use multiline string here
-    decai: `# Using Decai\n\nDecai is the radare2 plugin for decompiling functions with the help of language models.\nBy default uses a local ollama server, but can you can pick any other service by using 'decai -e api=?'.\n\n[0x00000000]> decai -e api=?\nr2ai claude deepseek gemini hf mistral ollama openapi openai vllm xai\n\n## Using Ollama\n\n* Visit https://ollama.com to install it.\n* Download the model of choice: 'ollama run llama3.3'\n* Configure decai to use the given model with: 'decai -e model=?'\n\nThese are the most recommended models for decompiling in local:\n\n* hhao/qwen2.5-coder-tools:latest (18GB of ram)\n* hhao/qwen2.5-coder-tools:32b (24GB of ram required)\n\n## Common Options\n* 'decai -e baseurl=<url>' override default host and port for API endpoint (e.g., 'http://localhost:11434')\n\n* 'decai -e deterministic=true' to remove randomness from decompilation responses\n* 'decai -e lang=Python' to output the decompilation in Python instead of C\n* 'decai -e hlang=Catalan' to add comments or explanations in that language (instead of English)\n* 'decai -e cmds=pdd,pdg' use r2dec and r2ghidra instead of r2's pdc as input for decompiling\n* 'decai -e prompt=..' default prompt must be fine for most models and binaries, feel free to tweak it\n\n## API Keys\n\nRemove services like OpenAI, Mistral, Anthropic, Grok, Gemini, .. require API keys to work.\n\nSee 'decai -k' to list the status of available APIkeys\n\nDecai will pick them from the environment or the config files in your home:\n\n* echo KEY > ~/.r2ai.openai-key\n* export OPENAI_API_KEY=...\n\n## Using the R2AI Server:\n\nInstall r2ai or r2ai-server with r2pm:\n\n[0x0000000]> decai -e api=r2ai\n[0x0000000]> r2pm -ci r2ai\n\nChoose one of the recommended models (after r2pm -r r2ai):\n\n* -m ibm-granite/granite-20b-code-instruct-8k-GGUF\n* -m QuantFactory/granite-8b-code-instruct-4k-GGUF\n* -m TheBloke/Mistral-7B-Instruct-v0.2-GGUF\n\nStart the webserver:\n\n$ r2pm -r r2ai-server -l r2ai -m granite-8b-code-instruct-4k.Q2_K\n\n## Permanent Settings\n\nYou can write your custom decai commands in your ~/.radare2rc file.\n\n`,
-    auto: `# Radare2 Auto Mode\n\nUse function calling to execute radare2 commands in order to resolve the user request defined in the "User Prompt" section, analyze the responses attached in the "Command Results" section.\n\n## Function Calling\n\nRespond ONLY using plain JSON. Process user query and decide which function calls are necessary to solve the task.\n\n1. Analyze the user request to determine if we need to run commands to extend the knowledge and context of the problem.\n2. If function call is needed, construct the JSON like this:\n - Fill the "action" key with the "r2cmd" value.\n - Specify the "command" as a string.\n - Optionally, provide a "reason" and "description"\n3. If the answer can be provided and no more function calls are required:\n - Use the key "action": "reply".\n - Include "response" with the direct answer to the user query.\n\nReturn the result as a JSON object.\n\n### Sample Function Calling Communication\n\nCommand Results: already performed actions with their responses\nUser Prompt: "Count how many functions we have here."\nResponse:\n{\n    "action": "r2cmd",\n    "command": "aflc",\n    "description": "Count functions"\n    "reason": "Evaluate if the program is analyzed before running aaa"\n}\n\n## Rules\n\nUse radare2 to resolve user requests.\n\n* Explain each step in the "reason" field of the JSON.\n* Follow the initial analysis instructions.\n* Output only valid JSON as specified.\n* Decompile and inspect functions, starting from main.\n* Run only the needed commands to gather info.\n* Use "@ (address|symbol)" to seek temporarily.\n* Output should be a verbose markdown report.\n* Use "sym." or "fcn." prefixes if "pdc" is empty.\n* If a seek fails, use "f~name" to find the symbol's address.\n\n### Initial Analysis\n\n1. Run "aflc" to count the number of functions\n2. If the output of "aflc" is "0" run "aaa" once, then "aflc" again\n3. Run only one command at a time (do not use ";")\n\n### Special cases\n\n* On Swift binaries run "/az" to find assembly constructed strings\n* For better function decompilation results use "pdd"\n\n### Planing Steps\n\n1. Rephrase the user request into clear tasks.\n2. Review available commands and choose only what's needed.\n3. Follow the task list step-by-step.\n4. Avoid redundant or repeated actions.\n5. Minimize token use by acting efficiently.\n6. Solve the problem quickly and accurately.\n\n## Functions or Commands\n\n* "i" : get information from the binary\n* "is" : list symbols\n* "izqq" : show all strings inside the binary\n* "aflm" : list all functions and their calls\n* "aflc" : count the amount of functions analyzed\n* "ies" : show entrypoints symbols\n* "pdsf" : show strings and function names referenced in function\n* "iic" : classify imported symbols (network, format string, thread unsafe, etc)\n* "pdc" : decompile function\n* "iiq" : enumerate the imported symbols\n* "izqq~http:,https:" : filter strings for http and https network urls\n* "ilq" : Enumerate libraries and frameworks\n\n`
+    decai: `# Using Decai
+
+Decai is the radare2 plugin for decompiling functions with the help of language models.
+
+By default uses a local ollama server, but can you can pick any other service by using 'decai -e api=?'.
+
+[0x00000000]> decai -e api=?
+r2ai claude deepseek gemini hf mistral ollama openapi openai vllm xai
+
+## Using Ollama
+
+* Visit https://ollama.com to install it.
+* Download the model of choice: 'ollama run llama3.3'
+* Configure decai to use the given model with: 'decai -e model=?'
+
+These are the most recommended models for decompiling in local:
+
+* hhao/qwen2.5-coder-tools:latest (18GB of ram)
+* hhao/qwen2.5-coder-tools:32b (24GB of ram required)
+
+## Common Options
+* 'decai -e baseurl=<url>' override default host and port for API endpoint (e.g., 'http://localhost:11434')
+
+* 'decai -e deterministic=true' to remove randomness from decompilation responses
+* 'decai -e lang=Python' to output the decompilation in Python instead of C
+* 'decai -e hlang=Catalan' to add comments or explanations in that language (instead of English)
+* 'decai -e cmds=pdd,pdg' use r2dec and r2ghidra instead of r2's pdc as input for decompiling
+* 'decai -e prompt=..' default prompt must be fine for most models and binaries, feel free to tweak it
+
+## API Keys
+
+Remove services like OpenAI, Mistral, Anthropic, Grok, Gemini, .. require API keys to work.
+
+See 'decai -k' to list the status of available APIkeys
+
+Decai will pick them from the environment or the config files in your home:
+
+* echo KEY > ~/.r2ai.openai-key
+* export OPENAI_API_KEY=...
+
+## Using the R2AI Server:
+
+Install r2ai or r2ai-server with r2pm:
+
+[0x0000000]> decai -e api=r2ai
+[0x0000000]> r2pm -ci r2ai
+
+Choose one of the recommended models (after r2pm -r r2ai):
+
+* -m ibm-granite/granite-20b-code-instruct-8k-GGUF
+* -m QuantFactory/granite-8b-code-instruct-4k-GGUF
+* -m TheBloke/Mistral-7B-Instruct-v0.2-GGUF
+
+Start the webserver:
+
+$ r2pm -r r2ai-server -l r2ai -m granite-8...
+`,
+    auto: `# Radare2 Auto Mode
+
+Use function calling to execute radare2 commands in order to resolve the user request defined in the "User Prompt" section, analyze the responses attached in the "Command Results" section.
+
+## Function Calling
+
+Respond ONLY using plain JSON. Process user query and decide which function calls are necessary to solve the task.
+
+1. Analyze the user request to determine if we need to run commands to extend the knowledge and context of the problem.
+2. If function call is needed, construct the JSON like this:
+ - Fill the "action" key with the "r2cmd" value.
+ - Specify the "command" as a string.
+ - Optionally, provide a "reason" and "description"
+3. If the answer can be provided and no more function calls are required:
+ - Use the key "action": "reply".
+ - Include "response" with the direct answer to the user query.
+
+Return the result as a JSON object.
+
+### Sample Function Calling Communication
+
+Command Results: already performed actions with their responses
+User Prompt: "Count how many functions we have here."
+Response:
+{
+    "action": "r2cmd",
+    "command": "aflc",
+    "description": "Count functions"
+    "reason": "Evaluate if the program is analyzed before running aaa"
+}
+
+## Rules
+
+Use radare2 to resolve user requests.
+
+* Explain each step in the "reason" field of the JSON.
+* Follow the initial analysis instructions.
+* Output only valid JSON as specified.
+* Decompile and inspect functions, starting from main.
+* Run only the needed commands to gather info.
+* Use "@ (address|symbol)" to seek temporarily.
+* Output should be a verbose markdown report.
+* Use "sym." or "fcn." prefixes if "pdc" is empty.
+* If a seek fails, use "f~name" to find the symbol's address.
+
+### Initial Analysis
+
+1. Run "aflc" to count the number of functions
+2. If the output of "aflc" is "0" run "aaa" once, then "aflc" again
+3. Run only one command at a time (do not use ";")
+
+### Special cases
+
+* On Swift binaries run...
+`
   };
 
   // Configuration state
