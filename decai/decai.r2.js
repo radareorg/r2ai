@@ -623,38 +623,67 @@ Use radare2 to resolve user requests.
       }
     },
 
-    ollamacloud: (msg, hideprompt) => {
-      const key = apiKeys.get("ollama", "OLLAMA_API_KEY");
-      if (key[1]) return "Cannot read ~/.r2ai.ollama-key";
+     ollamacloud: (msg, hideprompt) => {
+       const key = apiKeys.get("ollama", "OLLAMA_API_KEY");
+       if (key[1]) return "Cannot read ~/.r2ai.ollama-key";
 
-      const model = state.model || "gpt-oss:120b";
-      const query = providers.buildQuery(msg, hideprompt);
+       const model = state.model || "gpt-oss:120b";
+       const query = providers.buildQuery(msg, hideprompt);
 
-      const payload = {
-        model: model,
-        messages: [{ role: "user", content: query }]
-      };
+       const payload = {
+         model: model,
+         messages: [{ role: "user", content: query }]
+       };
 
-      if (state.deterministic) {
-        payload.temperature = 0;
-        payload.top_p = 0;
-      }
+       if (state.deterministic) {
+         payload.temperature = 0;
+         payload.top_p = 0;
+       }
 
-      const headers = [
-        "Authorization: Bearer " + key[0]
-      ];
+       const headers = [
+         "Authorization: Bearer " + key[0]
+       ];
 
-      // NOTE: ollama cloud is actually openai. so we are dupping logic here
-      try {
-        const res = http.post("https://ollama.com/v1/chat/completions", headers, JSON.stringify(payload));
-        return utils.filterResponse(res.choices[0].message.content);
-      } catch (e) {
-        return "ERROR: " + (res.error?.message || e.message);
-      }
-    }
+       // NOTE: ollama cloud is actually openai. so we are dupping logic here
+       try {
+         const res = http.post("https://ollama.com/v1/chat/completions", headers, JSON.stringify(payload));
+         return utils.filterResponse(res.choices[0].message.content);
+       } catch (e) {
+         return "ERROR: " + (res.error?.message || e.message);
+       }
+     },
 
-    // Additional providers would follow similar pattern...
-  };
+     gemini: (msg, hideprompt) => {
+       const key = apiKeys.get("gemini", "GEMINI_API_KEY");
+       if (key[1]) return "Cannot read ~/.r2ai.gemini-key";
+
+       const model = state.model || "gemini-1.5-flash";
+       const query = providers.buildQuery(msg, hideprompt);
+
+       const payload = {
+         contents: [{ parts: [{ text: query }] }]
+       };
+
+       if (state.deterministic) {
+         payload.generationConfig = {
+           temperature: 0.0,
+           topP: 1.0,
+           topK: 1
+         };
+       }
+
+       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key[0]}`;
+
+       try {
+         const res = http.post(url, [], JSON.stringify(payload));
+         return utils.filterResponse(res.candidates[0].content.parts[0].text);
+       } catch (e) {
+         return "ERROR: " + (res.error || e.message);
+       }
+     }
+
+     // Additional providers would follow similar pattern...
+   };
 
   // Main AI function dispatcher
   function r2ai(queryText, fileData, hideprompt) {
@@ -687,6 +716,8 @@ Use radare2 to resolve user requests.
       "ollama": providers.ollama,
       "ollamacloud": providers.ollamacloud,
       "openai": providers.openai,
+      "gemini": providers.gemini,
+      "google": providers.gemini,
       // Add other providers as needed
     };
 
@@ -695,7 +726,7 @@ Use radare2 to resolve user requests.
       return provider(q, hideprompt);
     }
 
-    return "Unknown value for 'decai -e api'. Use r2ai, claude, ollama, ollamacloud, hf, openapi, openapi2 or openai";
+    return "Unknown value for 'decai -e api'. Use r2ai, claude, ollama, ollamacloud, openai, gemini, google or hf";
   }
 
   // Command handlers
