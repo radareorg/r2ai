@@ -1,11 +1,10 @@
-// Refactored using Claude by Anthropic 
-
 (function () {
   // Constants and configuration
   const COMMAND = "decai";
   const DEFAULT_PROMPT = "Transform this pseudocode and respond ONLY with plain code (NO explanations, comments or markdown), Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and strings from comments like 'string:', Reduce lines of code and fit everything in a single function, Remove all dead code";
   
   const HELP_TEXT = {
+	// TODO: use multiline string here
     decai: `# Using Decai\n\nDecai is the radare2 plugin for decompiling functions with the help of language models.\nBy default uses a local ollama server, but can you can pick any other service by using 'decai -e api=?'.\n\n[0x00000000]> decai -e api=?\nr2ai claude deepseek gemini hf mistral ollama openapi openai vllm xai\n\n## Using Ollama\n\n* Visit https://ollama.com to install it.\n* Download the model of choice: 'ollama run llama3.3'\n* Configure decai to use the given model with: 'decai -e model=?'\n\nThese are the most recommended models for decompiling in local:\n\n* hhao/qwen2.5-coder-tools:latest (18GB of ram)\n* hhao/qwen2.5-coder-tools:32b (24GB of ram required)\n\n## Common Options\n* 'decai -e baseurl=<url>' override default host and port for API endpoint (e.g., 'http://localhost:11434')\n\n* 'decai -e deterministic=true' to remove randomness from decompilation responses\n* 'decai -e lang=Python' to output the decompilation in Python instead of C\n* 'decai -e hlang=Catalan' to add comments or explanations in that language (instead of English)\n* 'decai -e cmds=pdd,pdg' use r2dec and r2ghidra instead of r2's pdc as input for decompiling\n* 'decai -e prompt=..' default prompt must be fine for most models and binaries, feel free to tweak it\n\n## API Keys\n\nRemove services like OpenAI, Mistral, Anthropic, Grok, Gemini, .. require API keys to work.\n\nSee 'decai -k' to list the status of available APIkeys\n\nDecai will pick them from the environment or the config files in your home:\n\n* echo KEY > ~/.r2ai.openai-key\n* export OPENAI_API_KEY=...\n\n## Using the R2AI Server:\n\nInstall r2ai or r2ai-server with r2pm:\n\n[0x0000000]> decai -e api=r2ai\n[0x0000000]> r2pm -ci r2ai\n\nChoose one of the recommended models (after r2pm -r r2ai):\n\n* -m ibm-granite/granite-20b-code-instruct-8k-GGUF\n* -m QuantFactory/granite-8b-code-instruct-4k-GGUF\n* -m TheBloke/Mistral-7B-Instruct-v0.2-GGUF\n\nStart the webserver:\n\n$ r2pm -r r2ai-server -l r2ai -m granite-8b-code-instruct-4k.Q2_K\n\n## Permanent Settings\n\nYou can write your custom decai commands in your ~/.radare2rc file.\n\n`,
     auto: `# Radare2 Auto Mode\n\nUse function calling to execute radare2 commands in order to resolve the user request defined in the "User Prompt" section, analyze the responses attached in the "Command Results" section.\n\n## Function Calling\n\nRespond ONLY using plain JSON. Process user query and decide which function calls are necessary to solve the task.\n\n1. Analyze the user request to determine if we need to run commands to extend the knowledge and context of the problem.\n2. If function call is needed, construct the JSON like this:\n - Fill the "action" key with the "r2cmd" value.\n - Specify the "command" as a string.\n - Optionally, provide a "reason" and "description"\n3. If the answer can be provided and no more function calls are required:\n - Use the key "action": "reply".\n - Include "response" with the direct answer to the user query.\n\nReturn the result as a JSON object.\n\n### Sample Function Calling Communication\n\nCommand Results: already performed actions with their responses\nUser Prompt: "Count how many functions we have here."\nResponse:\n{\n    "action": "r2cmd",\n    "command": "aflc",\n    "description": "Count functions"\n    "reason": "Evaluate if the program is analyzed before running aaa"\n}\n\n## Rules\n\nUse radare2 to resolve user requests.\n\n* Explain each step in the "reason" field of the JSON.\n* Follow the initial analysis instructions.\n* Output only valid JSON as specified.\n* Decompile and inspect functions, starting from main.\n* Run only the needed commands to gather info.\n* Use "@ (address|symbol)" to seek temporarily.\n* Output should be a verbose markdown report.\n* Use "sym." or "fcn." prefixes if "pdc" is empty.\n* If a seek fails, use "f~name" to find the symbol's address.\n\n### Initial Analysis\n\n1. Run "aflc" to count the number of functions\n2. If the output of "aflc" is "0" run "aaa" once, then "aflc" again\n3. Run only one command at a time (do not use ";")\n\n### Special cases\n\n* On Swift binaries run "/az" to find assembly constructed strings\n* For better function decompilation results use "pdd"\n\n### Planing Steps\n\n1. Rephrase the user request into clear tasks.\n2. Review available commands and choose only what's needed.\n3. Follow the task list step-by-step.\n4. Avoid redundant or repeated actions.\n5. Minimize token use by acting efficiently.\n6. Solve the problem quickly and accurately.\n\n## Functions or Commands\n\n* "i" : get information from the binary\n* "is" : list symbols\n* "izqq" : show all strings inside the binary\n* "aflm" : list all functions and their calls\n* "aflc" : count the amount of functions analyzed\n* "ies" : show entrypoints symbols\n* "pdsf" : show strings and function names referenced in function\n* "iic" : classify imported symbols (network, format string, thread unsafe, etc)\n* "pdc" : decompile function\n* "iiq" : enumerate the imported symbols\n* "izqq~http:,https:" : filter strings for http and https network urls\n* "ilq" : Enumerate libraries and frameworks\n\n`
   };
@@ -114,7 +113,8 @@
         "gemini": "GEMINI_API_KEY",
         "deepseek": "DEEPSEEK_API_KEY",
         "xai": "XAI_API_KEY",
-       "ollama": "OLLAMA_API_KEY"
+        "ollama": "OLLAMA_API_KEY",
+        "ollamacloud": "OLLAMA_API_KEY"
       };
       
       Object.entries(providers).forEach(([key, env]) => {
@@ -212,7 +212,10 @@
         get: () => state.api,
         set: (v) => {
           if (v === "?") {
-            console.error("r2ai\nclaude\ndeepseek\ngemini\nhf\nmistral\nollama\nollamacloud\nopenapi\nopenapi2\nopenai\nvllm\nxai\n");
+            const providersList = Object.keys(providers).filter((x)=> {
+              return x === x.toLowerCase();
+            }).join("\n");
+            console.error(providersList);
           } else {
             state.api = v;
           }
@@ -311,6 +314,21 @@
       ).join("\n");
     },
 
+     listOpenai: () => {
+       // AITODO: fix implementation to return the list of models here
+       const base = state.baseurl || (state.host + ":" + state.port);
+       const cmd = `curl -s ${base}/v1/models`;
+       const res = r2.syscmds(cmd);
+
+       try {
+         const models = JSON.parse(res).models;
+         return models.map(model => model.name).join("\n");
+       } catch (e) {
+         console.error(e);
+         console.log(res);
+         return "error invalid response";
+       }
+     },
      listOllama: () => {
        const base = state.baseurl || (state.host + ":" + state.port);
        const cmd = `curl -s ${base}/api/tags`;
@@ -339,6 +357,7 @@
       const modelLists = {
         ollama: () => console.log(models.listOllama()),
         openapi: () => console.log(models.listOllama()),
+        openai: () => console.log(models.listOpenai()),
         groq: () => console.log("meta-llama/llama-4-scout-17b-16e-instruct"),
         openai: () => {
           const openaiModels = [
@@ -442,6 +461,38 @@
       }
     },
 
+    openai: (msg, hideprompt) => {
+      const model = state.model || "gpt-5-mini";
+      const query = providers.buildQuery(msg, hideprompt);
+
+      const payload = {
+        stream: false,
+        model: model,
+        messages: [{ role: "user", content: query }]
+      };
+
+      if (state.deterministic) {
+        // payload.options = { };
+      }
+
+      if (state.baseurl === "") {
+        state.baseurl = "https://api.openai.com/";
+      }
+      const base = state.baseurl || (state.host + ":" + state.port);
+      const url = base + "/v1/chat/completions";
+      const key = apiKeys.get("openai", "OPENAI_API_KEY");
+      if (key[1]) return "Cannot read ~/.r2ai.openai-key";
+      const headers = [
+        "Authorization: Bearer " + key[0]
+      ];
+
+      try {
+        const res = http.post(url, headers, JSON.stringify(payload));
+        return utils.filterResponse(res.choices[0].message.content);
+      } catch (e) {
+        return "ERROR: " + e.message;
+      }
+    },
     ollama: (msg, hideprompt) => {
       const model = state.model || "qwen2.5-coder:latest";
       const query = providers.buildQuery(msg, hideprompt);
@@ -499,6 +550,7 @@
         "Authorization: Bearer " + key[0]
       ];
 
+      // NOTE: ollama cloud is actually openai. so we are dupping logic here
       try {
         const res = http.post("https://ollama.com/v1/chat/completions", headers, JSON.stringify(payload));
         return utils.filterResponse(res.choices[0].message.content);
@@ -540,6 +592,7 @@
       "claude": providers.anthropic,
       "ollama": providers.ollama,
       "ollamacloud": providers.ollamacloud,
+      "openai": providers.openai,
       // Add other providers as needed
     };
 
