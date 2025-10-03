@@ -1,10 +1,25 @@
 #!/bin/bash
 
 # Generate HTML output for command executions with collapsible sections and width control
+# If PLAIN=1, output plain text instead
 
 if [ $# -eq 0 ]; then
     echo "Usage: $0 command1 [command2 ...]"
     exit 1
+fi
+
+if [ "$PLAIN" = "1" ]; then
+    for cmd in "$@"; do
+        # Extract exec_cmd as in the main script
+        if [[ "$cmd" =~ ^#[[:space:]]*(.*) ]]; then
+            exec_cmd="${cmd#*#}"
+            exec_cmd="${exec_cmd#"${exec_cmd%%[![:space:]]*}"}"
+        else
+            exec_cmd="$cmd"
+        fi
+        eval "$exec_cmd"
+    done
+    exit 0
 fi
 
 # Timeout in seconds for each command (configurable via TIMEOUT environment variable)
