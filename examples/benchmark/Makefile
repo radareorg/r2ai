@@ -12,12 +12,12 @@ all:
 	mkdir -p tmp
 	for b in $(BINARIES) ; do \
 		for a in $(MODELS) ; do \
-			for l in $(LANGS) ; do \
-				echo "$$b $$a $$l"; \
-				PLAIN=1 ./run.sh "echo \"decai -e model=$$a;decai -e lang=$$l;decai -e api=${PROVIDER};s 0x100000924;af;decai -d\" | r2 -q $$b" 2> /dev/null | tee tmp/$${b##*/}_$${a//\//_}_$${l}.txt ; \
-			done ; \
+			echo "$$b $$a"; \
+			./run.sh $$b $$a ${PROVIDER} ${LANGS} > tmp/$${b##*/}_$${a//\//_}.html 2> /dev/null ; \
 		done ; \
 	done
+
+.PHONY: run index evaluate
 
 compile: $(BINARIES)
 
@@ -33,8 +33,9 @@ files/complex3: files/complex3.c
 lmstudio:
 	for b in $(BINARIES) ; do \
 		for a in $(MODELS) ; do \
-			for l in $(LANGS) ; do \
-				PLAIN=1 ./run.sh "echo \"decai -e model=$$a;decai -e lang=$$l;s 0x100000924;af;decai -d\" | r2 -q $$b" > $${b##*/}_$${a//\//_}_$${l}.txt ; \
-			done ; \
+			./run.sh $$b $$a lmstudio ${LANGS} > $${b##*/}_$${a//\//_}.html ; \
 		done ; \
 	done
+
+clean:
+	rm -rf tmp

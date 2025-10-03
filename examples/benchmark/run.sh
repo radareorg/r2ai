@@ -3,22 +3,50 @@
 # Generate HTML output for command executions with collapsible sections and width control
 # If PLAIN=1, output plain text instead
 
-if [ $# -eq 0 ]; then
-    echo "Usage: $0 command1 [command2 ...]"
+if [ $# -lt 4 ]; then
+    echo "Usage: $0 <binary> <model> <provider> <lang1> [lang2 ...]"
+    echo "Or: $0 command1 [command2 ...] (legacy)"
     exit 1
 fi
 
+# Check if first arg is a file (binary), assume new format
+if [ -f "$1" ]; then
+    binary="$1"
+    model="$2"
+    provider="$3"
+    shift 3
+    langs=("$@")
+    commands=()
+    for lang in "${langs[@]}"; do
+        commands+=("# $lang echo \"decai -e model=$model;decai -e lang=$lang;decai -e api=$provider;af;decai -d\" | r2 -q $binary 2> /dev/null")
+    done
+    set -- "${commands[@]}"
+else
+    # Legacy mode
+    commands=("$@")
+fi
+
 if [ "$PLAIN" = "1" ]; then
+    # In plain mode, execute each command and print raw output.
+    # Also, if TXTFILE is set, save combined raw output there.
+    tmp_plain=$(mktemp)
     for cmd in "$@"; do
-        # Extract exec_cmd as in the main script
         if [[ "$cmd" =~ ^#[[:space:]]*(.*) ]]; then
-            exec_cmd="${cmd#*#}"
-            exec_cmd="${exec_cmd#"${exec_cmd%%[![:space:]]*}"}"
+            exec_cmd="${BASH_REMATCH[1]}"
         else
             exec_cmd="$cmd"
         fi
-        eval "$exec_cmd"
+        tmpout=$(mktemp)
+        eval "$exec_cmd" > "$tmpout" 2>&1 || true
+        cat "$tmpout"
+        cat "$tmpout" >> "$tmp_plain"
+        rm -f "$tmpout"
     done
+    if [ -n "$TXTFILE" ]; then
+        mv "$tmp_plain" "$TXTFILE"
+    else
+        rm -f "$tmp_plain"
+    fi
     exit 0
 fi
 
@@ -124,11 +152,10 @@ EOF
 
 # Process each command
 for cmd in "$@"; do
-    # Extract title: if command starts with #, use the rest as title, else use the command
-    if [[ "$cmd" =~ ^#[[:space:]]*(.*) ]]; then
+    # Extract title: if command starts with #, parse title and command, else use the command
+    if [[ "$cmd" =~ ^#[[:space:]]*([^[:space:]]+)[[:space:]]*(.*) ]]; then
         title="${BASH_REMATCH[1]}"
-        exec_cmd="${cmd#*#}"
-        exec_cmd="${exec_cmd#"${exec_cmd%%[![:space:]]*}"}"  # trim leading spaces
+        exec_cmd="${BASH_REMATCH[2]}"
     else
         title="$cmd"
         exec_cmd="$cmd"
@@ -152,6 +179,13 @@ for cmd in "$@"; do
         execution_time="N/A"
     else
         execution_time=$(printf "%.3f" "$execution_time")
+    fi
+
+    # Save plain output to .txt file if in new format
+    if [ -n "$binary" ]; then
+        txtfile="tmp/${binary##*/}_${model//\//_}_${title}.txt"
+        mkdir -p "$(dirname "$txtfile")" 2>/dev/null || true
+        echo "$output" > "$txtfile"
     fi
 
     # Escape HTML in output
