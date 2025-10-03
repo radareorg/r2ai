@@ -765,13 +765,20 @@ Use radare2 to resolve user requests.
 
       try {
         const res = http.post(url, [], JSON.stringify(payload));
-        return utils.filterResponse(res.message.content);
-      } catch (e) {
+        if (res.error) {
+          throw new Error(res.error);
+        }
+        if (res.message && res.message.content) {
+          return utils.filterResponse(res.message.content);
+        }
+        throw new Error(JSON.stringify(res));
         if (res.error && res.error.indexOf("try pulling")) {
           const modelName = res.error.split(/"/g)[1];
           res.error += "\n!ollama run " + modelName;
         }
-        return "ERROR: " + (res.error || e.message);
+      } catch (e) {
+        console.error(e.stack);
+        return "ERROR: " + e.message;
       }
     },
 
