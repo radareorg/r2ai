@@ -5,16 +5,19 @@
 echo "Evaluating decompiled outputs..."
 
 tmpfile=$(mktemp)
+MAI="mai -q"
 
-for orig in test_c_files/complex1.c test_c_files/complex2.c test_c_files/complex3.c; do
+for orig in files/complex1.c files/complex2.c files/complex3.c; do
     base=$(basename $orig .c)
     original_code=$(cat $orig)
     for f in ${base}_*.txt; do
         if [ -f "$f" ]; then
             decompiled_code=$(cat $f)
-            # Assume mai takes prompt file, then original, then decompiled
-            result=$(mai CMPROMPT.txt <<< "$original_code" <<< "$decompiled_code")
-            score=$(echo "$result" | head -1 | grep -o '[0-9]\+')
+	    echo "Comparing $orig $f"
+	    result=`echo n | ${MAI} -q -r "/template files/CMPROMPT.txt original=@${orig} decompiled=@${f}"`
+	    score=`echo "$result" | head -n 1 | grep -oE '[0-9]+'`
+	    score="$((0+${score}))"
+	    echo "$f $score"
             if [ -n "$score" ]; then
                 key="${f%.*}"  # remove .txt
                 # Check if key exists in tmpfile

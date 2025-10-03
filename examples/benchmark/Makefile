@@ -3,17 +3,17 @@ SHELL=/bin/bash
 MODELS=granite3-dense:8b mannix/jan-nano:latest yi-coder:latest qwen3:latest deepseek-coder-v2:latest hhao/qwen2.5-coder-tools:latest qwen2.5-coder:latest
 MODELS=gemma3:1b
 LANGS=Dart Perl Ruby Javascript PHP C
-BINARIES=test_c_files/complex1 test_c_files/complex2 test_c_files/complex3
+BINARIES=files/complex1 files/complex2 files/complex3
 
 compile: $(BINARIES)
 
-test_c_files/complex1: test_c_files/complex1.c
+files/complex1: files/complex1.c
 	gcc -o $@ $<
 
-test_c_files/complex2: test_c_files/complex2.c
+files/complex2: files/complex2.c
 	gcc -o $@ $<
 
-test_c_files/complex3: test_c_files/complex3.c
+files/complex3: files/complex3.c
 	gcc -o $@ $<
 
 all:
