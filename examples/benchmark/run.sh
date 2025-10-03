@@ -18,7 +18,8 @@ if [ -f "$1" ]; then
     langs=("$@")
     commands=()
     for lang in "${langs[@]}"; do
-        commands+=("# $lang echo \"decai -e model=$model;decai -e lang=$lang;decai -e api=$provider;af;decai -d\" | r2 -q $binary 2> /dev/null")
+       # commands+=("# $lang echo \"decai -e model=$model;decai -e lang=$lang;decai -e api=$provider;af;decai -d\" | r2 -q $binary 2> /dev/null")
+       commands+=("# $lang r2 -e scr.color=0 -qcq -qc \"decai -e model=$model;decai -e lang=$lang;decai -e api=$provider;af;decai -d\" $binary")
     done
     set -- "${commands[@]}"
 else
@@ -38,8 +39,7 @@ if [ "$PLAIN" = "1" ]; then
         fi
         tmpout=$(mktemp)
         eval "$exec_cmd" > "$tmpout" 2>&1 || true
-        cat "$tmpout"
-        cat "$tmpout" >> "$tmp_plain"
+        mv "$tmpout" "$tmp_plain"
         rm -f "$tmpout"
     done
     if [ -n "$TXTFILE" ]; then
@@ -161,14 +161,18 @@ for cmd in "$@"; do
         exec_cmd="$cmd"
     fi
 
+    echo "RUN $exec_cmd" > /dev/stderr
     # Execute command and time it
     start_time=$(date +%s.%N)
     tmpfile=$(mktemp)
-    eval "$exec_cmd" > "$tmpfile" 2>&1 &
+    # echo "eval $exec_cmd > $tmpfile" > /dev/stder
+    eval "$exec_cmd" > "$tmpfile" 2> /dev/null &
     pid=$!
     (sleep $TIMEOUT && kill $pid 2>/dev/null) &
     wait $pid 2>/dev/null
     output=$(cat "$tmpfile")
+    #echo "$output" > /dev/stderr
+
     rm "$tmpfile"
     exit_code=$?
     end_time=$(date +%s.%N)
@@ -189,7 +193,8 @@ for cmd in "$@"; do
     fi
 
     # Escape HTML in output
-    escaped_output=$(echo "$output" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+    #escaped_output=$(echo "$output" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+    escaped_output="$output"
 
     cat << EOF
         <div class="command-section expanded">

@@ -5,15 +5,15 @@ MODELS=granite3-dense:8b mannix/jan-nano:latest yi-coder:latest qwen3:latest dee
 MODELS=gemma3:1b
 LANGS=Dart Perl Ruby Javascript PHP C
 BINARIES=files/complex1 files/complex2 files/complex3
-#MODELS=gpt-4o
-#PROVIDER=openai
+MODELS=gpt-4o
+PROVIDER=openai
 
 all:
 	mkdir -p tmp
 	for b in $(BINARIES) ; do \
 		for a in $(MODELS) ; do \
 			echo "$$b $$a"; \
-			./run.sh $$b $$a ${PROVIDER} ${LANGS} > tmp/$${b##*/}_$${a//\//_}.html 2> /dev/null ; \
+			./run.sh $$b $$a ${PROVIDER} ${LANGS} > tmp/$${b##*/}_$${a//\//_}.html ; \
 		done ; \
 	done
 

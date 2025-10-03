@@ -5,8 +5,8 @@
 echo "Evaluating decompiled outputs..."
 
 tmpfile=$(mktemp)
-MAI="mai -q -p openai -m gpt-5-mini"
-MAI="mai -q"
+MAI="mai -q -p openai -m gpt-4o"
+# MAI="mai -q"
 
 for orig in files/complex1.c files/complex2.c files/complex3.c; do
     base=$(basename $orig .c)
