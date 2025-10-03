@@ -1,5 +1,6 @@
 #!/bin/bash
 
+cp decai/BENCH.txt tmp/BENCH.txt
 # Find all directories containing BENCH.txt
 dirs=$(find . -name "BENCH.txt" -type f | xargs dirname | sort | uniq)
 

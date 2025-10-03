@@ -1,11 +1,17 @@
-Compare the semantic meaning of the original C function and the decompiled code. Ignore syntax differences, variable names, language-specific constructs, and formatting. Focus solely on what the code does: the operations performed, control flow, logic, and functional behavior. Determine if they are functionally equivalent in terms of their effects and computations.
+Compare the two provided code in C with the decompiled counterpart. Ignore function or variable names, syntax differences, language-specific constructs, and formatting. Focus solely on what the code does: the operations performed, control flow, logic, and functional behavior. Determine if they are functionally equivalent in terms of their effects and computations.
 
 Output only:
-- A numeric score from 1 to 100 (100 being identical semantic meaning and functionality)
+- A numeric score from 1 to 100 (100 being identical logic and functionality)
 - Followed by a single sentence describing the most relevant semantic differences (or "No significant semantic differences" if score is 95+)
 
 **Original Source Code:**
+
+```C
 {original}
+```
 
 **Decompiled Code:**
+
+```
 {decompiled}
+```

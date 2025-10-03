@@ -5,19 +5,19 @@
 echo "Evaluating decompiled outputs..."
 
 tmpfile=$(mktemp)
-MAI="mai -q"
+MAI="mai -q -p openai -m gpt-5-mini"
 
 for orig in files/complex1.c files/complex2.c files/complex3.c; do
     base=$(basename $orig .c)
     original_code=$(cat $orig)
-    for f in ${base}_*.txt; do
+    for f in tmp/${base}_*.txt; do
         if [ -f "$f" ]; then
             decompiled_code=$(cat $f)
-	    echo "Comparing $orig $f"
+	    #echo "Comparing $orig $f"
 	    result=`echo n | ${MAI} -q -r "/template files/CMPROMPT.txt original=@${orig} decompiled=@${f}"`
-	    score=`echo "$result" | head -n 1 | grep -oE '[0-9]+'`
+	    score=`echo "$result" | head -n 1 | grep -oE '[0-9]+' |head -n 1`
 	    score="$((0+${score}))"
-	    echo "$f $score"
+	    echo "$score\t$f"
             if [ -n "$score" ]; then
                 key="${f%.*}"  # remove .txt
                 # Check if key exists in tmpfile
