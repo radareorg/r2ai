@@ -907,44 +907,31 @@ static int r2ai_init(void *user, const char *input) {
 
 	r_config_lock (core->config, false);
 	r_config_set_cb (core->config, "r2ai.api", "openai", &cb_r2ai_api);
-	/* Description: Which LLM provider to use (e.g. openai, gemini, anthropic, ollama) */
-	r_config_set_desc (core->config, "r2ai.api", "LLM provider to use (openai, gemini, anthropic, ollama, ...)");
+	r_config_desc (core->config, "r2ai.api", "LLM provider to use (openai, gemini, anthropic, ollama, ...)");
 	r_config_set_cb (core->config, "r2ai.model", "gpt-5-mini", &cb_r2ai_model);
-	/* Description: Model identifier to use for the selected provider */
-	r_config_set_desc (core->config, "r2ai.model", "Model identifier for the selected provider (e.g. gpt-5-mini)");
+	r_config_desc (core->config, "r2ai.model", "Model identifier for the selected provider (e.g. gpt-5-mini)");
 	r_config_set (core->config, "r2ai.baseurl", "");
-	/* Description: Base URL for provider API (overrides default endpoints) */
-	r_config_set_desc (core->config, "r2ai.baseurl", "Base URL for provider API (overrides default endpoints)");
+	r_config_desc (core->config, "r2ai.baseurl", "Base URL for provider API (overrides default endpoints)");
 	r_config_set_i (core->config, "r2ai.max_tokens", 4096); // max output tokens, or max total tokens
-	/* Description: Maximum number of tokens to request/allow (output or total depending on provider) */
-	r_config_set_desc (core->config, "r2ai.max_tokens", "Maximum tokens for LLM responses (output/total depending on provider)");
+	r_config_desc (core->config, "r2ai.max_tokens", "Maximum tokens for LLM responses (output/total depending on provider)");
 	r_config_set_i (core->config, "r2ai.thinking_tokens", 0);
-	/* Description: Tokens reserved for internal "thinking" messages */
-	r_config_set_desc (core->config, "r2ai.thinking_tokens", "Number of tokens reserved for internal thinking/context messages");
+	r_config_desc (core->config, "r2ai.thinking_tokens", "Number of tokens reserved for internal thinking/context messages");
 	r_config_set (core->config, "r2ai.temperature", "0.01");
-	/* Description: Sampling temperature for stochasticity in LLM outputs */
-	r_config_set_desc (core->config, "r2ai.temperature", "Sampling temperature for LLM output (0 = deterministic)");
+	r_config_desc (core->config, "r2ai.temperature", "Sampling temperature for LLM output (0 = deterministic)");
 	r_config_set (core->config, "r2ai.cmds", "pdc");
-	/* Description: Default command sequence to use when running automated actions */
-	r_config_set_desc (core->config, "r2ai.cmds", "Default command sequence used by automation (e.g. 'pdc')");
+	r_config_desc (core->config, "r2ai.cmds", "Default command sequence used by automation (e.g. 'pdc')");
 	r_config_set (core->config, "r2ai.lang", "C");
-	/* Description: Programming language hint for code-related prompts */
-	r_config_set_desc (core->config, "r2ai.lang", "Programming language hint used in prompts (e.g. C, C++, Rust)");
+	r_config_desc (core->config, "r2ai.lang", "Programming language hint used in prompts (e.g. C, C++, Rust)");
 	r_config_set_b (core->config, "r2ai.data", false);
-	/* Description: Enable usage of local data/embeddings for context retrieval */
-	r_config_set_desc (core->config, "r2ai.data", "Enable local data/embeddings for query context retrieval");
+	r_config_desc (core->config, "r2ai.data", "Enable local data/embeddings for query context retrieval");
 	r_config_set_b (core->config, "r2ai.data.reason", false);
-	/* Description: Include reasoning/explanations from data sources when building context */
-	r_config_set_desc (core->config, "r2ai.data.reason", "Include reasoning/explanations from local data when building context");
+	r_config_desc (core->config, "r2ai.data.reason", "Include reasoning/explanations from local data when building context");
 	r_config_set (core->config, "r2ai.data.path", "/tmp/embeds");
-	/* Description: Filesystem path to local embeddings/text files for context */
-	r_config_set_desc (core->config, "r2ai.data.path", "Path to local embeddings/text files used for context (one .txt per document)");
+	r_config_desc (core->config, "r2ai.data.path", "Path to local embeddings/text files used for context (one .txt per document)");
 	r_config_set_i (core->config, "r2ai.data.nth", 10);
-	/* Description: Number of top-matching documents to include from local data (K) */
-	r_config_set_desc (core->config, "r2ai.data.nth", "Number of top-matching documents to include from local data for context");
+	r_config_desc (core->config, "r2ai.data.nth", "Number of top-matching documents to include from local data for context");
 	r_config_set (core->config, "r2ai.hlang", "english");
-	/* Description: Human language to use for prompts/messages */
-	r_config_set_desc (core->config, "r2ai.hlang", "Human language for prompts/messages (e.g. english)");
+	r_config_desc (core->config, "r2ai.hlang", "Human language for prompts/messages (e.g. english)");
 	r_config_set (
 		core->config, "r2ai.system",
 		"You are a reverse engineer. The user is reversing a binary, using "
@@ -957,45 +944,30 @@ static int r2ai_init(void *user, const char *input) {
 		"possible, use better variable names, take function arguments and "
 		"strings from comments like 'string:'");
 	r_config_set_b (core->config, "r2ai.stream", false);
-	/* Description: Enable streaming responses from the LLM */
-	r_config_set_desc (core->config, "r2ai.stream", "Enable streaming responses from the LLM (true/false)");
+	r_config_desc (core->config, "r2ai.stream", "Enable streaming responses from the LLM (true/false)");
 	r_config_set_i (core->config, "r2ai.auto.max_runs", 50);
-	/* Description: Maximum number of automated runs in auto mode */
-	r_config_set_desc (core->config, "r2ai.auto.max_runs", "Maximum number of automated steps/runs in auto mode");
+	r_config_desc (core->config, "r2ai.auto.max_runs", "Maximum number of automated steps/runs in auto mode");
 	r_config_set_b (core->config, "r2ai.auto.hide_tool_output", false);
-	/* Description: Hide output from external tools when running auto mode */
-	r_config_set_desc (core->config, "r2ai.auto.hide_tool_output", "Hide tool output when running automated actions");
+	r_config_desc (core->config, "r2ai.auto.hide_tool_output", "Hide tool output when running automated actions");
 	r_config_set (core->config, "r2ai.auto.init_commands", "aaa;iI;afl");
-	/* Description: Initial commands executed when entering auto mode */
-	r_config_set_desc (core->config, "r2ai.auto.init_commands", "Initial commands executed when auto mode starts (semicolon separated)");
+	r_config_desc (core->config, "r2ai.auto.init_commands", "Initial commands executed when auto mode starts (semicolon separated)");
 	r_config_set_b (core->config, "r2ai.auto.yolo", false);
-	/* Description: If true, auto mode will execute dangerous commands without prompting */
-	r_config_set_desc (core->config, "r2ai.auto.yolo", "Execute potentially dangerous commands in auto mode without asking");
+	r_config_desc (core->config, "r2ai.auto.yolo", "Execute potentially dangerous commands in auto mode without asking");
 	r_config_set_b (core->config, "r2ai.auto.reset_on_query", false);
-	/* Description: Reset auto-mode conversation state when a new query is provided */
-	r_config_set_desc (core->config, "r2ai.auto.reset_on_query", "Reset auto-mode conversation state on new user queries");
+	r_config_desc (core->config, "r2ai.auto.reset_on_query", "Reset auto-mode conversation state on new user queries");
 	r_config_set_b (core->config, "r2ai.chat.show_cost", true);
-	/* Description: Display estimated API cost for chat interactions */
-	r_config_set_desc (core->config, "r2ai.chat.show_cost", "Display estimated API cost for chat interactions");
+	r_config_desc (core->config, "r2ai.chat.show_cost", "Display estimated API cost for chat interactions");
 
-	// Configure HTTP timeout in seconds
 	r_config_set_i (core->config, "r2ai.http.timeout", 120);
-	/* Description: HTTP client timeout in seconds for provider calls */
-	r_config_set_desc (core->config, "r2ai.http.timeout", "HTTP client timeout (seconds) for provider API calls");
-	// Configure HTTP rate limiting and retry parameters
+	r_config_desc (core->config, "r2ai.http.timeout", "HTTP client timeout (seconds) for provider API calls");
 	r_config_set_i (core->config, "r2ai.http.max_retries", 10);
-	/* Description: Maximum number of HTTP retries for failed requests */
-	r_config_set_desc (core->config, "r2ai.http.max_retries", "Maximum number of HTTP retries for failed requests");
+	r_config_desc (core->config, "r2ai.http.max_retries", "Maximum number of HTTP retries for failed requests");
 	r_config_set_i (core->config, "r2ai.http.max_backoff", 30);
-	/* Description: Maximum backoff time (seconds) between retries */
-	r_config_set_desc (core->config, "r2ai.http.max_backoff", "Maximum backoff time (seconds) between HTTP retries");
-	// Configure HTTP backend and options
+	r_config_desc (core->config, "r2ai.http.max_backoff", "Maximum backoff time (seconds) between HTTP retries");
 	r_config_set (core->config, "r2ai.http.backend", "auto"); // Options: auto, libcurl, socket, system
-	/* Description: HTTP backend to use for network requests */
-	r_config_set_desc (core->config, "r2ai.http.backend", "HTTP backend to use (auto, libcurl, socket, system)");
+	r_config_desc (core->config, "r2ai.http.backend", "HTTP backend to use (auto, libcurl, socket, system)");
 	r_config_set_b (core->config, "r2ai.http.use_files", false);
-	/* Description: Use temporary files for HTTP request/response payloads */
-	r_config_set_desc (core->config, "r2ai.http.use_files", "Use temporary files to pass HTTP request/response payloads (true/false)");
+	r_config_desc (core->config, "r2ai.http.use_files", "Use temporary files to pass HTTP request/response payloads (true/false)");
 	r_config_lock (core->config, true);
 	return true;
 }
