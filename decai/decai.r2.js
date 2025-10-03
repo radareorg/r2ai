@@ -663,10 +663,12 @@ Use radare2 to resolve user requests.
         messages: [{ role: "user", content: query }],
       };
 
+      /*
       if (state.deterministic) {
         payload.temperature = 0;
         payload.top_p = 0;
       }
+      */
 
       const base = state.baseurl || provider.defaultBaseurl;
       const url = base + "/v1/chat/completions";
@@ -687,6 +689,9 @@ Use radare2 to resolve user requests.
 
       try {
         const res = http.post(url, headers, JSON.stringify(payload));
+        if (res.error && res.error.message) {
+          throw new Error(res.error.message);
+        }
         return utils.filterResponse(res.choices[0].message.content);
       } catch (e) {
         return "ERROR: " + e.message;
