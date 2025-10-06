@@ -161,12 +161,9 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 		headers[1] = auth_header;
 	}
 
-	const char *openai_url;
-	if (strcmp (args.provider, "ollama") == 0) {
-		openai_url = r_str_newf ("%s/chat", base_url);
-	} else {
-		openai_url = r_str_newf ("%s/chat/completions", base_url);
-	}
+	const char *urlfmt = strcmp (args.provider, "ollama")
+		? "%s/chat/completions" : "%s/chat";
+	char *openai_url = r_str_newf (urlfmt, base_url);
 	R_LOG_DEBUG ("OpenAI URL: %s", openai_url);
 
 	// Create a messages JSON object, either from input messages or from content
@@ -274,6 +271,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 	int code = 0;
 	res = r2ai_http_post (core, openai_url, headers, complete_json, &code, NULL);
 	free (complete_json);
+	free (openai_url);
 
 	if (code != 200) {
 		R_LOG_ERROR ("OpenAI API error %d", code);
