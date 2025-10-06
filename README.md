@@ -89,8 +89,11 @@ r2ai -e max_tokens=64000
 
 * There's [a chapter](https://book.rada.re/plugins/r2ai.html) in the official r2book
 * Cryptax on [lmstudio+gptoss](https://cryptax.medium.com/r2ai-with-lmstudio-and-gpt-oss-08efa5ea2476) blog post
-* Malware analysis [with r2ai](https://github.com/cryptax/talks/blob/master/BSidesKristiansand-2025/r2ai.pdf) by Cryptax
+* Malware analysis [with r2ai](https://arxiv.org/pdf/2504.07574) by Cryptax and Daniel Nakov
+* Analysis of [Linux/Trigona ransomware](https://cryptax.medium.com/linux-trigona-analysis-with-r2ai-3e2bd1815e52),  [Linux/Prometei botnet](https://cryptax.medium.com/reversing-a-prometei-botnet-binary-with-r2-and-ai-part-one-3cdb3dc6ffab) and [W32/SkyAI](https://cryptax.medium.com/w32-skyai-uses-ai-so-do-i-d33f04d63534with) with r2ai
 
 ## Videos
 
 - https://infosec.exchange/@radareorg/111946255058894583
+- [De-obfuscation of malware Linux/Ladvix](https://asciinema.org/a/724126)
+- [Analysis of the /fast option inside Linux/Trigona ransomware](https://asciinema.org/a/pBPEaJhp6cunWSKFpBUDTgPt4)
