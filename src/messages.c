@@ -15,7 +15,7 @@ R_API void r2ai_message_free(R2AI_Message *msg) {
 	}
 
 	free (msg->role);
-	free (msg->content);
+	free ((void *)msg->content); // maybe double free
 	free (msg->reasoning_content);
 	free (msg->tool_call_id);
 

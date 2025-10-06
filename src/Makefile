@@ -59,18 +59,21 @@ indent:
 
 user-install: user-uninstall
 	mkdir -p $(R2USRPLUGDIR)
+	mkdir -p $(R2BINDIR)
 	$(MAKE) user-uninstall
-	cp -f r2ai$(DOTLIB) $(R2USRPLUGDIR)
-	cp -f r2ai$(DOTEXE) $(R2BINDIR)
+	cp -f r2ai$(DOTLIB) $(R2USRPLUGDIR)/r2ai$(DOTLIB)
+	cp -f r2ai$(DOTEXE) $(R2BINDIR)/r2ai$(DOTEXE)
 
 user-uninstall:
 	rm -f $(R2USRPLUGDIR)/r2ai$(DOTLIB)
-	rm -f $(R2BINDIR)$(DOTEXE)
+	rm -f $(R2BINDIR)/r2ai$(DOTEXE)
 
 install:
 	$(MAKE) uninstall
-	cp -f r2ai$(DOTLIB) $(R2SYSPLUGDIR)
-	cp -f r2ai$(DOTEXE) $(R2BINDIR)
+	mkdir -p $(R2USRPLUGDIR)
+	mkdir -p $(R2BINDIR)
+	cp -f r2ai$(DOTLIB) $(R2SYSPLUGDIR)/r2ai$(DOTLIB)
+	cp -f r2ai$(DOTEXE) $(R2BINDIR)/r2ai$(DOTEXE)
 
 uninstall:
 	rm -f $(R2SYSPLUGDIR)/r2ai$(DOTLIB)

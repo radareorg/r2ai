@@ -40,14 +40,14 @@ typedef struct {
 } R2AI_ToolCall;
 
 typedef struct {
-	const char *type;
-	const char *id;
-	const char *name;
-	const char *input;
-	const char *data;
-	const char *thinking;
-	const char *signature;
-	const char *text;
+	char *type;
+	char *id;
+	char *name;
+	char *input;
+	char *data;
+	char *thinking;
+	char *signature;
+	char *text;
 } R2AI_ContentBlock;
 
 typedef struct {
@@ -56,12 +56,12 @@ typedef struct {
 } R2AI_ContentBlocks;
 
 typedef struct {
-	const char *role;
+	char *role;
 	const char *content;
-	const char *reasoning_content;
-	const R2AI_ContentBlocks *content_blocks;
-	const char *tool_call_id;
-	const R2AI_ToolCall *tool_calls;
+	char *reasoning_content;
+	R2AI_ContentBlocks *content_blocks;
+	char *tool_call_id;
+	R2AI_ToolCall *tool_calls;
 	int n_tool_calls;
 } R2AI_Message;
 

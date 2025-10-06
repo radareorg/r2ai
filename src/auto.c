@@ -233,7 +233,7 @@ R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *sy
 			// Create a tool call response message
 			R2AI_Message tool_response = {
 				.role = "tool",
-				.tool_call_id = tool_call->id,
+				.tool_call_id = strdup (tool_call->id),
 				.content = cmd_output
 			};
 
