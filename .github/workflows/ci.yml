@@ -93,8 +93,11 @@ jobs:
         shell: bash
         run: |
           mkdir -p release
-          cp -rf src/r2ai.dll src/r2ai.exe src/r2ai src/r2ai.dylib src/r2ai.so release/ || true
-          cp -rf src/build/r2ai src/build/r2ai.dylib src/build/r2ai.so release/ || true
+          # Collect common binary artefact names produced by Make/Meson
+          # Include both "r2ai.*" and "libr2ai.*" variants for DLL/dylib/so on all platforms.
+          find src -type f \( -iname "r2ai.dll" -o -iname "libr2ai.dll" -o -iname "r2ai.dylib" -o -iname "libr2ai.dylib" -o -iname "r2ai.so" -o -iname "libr2ai.so" -o -iname "r2ai.exe" \) -exec cp -f {} release/ \; || true
+          # Also check top-level build output directories
+          find . -maxdepth 3 -type f \( -iname "r2ai.dll" -o -iname "libr2ai.dll" -o -iname "r2ai.dylib" -o -iname "libr2ai.dylib" -o -iname "r2ai.so" -o -iname "libr2ai.so" -o -iname "r2ai.exe" \) -exec cp -f {} release/ \; || true
           cp -f decai/decai.r2.js release/ || true
           if command -v zip >/dev/null 2>&1; then
             zip -j "release/r2ai-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.build_system }}.zip" release/*
