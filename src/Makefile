@@ -2,12 +2,19 @@ DOTEXE=
 # DOTEXE=.exe
 DOTLIB=.$(shell r2 -H R2_LIBEXT)
 
-CFLAGS+=$(shell pkg-config --cflags r_core)
-LDFLAGS+=$(shell pkg-config --libs r_core)
 R2SYSPLUGDIR=$(shell r2 -H R2_LIBR_PLUGINS)
 R2USRPLUGDIR=$(shell r2 -H R2_USER_PLUGINS)
 R2BINDIR=$(shell r2pm -H R2PM_BINDIR)
 
+R2_CFLAGS=$(shell pkg-config --cflags r_core)
+R2_LDFLAGS=$(shell pkg-config --libs r_core)
+ifeq ($(R2_CFLAGS),)
+R2_CFLAGS=$(shell r2 -H R2_CFLAGS)
+R2_LDFLAGS=$(shell r2 -H R2_LDFLAGS)
+endif
+
+CFLAGS+=$(R2_CFLAGS)
+LDFLAGS+=$(R2_LDFLAGS)
 CFLAGS+=-I. -fPIC
 CFLAGS+=-Wall
 CFLAGS+=-g
