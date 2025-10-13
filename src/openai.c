@@ -262,8 +262,13 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 
 	// Save the full JSON to a file for inspection
 	// XXX: only create request/response files when r2ai.debug is set
-	r_file_dump ("/tmp/r2ai_openai_request.json", (const ut8 *)complete_json, strlen (complete_json), 0);
-	R_LOG_DEBUG ("Full request saved to /tmp/r2ai_openai_request.json");
+	char *tmpdir = r_file_tmpdir();
+	char *req_path = r_str_newf ("%s" R_SYS_DIR "r2ai_openai_request.json", tmpdir);
+	r_file_dump (req_path, (const ut8 *)complete_json, strlen (complete_json), 0);
+	R_LOG_DEBUG ("Full request saved to %s", req_path);
+	free (req_path);
+	free (tmpdir);
+
 	R_LOG_DEBUG ("OpenAI API request data: %s", complete_json);
 
 	// Make the API call
@@ -311,8 +316,13 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 	}
 
 	// Save the response for inspection
-	r_file_dump ("/tmp/r2ai_openai_response.json", (const ut8 *)res, strlen (res), 0);
-	R_LOG_DEBUG ("OpenAI API response saved to /tmp/r2ai_openai_response.json");
+	tmpdir = r_file_tmpdir();
+	char *res_path = r_str_newf ("%s" R_SYS_DIR "r2ai_openai_response.json", tmpdir);
+	r_file_dump (res_path, (const ut8 *)res, strlen (res), 0);
+	R_LOG_DEBUG ("OpenAI API response saved to %s", res_path);
+	free (res_path);
+	free (tmpdir);
+	
 	R_LOG_DEBUG ("OpenAI API response: %s", res);
 
 	// Parse the response into our messages structure
