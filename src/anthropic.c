@@ -98,8 +98,13 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCore *core, R2AIArgs args) {
 	free (messages_json);
 
 	// Save the full JSON for debugging
-	r_file_dump ("/tmp/r2ai_anthropic_request.json", (const ut8 *)data, strlen (data), 0);
-	R_LOG_DEBUG ("Full request saved to /tmp/r2ai_anthropic_request.json");
+	char *tmpdir = r_file_tmpdir();
+	char *req_path = r_str_newf ("%s" R_SYS_DIR "r2ai_anthropic_request.json", tmpdir);
+	r_file_dump (req_path, (const ut8 *)data, strlen (data), 0);
+	R_LOG_DEBUG ("Full request saved to %s", req_path);
+	free (req_path);
+	free (tmpdir);
+
 	R_LOG_DEBUG ("Anthropic API request data: %s", data);
 
 	// Make the API call
@@ -120,8 +125,13 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCore *core, R2AIArgs args) {
 	}
 
 	// Save the response for inspection
-	r_file_dump ("/tmp/r2ai_anthropic_response.json", (const ut8 *)res, strlen (res), 0);
-	R_LOG_DEBUG ("Anthropic API response saved to /tmp/r2ai_anthropic_response.json");
+	tmpdir = r_file_tmpdir();
+	char *res_path = r_str_newf ("%s" R_SYS_DIR "r2ai_anthropic_response.json", tmpdir);
+	r_file_dump (res_path, (const ut8 *)res, strlen (res), 0);
+	R_LOG_DEBUG ("Anthropic API response saved to %s", res_path);
+	free (res_path);
+	free (tmpdir);
+
 	R_LOG_DEBUG ("Anthropic API response: %s", res);
 
 	// Parse the response
