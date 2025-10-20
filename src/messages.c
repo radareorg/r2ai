@@ -7,7 +7,7 @@
 static R2AI_Messages *conversation = NULL;
 
 #define INITIAL_CAPACITY 8
-#define GROWTH_FACTOR    1.5
+#define GROWTH_FACTOR 1.5
 
 R_API void r2ai_message_free(R2AI_Message *msg) {
 	if (!msg) {
@@ -150,14 +150,14 @@ R_API bool r2ai_msgs_add(R2AI_Messages *msgs, const R2AI_Message *msg) {
 
 		// Zero the newly allocated portion
 		memset (&msgs->messages[msgs->n_messages], 0,
-			sizeof (R2AI_Message) * (msgs->cap_messages - msgs->n_messages));
+			sizeof (R2AI_Message) *(msgs->cap_messages - msgs->n_messages));
 	}
 
 	// Copy the message to the array
 	R2AI_Message *dest = &msgs->messages[msgs->n_messages++];
-	dest->role = msg->role ? strdup (msg->role) : NULL;
-	dest->content = msg->content ? strdup (msg->content) : NULL;
-	dest->reasoning_content = msg->reasoning_content ? strdup (msg->reasoning_content) : NULL;
+	dest->role = msg->role? strdup (msg->role): NULL;
+	dest->content = msg->content? strdup (msg->content): NULL;
+	dest->reasoning_content = msg->reasoning_content? strdup (msg->reasoning_content): NULL;
 
 	if (msg->content_blocks) {
 		R2AI_ContentBlocks *cb = R_NEW0 (R2AI_ContentBlocks);
@@ -177,19 +177,19 @@ R_API bool r2ai_msgs_add(R2AI_Messages *msgs, const R2AI_Message *msg) {
 		for (int i = 0; i < cb->n_blocks; i++) {
 			R2AI_ContentBlock *src = &msg->content_blocks->blocks[i];
 			R2AI_ContentBlock *dst = &cb->blocks[i];
-			dst->type = src->type ? strdup (src->type) : NULL;
-			dst->data = src->data ? strdup (src->data) : NULL;
-			dst->thinking = src->thinking ? strdup (src->thinking) : NULL;
-			dst->signature = src->signature ? strdup (src->signature) : NULL;
-			dst->text = src->text ? strdup (src->text) : NULL;
-			dst->id = src->id ? strdup (src->id) : NULL;
-			dst->name = src->name ? strdup (src->name) : NULL;
-			dst->input = src->input ? strdup (src->input) : NULL;
+			dst->type = src->type? strdup (src->type): NULL;
+			dst->data = src->data? strdup (src->data): NULL;
+			dst->thinking = src->thinking? strdup (src->thinking): NULL;
+			dst->signature = src->signature? strdup (src->signature): NULL;
+			dst->text = src->text? strdup (src->text): NULL;
+			dst->id = src->id? strdup (src->id): NULL;
+			dst->name = src->name? strdup (src->name): NULL;
+			dst->input = src->input? strdup (src->input): NULL;
 		}
 		dest->content_blocks = cb;
 	}
 
-	dest->tool_call_id = msg->tool_call_id ? strdup (msg->tool_call_id) : NULL;
+	dest->tool_call_id = msg->tool_call_id? strdup (msg->tool_call_id): NULL;
 	dest->tool_calls = NULL;
 	dest->n_tool_calls = 0;
 
@@ -208,9 +208,9 @@ R_API bool r2ai_msgs_add(R2AI_Messages *msgs, const R2AI_Message *msg) {
 			const R2AI_ToolCall *src_tc = &msg->tool_calls[i];
 			R2AI_ToolCall *dst_tc = (R2AI_ToolCall *)&dest->tool_calls[i];
 
-			dst_tc->name = src_tc->name ? strdup (src_tc->name) : NULL;
-			dst_tc->arguments = src_tc->arguments ? strdup (src_tc->arguments) : NULL;
-			dst_tc->id = src_tc->id ? strdup (src_tc->id) : NULL;
+			dst_tc->name = src_tc->name? strdup (src_tc->name): NULL;
+			dst_tc->arguments = src_tc->arguments? strdup (src_tc->arguments): NULL;
+			dst_tc->id = src_tc->id? strdup (src_tc->id): NULL;
 		}
 	}
 
@@ -233,7 +233,7 @@ R_API bool r2ai_msgs_add_tool_call(R2AI_Messages *msgs, const R2AI_ToolCall *tc)
 	} else {
 		R2AI_ToolCall *new_tool_calls = realloc (
 			(void *)msg->tool_calls,
-			sizeof (R2AI_ToolCall) * (msg->n_tool_calls + 1));
+			sizeof (R2AI_ToolCall) *(msg->n_tool_calls + 1));
 		if (!new_tool_calls) {
 			return false;
 		}
@@ -244,9 +244,9 @@ R_API bool r2ai_msgs_add_tool_call(R2AI_Messages *msgs, const R2AI_ToolCall *tc)
 
 	// Copy the tool call
 	R2AI_ToolCall *dst_tc = (R2AI_ToolCall *)&msg->tool_calls[msg->n_tool_calls];
-	dst_tc->name = tc->name ? strdup (tc->name) : NULL;
-	dst_tc->arguments = tc->arguments ? strdup (tc->arguments) : NULL;
-	dst_tc->id = tc->id ? strdup (tc->id) : NULL;
+	dst_tc->name = tc->name? strdup (tc->name): NULL;
+	dst_tc->arguments = tc->arguments? strdup (tc->arguments): NULL;
+	dst_tc->id = tc->id? strdup (tc->id): NULL;
 
 	msg->n_tool_calls++;
 	return true;
@@ -294,8 +294,8 @@ R_API bool r2ai_msgs_from_json(R2AI_Messages *msgs, const RJson *json) {
 
 	// Create a new message to add
 	R2AI_Message new_msg = { 0 };
-	new_msg.role = (role && role->type == R_JSON_STRING) ? strdup (role->str_value) : strdup ("assistant");
-	new_msg.content = (content && content->type == R_JSON_STRING) ? strdup (content->str_value) : NULL;
+	new_msg.role = (role && role->type == R_JSON_STRING)? strdup (role->str_value): strdup ("assistant");
+	new_msg.content = (content && content->type == R_JSON_STRING)? strdup (content->str_value): NULL;
 	new_msg.tool_call_id = NULL;
 	new_msg.tool_calls = NULL;
 	new_msg.n_tool_calls = 0;
@@ -328,14 +328,14 @@ R_API bool r2ai_msgs_from_json(R2AI_Messages *msgs, const RJson *json) {
 			const RJson *name = r_json_get (block, "name");
 			const RJson *input = r_json_get (block, "input");
 
-			dst->type = (type && type->type == R_JSON_STRING) ? strdup (type->str_value) : NULL;
-			dst->data = (data && data->type == R_JSON_STRING) ? strdup (data->str_value) : NULL;
-			dst->thinking = (thinking && thinking->type == R_JSON_STRING) ? strdup (thinking->str_value) : NULL;
-			dst->signature = (signature && signature->type == R_JSON_STRING) ? strdup (signature->str_value) : NULL;
-			dst->text = (text && text->type == R_JSON_STRING) ? strdup (text->str_value) : NULL;
-			dst->id = (id && id->type == R_JSON_STRING) ? strdup (id->str_value) : NULL;
-			dst->name = (name && name->type == R_JSON_STRING) ? strdup (name->str_value) : NULL;
-			dst->input = (input && input->type == R_JSON_STRING) ? strdup (input->str_value) : NULL;
+			dst->type = (type && type->type == R_JSON_STRING)? strdup (type->str_value): NULL;
+			dst->data = (data && data->type == R_JSON_STRING)? strdup (data->str_value): NULL;
+			dst->thinking = (thinking && thinking->type == R_JSON_STRING)? strdup (thinking->str_value): NULL;
+			dst->signature = (signature && signature->type == R_JSON_STRING)? strdup (signature->str_value): NULL;
+			dst->text = (text && text->type == R_JSON_STRING)? strdup (text->str_value): NULL;
+			dst->id = (id && id->type == R_JSON_STRING)? strdup (id->str_value): NULL;
+			dst->name = (name && name->type == R_JSON_STRING)? strdup (name->str_value): NULL;
+			dst->input = (input && input->type == R_JSON_STRING)? strdup (input->str_value): NULL;
 		}
 		new_msg.content_blocks = cb;
 	}
@@ -366,9 +366,9 @@ R_API bool r2ai_msgs_from_json(R2AI_Messages *msgs, const RJson *json) {
 			const RJson *arguments = r_json_get (function, "arguments");
 
 			R2AI_ToolCall tc = { 0 };
-			tc.name = (name && name->type == R_JSON_STRING) ? name->str_value : NULL;
-			tc.arguments = (arguments && arguments->type == R_JSON_STRING) ? arguments->str_value : NULL;
-			tc.id = (id && id->type == R_JSON_STRING) ? id->str_value : NULL;
+			tc.name = (name && name->type == R_JSON_STRING)? name->str_value: NULL;
+			tc.arguments = (arguments && arguments->type == R_JSON_STRING)? arguments->str_value: NULL;
+			tc.id = (id && id->type == R_JSON_STRING)? id->str_value: NULL;
 
 			if (!r2ai_msgs_add_tool_call (msgs, &tc)) {
 				break;
@@ -397,7 +397,7 @@ R_API char *r2ai_msgs_to_json(const R2AI_Messages *msgs) {
 		pj_o (pj); // Start message object
 
 		// Add role
-		pj_ks (pj, "role", msg->role ? msg->role : "user");
+		pj_ks (pj, "role", msg->role? msg->role: "user");
 
 		if (msg->content) {
 			pj_ks (pj, "content", msg->content);
@@ -435,7 +435,7 @@ R_API char *r2ai_msgs_to_json(const R2AI_Messages *msgs) {
 				pj_o (pj); // Start function object
 
 				// Add name
-				pj_ks (pj, "name", tc->name ? tc->name : "");
+				pj_ks (pj, "name", tc->name? tc->name: "");
 
 				// Add arguments if present
 				if (tc->arguments) {
@@ -476,8 +476,8 @@ R_API char *r2ai_msgs_to_anthropic_json(const R2AI_Messages *msgs) {
 		pj_o (pj); // Start message object
 
 		// Add role
-		const char *role = msg->role ? msg->role : "user";
-		pj_ks (pj, "role", strcmp (role, "tool") == 0 ? "user" : role);
+		const char *role = msg->role? msg->role: "user";
+		pj_ks (pj, "role", strcmp (role, "tool") == 0? "user": role);
 
 		if (msg->content_blocks) {
 			pj_ka (pj, "content"); // Start content array
@@ -550,12 +550,12 @@ R_API char *r2ai_msgs_to_anthropic_json(const R2AI_Messages *msgs) {
 					const R2AI_ToolCall *tc = &msg->tool_calls[j];
 					pj_o (pj); // Start tool_calls object
 					pj_ks (pj, "type", "tool_use");
-					pj_ks (pj, "id", tc->id ? tc->id : "");
-					pj_ks (pj, "name", tc->name ? tc->name : "");
+					pj_ks (pj, "id", tc->id? tc->id: "");
+					pj_ks (pj, "name", tc->name? tc->name: "");
 
 					// Create a non-const copy for r_json_parse
-					char *arguments_copy = tc->arguments ? strdup (tc->arguments) : NULL;
-					RJson *arguments = arguments_copy ? r_json_parse (arguments_copy) : NULL;
+					char *arguments_copy = tc->arguments? strdup (tc->arguments): NULL;
+					RJson *arguments = arguments_copy? r_json_parse (arguments_copy): NULL;
 
 					pj_ko (pj, "input"); // Start input object
 					if (arguments) {
@@ -617,7 +617,7 @@ R_API PJ *r_json_to_pj(const RJson *json, PJ *existing_pj) {
 		return existing_pj;
 	}
 
-	PJ *pj = existing_pj ? existing_pj : pj_new ();
+	PJ *pj = existing_pj? existing_pj: pj_new ();
 	if (!pj) {
 		return NULL;
 	}

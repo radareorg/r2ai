@@ -19,7 +19,7 @@ static void vector_free(Vector *v) {
 
 /*-------------------------------
  * Distance Function Using Squared Euclidean Distance
- * For two unit vectors: dist^2 = 2 - 2 * (dot product)
+ * For two unit vectors: dist^2 = 2 - 2 *(dot product)
  *-------------------------------*/
 static float squared_distance(const Vector *a, const Vector *b) {
 	if (a->dim != b->dim) {
@@ -34,14 +34,14 @@ static float squared_distance(const Vector *a, const Vector *b) {
 }
 
 /*-------------------------------
-  KDNode Utility Functions
-  -------------------------------*/
+KDNode Utility Functions
+-------------------------------*/
 static KDNode *create_kdnode(const Vector *v, const char *text, int split_dim) {
 	KDNode *node = (KDNode *)malloc (sizeof (KDNode));
 	node->point.dim = v->dim;
 	node->point.data = (float *)malloc (sizeof (float) * v->dim);
 	memcpy (node->point.data, v->data, sizeof (float) * v->dim);
-	node->text = text ? strdup (text) : NULL;
+	node->text = text? strdup (text): NULL;
 	node->split_dim = split_dim;
 	node->left = NULL;
 	node->right = NULL;
@@ -212,8 +212,8 @@ void kd_search_knn_recursive(KDNode *node, const Vector *query, RVdbResultSet *r
 
 	int axis = node->split_dim;
 	float diff = query->data[axis] - node->point.data[axis];
-	KDNode *first = (diff < 0) ? node->left : node->right;
-	KDNode *second = (diff < 0) ? node->right : node->left;
+	KDNode *first = (diff < 0)? node->left: node->right;
+	KDNode *second = (diff < 0)? node->right: node->left;
 
 	kd_search_knn_recursive (first, query, rs, depth + 1, dim);
 

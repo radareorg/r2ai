@@ -61,8 +61,8 @@ doc-install:
 
 vdb.o: vdb_embed.inc.c
 
-indent:
-	for a in *.c ; do python indent.py $$a ; done
+fmt format indent:
+	clang-format-radare2 *.c
 
 user-install: user-uninstall
 	mkdir -p $(R2USRPLUGDIR)

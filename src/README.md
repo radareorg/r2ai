@@ -1,12 +1,10 @@
-# C-R2AI
+# R2AI
 
-This directory contains the C rewrite of the r2ai plugin for radare2.
+The r2ai plugin for radare2.
 
 ## Installation
 
-Requires radare2 from git if you want to use the stream HTTP APIs.
-
-Otherwise the only requirement is a C compiler.
+Requires a C compiler and modern version of radare2 if you want to use the stream HTTP APIs. It will fallback to curl or powershell if not available and `R2_CURL` environment is set to `1`.
 
 ```console
 make
@@ -215,8 +213,6 @@ Note: System prompt is applied automatically but not stored in history
     {"command":"pdf @ main"}
 ```
 
-
-
 ## TODO
 
 * add "undo" command to drop the last message
@@ -224,7 +220,6 @@ Note: System prompt is applied automatically but not stored in history
 * Implement `~`, `|` and `>` and other r2shell features
 * keep context between direct commands unless explicitly reset
 * modify context if tool command is user edited
-
 
 ## Messages API
 

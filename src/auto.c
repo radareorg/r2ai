@@ -26,12 +26,12 @@ static char *format_time_duration(time_t seconds) {
 		return r_str_newf ("%llds", (long long)seconds);
 	}
 	if (seconds < 3600) {
-		return r_str_newf ("%lldm%llds", (long long)(seconds / 60), (long long)(seconds % 60));
+		return r_str_newf ("%lldm%llds", (long long) (seconds / 60), (long long) (seconds % 60));
 	}
 	return r_str_newf ("%lldh%lldm%llds",
-		(long long)(seconds / 3600),
-		(long long)((seconds % 3600) / 60),
-		(long long)(seconds % 60));
+		(long long) (seconds / 3600),
+		(long long) ((seconds % 3600) / 60),
+		(long long) (seconds % 60));
 }
 
 // Initialize timing and cost tracking for a run
@@ -96,24 +96,24 @@ static void r2ai_print_run_end(RCore *core, const R2AI_Usage *usage, int n_run, 
 }
 
 const char *Gprompt_auto = "You are a reverse engineer and you are using radare2 to analyze a binary.\n"
-			   "The user will ask questions about the binary and you will respond with the answer to the best of your ability.\n"
-			   "\n"
-			   "# Guidelines\n"
-			   "- Understand the Task: Grasp the main objective, goals, requirements, constraints, and expected output.\n"
-			   "- Reasoning Before Conclusions**: Encourage reasoning steps before any conclusions are reached.\n"
-			   "- Assume the user is always asking you about the binary, unless they're specifically asking you for radare2 help.\n"
-			   "- The binary has already been loaded. You can interact with the binary using the r2cmd tool.\n"
-			   "- `this` or `here` might refer to the current address in the binary or the binary itself.\n"
-			   "- If you need more information, try to use the r2cmd tool to run commands before answering.\n"
-			   "- You can use the r2cmd tool multiple times if you need or you can pass a command with pipes if you need to chain commands.\n"
-			   "- If you're asked to decompile a function, make sure to return the code in the language you think it was originally written and rewrite it to be as easy as possible to be understood. Make sure you use descriptive variable and function names and add comments.\n"
-			   "- Don't just regurgitate the same code, figure out what it's doing and rewrite it to be more understandable.\n"
-			   "- If you need to run a command in r2 before answering, you can use the r2cmd tool\n"
-			   "- Do not repeat commands if you already know the answer.\n"
-			   "- Formulate a plan. Think step by step. Analyze the binary as much as possible before answering.\n"
-			   "- You must keep going until you have a final answer.\n"
-			   "- Double check that final answer. Make sure you didn't miss anything.\n"
-			   "- Make sure you call tools and functions correctly.\n";
+			"The user will ask questions about the binary and you will respond with the answer to the best of your ability.\n"
+			"\n"
+			"# Guidelines\n"
+			"- Understand the Task: Grasp the main objective, goals, requirements, constraints, and expected output.\n"
+			"- Reasoning Before Conclusions**: Encourage reasoning steps before any conclusions are reached.\n"
+			"- Assume the user is always asking you about the binary, unless they're specifically asking you for radare2 help.\n"
+			"- The binary has already been loaded. You can interact with the binary using the r2cmd tool.\n"
+			"- `this` or `here` might refer to the current address in the binary or the binary itself.\n"
+			"- If you need more information, try to use the r2cmd tool to run commands before answering.\n"
+			"- You can use the r2cmd tool multiple times if you need or you can pass a command with pipes if you need to chain commands.\n"
+			"- If you're asked to decompile a function, make sure to return the code in the language you think it was originally written and rewrite it to be as easy as possible to be understood. Make sure you use descriptive variable and function names and add comments.\n"
+			"- Don't just regurgitate the same code, figure out what it's doing and rewrite it to be more understandable.\n"
+			"- If you need to run a command in r2 before answering, you can use the r2cmd tool\n"
+			"- Do not repeat commands if you already know the answer.\n"
+			"- Formulate a plan. Think step by step. Analyze the binary as much as possible before answering.\n"
+			"- You must keep going until you have a final answer.\n"
+			"- Double check that final answer. Make sure you didn't miss anything.\n"
+			"- Make sure you call tools and functions correctly.\n";
 
 // Helper function to process messages and handle tool calls recursively
 R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *system_prompt, int n_run) {
@@ -283,7 +283,7 @@ R_IPI void cmd_r2ai_a(RCore *core, const char *user_query) {
 // Helper function to display content with length indication for long content
 static void print_content_with_length(RCore *core, const char *content, const char *empty_msg, bool always_show_length) {
 	if (!content || *content == '\0') {
-		R2_PRINTF ("%s\n", empty_msg ? empty_msg : "<no content>");
+		R2_PRINTF ("%s\n", empty_msg? empty_msg: "<no content>");
 		return;
 	}
 
@@ -331,8 +331,8 @@ R_IPI void cmd_r2ai_logs(RCore *core) {
 
 			pj_o (pj);
 
-			pj_ks (pj, "role", msg->role ? msg->role : "unknown");
-			pj_ks (pj, "content", msg->content ? msg->content : "");
+			pj_ks (pj, "role", msg->role? msg->role: "unknown");
+			pj_ks (pj, "content", msg->content? msg->content: "");
 
 			if (msg->tool_calls && msg->n_tool_calls > 0) {
 				pj_ka (pj, "tool_calls");
@@ -389,7 +389,7 @@ R_IPI void cmd_r2ai_logs(RCore *core) {
 				for (int j = 0; j < msg->n_tool_calls; j++) {
 					const R2AI_ToolCall *tc = &msg->tool_calls[j];
 					R2_PRINTF ("  \x1b[1;35m[tool call]:\x1b[0m %s\n",
-						tc->name ? tc->name : "<unnamed>");
+						tc->name? tc->name: "<unnamed>");
 
 					if (tc->arguments) {
 						R2_PRINTF ("    %s\n", tc->arguments);
