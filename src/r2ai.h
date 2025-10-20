@@ -78,9 +78,7 @@ typedef struct {
 
 // Messages array management
 typedef struct {
-	R2AI_Message *messages;
-	int n_messages;
-	int cap_messages;
+	RList *messages; // RList<R2AI_Message *>
 } R2AI_Messages;
 
 typedef struct {

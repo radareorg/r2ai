@@ -40,7 +40,7 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCore *core, R2AIArgs args) {
 	// Create messages JSON
 	char *messages_json = NULL;
 
-	if (messages_input && messages_input->n_messages > 0) {
+	if (messages_input && r_list_length (messages_input->messages) > 0) {
 		// Convert directly to JSON without filtering
 		messages_json = r2ai_msgs_to_anthropic_json (messages_input);
 		if (!messages_json) {

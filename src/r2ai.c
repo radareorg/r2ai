@@ -205,7 +205,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 		}
 		char *m = r_strbuf_drain (sb);
 		R2AI_Message msg = { .role = "user", .content = m };
-		context_pullback = args.messages->n_messages;
+		context_pullback = r_list_length (args.messages->messages);
 		r2ai_msgs_add (args.messages, &msg);
 		free (m);
 		// TODO: we can save the msg without context
@@ -228,7 +228,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 		res = r2ai_openai (core, args);
 	}
 	if (context_pullback != -1) {
-		R2AI_Message *msg = &args.messages->messages[context_pullback];
+		R2AI_Message *msg = r_list_get_n (args.messages->messages, context_pullback);
 		free ((char *)msg->content);
 		msg->content = strdup (args.input);
 	}
@@ -658,7 +658,7 @@ static void cmd_r2ai(RCore *core, const char *input) {
 		const char *arg = r_str_trim_head_ro (input + 3);
 		const int N = atoi (arg);
 		R2AI_Messages *messages = r2ai_conversation_get ();
-		if (!messages || messages->n_messages == 0) {
+		if (!messages || r_list_length (messages->messages) == 0) {
 			R2_PRINTF ("No conversation history available\n");
 		} else {
 			r2ai_delete_last_messages (messages, N);
@@ -707,7 +707,7 @@ static void cmd_r2ai(RCore *core, const char *input) {
 		cmd_r2ai_repl (core);
 	} else if (r_str_startswith (input, "-R")) {
 		R2AI_Messages *messages = r2ai_conversation_get ();
-		if (!messages || messages->n_messages == 0) {
+		if (!messages || r_list_length (messages->messages) == 0) {
 			R2_PRINTF ("No conversation history to reset\n");
 		} else {
 			r2ai_msgs_clear (messages);

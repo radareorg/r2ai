@@ -4,7 +4,7 @@
 
 // AITODO: remove globals
 // Static global message store for session persistence
-static R2AI_Messages *conversation = NULL;
+static R2AI_Messages conversation = { 0 };
 
 #define INITIAL_CAPACITY 8
 #define GROWTH_FACTOR 1.5
@@ -48,22 +48,21 @@ R_API void r2ai_message_free(R2AI_Message *msg) {
 
 // Initialize conversation container (call this during plugin init)
 R_API void r2ai_conversation_init(void) {
-	if (conversation) {
+	if (conversation.messages) {
 		// Already initialized
 		return;
 	}
 
-	conversation = R_NEW0 (R2AI_Messages);
-	conversation->cap_messages = INITIAL_CAPACITY;
-	conversation->messages = R_NEWS0 (R2AI_Message, conversation->cap_messages);
-	if (!conversation->messages) {
-		R_FREE (conversation);
+	conversation.messages = r_list_new ();
+	if (!conversation.messages) {
+		return;
 	}
+	conversation.messages->free = (RListFree)r2ai_message_free;
 }
 
 // Get the conversation instance (returns NULL if not initialized)
 R_API R2AI_Messages *r2ai_conversation_get(void) {
-	return conversation;
+	return &conversation;
 }
 
 // Create a new temporary messages container
@@ -72,12 +71,12 @@ R_API R2AI_Messages *r2ai_msgs_new(void) {
 	if (!msgs) {
 		return NULL;
 	}
-	msgs->cap_messages = INITIAL_CAPACITY;
-	msgs->messages = R_NEWS0 (R2AI_Message, msgs->cap_messages);
+	msgs->messages = r_list_new ();
 	if (!msgs->messages) {
 		R_FREE (msgs);
 		return NULL;
 	}
+	msgs->messages->free = (RListFree)r2ai_message_free;
 	return msgs;
 }
 
@@ -87,21 +86,15 @@ R_API void r2ai_msgs_free(R2AI_Messages *msgs) {
 	}
 
 	// Don't actually free if it's our static instance
-	if (msgs == conversation) {
+	if (msgs == &conversation) {
 		// Just clear the messages but keep the allocated structure
-		for (int i = 0; i < msgs->n_messages; i++) {
-			r2ai_message_free (&msgs->messages[i]);
-		}
-		msgs->n_messages = 0;
+		r_list_purge (msgs->messages);
 		return;
 	}
 
 	// Normal free for non-static instances
 	if (msgs->messages) {
-		for (int i = 0; i < msgs->n_messages; i++) {
-			r2ai_message_free (&msgs->messages[i]);
-		}
-		R_FREE (msgs->messages);
+		r_list_free (msgs->messages);
 	}
 
 	R_FREE (msgs);
@@ -109,15 +102,9 @@ R_API void r2ai_msgs_free(R2AI_Messages *msgs) {
 
 // Free the conversation when plugin is unloaded
 R_API void r2ai_conversation_free(void) {
-	if (conversation) {
-		if (conversation->messages) {
-			for (int i = 0; i < conversation->n_messages; i++) {
-				r2ai_message_free (&conversation->messages[i]);
-			}
-			R_FREE (conversation->messages);
-		}
-		R_FREE (conversation);
-		conversation = NULL;
+	if (conversation.messages) {
+		r_list_free (conversation.messages);
+		conversation.messages = NULL;
 	}
 }
 
@@ -127,10 +114,7 @@ R_API void r2ai_msgs_clear(R2AI_Messages *msgs) {
 		return;
 	}
 
-	for (int i = 0; i < msgs->n_messages; i++) {
-		r2ai_message_free (&msgs->messages[i]);
-	}
-	msgs->n_messages = 0;
+	r_list_purge (msgs->messages);
 }
 
 R_API bool r2ai_msgs_add(R2AI_Messages *msgs, const R2AI_Message *msg) {
@@ -138,40 +122,28 @@ R_API bool r2ai_msgs_add(R2AI_Messages *msgs, const R2AI_Message *msg) {
 		return false;
 	}
 
-	// Check if we need to resize
-	if (msgs->n_messages >= msgs->cap_messages) {
-		int new_cap = msgs->cap_messages * GROWTH_FACTOR;
-		R2AI_Message *new_messages = realloc (msgs->messages, sizeof (R2AI_Message) * new_cap);
-		if (!new_messages) {
-			return false;
-		}
-		msgs->messages = new_messages;
-		msgs->cap_messages = new_cap;
-
-		// Zero the newly allocated portion
-		memset (&msgs->messages[msgs->n_messages], 0,
-			sizeof (R2AI_Message) *(msgs->cap_messages - msgs->n_messages));
+	R2AI_Message *new_msg = R_NEW0 (R2AI_Message);
+	if (!new_msg) {
+		return false;
 	}
 
-	// Copy the message to the array
-	R2AI_Message *dest = &msgs->messages[msgs->n_messages++];
-	dest->role = msg->role? strdup (msg->role): NULL;
-	dest->content = msg->content? strdup (msg->content): NULL;
-	dest->reasoning_content = msg->reasoning_content? strdup (msg->reasoning_content): NULL;
+	new_msg->role = msg->role? strdup (msg->role): NULL;
+	new_msg->content = msg->content? strdup (msg->content): NULL;
+	new_msg->reasoning_content = msg->reasoning_content? strdup (msg->reasoning_content): NULL;
 
 	if (msg->content_blocks) {
 		R2AI_ContentBlocks *cb = R_NEW0 (R2AI_ContentBlocks);
 		if (!cb) {
-			r2ai_message_free (dest);
-			msgs->n_messages--;
+			r2ai_message_free (new_msg);
+			free (new_msg);
 			return false;
 		}
 		cb->n_blocks = msg->content_blocks->n_blocks;
 		cb->blocks = R_NEWS0 (R2AI_ContentBlock, cb->n_blocks);
 		if (!cb->blocks) {
 			free (cb);
-			r2ai_message_free (dest);
-			msgs->n_messages--;
+			r2ai_message_free (new_msg);
+			free (new_msg);
 			return false;
 		}
 		for (int i = 0; i < cb->n_blocks; i++) {
@@ -186,27 +158,26 @@ R_API bool r2ai_msgs_add(R2AI_Messages *msgs, const R2AI_Message *msg) {
 			dst->name = src->name? strdup (src->name): NULL;
 			dst->input = src->input? strdup (src->input): NULL;
 		}
-		dest->content_blocks = cb;
+		new_msg->content_blocks = cb;
 	}
 
-	dest->tool_call_id = msg->tool_call_id? strdup (msg->tool_call_id): NULL;
-	dest->tool_calls = NULL;
-	dest->n_tool_calls = 0;
+	new_msg->tool_call_id = msg->tool_call_id? strdup (msg->tool_call_id): NULL;
+	new_msg->tool_calls = NULL;
+	new_msg->n_tool_calls = 0;
 
 	// Copy tool calls if any
 	if (msg->tool_calls && msg->n_tool_calls > 0) {
-		dest->tool_calls = R_NEWS0 (R2AI_ToolCall, msg->n_tool_calls);
-		if (!dest->tool_calls) {
-			// Clean up and return error
-			r2ai_message_free (dest);
-			msgs->n_messages--;
+		new_msg->tool_calls = R_NEWS0 (R2AI_ToolCall, msg->n_tool_calls);
+		if (!new_msg->tool_calls) {
+			r2ai_message_free (new_msg);
+			free (new_msg);
 			return false;
 		}
 
-		dest->n_tool_calls = msg->n_tool_calls;
+		new_msg->n_tool_calls = msg->n_tool_calls;
 		for (int i = 0; i < msg->n_tool_calls; i++) {
 			const R2AI_ToolCall *src_tc = &msg->tool_calls[i];
-			R2AI_ToolCall *dst_tc = (R2AI_ToolCall *)&dest->tool_calls[i];
+			R2AI_ToolCall *dst_tc = (R2AI_ToolCall *)&new_msg->tool_calls[i];
 
 			dst_tc->name = src_tc->name? strdup (src_tc->name): NULL;
 			dst_tc->arguments = src_tc->arguments? strdup (src_tc->arguments): NULL;
@@ -214,15 +185,16 @@ R_API bool r2ai_msgs_add(R2AI_Messages *msgs, const R2AI_Message *msg) {
 		}
 	}
 
+	r_list_append (msgs->messages, new_msg);
 	return true;
 }
 
 R_API bool r2ai_msgs_add_tool_call(R2AI_Messages *msgs, const R2AI_ToolCall *tc) {
-	if (!msgs || !tc || msgs->n_messages == 0) {
+	if (!msgs || !tc || r_list_length (msgs->messages) == 0) {
 		return false;
 	}
 
-	R2AI_Message *msg = &msgs->messages[msgs->n_messages - 1];
+	R2AI_Message *msg = r_list_get_n (msgs->messages, r_list_length (msgs->messages) - 1);
 
 	// Allocate or resize the tool_calls array
 	if (msg->n_tool_calls == 0) {
@@ -374,13 +346,24 @@ R_API bool r2ai_msgs_from_json(R2AI_Messages *msgs, const RJson *json) {
 				break;
 			}
 		}
+
+		// Add the parsed message to the messages array
+		if (!r2ai_msgs_add (msgs, &new_msg)) {
+			r2ai_message_free (&new_msg);
+			return false;
+		}
+
+		// Free the temporary message struct (strings are duplicated in add)
+		r2ai_message_free (&new_msg);
+
+		return true;
 	}
 
 	return true;
 }
 
 R_API char *r2ai_msgs_to_json(const R2AI_Messages *msgs) {
-	if (!msgs || msgs->n_messages == 0) {
+	if (!msgs || r_list_length (msgs->messages) == 0) {
 		return NULL;
 	}
 
@@ -391,8 +374,8 @@ R_API char *r2ai_msgs_to_json(const R2AI_Messages *msgs) {
 
 	pj_a (pj); // Start array
 
-	for (int i = 0; i < msgs->n_messages; i++) {
-		const R2AI_Message *msg = &msgs->messages[i];
+	for (int i = 0; i < r_list_length (msgs->messages); i++) {
+		const R2AI_Message *msg = r_list_get_n (msgs->messages, i);
 
 		pj_o (pj); // Start message object
 
@@ -459,7 +442,7 @@ R_API char *r2ai_msgs_to_json(const R2AI_Messages *msgs) {
 }
 
 R_API char *r2ai_msgs_to_anthropic_json(const R2AI_Messages *msgs) {
-	if (!msgs || msgs->n_messages == 0) {
+	if (!msgs || r_list_length (msgs->messages) == 0) {
 		return NULL;
 	}
 
@@ -470,8 +453,8 @@ R_API char *r2ai_msgs_to_anthropic_json(const R2AI_Messages *msgs) {
 
 	pj_a (pj); // Start array
 
-	for (int i = 0; i < msgs->n_messages; i++) {
-		const R2AI_Message *msg = &msgs->messages[i];
+	for (int i = 0; i < r_list_length (msgs->messages); i++) {
+		const R2AI_Message *msg = r_list_get_n (msgs->messages, i);
 
 		pj_o (pj); // Start message object
 
@@ -588,7 +571,7 @@ R_API char *r2ai_msgs_to_anthropic_json(const R2AI_Messages *msgs) {
 
 // Function to delete the last N messages from conversation history
 R_API void r2ai_delete_last_messages(R2AI_Messages *messages, int n) {
-	if (!messages || messages->n_messages == 0) {
+	if (!messages || r_list_length (messages->messages) == 0) {
 		return;
 	}
 
@@ -598,17 +581,15 @@ R_API void r2ai_delete_last_messages(R2AI_Messages *messages, int n) {
 	}
 
 	// Make sure we don't try to delete more messages than exist
-	if (n > messages->n_messages) {
-		n = messages->n_messages;
+	int len = r_list_length (messages->messages);
+	if (n > len) {
+		n = len;
 	}
 
-	// Free the last n messages
-	for (int i = messages->n_messages - n; i < messages->n_messages; i++) {
-		r2ai_message_free (&messages->messages[i]);
+	// Pop the last n messages
+	for (int i = 0; i < n; i++) {
+		r_list_pop (messages->messages);
 	}
-
-	// Update the message count
-	messages->n_messages -= n;
 }
 
 // Helper function to convert RJson to PJ without draining

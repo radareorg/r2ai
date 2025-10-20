@@ -136,15 +136,15 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 		}
 	}
 	if (args.messages) {
-		for (int i = 0; i < args.messages->n_messages; i++) {
-			r2ai_msgs_add (temp_msgs, &args.messages->messages[i]);
+		for (int i = 0; i < r_list_length (args.messages->messages); i++) {
+			r2ai_msgs_add (temp_msgs, r_list_get_n (args.messages->messages, i));
 		}
 	} else {
 		R_LOG_WARN ("No messages");
 	}
 	// Safely print debug info about first message
-	if (temp_msgs && temp_msgs->n_messages > 0 && temp_msgs->messages && temp_msgs->messages[0].role) {
-		R_LOG_DEBUG ("First message role: %s", temp_msgs->messages[0].role);
+	if (temp_msgs && r_list_length (temp_msgs->messages) > 0 && ((R2AI_Message *)r_list_get_n (temp_msgs->messages, 0))->role) {
+		R_LOG_DEBUG ("First message role: %s", ((R2AI_Message *)r_list_get_n (temp_msgs->messages, 0))->role);
 	}
 	if (error) {
 		*error = NULL;
@@ -170,8 +170,8 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 	// Create a messages JSON object, either from input messages or from content
 	char *messages_json = NULL;
 
-	if (temp_msgs && temp_msgs->n_messages > 0) {
-		R_LOG_DEBUG ("Using input messages: %d messages", temp_msgs->n_messages);
+	if (temp_msgs && r_list_length (temp_msgs->messages) > 0) {
+		R_LOG_DEBUG ("Using input messages: %d messages", r_list_length (temp_msgs->messages));
 		messages_json = r2ai_msgs_to_json (temp_msgs);
 		if (!messages_json) {
 			if (error) {

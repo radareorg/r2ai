@@ -266,7 +266,7 @@ R_IPI void cmd_r2ai_a(RCore *core, const char *user_query) {
 
 	// Add user query to the conversation (no system prompt)
 	// If this is the first message in a new conversation, clear previous history
-	if (messages->n_messages == 0 || r_config_get_b (core->config, "r2ai.auto.reset_on_query")) {
+	if (r_list_length (messages->messages) == 0 || r_config_get_b (core->config, "r2ai.auto.reset_on_query")) {
 		r2ai_msgs_clear (messages);
 	}
 
@@ -309,7 +309,7 @@ static void print_content_with_length(RCore *core, const char *content, const ch
 R_IPI void cmd_r2ai_logs(RCore *core) {
 	// Get conversation
 	R2AI_Messages *messages = r2ai_conversation_get ();
-	if (!messages || messages->n_messages == 0) {
+	if (!messages || r_list_length (messages->messages) == 0) {
 		R2_PRINTF ("No conversation history available\n");
 		return;
 	}
@@ -326,8 +326,8 @@ R_IPI void cmd_r2ai_logs(RCore *core) {
 
 		pj_a (pj);
 
-		for (int i = 0; i < messages->n_messages; i++) {
-			const R2AI_Message *msg = &messages->messages[i];
+		for (int i = 0; i < r_list_length (messages->messages); i++) {
+			const R2AI_Message *msg = r_list_get_n (messages->messages, i);
 
 			pj_o (pj);
 
@@ -368,13 +368,13 @@ R_IPI void cmd_r2ai_logs(RCore *core) {
 	}
 
 	R2_PRINTF ("\x1b[1;34m[r2ai] Chat Logs (%d messages)\x1b[0m\n",
-		core->cons, messages->n_messages);
+		r_list_length (messages->messages));
 
 	R2_PRINTF ("\x1b[1;33mNote: System prompt is applied automatically but not stored in history\x1b[0m\n\n");
 
 	// Display each message in the conversation
-	for (int i = 0; i < messages->n_messages; i++) {
-		const R2AI_Message *msg = &messages->messages[i];
+	for (int i = 0; i < r_list_length (messages->messages); i++) {
+		const R2AI_Message *msg = r_list_get_n (messages->messages, i);
 		const char *role = msg->role;
 
 		// Format based on role
