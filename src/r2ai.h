@@ -134,6 +134,7 @@ typedef struct r2ai_state_t {
 	RMarkdownTheme current_theme; // Global theme (from markdown.c)
 	bool theme_initialized; // Global theme flag (from markdown.c)
 	void *help_msg; // Global help message (from r2ai.c)
+	RVdb *db; // Vector database for embeddings
 } R2AI_State;
 
 /**
@@ -293,10 +294,10 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args);
 R_IPI void r2ai_openai_fini(void);
 
 // auto mode
-R_IPI void cmd_r2ai_a(RCore *core, const char *user_query);
+R_IPI void cmd_r2ai_a(RCore *core, R2AI_State *state, const char *user_query);
 R_API char *r2ai(RCore *core, R2AIArgs args);
 
-R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args);
+R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AI_State *state, R2AIArgs args);
 
 R_IPI void cmd_r2ai_logs(RCore *core);
 
@@ -308,7 +309,7 @@ R_API R2AI_Messages *create_conversation(const char *user_message);
 /**
  * Process messages through LLM and handle tool calls recursively
  */
-R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *system_prompt, int n_run);
+R_API void process_messages(RCore *core, R2AI_State *state, R2AI_Messages *messages, const char *system_prompt, int n_run);
 
 /**
  * Helper function to convert RJson to string

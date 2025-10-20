@@ -5,10 +5,10 @@
 #include "r2ai.h"
 
 // External declaration for cmd_r2ai_a - implemented in auto.c
-R_IPI void cmd_r2ai_a(RCore *core, const char *user_query);
+R_IPI void cmd_r2ai_a(RCore *core, R2AI_State *state, const char *user_query);
 
-// AITODO: remove this global variable
-static R_TH_LOCAL RVdb *db = NULL;
+// Global state - no longer individual globals
+static R2AI_State *g_state = NULL;
 
 #define VDBDIM 16
 
@@ -43,13 +43,13 @@ static const R2AIProvider *r2ai_get_provider(const char *name) {
 	return NULL;
 }
 
-static void refresh_embeddings(RCore *core) {
+static void refresh_embeddings(RCore *core, R2AI_State *state) {
 	RListIter *iter, *iter2;
 	char *line;
 	char *file;
 	// refresh embeddings database
-	r_vdb_free (db);
-	db = r_vdb_new (VDBDIM);
+	r_vdb_free (state->db);
+	state->db = r_vdb_new (VDBDIM);
 	// enumerate .txt files in directory
 	const char *path = r_config_get (core->config, "r2ai.data.path");
 	RList *files = r_sys_dir (path);
@@ -69,7 +69,7 @@ static void refresh_embeddings(RCore *core) {
 				if (r_str_trim_head_ro (line)[0] == 0) {
 					continue;
 				}
-				r_vdb_insert (db, line);
+				r_vdb_insert (state->db, line);
 				R_LOG_DEBUG ("Insert %s", line);
 			}
 			r_list_free (lines);
@@ -131,7 +131,7 @@ static char *r2ai_get_api_key(RCore *core, const char *provider) {
 	return api_key;
 }
 
-R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
+R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AI_State *state, R2AIArgs args) {
 	R2AI_ChatResponse *res = NULL;
 	const char *provider = r_config_get (core->config, "r2ai.api");
 	if (!provider) {
@@ -188,13 +188,13 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 	// context and user message
 	if (args.input && r_config_get_b (core->config, "r2ai.data")) {
 		const int K = r_config_get_i (core->config, "r2ai.data.nth");
-		if (!db) {
-			db = r_vdb_new (VDBDIM);
-			refresh_embeddings (core);
+		if (!state->db) {
+			state->db = r_vdb_new (VDBDIM);
+			refresh_embeddings (core, state);
 		}
 		RStrBuf *sb = r_strbuf_new ("");
 		r_strbuf_appendf (sb, "\n ## Query\n\n%s\n ## Context\n", args.input);
-		RVdbResultSet *rs = r_vdb_query (db, args.input, K);
+		RVdbResultSet *rs = r_vdb_query (state->db, args.input, K);
 		if (rs) {
 			int i;
 			for (i = 0; i < rs->size; i++) {
@@ -264,7 +264,7 @@ R_API char *r2ai(RCore *core, R2AIArgs args) {
 	args.messages = msgs;
 
 	// Call the r2ai_llmcall function to get the message
-	R2AI_ChatResponse *res = r2ai_llmcall (core, args);
+	R2AI_ChatResponse *res = r2ai_llmcall (core, g_state, args);
 	if (!res) {
 		return NULL;
 	}
@@ -374,7 +374,7 @@ static void cmd_r2ai_x(RCore *core) {
 	}
 
 	// Process the conversation with custom system prompt (will print the result)
-	process_messages (core, msgs, explain_prompt, 1);
+	process_messages (core, g_state, msgs, explain_prompt, 1);
 
 	// Free temporary messages
 	r2ai_msgs_free (msgs);
@@ -427,21 +427,21 @@ static void cmd_r2ai_repl(RCore *core) {
 	r_strbuf_free (sb);
 }
 
-static void cmd_r2ai_R(RCore *core, const char *q) {
+static void cmd_r2ai_R(RCore *core, R2AI_State *state, const char *q) {
 	if (!r_config_get_b (core->config, "r2ai.data")) {
 		R_LOG_ERROR ("r2ai -e r2ai.data=true");
 		return;
 	}
 	if (R_STR_ISEMPTY (q)) {
-		if (db) {
-			r_vdb_free (db);
-			db = NULL;
+		if (state->db) {
+			r_vdb_free (state->db);
+			state->db = NULL;
 		}
-		refresh_embeddings (core);
+		refresh_embeddings (core, state);
 	} else {
-		refresh_embeddings (core);
+		refresh_embeddings (core, state);
 		const int K = r_config_get_i (core->config, "r2ai.data.nth");
-		RVdbResultSet *rs = r_vdb_query (db, q, K);
+		RVdbResultSet *rs = r_vdb_query (state->db, q, K);
 
 		if (rs) {
 			R_LOG_DEBUG ("Query: \"%s\"", q);
@@ -610,7 +610,7 @@ static void cmd_r2ai_m(RCore *core, const char *input) {
 	R2_PRINTF ("Model set to %s\n", input);
 }
 
-static void load_embeddings(RCore *core, RVdb *db) {
+static void load_embeddings(RCore *core, R2AI_State *state) {
 	RListIter *iter, *iter2;
 	char *line;
 	char *file;
@@ -633,7 +633,7 @@ static void load_embeddings(RCore *core, RVdb *db) {
 				if (r_str_trim_head_ro (line)[0] == 0) {
 					continue;
 				}
-				r_vdb_insert (db, line);
+				r_vdb_insert (state->db, line);
 				R_LOG_DEBUG ("Insert %s", line);
 			}
 			r_list_free (lines);
@@ -654,7 +654,7 @@ static void cmd_r2ai(RCore *core, const char *input) {
 			r_core_cmdf (core, "-e r2ai.%s", arg);
 		}
 	} else if (r_str_startswith (input, "-a")) {
-		cmd_r2ai_a (core, r_str_trim_head_ro (input + 2));
+		cmd_r2ai_a (core, g_state, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-L-")) {
 		const char *arg = r_str_trim_head_ro (input + 3);
 		const int N = atoi (arg);
@@ -677,13 +677,13 @@ static void cmd_r2ai(RCore *core, const char *input) {
 	} else if (r_str_startswith (input, "-s")) {
 		cmd_r2ai_s (core);
 	} else if (r_str_startswith (input, "-S")) {
-		if (db == NULL) {
-			db = r_vdb_new (VDBDIM);
-			load_embeddings (core, db);
+		if (g_state->db == NULL) {
+			g_state->db = r_vdb_new (VDBDIM);
+			load_embeddings (core, g_state);
 		}
 		const char *arg = r_str_trim_head_ro (input + 2);
 		const int K = 10;
-		RVdbResultSet *rs = r_vdb_query (db, arg, K);
+		RVdbResultSet *rs = r_vdb_query (g_state->db, arg, K);
 		if (rs) {
 			int i;
 			eprintf ("Found up to %d neighbors (actual found: %d).\n", K, rs->size);
@@ -715,7 +715,7 @@ static void cmd_r2ai(RCore *core, const char *input) {
 			R2_PRINTF ("Chat conversation context has been reset\n");
 		}
 	} else if (r_str_startswith (input, "-Rq")) {
-		cmd_r2ai_R (core, r_str_trim_head_ro (input + 3));
+		cmd_r2ai_R (core, g_state, r_str_trim_head_ro (input + 3));
 	} else if (r_str_startswith (input, "-m")) {
 		cmd_r2ai_m (core, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-")) {
@@ -942,6 +942,14 @@ static int r2ai_init(void *user, const char *input) {
 	RCore *core = cmd->data;
 #endif
 
+	// Initialize global state
+	if (!g_state) {
+		g_state = R_NEW0 (R2AI_State);
+		if (!g_state) {
+			return false;
+		}
+	}
+
 	// Initialize conversation container
 	r2ai_conversation_init ();
 
@@ -1056,10 +1064,14 @@ static int r2ai_fini(void *user, const char *input) {
 	// Free the OpenAI resources
 	r2ai_openai_fini ();
 
-	// Free the vector database if we have one
-	if (db) {
-		r_vdb_free (db);
-		db = NULL;
+	// Free the global state
+	if (g_state) {
+		if (g_state->db) {
+			r_vdb_free (g_state->db);
+			g_state->db = NULL;
+		}
+		free (g_state);
+		g_state = NULL;
 	}
 	return true;
 }
