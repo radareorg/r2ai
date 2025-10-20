@@ -2,10 +2,6 @@
 
 #include "r2ai.h"
 
-// AITODO: remove globals
-// Static global message store for session persistence
-static R2AI_Messages conversation = { 0 };
-
 #define INITIAL_CAPACITY 8
 #define GROWTH_FACTOR 1.5
 
@@ -46,23 +42,19 @@ R_API void r2ai_message_free(R2AI_Message *msg) {
 	}
 }
 
-// Initialize conversation container (call this during plugin init)
-R_API void r2ai_conversation_init(void) {
-	if (conversation.messages) {
-		// Already initialized
+// Conversation is now stored in R2AI_State
+
+R_API void r2ai_conversation_init(R2AI_State *state) {
+	if (!state || state->conversation) {
+		// Already initialized or invalid state
 		return;
 	}
 
-	conversation.messages = r_list_new ();
-	if (!conversation.messages) {
-		return;
-	}
-	conversation.messages->free = (RListFree)r2ai_message_free;
+	state->conversation = r2ai_msgs_new ();
 }
 
-// Get the conversation instance (returns NULL if not initialized)
-R_API R2AI_Messages *r2ai_conversation_get(void) {
-	return &conversation;
+R_API R2AI_Messages *r2ai_conversation_get(R2AI_State *state) {
+	return state? state->conversation: NULL;
 }
 
 // Create a new temporary messages container
@@ -85,13 +77,6 @@ R_API void r2ai_msgs_free(R2AI_Messages *msgs) {
 		return;
 	}
 
-	// Don't actually free if it's our static instance
-	if (msgs == &conversation) {
-		// Just clear the messages but keep the allocated structure
-		r_list_purge (msgs->messages);
-		return;
-	}
-
 	// Normal free for non-static instances
 	if (msgs->messages) {
 		r_list_free (msgs->messages);
@@ -101,10 +86,10 @@ R_API void r2ai_msgs_free(R2AI_Messages *msgs) {
 }
 
 // Free the conversation when plugin is unloaded
-R_API void r2ai_conversation_free(void) {
-	if (conversation.messages) {
-		r_list_free (conversation.messages);
-		conversation.messages = NULL;
+R_API void r2ai_conversation_free(R2AI_State *state) {
+	if (state && state->conversation) {
+		r2ai_msgs_free (state->conversation);
+		state->conversation = NULL;
 	}
 }
 

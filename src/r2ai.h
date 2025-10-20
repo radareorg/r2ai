@@ -1,10 +1,26 @@
 #ifndef R2AI_H
 #define R2AI_H
 
+#include <time.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdlib.h>
 #include <r_core.h>
 #include <r_util/r_json.h>
 #include "r_vdb.h"
 #include "markdown.h"
+
+// R_API definition if not available
+#ifndef R_API
+#define R_API
+#endif
+
+#ifndef R_IPI
+#define R_IPI static
+#endif
+
+// Forward declarations to avoid circular dependencies - these are defined in radare2 headers
 
 #if R2_VERSION_NUMBER >= 50909
 #define R2_PRINTF(...) r_cons_printf (core->cons, __VA_ARGS__)
@@ -13,11 +29,7 @@
 #define R2_PRINTLN(x) r_cons_println (core->cons, x)
 #define R2_INTERRUPTED() r_cons_is_breaked (core->cons)
 #else
-#define R2_PRINTF(...) r_cons_printf (__VA_ARGS__)
-#define R2_FLUSH() r_cons_flush ()
-#define R2_NEWLINE() r_cons_newline()
-#define R2_PRINTLN(x) r_cons_println(x)
-#define R2_INTERRUPTED() r_cons_is_breaked ()
+#error your radare2 is too old
 #endif
 
 // Tool definition structure
@@ -96,6 +108,31 @@ typedef struct {
 	char **error;
 } R2AIArgs;
 
+// Stats structure from auto.c
+typedef struct {
+	double total_cost;
+	double run_cost;
+	int total_tokens;
+	int run_tokens;
+	int total_prompt_tokens;
+	int run_prompt_tokens;
+	int total_completion_tokens;
+	int run_completion_tokens;
+	time_t start_time;
+	time_t total_start_time;
+} R2AIStats;
+
+// Main state structure to hold all global state
+typedef struct r2ai_state_t {
+	R2AI_Messages *conversation; // Global conversation messages (from messages.c)
+	R2AIStats stats; // Global stats (from auto.c)
+	R2AI_Tools *tools; // Global tools instance (from tools.c)
+	RMarkdownTheme current_theme; // Global theme (from markdown.c)
+	bool theme_initialized; // Global theme flag (from markdown.c)
+	void *help_msg; // Global help message (from r2ai.c)
+	RVdb *db; // Vector database for embeddings
+} R2AI_State;
+
 /**
  * Initialize a new empty messages array
  */
@@ -104,12 +141,12 @@ R_API R2AI_Messages *r2ai_msgs_new(void);
 /**
  * Initialize the conversation container (call during plugin init)
  */
-R_API void r2ai_conversation_init(void);
+R_API void r2ai_conversation_init(R2AI_State *state);
 
 /**
  * Get the conversation instance (returns NULL if not initialized)
  */
-R_API R2AI_Messages *r2ai_conversation_get(void);
+R_API R2AI_Messages *r2ai_conversation_get(R2AI_State *state);
 
 /**
  * Clear all messages in a container without freeing the container
@@ -160,7 +197,7 @@ R_API void r2ai_msgs_free(R2AI_Messages *msgs);
 /**
  * Free the conversation (call during plugin unload)
  */
-R_API void r2ai_conversation_free(void);
+R_API void r2ai_conversation_free(R2AI_State *state);
 
 /**
  * Free a R2AI_Message structure
@@ -253,12 +290,12 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args);
 R_IPI void r2ai_openai_fini(void);
 
 // auto mode
-R_IPI void cmd_r2ai_a(RCore *core, const char *user_query);
-R_API char *r2ai(RCore *core, R2AIArgs args);
+R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query);
+R_API char *r2ai(RCore *core, R2AI_State *state, R2AIArgs args);
 
-R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args);
+R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AI_State *state, R2AIArgs args);
 
-R_IPI void cmd_r2ai_logs(RCore *core);
+R_IPI void cmd_r2ai_logs(RCorePluginSession *cps);
 
 /**
  * Create a conversation with system prompt and optional user message
@@ -268,7 +305,7 @@ R_API R2AI_Messages *create_conversation(const char *user_message);
 /**
  * Process messages through LLM and handle tool calls recursively
  */
-R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *system_prompt, int n_run);
+R_API void process_messages(RCore *core, R2AI_State *state, R2AI_Messages *messages, const char *system_prompt, int n_run);
 
 /**
  * Helper function to convert RJson to string

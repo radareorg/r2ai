@@ -2,21 +2,7 @@
 #include <time.h>
 
 // Forward declaration of the r2ai_llmcall function
-extern R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args);
-
-// Add a global structure to track timing and costs
-typedef struct {
-	double total_cost;
-	double run_cost;
-	int total_tokens;
-	int run_tokens;
-	int total_prompt_tokens;
-	int run_prompt_tokens;
-	int total_completion_tokens;
-	int run_completion_tokens;
-	time_t start_time;
-	time_t total_start_time;
-} R2AIStats;
+extern R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AI_State *state, R2AIArgs args);
 
 static R2AIStats stats = { 0 };
 
@@ -116,7 +102,7 @@ const char *Gprompt_auto = "You are a reverse engineer and you are using radare2
 			"- Make sure you call tools and functions correctly.\n";
 
 // Helper function to process messages and handle tool calls recursively
-R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *system_prompt, int n_run) {
+R_API void process_messages(RCore *core, R2AI_State *state, R2AI_Messages *messages, const char *system_prompt, int n_run) {
 	char *error = NULL;
 	bool interrupted = false;
 	const int max_runs = r_config_get_i (core->config, "r2ai.auto.max_runs");
@@ -154,7 +140,7 @@ R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *sy
 	};
 
 	// Call r2ai_llmcall to get a response
-	R2AI_ChatResponse *response = r2ai_llmcall (core, args);
+	R2AI_ChatResponse *response = r2ai_llmcall (core, state, args);
 
 	if (!response) {
 		return;
@@ -246,7 +232,7 @@ R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *sy
 
 		// Check if we should continue with recursion
 		if (!interrupted && message->tool_calls && message->n_tool_calls > 0) {
-			process_messages (core, messages, system_prompt, n_run + 1);
+			process_messages (core, state, messages, system_prompt, n_run + 1);
 		}
 	} else {
 		r2ai_print_run_end (core, usage, n_run, max_runs);
@@ -256,9 +242,11 @@ R_API void process_messages(RCore *core, R2AI_Messages *messages, const char *sy
 	free (response);
 }
 
-R_IPI void cmd_r2ai_a(RCore *core, const char *user_query) {
+R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query) {
+	RCore *core = cps->core;
+	R2AI_State *state = cps->data;
 	// Get conversation
-	R2AI_Messages *messages = r2ai_conversation_get ();
+	R2AI_Messages *messages = r2ai_conversation_get (state);
 	if (!messages) {
 		R_LOG_ERROR ("Conversation not initialized");
 		return;
@@ -277,7 +265,7 @@ R_IPI void cmd_r2ai_a(RCore *core, const char *user_query) {
 	};
 	r2ai_msgs_add (messages, &user_msg);
 
-	process_messages (core, messages, NULL, 1);
+	process_messages (core, state, messages, NULL, 1);
 }
 
 // Helper function to display content with length indication for long content
@@ -306,9 +294,11 @@ static void print_content_with_length(RCore *core, const char *content, const ch
 }
 
 // Add this function right after cmd_r2ai_a
-R_IPI void cmd_r2ai_logs(RCore *core) {
+R_IPI void cmd_r2ai_logs(RCorePluginSession *cps) {
+	RCore *core = cps->core;
+	R2AI_State *state = cps->data;
 	// Get conversation
-	R2AI_Messages *messages = r2ai_conversation_get ();
+	R2AI_Messages *messages = r2ai_conversation_get (state);
 	if (!messages || r_list_length (messages->messages) == 0) {
 		R2_PRINTF ("No conversation history available\n");
 		return;

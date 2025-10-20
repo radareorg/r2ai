@@ -12,6 +12,8 @@ int main(int argc, char **argv) {
 	const char *prompt = argv[1];
 
 	RCore *core = r_core_new ();
+	R2AI_State *state = R_NEW0 (R2AI_State);
+	r2ai_conversation_init (state);
 	char *err = NULL;
 
 	R2AIArgs args = {
@@ -20,12 +22,14 @@ int main(int argc, char **argv) {
 		.dorag = false,
 	};
 
-	char *res = r2ai (core, args);
+	char *res = r2ai (core, state, args);
 	if (res) {
 		R_LOG_INFO (res);
 		free (res);
 	}
 	free (err);
+	r2ai_conversation_free (state);
+	free (state);
 	r_core_free (core);
 	return 0;
 }
