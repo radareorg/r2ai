@@ -128,7 +128,7 @@ typedef struct {
 
 // Main state structure to hold all global state
 typedef struct r2ai_state_t {
-	void *conversation; // Global conversation messages (R2AI_Messages*) (from messages.c)
+	R2AI_Messages *conversation; // Global conversation messages (from messages.c)
 	R2AIStats stats; // Global stats (from auto.c)
 	R2AI_Tools *tools; // Global tools instance (from tools.c)
 	RMarkdownTheme current_theme; // Global theme (from markdown.c)
@@ -145,12 +145,12 @@ R_API R2AI_Messages *r2ai_msgs_new(void);
 /**
  * Initialize the conversation container (call during plugin init)
  */
-R_API void r2ai_conversation_init(void);
+R_API void r2ai_conversation_init(R2AI_State *state);
 
 /**
  * Get the conversation instance (returns NULL if not initialized)
  */
-R_API R2AI_Messages *r2ai_conversation_get(void);
+R_API R2AI_Messages *r2ai_conversation_get(R2AI_State *state);
 
 /**
  * Clear all messages in a container without freeing the container
@@ -201,7 +201,7 @@ R_API void r2ai_msgs_free(R2AI_Messages *msgs);
 /**
  * Free the conversation (call during plugin unload)
  */
-R_API void r2ai_conversation_free(void);
+R_API void r2ai_conversation_free(R2AI_State *state);
 
 /**
  * Free a R2AI_Message structure
@@ -299,7 +299,7 @@ R_API char *r2ai(RCore *core, R2AIArgs args);
 
 R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AI_State *state, R2AIArgs args);
 
-R_IPI void cmd_r2ai_logs(RCore *core);
+R_IPI void cmd_r2ai_logs(RCore *core, R2AI_State *state);
 
 /**
  * Create a conversation with system prompt and optional user message

@@ -244,7 +244,7 @@ R_API void process_messages(RCore *core, R2AI_State *state, R2AI_Messages *messa
 
 R_IPI void cmd_r2ai_a(RCore *core, R2AI_State *state, const char *user_query) {
 	// Get conversation
-	R2AI_Messages *messages = r2ai_conversation_get ();
+	R2AI_Messages *messages = r2ai_conversation_get (state);
 	if (!messages) {
 		R_LOG_ERROR ("Conversation not initialized");
 		return;
@@ -292,9 +292,9 @@ static void print_content_with_length(RCore *core, const char *content, const ch
 }
 
 // Add this function right after cmd_r2ai_a
-R_IPI void cmd_r2ai_logs(RCore *core) {
+R_IPI void cmd_r2ai_logs(RCore *core, R2AI_State *state) {
 	// Get conversation
-	R2AI_Messages *messages = r2ai_conversation_get ();
+	R2AI_Messages *messages = r2ai_conversation_get (state);
 	if (!messages || r_list_length (messages->messages) == 0) {
 		R2_PRINTF ("No conversation history available\n");
 		return;

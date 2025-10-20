@@ -658,7 +658,7 @@ static void cmd_r2ai(RCore *core, const char *input) {
 	} else if (r_str_startswith (input, "-L-")) {
 		const char *arg = r_str_trim_head_ro (input + 3);
 		const int N = atoi (arg);
-		R2AI_Messages *messages = r2ai_conversation_get ();
+		R2AI_Messages *messages = r2ai_conversation_get (g_state);
 		if (!messages || r_list_length (messages->messages) == 0) {
 			R2_PRINTF ("No conversation history available\n");
 		} else {
@@ -667,7 +667,7 @@ static void cmd_r2ai(RCore *core, const char *input) {
 				(N > 0 && N != 1)? "s": "");
 		}
 	} else if (r_str_startswith (input, "-L")) {
-		cmd_r2ai_logs (core);
+		cmd_r2ai_logs (core, g_state);
 	} else if (r_str_startswith (input, "-d")) {
 		cmd_r2ai_d (core, r_str_trim_head_ro (input + 2), false);
 	} else if (r_str_startswith (input, "-dr")) {
@@ -707,7 +707,7 @@ static void cmd_r2ai(RCore *core, const char *input) {
 	} else if (r_str_startswith (input, "-r")) {
 		cmd_r2ai_repl (core);
 	} else if (r_str_startswith (input, "-R")) {
-		R2AI_Messages *messages = r2ai_conversation_get ();
+		R2AI_Messages *messages = r2ai_conversation_get (g_state);
 		if (!messages || r_list_length (messages->messages) == 0) {
 			R2_PRINTF ("No conversation history to reset\n");
 		} else {
@@ -951,7 +951,7 @@ static int r2ai_init(void *user, const char *input) {
 	}
 
 	// Initialize conversation container
-	r2ai_conversation_init ();
+	r2ai_conversation_init (g_state);
 
 	r_config_lock (core->config, false);
 	r_config_set_cb (core->config, "r2ai.api", "openai", &cb_r2ai_api);
@@ -1059,7 +1059,7 @@ static int r2ai_fini(void *user, const char *input) {
 	r_config_lock (core->config, true);
 
 	// Free the conversation
-	r2ai_conversation_free ();
+	r2ai_conversation_free (g_state);
 
 	// Free the OpenAI resources
 	r2ai_openai_fini ();
