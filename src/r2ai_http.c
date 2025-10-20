@@ -31,14 +31,14 @@ static void r2ai_http_sigint_handler(int sig) {
  * sigaction is available so the restore function can restore it later.
  */
 static void install_sigint_handler_local(void **out_old, int *out_old_is_sigaction) {
-    void (*old)(int) = signal (SIGINT, r2ai_http_sigint_handler);
-    *out_old = (void *)old;
-    *out_old_is_sigaction = 0;
+	void (*old)(int) = signal (SIGINT, r2ai_http_sigint_handler);
+	*out_old = (void *)old;
+	*out_old_is_sigaction = 0;
 }
 
 static void restore_sigint_handler_local(void *old, int old_is_sigaction) {
-    (void)old_is_sigaction;
-    signal (SIGINT, (void (*)(int))old);
+	(void)old_is_sigaction;
+	signal (SIGINT, (void (*)(int))old);
 }
 
 // Helper function to implement exponential backoff sleep
@@ -286,8 +286,103 @@ static char *curl_http_post(const char *url, const char *headers[], const char *
 }
 #endif // HAVE_LIBCURL
 
+#ifdef _WIN32
+/**
+ * Windows-specific HTTP POST using PowerShell
+ */
+static char *windows_http_post(const char *url, const char *headers[], const char *data, int *code, int *rlen, int timeout) {
+	RStrBuf *cmd = r_strbuf_new ("powershell -Command \"");
+	r_strbuf_appendf (cmd, "$ProgressPreference='SilentlyContinue';$headers=@{");
+	if (headers) {
+		for (int i = 0; headers[i]; i++) {
+			char *header = strdup (headers[i]);
+			char *colon = strchr (header, ':');
+			if (colon) {
+				*colon = '\0';
+				char *key = r_str_trim_dup (header);
+				char *value = r_str_trim_dup (colon + 1);
+				r_strbuf_appendf (cmd, "'%s'='%s';", key, value);
+				free (key);
+				free (value);
+			}
+			free (header);
+		}
+	}
+	r_strbuf_appendf (cmd, "};$body='%s';", data);
+	r_strbuf_appendf (cmd, "try{$r=Invoke-WebRequest -Method Post -Uri '%s' -Headers $headers -Body $body -TimeoutSec %d;", url, timeout);
+	r_strbuf_appendf (cmd, "Write-Host $r.StatusCode;$r.Content}catch{Write-Host 0;$_.Exception.Message}\"");
+	char *cmd_str = r_strbuf_drain (cmd);
+	char *full_response = r_sys_cmd_str (cmd_str, NULL, NULL);
+	free (cmd_str);
+	if (full_response) {
+		char *newline = strchr (full_response, '\n');
+		if (newline) {
+			*newline = '\0';
+			*code = atoi (full_response);
+			char *body = newline + 1;
+			if (rlen) *rlen = strlen (body);
+			char *result = strdup (body);
+			free (full_response);
+			return result;
+		}
+		*code = 200;
+		if (rlen) *rlen = strlen (full_response);
+		return full_response;
+	}
+	*code = 0;
+	return NULL;
+}
+
+/**
+ * Windows-specific HTTP GET using PowerShell
+ */
+static char *windows_http_get(const char *url, const char *headers[], int *code, int *rlen, int timeout) {
+	RStrBuf *cmd = r_strbuf_new ("powershell -Command \"");
+	r_strbuf_appendf (cmd, "$ProgressPreference='SilentlyContinue';$headers=@{");
+	if (headers) {
+		for (int i = 0; headers[i]; i++) {
+			char *header = strdup (headers[i]);
+			char *colon = strchr (header, ':');
+			if (colon) {
+				*colon = '\0';
+				char *key = r_str_trim_dup (header);
+				char *value = r_str_trim_dup (colon + 1);
+				r_strbuf_appendf (cmd, "'%s'='%s';", key, value);
+				free (key);
+				free (value);
+			}
+			free (header);
+		}
+	}
+	r_strbuf_appendf (cmd, "};");
+	r_strbuf_appendf (cmd, "try{$r=Invoke-WebRequest -Method Get -Uri '%s' -Headers $headers -TimeoutSec %d;", url, timeout);
+	r_strbuf_appendf (cmd, "Write-Host $r.StatusCode;$r.Content}catch{Write-Host 0;$_.Exception.Message}\"");
+	char *cmd_str = r_strbuf_drain (cmd);
+	char *full_response = r_sys_cmd_str (cmd_str, NULL, NULL);
+	free (cmd_str);
+	if (full_response) {
+		char *newline = strchr (full_response, '\n');
+		if (newline) {
+			*newline = '\0';
+			*code = atoi (full_response);
+			char *body = newline + 1;
+			if (rlen) *rlen = strlen (body);
+			char *result = strdup (body);
+			free (full_response);
+			return result;
+		}
+		*code = 200;
+		if (rlen) *rlen = strlen (full_response);
+		return full_response;
+	}
+	*code = 0;
+	return NULL;
+}
+#endif
+
 /**
  * Execute curl as a system command, sending data via temporary file
+ * On Windows, use PowerShell as fallback when curl is not available
  *
  * @param url The URL to send the request to
  * @param headers Array of headers, NULL terminated
@@ -356,6 +451,81 @@ static char *system_curl_post_file(RCore *core, const char *url, const char *hea
 			}
 		}
 
+#ifdef _WIN32
+		// On Windows, use PowerShell for HTTP requests
+		RStrBuf *cmd = r_strbuf_new ("powershell -Command \"");
+		r_strbuf_appendf (cmd, "$ProgressPreference = 'SilentlyContinue'; ");
+		r_strbuf_appendf (cmd, "$headers = @{");
+
+		// Add headers as PowerShell hashtable
+		for (int i = 0; headers[i] != NULL; i++) {
+			char *header = strdup (headers[i]);
+			char *colon = strchr (header, ':');
+			if (colon) {
+				*colon = '\0';
+				char *key = r_str_trim_dup (header);
+				char *value = r_str_trim_dup (colon + 1);
+				r_strbuf_appendf (cmd, "'%s'='%s';", key, value);
+				free (key);
+				free (value);
+			}
+			free (header);
+		}
+		r_strbuf_appendf (cmd, "}; ");
+
+		// Add body
+		if (use_files) {
+			r_strbuf_appendf (cmd, "$body = Get-Content '%s' -Raw; ", temp_file);
+		} else {
+			char *escaped_data = r_str_replace_all (strdup (data), "'", "''");
+			r_strbuf_appendf (cmd, "$body = '%s'; ", escaped_data);
+			free (escaped_data);
+		}
+
+		r_strbuf_appendf (cmd, "try { $response = Invoke-WebRequest -Method Post -Uri '%s' -Headers $headers -Body $body -TimeoutSec %d; ", url, timeout);
+		r_strbuf_appendf (cmd, "Write-Host $response.StatusCode; $response.Content } catch { Write-Host $_.Exception.Response.StatusCode.Value__; $_.Exception.Response.GetResponseStream().ReadToEnd() }\"");
+
+		// Execute the PowerShell command
+		char *cmd_str = r_strbuf_drain (cmd);
+
+		R_LOG_DEBUG ("Running PowerShell: %s", cmd_str);
+		char *full_response = r_sys_cmd_str (cmd_str, NULL, NULL);
+
+		free (cmd_str);
+		r_file_rm (temp_file);
+		free (temp_file);
+
+		// Parse PowerShell response: first line is status code, rest is body
+		if (full_response) {
+			char *newline = strchr (full_response, '\n');
+			if (newline) {
+				*newline = '\0';
+				*code = atoi (full_response);
+				char *body = newline + 1;
+				if (rlen) {
+					*rlen = strlen (body);
+				}
+				result = strdup (body);
+			} else {
+				*code = 200; // Assume success if no newline
+				if (rlen) {
+					*rlen = strlen (full_response);
+				}
+				result = full_response;
+			}
+			free (full_response);
+			success = true;
+		} else {
+			if (retry_count < max_retries) {
+				retry_count++;
+				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
+				r2ai_sleep_with_backoff (retry_count, max_backoff);
+				continue;
+			}
+			*code = 0;
+			break;
+		}
+#else
 		// Compose curl command
 		RStrBuf *cmd = r_strbuf_new ("curl -s");
 
@@ -429,6 +599,7 @@ static char *system_curl_post_file(RCore *core, const char *url, const char *hea
 			*code = 0;
 			break;
 		}
+#endif
 	}
 
 	// Restore the original signal handler
@@ -488,6 +659,20 @@ static char *system_curl_get(const char *url, const char *headers[], int *code, 
 	bool success = false;
 
 	while (!success && retry_count <= max_retries && !r2ai_http_interrupted) {
+#ifdef _WIN32
+		result = windows_http_get (url, headers, code, rlen, timeout);
+		if (result) {
+			success = true;
+		} else if (retry_count < max_retries) {
+			retry_count++;
+			R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
+			r2ai_sleep_with_backoff (retry_count, max_backoff);
+			continue;
+		} else {
+			*code = 0;
+			break;
+		}
+#else
 		// Compose curl command
 		RStrBuf *cmd = r_strbuf_new ("curl -s");
 
@@ -551,10 +736,11 @@ static char *system_curl_get(const char *url, const char *headers[], int *code, 
 			*code = 0;
 			break;
 		}
+#endif
 	}
 
 	// Restore the original signal handler
-		restore_sigint_handler_local(r2ai_old_sig, r2ai_old_is_sigaction);
+	restore_sigint_handler_local(r2ai_old_sig, r2ai_old_is_sigaction);
 
 	return result;
 }
