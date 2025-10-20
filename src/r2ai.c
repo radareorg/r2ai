@@ -99,7 +99,6 @@ static char *r2ai_get_api_key(RCore *core, const char *provider) {
 	return api_key;
 }
 
-
 R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 	R2AI_ChatResponse *res = NULL;
 	const char *provider = r_config_get (core->config, "r2ai.api");
@@ -133,7 +132,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 			char *Provider = strdup (provider);
 			r_str_case (Provider, true);
 			R_LOG_ERROR ("No API key found for %s provider. Please set one with: r2ai "
-				    "%s_API_KEY=YOUR_KEY",
+				"%s_API_KEY=YOUR_KEY",
 				provider, Provider);
 			free (Provider);
 			return NULL;
@@ -156,7 +155,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 			refresh_embeddings (core);
 		}
 		RStrBuf *sb = r_strbuf_new ("");
-		r_strbuf_appendf (sb, "\n## Query\n\n%s\n## Context\n", args.input);
+		r_strbuf_appendf (sb, "\n ## Query\n\n%s\n ## Context\n", args.input);
 		RVdbResultSet *rs = r_vdb_query (db, args.input, K);
 		if (rs) {
 			int i;
@@ -415,7 +414,7 @@ static void cmd_r2ai_R(RCore *core, const char *q) {
 				float dist_sq = r->dist_sq;
 				float cos_sim = 1.0f - (dist_sq * 0.5f); // for normalized vectors
 				printf ("%2d) dist_sq=%.4f cos_sim=%.4f text=\"%s\"\n", i + 1, dist_sq,
-					cos_sim, (n->text ? n->text : "(null)"));
+					cos_sim, (n->text? n->text: "(null)"));
 			}
 			r_vdb_result_free (rs);
 		} else {
@@ -428,9 +427,9 @@ static void cmd_r2ai_n(RCore *core) {
 	char *s = r_core_cmd_str (core, "r2ai -d");
 	char *q =
 		r_str_newf ("output only the radare2 commands in plain text without "
-			   "markdown. Give me a better name for this function. the "
-			   "output must be: 'afn NEWNAME'. do not include the function "
-			   "code, only the afn line. consider: \n```c\n%s\n```",
+			"markdown. Give me a better name for this function. the "
+			"output must be: 'afn NEWNAME'. do not include the function "
+			"code, only the afn line. consider: \n```c\n%s\n```",
 			s);
 	char *error = NULL;
 	char *res =
@@ -542,7 +541,7 @@ static void cmd_r2ai_v(RCore *core) {
 }
 
 static void cmd_r2ai_V(RCore *core, bool recursive) {
-	char *s = r_core_cmd_str (core, recursive ? "r2ai -d" : "r2ai -dr");
+	char *s = r_core_cmd_str (core, recursive? "r2ai -d": "r2ai -dr");
 	char *q = r_str_newf (
 		"find vulnerabilities, dont show the code, only show the response, "
 		"provide a sample exploit and suggest good practices:\n```\n%s```",
@@ -625,8 +624,8 @@ static void cmd_r2ai(RCore *core, const char *input) {
 			R2_PRINTF ("No conversation history available\n");
 		} else {
 			r2ai_delete_last_messages (messages, N);
-			R2_PRINTF ("Deleted %d message%s from chat history\n", N > 0 ? N : 1,
-				(N > 0 && N != 1) ? "s" : "");
+			R2_PRINTF ("Deleted %d message%s from chat history\n", N > 0? N: 1,
+				(N > 0 && N != 1)? "s": "");
 		}
 	} else if (r_str_startswith (input, "-L")) {
 		cmd_r2ai_logs (core);

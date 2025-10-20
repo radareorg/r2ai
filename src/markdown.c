@@ -34,13 +34,13 @@ R_API RMarkdownTheme r2ai_markdown_theme_default(void) {
 		.heading4 = "\x1b[1;4;34m", // Bold, underlined, blue
 		.heading5 = "\x1b[1;4;35m", // Bold, underlined, magenta
 		.heading6 = "\x1b[1;4;36m", // Bold, underlined, cyan
-					    // List items
+					// List items
 		.list_bullet = "• ", // Bullet character
 		.list_number = "\x1b[1m%s.\x1b[0m ", // Bold number
-						     // Checkbox states
+						// Checkbox states
 		.checkbox_checked = "\x1b[32m[✓]\x1b[0m ", // Green checkmark
 		.checkbox_unchecked = "\x1b[90m[ ]\x1b[0m ", // Gray empty box
-							     // Reset code
+							// Reset code
 		.reset = "\x1b[0m"
 	};
 	return theme;
@@ -103,7 +103,7 @@ static void append_formatted(RStrBuf *sb, const char *text, int len, MarkdownSta
 static int count_indent(const char *str) {
 	int count = 0;
 	while (*str == ' ' || *str == '\t') {
-		count += (*str == '\t') ? 4 : 1;
+		count += (*str == '\t')? 4: 1;
 		str++;
 	}
 	return count;
@@ -257,7 +257,7 @@ R_API char *r2ai_markdown(const char *markdown) {
 					append_formatted (sb, start, digit_start - start, state);
 					int num_len = p - digit_start;
 					char num_buf[16] = { 0 };
-					r_str_ncpy (num_buf, digit_start, num_len < 15 ? num_len + 1 : 15);
+					r_str_ncpy (num_buf, digit_start, num_len < 15? num_len + 1: 15);
 
 					// Use the actual number from markdown and format it
 					char formatted_number[32];
@@ -302,7 +302,7 @@ R_API char *r2ai_markdown(const char *markdown) {
 				if (p > start) {
 					append_formatted (sb, start, p - start, state);
 				}
-				p += double_marker ? 2 : 1;
+				p += double_marker? 2: 1;
 				start = p;
 
 				if (double_marker && marker == '*') {
@@ -317,7 +317,7 @@ R_API char *r2ai_markdown(const char *markdown) {
 			} else if (p > markdown && isalnum (*(p - 1)) && !isalnum (p[1 + double_marker])) {
 				// Closing marker
 				append_formatted (sb, start, p - start, state);
-				p += double_marker ? 2 : 1;
+				p += double_marker? 2: 1;
 				start = p;
 				state = NORMAL;
 			} else {

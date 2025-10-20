@@ -1,7 +1,7 @@
 #include "r2ai.h"
 
 static const char *modelname(const char *model_name) {
-	return model_name ? model_name : "claude-3-7-sonnet-20250219";
+	return model_name? model_name: "claude-3-7-sonnet-20250219";
 }
 
 R_IPI R2AI_ChatResponse *r2ai_anthropic(RCore *core, R2AIArgs args) {
@@ -98,7 +98,7 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCore *core, R2AIArgs args) {
 	free (messages_json);
 
 	// Save the full JSON for debugging
-	char *tmpdir = r_file_tmpdir();
+	char *tmpdir = r_file_tmpdir ();
 	char *req_path = r_str_newf ("%s" R_SYS_DIR "r2ai_anthropic_request.json", tmpdir);
 	r_file_dump (req_path, (const ut8 *)data, strlen (data), 0);
 	R_LOG_DEBUG ("Full request saved to %s", req_path);
@@ -125,7 +125,7 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCore *core, R2AIArgs args) {
 	}
 
 	// Save the response for inspection
-	tmpdir = r_file_tmpdir();
+	tmpdir = r_file_tmpdir ();
 	char *res_path = r_str_newf ("%s" R_SYS_DIR "r2ai_anthropic_response.json", tmpdir);
 	r_file_dump (res_path, (const ut8 *)res, strlen (res), 0);
 	R_LOG_DEBUG ("Anthropic API response saved to %s", res_path);

@@ -30,7 +30,7 @@ static bool model_has_error(const char *provider, const char *model, ModelErrorF
 		return false;
 	}
 
-	char *key = r_str_newf ("%s:%s", provider, model ? model : "default");
+	char *key = r_str_newf ("%s:%s", provider, model? model: "default");
 	bool found_flag = false;
 	ModelCompat *compat = ht_pp_find (model_compat_db, key, &found_flag);
 	free (key);
@@ -48,7 +48,7 @@ static void model_add_error(const char *provider, const char *model, ModelErrorF
 		model_compat_db = ht_pp_new0 ();
 	}
 
-	char *key = r_str_newf ("%s:%s", provider, model ? model : "default");
+	char *key = r_str_newf ("%s:%s", provider, model? model: "default");
 	bool found_flag = false;
 	ModelCompat *compat = ht_pp_find (model_compat_db, key, &found_flag);
 
@@ -94,7 +94,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 
 	const char *base_url = r2ai_get_provider_url (core, args.provider);
 	// TODO: default model name should depend on api
-	const char *model_name = args.model ? args.model : "gpt-4o-mini";
+	const char *model_name = args.model? args.model: "gpt-4o-mini";
 	char **error = args.error;
 	const R2AI_Tools *tools = args.tools;
 	// create a temp conversation to include the system prompt and the rest of the messages
@@ -162,7 +162,8 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 	}
 
 	const char *urlfmt = strcmp (args.provider, "ollama")
-		? "%s/chat/completions" : "%s/chat";
+		? "%s/chat/completions"
+		: "%s/chat";
 	char *openai_url = r_str_newf (urlfmt, base_url);
 	R_LOG_DEBUG ("OpenAI URL: %s", openai_url);
 
@@ -204,14 +205,14 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 	// gpt-5 gpt-5-mini and gpt-5-nano just throw an error
 	// Only add temperature if this provider/model doesn't have the temperature error flag
 	if (!model_has_error (args.provider, model_name, MODEL_ERROR_TEMPERATURE)) {
-		pj_kd (pj, "temperature", args.temperature ? args.temperature : 0.01);
+		pj_kd (pj, "temperature", args.temperature? args.temperature: 0.01);
 	}
 #endif
 
 	if (strcmp (args.provider, "mistral") == 0) {
-		pj_kn (pj, "max_tokens", args.max_tokens ? args.max_tokens : 5128);
+		pj_kn (pj, "max_tokens", args.max_tokens? args.max_tokens: 5128);
 	} else {
-		pj_kn (pj, "max_completion_tokens", args.max_tokens ? args.max_tokens : 5128);
+		pj_kn (pj, "max_completion_tokens", args.max_tokens? args.max_tokens: 5128);
 	}
 
 	pj_end (pj);
@@ -262,7 +263,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 
 	// Save the full JSON to a file for inspection
 	// XXX: only create request/response files when r2ai.debug is set
-	char *tmpdir = r_file_tmpdir();
+	char *tmpdir = r_file_tmpdir ();
 	char *req_path = r_str_newf ("%s" R_SYS_DIR "r2ai_openai_request.json", tmpdir);
 	r_file_dump (req_path, (const ut8 *)complete_json, strlen (complete_json), 0);
 	R_LOG_DEBUG ("Full request saved to %s", req_path);
@@ -284,7 +285,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 			R_LOG_ERROR ("OpenAI API error response: %s", res);
 			// Check for specific error types in the response
 			ModelErrorFlags error_flag = MODEL_ERROR_NONE;
-			const char *model_name = args.model ? args.model : "gpt-5-mini";
+			const char *model_name = args.model? args.model: "gpt-5-mini";
 
 			// Check for temperature errors
 			if (strstr (res, "temperature")) {
@@ -316,13 +317,13 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 	}
 
 	// Save the response for inspection
-	tmpdir = r_file_tmpdir();
+	tmpdir = r_file_tmpdir ();
 	char *res_path = r_str_newf ("%s" R_SYS_DIR "r2ai_openai_response.json", tmpdir);
 	r_file_dump (res_path, (const ut8 *)res, strlen (res), 0);
 	R_LOG_DEBUG ("OpenAI API response saved to %s", res_path);
 	free (res_path);
 	free (tmpdir);
-	
+
 	R_LOG_DEBUG ("OpenAI API response: %s", res);
 
 	// Parse the response into our messages structure
@@ -361,7 +362,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 						const RJson *reasoning_content = r_json_get (message_json, "reasoning_content");
 
 						// Set the basic message properties
-						message->role = (role && role->type == R_JSON_STRING) ? strdup (role->str_value) : strdup ("assistant");
+						message->role = (role && role->type == R_JSON_STRING)? strdup (role->str_value): strdup ("assistant");
 
 						if (content && content->type == R_JSON_STRING) {
 							message->content = strdup (content->str_value);

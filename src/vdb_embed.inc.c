@@ -136,7 +136,7 @@ static void compute_embedding(RVdb *db, const char *text, float *embedding, unsi
 		// Compute term frequency: tf = 1 + log (token_count)
 		float tf = 1.0f + log ((float)dt->count);
 		RVdbToken *t = gtfidf_find (db->tokens, dt->token);
-		float df_value = t ? t->df : 1.0f;
+		float df_value = t? t->df: 1.0f;
 		// Compute inverse document frequency;
 		float idf = log (((float)db->total_docs + 1.0f) / ((float)df_value + 1.0f)) + 1.0f;
 		float weight = tf * idf;
