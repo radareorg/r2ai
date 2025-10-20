@@ -1,5 +1,6 @@
 (function () {
   // Constants and configuration
+  const VERSION = "1.1.2";
   const COMMAND = "decai";
   const DEFAULT_PROMPT =
     "Transform this pseudocode and respond ONLY with plain code (NO explanations, comments or markdown), Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and strings from comments like 'string:', Reduce lines of code and fit everything in a single function, Remove all dead code";
@@ -873,8 +874,10 @@ Use radare2 to resolve user requests.
   // Command handlers
   const commands = {
     help: () => {
-      const msg = (m) => console.error(" " + COMMAND + " " + m);
-      console.error("Usage: " + COMMAND + " (-h) ...");
+      let helpmsg = "";
+      const msg = (m) => helpmsg += " " + COMMAND + " " + m + "\n";
+      helpmsg += "Usage: " + COMMAND + " (-h) ...\n";
+      helpmsg += "Version: " + VERSION + "\n";
       msg("-a [query] - solve query with auto mode");
       msg("-d [f1 ..] - decompile given functions");
       msg("-dd [..]   - same as above, but ignoring cache");
@@ -895,6 +898,7 @@ Use radare2 to resolve user requests.
       msg("-v         - show local variables");
       msg("-V         - find vulnerabilities");
       msg("-x[*]      - eXplain current function (-x* for r2 script)");
+      r2.log(helpmsg.trim());
     },
 
     decompile: (args, extraQuery, useCache, recursiveCalls) => {
