@@ -189,6 +189,7 @@ srcs = files(
   'auto.c',
   'vdb.c',
   'tools.c',
+  'query.c',
   'messages.c',
   'anthropic.c',
   'r2ai_http.c',
