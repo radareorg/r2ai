@@ -844,7 +844,16 @@ static bool cb_r2ai_api(void *user, void *data) {
 		R2_PRINTLN (apis);
 		return false;
 	}
-	return true;
+	// Validate the provider name
+	const char *valid_providers[] = { "ollama", "openai", "openapi", "anthropic", "gemini", "openrouter", "mistral", "groq", "xai", NULL };
+	int i;
+	for (i = 0; valid_providers[i]; i++) {
+		if (!strcmp (node->value, valid_providers[i])) {
+			return true;
+		}
+	}
+	R_LOG_ERROR ("Invalid provider '%s'. Use '?' to list valid providers.", node->value);
+	return false;
 }
 
 static bool cb_r2ai_model(void *user, void *data) {
