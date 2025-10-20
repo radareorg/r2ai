@@ -294,12 +294,12 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args);
 R_IPI void r2ai_openai_fini(void);
 
 // auto mode
-R_IPI void cmd_r2ai_a(RCore *core, R2AI_State *state, const char *user_query);
-R_API char *r2ai(RCore *core, R2AIArgs args);
+R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query);
+R_API char *r2ai(RCore *core, R2AI_State *state, R2AIArgs args);
 
 R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AI_State *state, R2AIArgs args);
 
-R_IPI void cmd_r2ai_logs(RCore *core, R2AI_State *state);
+R_IPI void cmd_r2ai_logs(RCorePluginSession *cps);
 
 /**
  * Create a conversation with system prompt and optional user message

@@ -242,7 +242,9 @@ R_API void process_messages(RCore *core, R2AI_State *state, R2AI_Messages *messa
 	free (response);
 }
 
-R_IPI void cmd_r2ai_a(RCore *core, R2AI_State *state, const char *user_query) {
+R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query) {
+	RCore *core = cps->core;
+	R2AI_State *state = cps->data;
 	// Get conversation
 	R2AI_Messages *messages = r2ai_conversation_get (state);
 	if (!messages) {
@@ -292,7 +294,9 @@ static void print_content_with_length(RCore *core, const char *content, const ch
 }
 
 // Add this function right after cmd_r2ai_a
-R_IPI void cmd_r2ai_logs(RCore *core, R2AI_State *state) {
+R_IPI void cmd_r2ai_logs(RCorePluginSession *cps) {
+	RCore *core = cps->core;
+	R2AI_State *state = cps->data;
 	// Get conversation
 	R2AI_Messages *messages = r2ai_conversation_get (state);
 	if (!messages || r_list_length (messages->messages) == 0) {
