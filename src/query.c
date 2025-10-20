@@ -135,9 +135,10 @@ void cmd_r2ai_q(RCorePluginSession *cps, const char *input) {
 		RListIter *iter;
 		char *file;
 		r_list_foreach (files, iter, file) {
-			if (r_str_endswith (file, ".r2ai")) {
-				char *name = r_str_ndup (file, strlen (file) - 5);
-				char *filepath = r_str_newf ("%s/%s.r2ai", expanded_dir, name);
+			if (r_str_endswith (file, ".r2ai.txt")) {
+				char *dot = strchr (file, '.');
+				char *name = dot ? r_str_ndup (file, dot - file) : strdup (file);
+				char *filepath = r_str_newf ("%s/%s.r2ai.txt", expanded_dir, name);
 				char *title = NULL, *author = NULL, *desc = NULL, *command = NULL, *prompt = NULL, *
 					requires
 				= NULL, *if_empty = NULL, *if_command = NULL;
@@ -168,7 +169,7 @@ void cmd_r2ai_q(RCorePluginSession *cps, const char *input) {
 			r_str_trim (extra);
 		}
 		r_str_trim (name);
-		char *filepath = r_str_newf ("%s/%s.r2ai", expanded_dir, name);
+		char *filepath = r_str_newf ("%s/%s.r2ai.txt", expanded_dir, name);
 		char *title = NULL, *author = NULL, *desc = NULL, *command = NULL, *prompt = NULL, *
 			requires
 		= NULL, *if_empty = NULL, *if_command = NULL;

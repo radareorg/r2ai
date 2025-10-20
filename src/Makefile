@@ -72,7 +72,7 @@ user-install: user-uninstall
 	$(MAKE) user-uninstall
 	cp -f r2ai$(DOTLIB) $(R2USRPLUGDIR)/r2ai$(DOTLIB)
 	cp -f r2ai$(DOTEXE) $(R2BINDIR)/r2ai$(DOTEXE)
-	cp -r prompts/* $(HOME)/.config/r2ai/prompts/
+	cp -r ../prompts/* $(HOME)/.config/r2ai/prompts/
 
 user-uninstall:
 	rm -f $(R2USRPLUGDIR)/r2ai$(DOTLIB)
