@@ -35,7 +35,9 @@ static bool parse_prompt_file(const char *filepath, char **title, char **author,
 		} else if (!strcmp (key, "Prompt") || !strcmp (key, "Query")) {
 			*prompt = strdup (value);
 		} else if (!strcmp (key, "Requires")) {
-			*requires = strdup (value);
+			*
+				requires
+			= strdup (value);
 		} else if (!strcmp (key, "If-Empty")) {
 			*if_empty = strdup (value);
 		} else if (!strcmp (key, "If-Command")) {
@@ -136,9 +138,11 @@ void cmd_r2ai_q(RCorePluginSession *cps, const char *input) {
 			if (r_str_endswith (file, ".r2ai")) {
 				char *name = r_str_ndup (file, strlen (file) - 5);
 				char *filepath = r_str_newf ("%s/%s.r2ai", expanded_dir, name);
-				char *title = NULL, *author = NULL, *desc = NULL, *command = NULL, *prompt = NULL, *requires = NULL, *if_empty = NULL, *if_command = NULL;
+				char *title = NULL, *author = NULL, *desc = NULL, *command = NULL, *prompt = NULL, *
+					requires
+				= NULL, *if_empty = NULL, *if_command = NULL;
 				if (parse_prompt_file (filepath, &title, &author, &desc, &command, &prompt, &requires, &if_empty, &if_command)) {
-					R2_PRINTF ("%s: %s - %s\n", name, title ? title : "", desc ? desc : "");
+					R2_PRINTF ("%s: %s - %s\n", name, title? title: "", desc? desc: "");
 				} else {
 					R2_PRINTLN (name);
 				}
@@ -165,7 +169,9 @@ void cmd_r2ai_q(RCorePluginSession *cps, const char *input) {
 		}
 		r_str_trim (name);
 		char *filepath = r_str_newf ("%s/%s.r2ai", expanded_dir, name);
-		char *title = NULL, *author = NULL, *desc = NULL, *command = NULL, *prompt = NULL, *requires = NULL, *if_empty = NULL, *if_command = NULL;
+		char *title = NULL, *author = NULL, *desc = NULL, *command = NULL, *prompt = NULL, *
+			requires
+		= NULL, *if_empty = NULL, *if_command = NULL;
 		if (!parse_prompt_file (filepath, &title, &author, &desc, &command, &prompt, &requires, &if_empty, &if_command)) {
 			R_LOG_ERROR ("Cannot read prompt file: %s", filepath);
 			free (filepath);
