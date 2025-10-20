@@ -20,10 +20,6 @@
 #define R_IPI static
 #endif
 
-#ifndef R_TH_LOCAL
-#define R_TH_LOCAL
-#endif
-
 // Forward declarations to avoid circular dependencies - these are defined in radare2 headers
 
 #if R2_VERSION_NUMBER >= 50909

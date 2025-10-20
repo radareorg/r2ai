@@ -7,6 +7,7 @@
 // External declaration for cmd_r2ai_a - implemented in auto.c
 R_IPI void cmd_r2ai_a(RCore *core, const char *user_query);
 
+// AITODO: remove this global variable
 static R_TH_LOCAL RVdb *db = NULL;
 
 #define VDBDIM 16
