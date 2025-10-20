@@ -1,11 +1,13 @@
-/* query.c - r2ai query prompts */
+/* r2ai - Copyright 2023-2025 pancake */
 
 #include "r2ai.h"
 
-static bool parse_prompt_file(const char *filepath, char **title, char **author, char **desc, char **command, char **prompt, char **requires, char **if_empty, char **if_command) {
+static R2AIPrompt *parse_prompt_file(const char *filepath) {
+	R2AIPrompt *prompt = R_NEW0 (R2AIPrompt);
 	char *content = r_file_slurp (filepath, NULL);
 	if (!content) {
-		return false;
+		free (prompt);
+		return NULL;
 	}
 	RList *lines = r_str_split_list (content, "\n", -1);
 	RListIter *iter;
@@ -25,28 +27,28 @@ static bool parse_prompt_file(const char *filepath, char **title, char **author,
 		r_str_trim (key);
 		r_str_trim (value);
 		if (!strcmp (key, "Title")) {
-			*title = strdup (value);
+			prompt->title = strdup (value);
 		} else if (!strcmp (key, "Author")) {
-			*author = strdup (value);
+			prompt->author = strdup (value);
 		} else if (!strcmp (key, "Description")) {
-			*desc = strdup (value);
+			prompt->desc = strdup (value);
 		} else if (!strcmp (key, "Command") || !strcmp (key, "Commands")) {
-			*command = strdup (value);
+			prompt->command = strdup (value);
 		} else if (!strcmp (key, "Prompt") || !strcmp (key, "Query")) {
-			*prompt = strdup (value);
-		} else if (!strcmp (key, "Requires")) {
-			*
+			prompt->prompt = strdup (value);
+		} else if (!strcmp (key, "Depends")) {
+			prompt->
 				requires
 			= strdup (value);
 		} else if (!strcmp (key, "If-Empty")) {
-			*if_empty = strdup (value);
+			prompt->if_empty = strdup (value);
 		} else if (!strcmp (key, "If-Command")) {
-			*if_command = strdup (value);
+			prompt->if_command = strdup (value);
 		}
 	}
 	r_list_free (lines);
 	free (content);
-	return true;
+	return prompt;
 }
 
 static char *run_commands(RCore *core, const char *commands) {
@@ -139,24 +141,23 @@ void cmd_r2ai_q(RCorePluginSession *cps, const char *input) {
 				char *dot = strchr (file, '.');
 				char *name = dot? r_str_ndup (file, dot - file): strdup (file);
 				char *filepath = r_str_newf ("%s/%s.r2ai.txt", expanded_dir, name);
-				char *title = NULL, *author = NULL, *desc = NULL, *command = NULL, *prompt = NULL, *
-					requires
-				= NULL, *if_empty = NULL, *if_command = NULL;
-				if (parse_prompt_file (filepath, &title, &author, &desc, &command, &prompt, &requires, &if_empty, &if_command)) {
-					R2_PRINTF ("%s: %s - %s\n", name, title? title: "", desc? desc: "");
+				R2AIPrompt *prompt = parse_prompt_file (filepath);
+				if (prompt) {
+					R2_PRINTF ("%s: %s - %s\n", name, prompt->title? prompt->title: "", prompt->desc? prompt->desc: "");
+					free (prompt->title);
+					free (prompt->author);
+					free (prompt->desc);
+					free (prompt->command);
+					free (prompt->prompt);
+					free (prompt->requires);
+					free (prompt->if_empty);
+					free (prompt->if_command);
+					free (prompt);
 				} else {
 					R2_PRINTLN (name);
 				}
 				free (name);
 				free (filepath);
-				free (title);
-				free (author);
-				free (desc);
-				free (command);
-				free (prompt);
-				free (requires);
-				free (if_empty);
-				free (if_command);
 			}
 		}
 		r_list_free (files);
@@ -170,24 +171,22 @@ void cmd_r2ai_q(RCorePluginSession *cps, const char *input) {
 		}
 		r_str_trim (name);
 		char *filepath = r_str_newf ("%s/%s.r2ai.txt", expanded_dir, name);
-		char *title = NULL, *author = NULL, *desc = NULL, *command = NULL, *prompt = NULL, *
-			requires
-		= NULL, *if_empty = NULL, *if_command = NULL;
-		if (!parse_prompt_file (filepath, &title, &author, &desc, &command, &prompt, &requires, &if_empty, &if_command)) {
+		R2AIPrompt *prompt = parse_prompt_file (filepath);
+		if (!prompt) {
 			R_LOG_ERROR ("Cannot read prompt file: %s", filepath);
 			free (filepath);
 			free (name);
 			return;
 		}
-		if (!title || !command) {
+		if (!prompt->title || !prompt->command) {
 			R_LOG_WARN ("Prompt %s is missing required Title or Command directive", name);
 		}
 		free (filepath);
 		// run commands
-		char *cmd_output = run_commands (core, command);
+		char *cmd_output = run_commands (core, prompt->command);
 		// run if_command if output not empty
-		if (cmd_output && *cmd_output && if_command) {
-			char *extra_out = run_commands (core, if_command);
+		if (cmd_output && *cmd_output && prompt->if_command) {
+			char *extra_out = run_commands (core, prompt->if_command);
 			if (extra_out) {
 				char *new_output = r_str_newf ("%s\n%s", cmd_output, extra_out);
 				free (cmd_output);
@@ -196,9 +195,9 @@ void cmd_r2ai_q(RCorePluginSession *cps, const char *input) {
 			}
 		}
 		// determine the prompt to use
-		char *use_prompt = prompt;
-		if ((!cmd_output || !*cmd_output) && if_empty) {
-			use_prompt = if_empty;
+		char *use_prompt = prompt->prompt;
+		if ((!cmd_output || !*cmd_output) && prompt->if_empty) {
+			use_prompt = prompt->if_empty;
 		}
 		// replace vars in prompt
 		char *replaced_prompt = replace_vars (core, use_prompt);
@@ -223,14 +222,15 @@ void cmd_r2ai_q(RCorePluginSession *cps, const char *input) {
 			free (res);
 		}
 		free (final_prompt);
-		free (title);
-		free (author);
-		free (desc);
-		free (command);
+		free (prompt->title);
+		free (prompt->author);
+		free (prompt->desc);
+		free (prompt->command);
+		free (prompt->prompt);
+		free (prompt->requires);
+		free (prompt->if_empty);
+		free (prompt->if_command);
 		free (prompt);
-		free (requires);
-		free (if_empty);
-		free (if_command);
 		free (name);
 	}
 	free (expanded_dir);

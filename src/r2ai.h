@@ -78,6 +78,17 @@ typedef struct {
 } R2AI_Message;
 
 typedef struct {
+	char *title;
+	char *author;
+	char *desc;
+	char *command;
+	char *prompt;
+	char *requires;
+	char *if_empty;
+	char *if_command;
+} R2AIPrompt;
+
+typedef struct {
 	uint64_t prompt_tokens;
 	uint64_t completion_tokens;
 	uint64_t total_tokens;
