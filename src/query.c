@@ -137,7 +137,7 @@ void cmd_r2ai_q(RCorePluginSession *cps, const char *input) {
 		r_list_foreach (files, iter, file) {
 			if (r_str_endswith (file, ".r2ai.txt")) {
 				char *dot = strchr (file, '.');
-				char *name = dot ? r_str_ndup (file, dot - file) : strdup (file);
+				char *name = dot? r_str_ndup (file, dot - file): strdup (file);
 				char *filepath = r_str_newf ("%s/%s.r2ai.txt", expanded_dir, name);
 				char *title = NULL, *author = NULL, *desc = NULL, *command = NULL, *prompt = NULL, *
 					requires
