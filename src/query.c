@@ -2,6 +2,21 @@
 
 #include "r2ai.h"
 
+R_API void r2aiprompt_free(R2AIPrompt *prompt) {
+	if (!prompt) {
+		return;
+	}
+	free (prompt->title);
+	free (prompt->author);
+	free (prompt->desc);
+	free (prompt->command);
+	free (prompt->prompt);
+	free (prompt->requires);
+	free (prompt->if_empty);
+	free (prompt->if_command);
+	free (prompt);
+}
+
 static R2AIPrompt *parse_prompt_file(const char *filepath) {
 	R2AIPrompt *prompt = R_NEW0 (R2AIPrompt);
 	char *content = r_file_slurp (filepath, NULL);
@@ -144,15 +159,7 @@ void cmd_r2ai_q(RCorePluginSession *cps, const char *input) {
 				R2AIPrompt *prompt = parse_prompt_file (filepath);
 				if (prompt) {
 					R2_PRINTF ("%s: %s - %s\n", name, prompt->title? prompt->title: "", prompt->desc? prompt->desc: "");
-					free (prompt->title);
-					free (prompt->author);
-					free (prompt->desc);
-					free (prompt->command);
-					free (prompt->prompt);
-					free (prompt->requires);
-					free (prompt->if_empty);
-					free (prompt->if_command);
-					free (prompt);
+					r2aiprompt_free (prompt);
 				} else {
 					R2_PRINTLN (name);
 				}
@@ -221,16 +228,8 @@ void cmd_r2ai_q(RCorePluginSession *cps, const char *input) {
 			R2_PRINTF ("%s\n", res);
 			free (res);
 		}
+		r2aiprompt_free (prompt);
 		free (final_prompt);
-		free (prompt->title);
-		free (prompt->author);
-		free (prompt->desc);
-		free (prompt->command);
-		free (prompt->prompt);
-		free (prompt->requires);
-		free (prompt->if_empty);
-		free (prompt->if_command);
-		free (prompt);
 		free (name);
 	}
 	free (expanded_dir);
