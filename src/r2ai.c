@@ -87,6 +87,8 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -i [file] [query]", "read file and ask the llm with the given query",
 	"r2ai", " -m", "show selected model, list suggested ones, choose one",
 	"r2ai", " -n", "suggest a better name for the current function",
+	"r2ai", " -q", "query predefined prompts",
+	"r2ai", " -q [name]", "run predefined prompt",
 	"r2ai", " -r", "enter the chat repl",
 	"r2ai", " -L", "show chat logs (See -Lj for json). Only for auto mode.",
 	"r2ai", " -L-[N]", "delete the last (or N last messages from the chat history)",
@@ -99,6 +101,8 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " [arg]", "send a post request to talk to r2ai and print the output",
 	NULL
 };
+
+extern void cmd_r2ai_q(RCorePluginSession *cps, const char *input);
 
 /* Return a malloc'd API key read from the environment or from ~/.r2ai.<provider>-key
  * Caller is responsible for freeing the returned string (or NULL if not found). */
@@ -735,6 +739,8 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		cmd_r2ai_R (cps, r_str_trim_head_ro (input + 3));
 	} else if (r_str_startswith (input, "-m")) {
 		cmd_r2ai_m (cps, r_str_trim_head_ro (input + 2));
+	} else if (r_str_startswith (input, "-q")) {
+		cmd_r2ai_q (cps, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-")) {
 		r_core_cmd_help (core, help_msg_r2ai);
 	} else {
@@ -1013,6 +1019,8 @@ static bool r2ai_init(RCorePluginSession *cps) {
 		"with if/else/for, use NO explanations, NO markdown, Simplify as much as "
 		"possible, use better variable names, take function arguments and "
 		"strings from comments like 'string:'");
+	r_config_set (core->config, "r2ai.promptdir", "~/.config/r2ai/prompts");
+	r_config_desc (core->config, "r2ai.promptdir", "Directory containing .r2ai prompt files");
 	r_config_set_b (core->config, "r2ai.stream", false);
 	r_config_desc (core->config, "r2ai.stream", "Enable streaming responses from the LLM (true/false)");
 	r_config_set_i (core->config, "r2ai.auto.max_runs", 50);

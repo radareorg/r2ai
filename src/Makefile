@@ -46,6 +46,7 @@ OBJS+=anthropic.o
 OBJS+=r2ai_http.o
 OBJS+=openai.o
 OBJS+=markdown.o
+OBJS+=query.o
 
 all: $(OBJS) r2check
 	$(CC) -fPIC -shared -o r2ai$(DOTLIB) $(OBJS) $(CFLAGS) $(LDFLAGS)
@@ -67,9 +68,11 @@ fmt format indent:
 user-install: user-uninstall
 	mkdir -p $(R2USRPLUGDIR)
 	mkdir -p $(R2BINDIR)
+	mkdir -p $(HOME)/.config/r2ai/prompts
 	$(MAKE) user-uninstall
 	cp -f r2ai$(DOTLIB) $(R2USRPLUGDIR)/r2ai$(DOTLIB)
 	cp -f r2ai$(DOTEXE) $(R2BINDIR)/r2ai$(DOTEXE)
+	cp -r prompts/* $(HOME)/.config/r2ai/prompts/
 
 user-uninstall:
 	rm -f $(R2USRPLUGDIR)/r2ai$(DOTLIB)
