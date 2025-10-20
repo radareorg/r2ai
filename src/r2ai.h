@@ -29,11 +29,7 @@
 #define R2_PRINTLN(x) r_cons_println (core->cons, x)
 #define R2_INTERRUPTED() r_cons_is_breaked (core->cons)
 #else
-#define R2_PRINTF(...) r_cons_printf (__VA_ARGS__)
-#define R2_FLUSH() r_cons_flush ()
-#define R2_NEWLINE() r_cons_newline()
-#define R2_PRINTLN(x) r_cons_println(x)
-#define R2_INTERRUPTED() r_cons_is_breaked ()
+#error your radare2 is too old
 #endif
 
 // Tool definition structure
