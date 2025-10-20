@@ -9,8 +9,8 @@ R2BINDIR=$(shell r2pm -H R2PM_BINDIR)
 R2_CFLAGS=$(shell pkg-config --cflags r_core)
 R2_LDFLAGS=$(shell pkg-config --libs r_core)
 ifeq ($(R2_CFLAGS),)
-R2_CFLAGS=$(shell r2 -H R2_CFLAGS)
-R2_LDFLAGS=$(shell r2 -H R2_LDFLAGS)
+R2_CFLAGS=-I../third_party/radare2-mcp/src -I/usr/local/include/libr
+R2_LDFLAGS=-L/usr/local/lib -lr_core -lr_util -lr_cons -lr_io -lr_asm -lr_debug -lr_flag -lr_sign -lr_search -lr_syscall -lr_bp -lr_reg -lr_config -lr_lang -lr_anal -lr_parse -lr_hash -lr_crypto -lr_fs -lr_magic -lr_socket -lr_cons -lr_flag -lr_util -lr_reg -lr_syscall -lr_search -lr_sign -lr_crypto -lr_hash -lr_debug -lr_main -lr_session -lr_magic -lr_io -lr_socket -lr_fs -lr_lang -lr_anal -lr_parse -lr_egg -lr_debug -lr_bin -lr_config -lr_cons -lr_io -lr_asm -lr_flag -lr_core -lm
 endif
 
 CFLAGS+=$(R2_CFLAGS)

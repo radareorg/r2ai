@@ -4,20 +4,6 @@
 // Forward declaration of the r2ai_llmcall function
 extern R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args);
 
-// Add a global structure to track timing and costs
-typedef struct {
-	double total_cost;
-	double run_cost;
-	int total_tokens;
-	int run_tokens;
-	int total_prompt_tokens;
-	int run_prompt_tokens;
-	int total_completion_tokens;
-	int run_completion_tokens;
-	time_t start_time;
-	time_t total_start_time;
-} R2AIStats;
-
 static R2AIStats stats = { 0 };
 
 // Helper function to format time duration

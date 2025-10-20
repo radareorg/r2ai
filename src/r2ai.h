@@ -1,10 +1,30 @@
 #ifndef R2AI_H
 #define R2AI_H
 
+#include <time.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdlib.h>
 #include <r_core.h>
 #include <r_util/r_json.h>
 #include "r_vdb.h"
 #include "markdown.h"
+
+// R_API definition if not available
+#ifndef R_API
+#define R_API
+#endif
+
+#ifndef R_IPI
+#define R_IPI static
+#endif
+
+#ifndef R_TH_LOCAL
+#define R_TH_LOCAL
+#endif
+
+// Forward declarations to avoid circular dependencies - these are defined in radare2 headers
 
 #if R2_VERSION_NUMBER >= 50909
 #define R2_PRINTF(...) r_cons_printf (core->cons, __VA_ARGS__)
@@ -95,6 +115,30 @@ typedef struct {
 	bool dorag;
 	char **error;
 } R2AIArgs;
+
+// Stats structure from auto.c
+typedef struct {
+	double total_cost;
+	double run_cost;
+	int total_tokens;
+	int run_tokens;
+	int total_prompt_tokens;
+	int run_prompt_tokens;
+	int total_completion_tokens;
+	int run_completion_tokens;
+	time_t start_time;
+	time_t total_start_time;
+} R2AIStats;
+
+// Main state structure to hold all global state
+typedef struct r2ai_state_t {
+	void *conversation; // Global conversation messages (R2AI_Messages*) (from messages.c)
+	R2AIStats stats; // Global stats (from auto.c)
+	R2AI_Tools *tools; // Global tools instance (from tools.c)
+	RMarkdownTheme current_theme; // Global theme (from markdown.c)
+	bool theme_initialized; // Global theme flag (from markdown.c)
+	void *help_msg; // Global help message (from r2ai.c)
+} R2AI_State;
 
 /**
  * Initialize a new empty messages array
