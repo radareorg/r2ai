@@ -31,14 +31,14 @@ static void r2ai_http_sigint_handler(int sig) {
  * sigaction is available so the restore function can restore it later.
  */
 static void install_sigint_handler_local(void **out_old, int *out_old_is_sigaction) {
-    void (*old)(int) = signal (SIGINT, r2ai_http_sigint_handler);
-    *out_old = (void *)old;
-    *out_old_is_sigaction = 0;
+	void (*old)(int) = signal (SIGINT, r2ai_http_sigint_handler);
+	*out_old = (void *)old;
+	*out_old_is_sigaction = 0;
 }
 
 static void restore_sigint_handler_local(void *old, int old_is_sigaction) {
-    (void)old_is_sigaction;
-    signal (SIGINT, (void (*)(int))old);
+	(void)old_is_sigaction;
+	signal (SIGINT, (void (*)(int))old);
 }
 
 // Helper function to implement exponential backoff sleep
@@ -299,9 +299,11 @@ static char *windows_http_post(const char *url, const char *headers[], const cha
 			char *colon = strchr (header, ':');
 			if (colon) {
 				*colon = '\0';
-				char *key = r_str_trim (header);
-				char *value = r_str_trim (colon + 1);
+				char *key = r_str_trim_dup (header);
+				char *value = r_str_trim_dup (colon + 1);
 				r_strbuf_appendf (cmd, "'%s'='%s';", key, value);
+				free (key);
+				free (value);
 			}
 			free (header);
 		}
@@ -343,9 +345,11 @@ static char *windows_http_get(const char *url, const char *headers[], int *code,
 			char *colon = strchr (header, ':');
 			if (colon) {
 				*colon = '\0';
-				char *key = r_str_trim (header);
-				char *value = r_str_trim (colon + 1);
+				char *key = r_str_trim_dup (header);
+				char *value = r_str_trim_dup (colon + 1);
 				r_strbuf_appendf (cmd, "'%s'='%s';", key, value);
+				free (key);
+				free (value);
 			}
 			free (header);
 		}
@@ -459,9 +463,11 @@ static char *system_curl_post_file(RCore *core, const char *url, const char *hea
 			char *colon = strchr (header, ':');
 			if (colon) {
 				*colon = '\0';
-				char *key = r_str_trim (header);
-				char *value = r_str_trim (colon + 1);
+				char *key = r_str_trim_dup (header);
+				char *value = r_str_trim_dup (colon + 1);
 				r_strbuf_appendf (cmd, "'%s'='%s';", key, value);
+				free (key);
+				free (value);
 			}
 			free (header);
 		}
