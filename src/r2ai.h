@@ -78,6 +78,17 @@ typedef struct {
 } R2AI_Message;
 
 typedef struct {
+	char *title;
+	char *author;
+	char *desc;
+	char *command;
+	char *prompt;
+	char *requires;
+	char *if_empty;
+	char *if_command;
+} R2AIPrompt;
+
+typedef struct {
 	uint64_t prompt_tokens;
 	uint64_t completion_tokens;
 	uint64_t total_tokens;
@@ -203,6 +214,11 @@ R_API void r2ai_conversation_free(R2AI_State *state);
  * Free a R2AI_Message structure
  */
 R_API void r2ai_message_free(R2AI_Message *msg);
+
+/**
+ * Free a R2AIPrompt structure
+ */
+R_API void r2aiprompt_free(R2AIPrompt *prompt);
 
 /**
  * Delete the last N messages from the message array
