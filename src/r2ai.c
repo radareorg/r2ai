@@ -11,6 +11,37 @@ static R_TH_LOCAL RVdb *db = NULL;
 
 #define VDBDIM 16
 
+typedef struct {
+	const char *name;
+	const char *url;
+	bool requires_api_key;
+	bool uses_anthropic_header;
+	bool uses_tags_endpoint;
+	bool uses_system_ls;
+} R2AIProvider;
+
+static const R2AIProvider r2ai_providers[] = {
+	{ "openai", "https://api.openai.com/v1", true, false, false, false },
+	{ "gemini", "https://generativelanguage.googleapis.com/v1beta/openai", true, false, false, false },
+	{ "anthropic", "https://api.anthropic.com/v1", true, true, false, false },
+	{ "ollama", "http://localhost:11434/api", false, false, true, true },
+	{ "openapi", "http://127.0.0.1:11434", false, false, false, false },
+	{ "xai", "https://api.x.ai/v1", true, false, false, false },
+	{ "openrouter", "https://openrouter.ai/api/v1", true, false, false, false },
+	{ "groq", "https://api.groq.com/openai/v1", true, false, false, false },
+	{ "mistral", "https://api.mistral.ai/v1", true, false, false, false },
+	{ NULL, NULL, false, false, false, false } // sentinel
+};
+
+static const R2AIProvider *r2ai_get_provider(const char *name) {
+	for (int i = 0; r2ai_providers[i].name; i++) {
+		if (!strcmp (name, r2ai_providers[i].name)) {
+			return &r2ai_providers[i];
+		}
+	}
+	return NULL;
+}
+
 static void refresh_embeddings(RCore *core) {
 	RListIter *iter, *iter2;
 	char *line;
@@ -119,15 +150,21 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 		args.temperature = configtemp? atof (configtemp): 0;
 	}
 
+	const R2AIProvider *prov = r2ai_get_provider (provider);
+	if (!prov) {
+		R_LOG_ERROR ("Unknown provider: %s", provider);
+		return NULL;
+	}
+
 	char *api_key = NULL;
-	if (strcmp (provider, "ollama") && strcmp (provider, "openapi")) {
+	if (prov->requires_api_key) {
 		api_key = r2ai_get_api_key (core, provider);
 		if (api_key) {
 			args.api_key = api_key;
 		}
 	}
 	// Make sure we have an API key before proceeding
-	if (strcmp (provider, "ollama")) {
+	if (prov->requires_api_key) {
 		if (R_STR_ISEMPTY (args.api_key)) {
 			char *Provider = strdup (provider);
 			r_str_case (Provider, true);
@@ -184,7 +221,8 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AIArgs args) {
 	args.thinking_tokens = r_config_get_i (core->config, "r2ai.thinking_tokens");
 
 	R_LOG_DEBUG ("Using provider: %s", provider);
-	if (strcmp (provider, "anthropic") == 0) {
+	const R2AIProvider *p = r2ai_get_provider (provider);
+	if (p && p->uses_anthropic_header) {
 		res = r2ai_anthropic (core, args);
 	} else {
 		res = r2ai_openai (core, args);
@@ -697,41 +735,31 @@ static void cmd_r2ai(RCore *core, const char *input) {
 }
 
 R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider) {
-	if (strcmp (provider, "openai") == 0) {
-		const char *host = r_config_get (core->config, "r2ai.baseurl");
-		if (R_STR_ISNOTEMPTY (host)) {
-			if (r_str_startswith (host, "http")) {
-				return r_str_newf ("%s/v1", host);
-			}
-			return r_str_newf ("http://%s/v1", host);
-		}
-		return "https://api.openai.com/v1";
-	} else if (strcmp (provider, "gemini") == 0) {
-		return "https://generativelanguage.googleapis.com/v1beta/openai";
-	} else if (strcmp (provider, "ollama") == 0) {
-		const char *host = r_config_get (core->config, "r2ai.baseurl");
-		if (R_STR_ISNOTEMPTY (host)) {
-			if (r_str_startswith (host, "http")) {
-				return r_str_newf ("%s/api", host);
-			}
-			return r_str_newf ("http://%s/api", host);
-		}
-		return "http://localhost:11434/api";
-	} else if (strcmp (provider, "xai") == 0) {
-		return "https://api.x.ai/v1";
-	} else if (strcmp (provider, "anthropic") == 0) {
-		return "https://api.anthropic.com/v1";
-	} else if (strcmp (provider, "openapi") == 0) {
-		return "http://127.0.0.1:11434";
-	} else if (strcmp (provider, "openrouter") == 0) {
-		return "https://openrouter.ai/api/v1";
-	} else if (strcmp (provider, "groq") == 0) {
-		return "https://api.groq.com/openai/v1";
-	} else if (strcmp (provider, "mistral") == 0) {
-		return "https://api.mistral.ai/v1";
+	const R2AIProvider *p = r2ai_get_provider (provider);
+	if (!p) {
+		return NULL;
 	}
 
-	return NULL;
+	// Handle providers that support custom baseurl
+	if (!strcmp (provider, "openai") || !strcmp (provider, "ollama")) {
+		const char *host = r_config_get (core->config, "r2ai.baseurl");
+		if (R_STR_ISNOTEMPTY (host)) {
+			if (r_str_startswith (host, "http")) {
+				if (!strcmp (provider, "openai")) {
+					return r_str_newf ("%s/v1", host);
+				} else {
+					return r_str_newf ("%s/api", host);
+				}
+			}
+			if (!strcmp (provider, "openai")) {
+				return r_str_newf ("http://%s/v1", host);
+			} else {
+				return r_str_newf ("http://%s/api", host);
+			}
+		}
+	}
+
+	return p->url;
 }
 
 static RList *fetch_available_models(RCore *core, const char *provider) {
@@ -742,18 +770,20 @@ static RList *fetch_available_models(RCore *core, const char *provider) {
 
 	// Create models endpoint URL
 	char *models_url = NULL;
-	if (strcmp (provider, "ollama") != 0) {
-		models_url = r_str_newf ("%s/models", purl);
-	} else {
+	const R2AIProvider *prov = r2ai_get_provider (provider);
+	if (prov && prov->uses_tags_endpoint) {
 		models_url = r_str_newf ("%s/tags", purl);
+	} else {
+		models_url = r_str_newf ("%s/models", purl);
 	}
 	if (!models_url) {
 		return NULL;
 	}
 
-	// Get API key for authentication (except for ollama and openapi)
+	// Get API key for authentication (except for providers that don't require it)
 	char *api_key = NULL;
-	if (strcmp (provider, "ollama") && strcmp (provider, "openapi")) {
+	const R2AIProvider *p = r2ai_get_provider (provider);
+	if (p && p->requires_api_key) {
 		// Consolidated helper to fetch the API key from env or file
 		api_key = r2ai_get_api_key (core, provider);
 	}
@@ -765,7 +795,8 @@ static RList *fetch_available_models(RCore *core, const char *provider) {
 		char *auth_header = NULL;
 		char *version_header = NULL;
 
-		if (strcmp (provider, "anthropic") == 0) {
+		const R2AIProvider *prov = r2ai_get_provider (provider);
+		if (prov && prov->uses_anthropic_header) {
 			// Anthropic uses different header format
 			auth_header = r_str_newf ("x-api-key: %s", api_key);
 			version_header = strdup ("anthropic-version: 2023-06-01");
@@ -807,20 +838,21 @@ static RList *fetch_available_models(RCore *core, const char *provider) {
 	RJson *json = r_json_parse (response);
 	if (json) {
 		const RJson *data;
-		if (strcmp (provider, "ollama") != 0) {
-			data = r_json_get (json, "data");
-		} else {
+		const R2AIProvider *prov = r2ai_get_provider (provider);
+		if (prov && prov->uses_tags_endpoint) {
 			data = r_json_get (json, "models");
+		} else {
+			data = r_json_get (json, "data");
 		}
 
 		if (data && data->type == R_JSON_ARRAY) {
 			const RJson *model_item = data->children.first;
 			while (model_item) {
 				const RJson *id;
-				if (strcmp (provider, "ollama") != 0) {
-					id = r_json_get (model_item, "id");
-				} else {
+				if (prov && prov->uses_tags_endpoint) {
 					id = r_json_get (model_item, "model");
+				} else {
+					id = r_json_get (model_item, "id");
 				}
 				if (id && id->type == R_JSON_STRING && R_STR_ISNOTEMPTY (id->str_value)) {
 					R_LOG_DEBUG ("Model: %s", id->str_value);
@@ -840,17 +872,15 @@ static bool cb_r2ai_api(void *user, void *data) {
 	RCore *core = (RCore *)user;
 	RConfigNode *node = (RConfigNode *)data;
 	if (*node->value == '?') {
-		const char apis[] = "ollama\nopenai\nopenapi\nanthropic\ngemini\nopenrouter\nmistral\ngroq\nxai";
-		R2_PRINTLN (apis);
+		for (int i = 0; r2ai_providers[i].name; i++) {
+			R2_PRINTLN (r2ai_providers[i].name);
+		}
 		return false;
 	}
 	// Validate the provider name
-	const char *valid_providers[] = { "ollama", "openai", "openapi", "anthropic", "gemini", "openrouter", "mistral", "groq", "xai", NULL };
-	int i;
-	for (i = 0; valid_providers[i]; i++) {
-		if (!strcmp (node->value, valid_providers[i])) {
-			return true;
-		}
+	const R2AIProvider *p = r2ai_get_provider (node->value);
+	if (p) {
+		return true;
 	}
 	R_LOG_ERROR ("Invalid provider '%s'. Use '?' to list valid providers.", node->value);
 	return false;
@@ -872,10 +902,11 @@ static bool cb_r2ai_model(void *user, void *data) {
 			r_list_free (models);
 		} else {
 			// Fallback to static lists if dynamic fetching fails
+			const R2AIProvider *p = r2ai_get_provider (api);
 			if (!strcmp (api, "gemini")) {
 				R2_PRINTLN ("gemini-1.5-flash");
 				R2_PRINTLN ("gemini-1.0-pro");
-			} else if (!strcmp (api, "ollama")) {
+			} else if (p && p->uses_system_ls) {
 				char *s = r_sys_cmd_str ("ollama ls", NULL, NULL);
 				if (s) {
 					RList *items = r_str_split_list (s, "\n", 0);
@@ -915,7 +946,19 @@ static int r2ai_init(void *user, const char *input) {
 
 	r_config_lock (core->config, false);
 	r_config_set_cb (core->config, "r2ai.api", "openai", &cb_r2ai_api);
-	r_config_desc (core->config, "r2ai.api", "LLM provider to use (openai, gemini, anthropic, ollama, ...)");
+	{
+		RStrBuf *sb = r_strbuf_new ("LLM provider to use (");
+		for (int i = 0; r2ai_providers[i].name; i++) {
+			if (i > 0) {
+				r_strbuf_append (sb, ", ");
+			}
+			r_strbuf_append (sb, r2ai_providers[i].name);
+		}
+		r_strbuf_append (sb, ")");
+		char *desc = r_strbuf_drain (sb);
+		r_config_desc (core->config, "r2ai.api", desc);
+		free (desc);
+	}
 	r_config_set_cb (core->config, "r2ai.model", "gpt-5-mini", &cb_r2ai_model);
 	r_config_desc (core->config, "r2ai.model", "Model identifier for the selected provider (e.g. gpt-5-mini)");
 	r_config_set (core->config, "r2ai.baseurl", "");
