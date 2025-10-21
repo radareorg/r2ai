@@ -360,7 +360,7 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		r_config_set (core->config, "r2ai.api", provider);
 		R2_PRINTF ("Provider set to %s\n", provider);
 	} else if (r_str_startswith (input, "-q")) {
-		cmd_r2ai_q (cps, r_str_trim_head_ro (input + 2));
+		r2ai_cmd_q (cps, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-")) {
 		r_core_cmd_help (core, help_msg_r2ai);
 	} else {

@@ -338,5 +338,6 @@ R_API char *r_json_to_string(const RJson *json);
  * Helper function to convert RJson to PJ
  */
 R_API PJ *r_json_to_pj(const RJson *json, PJ *existing_pj);
+R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input);
 
 #endif

@@ -133,7 +133,7 @@ static char *replace_vars(RCore *core, const char *text) {
 	return r_strbuf_drain (sb);
 }
 
-R_IPI void cmd_r2ai_q(RCorePluginSession *cps, const char *input) {
+R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input) {
 	RCore *core = cps->core;
 	const char *promptdir = r_config_get (core->config, "r2ai.promptdir");
 	if (!promptdir || !*promptdir) {

@@ -60,7 +60,7 @@ int main(int argc, const char **argv) {
 		RListIter *iter;
 		char *query;
 		r_list_foreach (queries, iter, query) {
-			cmd_r2ai_q (&cps, query);
+			r2ai_cmd_q (&cps, query);
 		}
 	} else {
 		if (opt.ind >= argc) {
