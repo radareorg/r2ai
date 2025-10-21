@@ -252,10 +252,9 @@ static void cmd_r2ai_m(RCorePluginSession *cps, const char *input) {
 	RCore *core = cps->core;
 	if (R_STR_ISEMPTY (input)) {
 		R2_PRINTF ("%s\n", r_config_get (core->config, "r2ai.model"));
-		return;
+	} else {
+		r_config_set (core->config, "r2ai.model", input);
 	}
-	r_config_set (core->config, "r2ai.model", input);
-	R2_PRINTF ("Model set to %s\n", input);
 }
 
 static void load_embeddings(RCorePluginSession *cps) {
@@ -414,28 +413,31 @@ static bool cb_r2ai_model(void *user, void *data) {
 		} else {
 			// Fallback to static lists if dynamic fetching fails
 			const R2AIProvider *p = r2ai_get_provider (api);
-			if (!strcmp (api, "gemini")) {
-				R2_PRINTLN ("gemini-1.5-flash");
-				R2_PRINTLN ("gemini-1.0-pro");
-			} else if (p && p->uses_system_ls) {
-				char *s = r_sys_cmd_str ("ollama ls", NULL, NULL);
-				if (s) {
-					RList *items = r_str_split_list (s, "\n", 0);
-					RListIter *iter;
-					char *item;
-					r_list_foreach (items, iter, item) {
-						if (R_STR_ISEMPTY (item) || r_str_startswith (item, "NAME")) {
-							continue;
+			if (p) {
+				if (p->uses_system_ls) {
+					char *s = r_sys_cmd_str ("ollama ls", NULL, NULL);
+					if (s) {
+						RList *items = r_str_split_list (s, "\n", 0);
+						RListIter *iter;
+						char *item;
+						r_list_foreach (items, iter, item) {
+							if (R_STR_ISEMPTY (item) || r_str_startswith (item, "NAME")) {
+								continue;
+							}
+							char *s = strchr (item, ' ');
+							if (s) {
+								*s = 0;
+							}
+							R2_PRINTLN (item);
 						}
-						char *s = strchr (item, ' ');
-						if (s) {
-							*s = 0;
-						}
-						R2_PRINTLN (item);
+						r_list_free (items);
+						free (s);
 					}
-					r_list_free (items);
-					free (s);
+				} else {
+					R_LOG_ERROR ("Cannot list models for this provider");
 				}
+			} else {
+				R_LOG_ERROR ("Invalid provider");
 			}
 		}
 		return false;
