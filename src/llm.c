@@ -88,7 +88,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	if (args.input && r_config_get_b (core->config, "r2ai.data")) {
 		const int K = r_config_get_i (core->config, "r2ai.data.nth");
 		if (!state->db) {
-			state->db = r_vdb_new (VDBDIM);
+			state->db = r_vdb_new (R2AI_DEFAULT_VECTORS);
 			r2ai_refresh_embeddings (cps);
 		}
 		RStrBuf *sb = r_strbuf_new ("");
@@ -322,7 +322,7 @@ R_IPI void r2ai_refresh_embeddings(RCorePluginSession *cps) {
 	char *file;
 	// refresh embeddings database
 	r_vdb_free (state->db);
-	state->db = r_vdb_new (VDBDIM);
+	state->db = r_vdb_new (R2AI_DEFAULT_VECTORS);
 	// enumerate .txt files in directory
 	const char *path = r_config_get (core->config, "r2ai.data.path");
 	RList *files = r_sys_dir (path);

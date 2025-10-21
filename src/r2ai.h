@@ -12,21 +12,22 @@
 #include "markdown.h"
 
 #define R2AI_VERSION "1.1.2"
-#define VDBDIM 16
+
+#if 0
+#define R2AI_DEFAULT_MODEL "gpt-5-mini"
+#define R2AI_DEFAULT_PROVIDER "openai"
+#else
+#define R2AI_DEFAULT_MODEL "gpt-oss:20b"
+#define R2AI_DEFAULT_PROVIDER "ollama"
+#endif
+
+#define R2AI_DEFAULT_VECTORS 16
 
 #if R2_VERSION_NUMBER < 60000
 #error Your radare2 is too old
 #endif
 
-// R_API definition if not available
-#ifndef R_API
-#define R_API
-#endif
-
-#ifndef R_IPI
-#define R_IPI static
-#endif
-
+// TODO: Deprecate those defines
 #define R2_PRINTF(...) r_cons_printf (core->cons, __VA_ARGS__)
 #define R2_FLUSH() r_cons_flush (core->cons)
 #define R2_NEWLINE() r_cons_newline (core->cons)

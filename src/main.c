@@ -1,8 +1,6 @@
 /* Copyright r2ai - 2023-2025 - pancake */
 
-#include "r2ai.h"
-
-extern void cmd_r2ai_q(RCorePluginSession *cps, const char *input);
+#include "r2ai_priv.h"
 
 static void show_help() {
 	printf ("Usage: r2ai [-vhp:m:q:] <prompt>\n"

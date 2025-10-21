@@ -1,4 +1,4 @@
 Title: Automatically suggest a better name for this function
 Author: pancake
 Command: afv;r2ai -d
-Prompt: Find a better name for this function. Output only the radare2 commands in plain text without markdown, prefix the new name with `'afn '. Consider the following code to decide the name for it.
+Prompt: Suggest a better name for this function. Output only the suggested function name (must be one alphanumeric word) prefixed with `'afn '. Check the code below:

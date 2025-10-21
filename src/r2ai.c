@@ -323,7 +323,7 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		cmd_r2ai_d (cps, r_str_trim_head_ro (input + 2), true);
 	} else if (r_str_startswith (input, "-S")) {
 		if (state->db == NULL) {
-			state->db = r_vdb_new (VDBDIM);
+			state->db = r_vdb_new (R2AI_DEFAULT_VECTORS);
 			load_embeddings (cps);
 		}
 		const char *arg = r_str_trim_head_ro (input + 2);
@@ -453,7 +453,7 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r2ai_conversation_init (state);
 
 	r_config_lock (core->config, false);
-	r_config_set_cb (core->config, "r2ai.api", "openai", &cb_r2ai_api);
+	r_config_set_cb (core->config, "r2ai.api", R2AI_DEFAULT_PROVIDER, &cb_r2ai_api);
 	{
 		RStrBuf *sb = r_strbuf_new ("LLM provider to use (");
 		r2ai_list_providers (core, sb);
@@ -462,7 +462,7 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 		r_config_desc (core->config, "r2ai.api", desc);
 		free (desc);
 	}
-	r_config_set_cb (core->config, "r2ai.model", "gpt-5-mini", &cb_r2ai_model);
+	r_config_set_cb (core->config, "r2ai.model", R2AI_DEFAULT_MODEL, &cb_r2ai_model);
 	r_config_desc (core->config, "r2ai.model", "Model identifier for the selected provider (e.g. gpt-5-mini)");
 	r_config_set (core->config, "r2ai.baseurl", "");
 	r_config_desc (core->config, "r2ai.baseurl", "Base URL for provider API (overrides default endpoints)");
