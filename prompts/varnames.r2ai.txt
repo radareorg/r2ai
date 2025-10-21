@@ -1,0 +1,4 @@
+Title: Better variable names
+Author: pancake
+Command: afv
+Prompt: Output only the radare2 command without markdown, guess a better name and type for each local variable and function argument taking using. output an r2 script using afvn and afvt commands

@@ -25,7 +25,6 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -L-[N]", "delete the last (or N last messages from the chat history)",
 	"r2ai", " -R", "reset the chat conversation context",
 	"r2ai", " -Rq ([text])", "refresh and query embeddings (see r2ai.data)",
-	"r2ai", " -v", "suggest better variables names and types",
 	"r2ai", " [arg]", "send a post request to talk to r2ai and print the output",
 	NULL
 };
@@ -273,34 +272,6 @@ static void cmd_r2ai_i(RCorePluginSession *cps, const char *arg) {
 	free (q);
 }
 
-static void cmd_r2ai_v(RCorePluginSession *cps) {
-	RCore *core = cps->core;
-	char *s = r_core_cmd_str (core, "r2ai -d");
-	char *afv = r_core_cmd_str (core, "afv");
-	char *q = r_str_newf (
-		"Output only the radare2 command without markdown, guess a better name "
-		"and type for each local variable and function argument taking using. "
-		"output an r2 script using afvn and afvt commands:\n```\n%s```",
-		afv);
-	char *error = NULL;
-	R2AIArgs args = {
-		.input = q,
-		.error = &error,
-		.dorag = true
-	};
-	char *res = r2ai (cps, args);
-	if (error) {
-		R_LOG_ERROR (error);
-		free (error);
-	} else {
-		R2_PRINTLN (res);
-	}
-	free (afv);
-	free (res);
-	free (q);
-	free (s);
-}
-
 static void cmd_r2ai_m(RCorePluginSession *cps, const char *input) {
 	RCore *core = cps->core;
 	if (R_STR_ISEMPTY (input)) {
@@ -397,8 +368,6 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		}
 	} else if (r_str_startswith (input, "-i")) {
 		cmd_r2ai_i (cps, r_str_trim_head_ro (input + 2));
-	} else if (r_str_startswith (input, "-v")) {
-		cmd_r2ai_v (cps);
 	} else if (r_str_startswith (input, "-n")) {
 		cmd_r2ai_n (cps);
 	} else if (r_str_startswith (input, "-r")) {
