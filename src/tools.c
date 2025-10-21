@@ -19,7 +19,7 @@ static R2AI_Tool r2cmd_tool = {
 
 static R2AI_Tool qjs_tool = {
 	.name = "execute_js",
-	.description = "Execute a JavaScript script in a quickjs environment. Only what you console.log will be returned.",
+	.description = "Execute a JavaScript script inside the radare2 environment. Use `var RESULT=r2.cmd(COMMAND)` to execute radare2 commands and `r2.log(MESSAGE)` instead of console.log`",
 	.parameters = "{\
 		\"type\": \"object\",\
 		\"properties\": {\
