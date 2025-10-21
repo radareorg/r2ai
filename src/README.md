@@ -35,20 +35,52 @@ Usage: r2ai   [-args] [...]
 | r2ai -d [query]         Ask a question on the current function
 | r2ai -dr                Decompile current function (+ 1 level of recursivity)
 | r2ai -a [query]         Resolve question using auto mode
-| r2ai -e                 Same as '-e r2ai.'
+| r2ai -e (k(=v))         Same as '-e r2ai.'
 | r2ai -h                 Show this help message
 | r2ai -i [file] [query]  read file and ask the llm with the given query
 | r2ai -m                 show selected model, list suggested ones, choose one
-| r2ai -n                 suggest a better name for the current function
+| r2ai -p [provider]      set LLM provider (openai, anthropic, gemini, etc.)
+| r2ai -q                 list available query prompts
+| r2ai -q [name] (inst)   run predefined prompt with optional instructions
 | r2ai -r                 enter the chat repl
 | r2ai -L                 show chat logs (See -Lj for json). Only for auto mode.
 | r2ai -L-[N]             delete the last (or N last messages from the chat history)
 | r2ai -R                 reset the chat conversation context
 | r2ai -Rq ([text])       refresh and query embeddings (see r2ai.data)
-| r2ai -v                 suggest better variables names and types
-| r2ai [arg]              send a post request to talk to r2ai and print the output
+| r2ai [query]            query the selected model+provider with the given query
 [0x100003f58]> 
 ```
+
+## Query Prompts
+
+Query prompts are predefined templates that combine radare2 commands with structured prompts to the LLM for common reverse engineering tasks. They are stored in the `prompts/` directory as `.r2ai.txt` files.
+
+### Available Prompts
+
+- `autoname`: Automatically rename functions and variables
+- `decompile`: Decompile the current function
+- `devices`: Analyze device-related code
+- `dlopen`: Analyze dynamic library loading
+- `explain`: Explain the purpose of the current function
+- `libs`: Analyze library usage
+- `signature`: Improve function signatures
+- `varnames`: Rename variables based on context
+- `vulns`: Find vulnerabilities in the current function
+
+### Usage
+
+- `r2ai -q`: List all available query prompts
+- `r2ai -q [name]`: Run the specified prompt on the current function
+- `r2ai -q [name] [instructions]`: Run the prompt with additional custom instructions
+
+### Example
+
+```console
+[0x00001303]> r2ai -q explain
+The main function implements a simple substitution cipher program that reads user input, encrypts it using a hardcoded alphabet, and then decrypts it back to demonstrate the algorithm.
+```
+
+Query prompts automate repetitive analysis tasks by executing predefined radare2 commands and sending context-aware prompts to the LLM.
 
 ## Configuration
 
@@ -69,7 +101,6 @@ These can be set with `r2ai -e <keyname>=<value>`
 | r2ai.auto.hide_tool_output | Only for auto mode `r2ai -a`. Will not show the output of the tool which ran locally |
 | r2ai.auto.yolo | Set this to true if you don't want r2ai to ask you for approval before running commands sent by the LLM. This is **dangerous**. Recommendation: **leave this to false** unless you fully trust your LLM not to create havoc! |
 | r2ai.http.use_files | If you get CURL argument too long error, set this to true and arguments will be stored in a file.|
-
 
 
 ## Example

@@ -19,8 +19,8 @@
 
 This repository contains two plugins for radare2:
 
-* **r2ai** - native plugin for radare2
-* **decai** - r2js plugin with special focus on decompilation
+* **r2ai** - native [AI plugin](./src/README.md) for radare2
+* **decai** - r2js plugin with special [focus on decompilation](./decai/README.md)
 
 If you are looking to use radare2 with other agents via MCP:
 
@@ -37,12 +37,21 @@ If you are looking to use radare2 with other agents via MCP:
 * RAG markdown, code or textfiles using its native vector database
 * Embed the output of an r2 command and resolve questions on the given data
 
-## Practical Examples
+## User defined Prompts
 
-* Enhanced decompilation with `r2ai -d`
-* Autoname functions with `r2ai -n`
-* Explain function with `r2ai -x`
-* Find vulnerabilities with `r2ai -V`
+```console
+[0x00000000]> r2ai -q
+explain: Explain the current function -
+devices: Find and explain devices used -
+libs: Group imports by Libraries -
+varnames: Better variable names -
+autoname: Automatically suggest a better name for this function -
+vulns: Find vulnerabilities or bugs in the current function -
+signature: Suggest an improved function signature -
+dlopen: List libraries loaded with dlopen - Some libraries are loaded
+decompile: Augmented decompilation based on LLM -
+[0x00000000]>
+```
 
 ## Installation
 
@@ -85,7 +94,7 @@ r2ai -e model=claude-3-7-sonnet-20250219
 r2ai -e max_tokens=64000
 ```
 
-## Documentation
+## Further Reading
 
 * There's [a chapter](https://book.rada.re/plugins/r2ai.html) in the official r2book
 * Cryptax on [lmstudio+gptoss](https://cryptax.medium.com/r2ai-with-lmstudio-and-gpt-oss-08efa5ea2476) blog post
@@ -94,6 +103,6 @@ r2ai -e max_tokens=64000
 
 ## Videos
 
-- https://infosec.exchange/@radareorg/111946255058894583
+- [Solving a crackme](https://infosec.exchange/@radareorg/111946255058894583)
 - [De-obfuscation of malware Linux/Ladvix](https://asciinema.org/a/724126)
 - [Analysis of the /fast option inside Linux/Trigona ransomware](https://asciinema.org/a/pBPEaJhp6cunWSKFpBUDTgPt4)
