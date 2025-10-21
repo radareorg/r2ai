@@ -36,9 +36,9 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
 
 	// Check if rawtools mode is enabled
-	bool rawtools_enabled = r_config_get_b(core->config, "r2ai.rawtools");
+	bool rawtools_enabled = r_config_get_b (core->config, "r2ai.rawtools");
 	if (rawtools_enabled) {
-		return r2ai_rawtools_llmcall(cps, args);
+		return r2ai_rawtools_llmcall (cps, args);
 	}
 
 	R2AI_State *state = cps->data;

@@ -135,7 +135,7 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 		.messages = messages,
 		.error = &error,
 		.dorag = true,
-		.tools = (n_run == 1) ? r2ai_get_tools () : NULL, // Only send tools for the first call
+		.tools = (n_run == 1)? r2ai_get_tools (): NULL, // Only send tools for the first call
 		.system_prompt = system_prompt
 	};
 
