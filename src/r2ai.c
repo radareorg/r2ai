@@ -12,7 +12,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -d [query]", "Ask a question on the current function",
 	"r2ai", " -dr", "Decompile current function (+ 1 level of recursivity)",
 	"r2ai", " -a [query]", "Resolve question using auto mode",
-	"r2ai", " -e", "Same as '-e r2ai.'",
+	"r2ai", " -e (k(=v))", "Same as '-e r2ai.'",
 	"r2ai", " -h", "Show this help message",
 	"r2ai", " -i [file] [query]", "read file and ask the llm with the given query",
 	"r2ai", " -m", "show selected model, list suggested ones, choose one",
@@ -24,11 +24,9 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -L-[N]", "delete the last (or N last messages from the chat history)",
 	"r2ai", " -R", "reset the chat conversation context",
 	"r2ai", " -Rq ([text])", "refresh and query embeddings (see r2ai.data)",
-	"r2ai", " [arg]", "send a post request to talk to r2ai and print the output",
+	"r2ai", " [query]", "query the selected model+provider with the given query",
 	NULL
 };
-
-extern void cmd_r2ai_q(RCorePluginSession *cps, const char *input);
 
 R_API char *r2ai(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
