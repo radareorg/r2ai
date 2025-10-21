@@ -211,12 +211,13 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 							if (tc->id && strcmp (tc->id, tool_call->id) == 0) {
 								// For r2cmd, update the command in arguments
 								if (strcmp (tool_name, "r2cmd") == 0) {
-									RJson *args_json = r_json_parse ((char *)tc->arguments);
+									char *args_dup = strdup (tc->arguments);
+									RJson *args_json = r_json_parse (args_dup);
 									if (args_json) {
-										RJson *cmd_json = r_json_get (args_json, "command");
+										RJson *cmd_json = (RJson *)r_json_get (args_json, "command");
 										if (cmd_json && cmd_json->str_value) {
 											// Update the command field
-											free (cmd_json->str_value);
+											free ((char *)cmd_json->str_value);
 											cmd_json->str_value = strdup (edited_command);
 											// Serialize back to JSON
 											char *new_args = r_json_to_string (args_json);
@@ -291,7 +292,7 @@ R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query) {
 	// Add user query
 	R2AI_Message user_msg = {
 		.role = "user",
-		.content = user_query
+		.content = (char *)user_query
 	};
 	r2ai_msgs_add (messages, &user_msg);
 
@@ -348,33 +349,24 @@ R_IPI void cmd_r2ai_logs(RCorePluginSession *cps) {
 
 		for (int i = 0; i < r_list_length (messages->messages); i++) {
 			const R2AI_Message *msg = r_list_get_n (messages->messages, i);
-
 			pj_o (pj);
-
 			pj_ks (pj, "role", msg->role? msg->role: "unknown");
 			pj_ks (pj, "content", msg->content? msg->content: "");
-
 			if (msg->tool_calls && msg->n_tool_calls > 0) {
 				pj_ka (pj, "tool_calls");
-
 				for (int j = 0; j < msg->n_tool_calls; j++) {
 					const R2AI_ToolCall *tc = &msg->tool_calls[j];
-
 					pj_o (pj);
-
 					if (tc->name) {
 						pj_ks (pj, "name", tc->name);
 					}
 					if (tc->arguments) {
 						pj_ks (pj, "arguments", tc->arguments);
 					}
-
 					pj_end (pj);
 				}
-
 				pj_end (pj);
 			}
-
 			pj_end (pj);
 		}
 

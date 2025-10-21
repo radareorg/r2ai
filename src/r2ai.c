@@ -44,7 +44,7 @@ R_API char *r2ai(RCorePluginSession *cps, R2AIArgs args) {
 	R2AI_Messages *msgs = r2ai_msgs_new ();
 
 	if (args.input) {
-		R2AI_Message msg = { .role = "user", .content = args.input };
+		R2AI_Message msg = { .role = "user", .content = (char *)args.input };
 		r2ai_msgs_add (msgs, &msg);
 	}
 

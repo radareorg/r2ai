@@ -78,11 +78,7 @@ static bool parse_raw_tool_call(const char *response, char **tool_name, char **t
 			if (space_pos) {
 				// Extract tool name
 				size_t name_len = space_pos - tool_start;
-				*tool_name = malloc (name_len + 1);
-				if (*tool_name) {
-					strncpy (*tool_name, tool_start, name_len);
-					(*tool_name)[name_len] = '\0';
-				}
+				*tool_name = r_str_ndup (tool_start, name_len);
 
 				// Extract arguments (rest of the line)
 				*tool_args = strdup (space_pos + 1);
@@ -153,7 +149,7 @@ R_API R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs
 	}
 
 	// Modify the system prompt to include rawtools instructions only if no tool messages
-	char *original_system_prompt = args.system_prompt;
+	const char *original_system_prompt = args.system_prompt;
 	char *enhanced_system_prompt = NULL;
 
 	if (!has_tool_messages) {
@@ -223,7 +219,7 @@ R_API R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs
 			if (modified_message) {
 				modified_message->role = strdup ("assistant");
 				// Remove the TOOL line from content, or set to empty if that's all there is
-				char *content = response->message->content;
+				char *content = strdup (response->message->content? response->message->content: "");
 				char *tool_line = strstr (content, "TOOL: ");
 				if (tool_line) {
 					// Find the end of the line
@@ -236,7 +232,7 @@ R_API R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs
 						*tool_line = '\0';
 					}
 				}
-				modified_message->content = strdup (content? content: "");
+				modified_message->content = content;
 
 				// Set up proper tool call structure
 				modified_message->tool_calls = R_NEWS0 (R2AI_ToolCall, 1);

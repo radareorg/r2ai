@@ -71,7 +71,7 @@ typedef struct {
 
 typedef struct {
 	char *role;
-	const char *content;
+	char *content;
 	char *reasoning_content;
 	R2AI_ContentBlocks *content_blocks;
 	char *tool_call_id;
