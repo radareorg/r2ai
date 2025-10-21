@@ -45,10 +45,7 @@ Usage: r2ai   [-args] [...]
 | r2ai -L-[N]             delete the last (or N last messages from the chat history)
 | r2ai -R                 reset the chat conversation context
 | r2ai -Rq ([text])       refresh and query embeddings (see r2ai.data)
-| r2ai -s                 function signature
-| r2ai -x                 explain current function
 | r2ai -v                 suggest better variables names and types
-| r2ai -V[r]              find vulnerabilities in the decompiled code (-Vr uses -dr)
 | r2ai [arg]              send a post request to talk to r2ai and print the output
 [0x100003f58]> 
 ```

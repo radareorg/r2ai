@@ -25,7 +25,6 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -L-[N]", "delete the last (or N last messages from the chat history)",
 	"r2ai", " -R", "reset the chat conversation context",
 	"r2ai", " -Rq ([text])", "refresh and query embeddings (see r2ai.data)",
-	"r2ai", " -s", "function signature",
 	"r2ai", " -v", "suggest better variables names and types",
 	"r2ai", " [arg]", "send a post request to talk to r2ai and print the output",
 	NULL
@@ -274,51 +273,6 @@ static void cmd_r2ai_i(RCorePluginSession *cps, const char *arg) {
 	free (q);
 }
 
-static void cmd_r2ai_s(RCorePluginSession *cps) {
-	RCore *core = cps->core;
-	char *afv = r_core_cmd_str (core, "afv");
-	r_str_trim (afv);
-	char *s = r_core_cmd_str (core, "r2ai -d");
-	r_str_trim (s);
-	if (R_STR_ISEMPTY (s)) {
-		R_LOG_ERROR ("Cannot find function");
-		free (afv);
-		return;
-	}
-	char *q = r_str_newf (
-		"analyze the uses of the arguments and return value to infer the "
-		"signature, identify which is the correct type for the resturn. Do NOT "
-		"print the function body, ONLY output the function signature, ignore '@' "
-		"in argument types because it must be used in a C header:\n```\n%s\n``` "
-		"source code:\n```\n%s\n```\n",
-		afv, s);
-	char *error = NULL;
-	char *res =
-		r2ai (cps, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
-	if (error) {
-		R_LOG_ERROR (error);
-		free (error);
-	} else if (res) {
-		char *begin = strstr (res, "```");
-		if (begin) {
-			char *nl = strchr (begin, '\n');
-			if (nl) {
-				nl++;
-				char *end = strstr (nl, "```");
-				if (end) {
-					*end = 0;
-				}
-				r_str_trim (nl);
-				R2_PRINTF ("'afs %s\n", nl);
-			}
-		}
-	}
-	free (afv);
-	free (res);
-	free (q);
-	free (s);
-}
-
 static void cmd_r2ai_v(RCorePluginSession *cps) {
 	RCore *core = cps->core;
 	char *s = r_core_cmd_str (core, "r2ai -d");
@@ -423,8 +377,6 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		cmd_r2ai_d (cps, r_str_trim_head_ro (input + 2), false);
 	} else if (r_str_startswith (input, "-dr")) {
 		cmd_r2ai_d (cps, r_str_trim_head_ro (input + 2), true);
-	} else if (r_str_startswith (input, "-s")) {
-		cmd_r2ai_s (cps);
 	} else if (r_str_startswith (input, "-S")) {
 		if (state->db == NULL) {
 			state->db = r_vdb_new (VDBDIM);
