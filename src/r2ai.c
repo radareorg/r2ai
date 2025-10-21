@@ -28,7 +28,6 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -s", "function signature",
 	"r2ai", " -x", "explain current function",
 	"r2ai", " -v", "suggest better variables names and types",
-	"r2ai", " -V[r]", "find vulnerabilities in the decompiled code (-Vr uses -dr)",
 	"r2ai", " [arg]", "send a post request to talk to r2ai and print the output",
 	NULL
 };
@@ -379,27 +378,6 @@ static void cmd_r2ai_v(RCorePluginSession *cps) {
 	free (s);
 }
 
-static void cmd_r2ai_V(RCorePluginSession *cps, bool recursive) {
-	RCore *core = cps->core;
-	char *s = r_core_cmd_str (core, recursive? "r2ai -d": "r2ai -dr");
-	char *q = r_str_newf (
-		"find vulnerabilities, dont show the code, only show the response, "
-		"provide a sample exploit and suggest good practices:\n```\n%s```",
-		s);
-	char *error = NULL;
-	char *res =
-		r2ai (cps, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
-	if (error) {
-		R_LOG_ERROR (error);
-		free (error);
-	} else {
-		R2_PRINTF ("%s\n", res);
-	}
-	free (res);
-	free (q);
-	free (s);
-}
-
 static void cmd_r2ai_m(RCorePluginSession *cps, const char *input) {
 	RCore *core = cps->core;
 	if (R_STR_ISEMPTY (input)) {
@@ -502,10 +480,6 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		cmd_r2ai_i (cps, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-v")) {
 		cmd_r2ai_v (cps);
-	} else if (r_str_startswith (input, "-V")) {
-		cmd_r2ai_V (cps, false);
-	} else if (r_str_startswith (input, "-Vr")) {
-		cmd_r2ai_V (cps, true);
 	} else if (r_str_startswith (input, "-n")) {
 		cmd_r2ai_n (cps);
 	} else if (r_str_startswith (input, "-r")) {
