@@ -330,7 +330,7 @@ static void cmd_r2ai_s(RCorePluginSession *cps) {
 	if (error) {
 		R_LOG_ERROR (error);
 		free (error);
-	} else {
+	} else if (res) {
 		char *begin = strstr (res, "```");
 		if (begin) {
 			char *nl = strchr (begin, '\n');
