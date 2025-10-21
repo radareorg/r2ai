@@ -109,8 +109,13 @@ static bool parse_raw_tool_call(const char *response, char **tool_name, char **t
 }
 
 // Function to handle rawtools mode in LLM call
-R_API R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args) {
+R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args) {
+	if (!cps) {
+		return NULL;
+	}
 	RCore *core = cps->core;
+	R2_PRINTF ("\x1b[35m[RAWTOOLS] r2ai_rawtools_llmcall called with cps=%p, core=%p\x1b[0m\n", cps, core);
+	R2_FLUSH ();
 
 	// Check if this is a recursive call (has tool messages) - if so, disable rawtools
 	bool has_tool_messages = false;
@@ -153,14 +158,12 @@ R_API R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs
 	char *enhanced_system_prompt = NULL;
 
 	if (!has_tool_messages) {
-		if (original_system_prompt) {
-			size_t total_len = strlen (original_system_prompt) + strlen (rawtools_prompt) + 3; // +3 for \n\n and null
-			enhanced_system_prompt = malloc (total_len);
-			if (enhanced_system_prompt) {
-				snprintf (enhanced_system_prompt, total_len, "%s\n\n%s", original_system_prompt, rawtools_prompt);
-			}
-		} else {
-			enhanced_system_prompt = rawtools_prompt;
+		// For rawtools, use a shorter system prompt to avoid token limits
+		const char *short_system_prompt = "You are a reverse engineer using radare2. The binary is loaded. Use r2cmd tool for analysis.";
+		size_t total_len = strlen (short_system_prompt) + strlen (rawtools_prompt) + 3; // +3 for \n\n and null
+		enhanced_system_prompt = malloc (total_len);
+		if (enhanced_system_prompt) {
+			snprintf (enhanced_system_prompt, total_len, "%s\n\n%s", short_system_prompt, rawtools_prompt);
 		}
 	} else {
 		// For recursive calls with tool results, use original system prompt
@@ -171,6 +174,8 @@ R_API R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs
 	R2AIArgs rawtools_args = args;
 	rawtools_args.system_prompt = enhanced_system_prompt;
 	rawtools_args.tools = NULL; // Disable native tool calling
+	R2_PRINTF ("\x1b[35m[RAWTOOLS] Enhanced prompt length: %zu\x1b[0m\n", enhanced_system_prompt ? strlen (enhanced_system_prompt) : 0);
+	R2_FLUSH ();
 
 	// Make the LLM call directly to provider
 	const char *provider = rawtools_args.provider? rawtools_args.provider: r_config_get (core->config, "r2ai.api");
@@ -180,11 +185,15 @@ R_API R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs
 
 	R2AI_ChatResponse *response = NULL;
 	const R2AIProvider *p = r2ai_get_provider (provider);
+	R2_PRINTF ("\x1b[35m[RAWTOOLS] Calling provider: %s\x1b[0m\n", provider);
 	if (p && p->uses_anthropic_header) {
+		R2_PRINTF ("\x1b[35m[RAWTOOLS] Using anthropic API\x1b[0m\n");
 		response = r2ai_anthropic (cps, rawtools_args);
 	} else {
+		R2_PRINTF ("\x1b[35m[RAWTOOLS] Using openai-compatible API\x1b[0m\n");
 		response = r2ai_openai (cps, rawtools_args);
 	}
+	R2_PRINTF ("\x1b[35m[RAWTOOLS] Provider call returned: %p\x1b[0m\n", response);
 
 	if (enhanced_system_prompt != rawtools_prompt) {
 		free (enhanced_system_prompt);
@@ -195,12 +204,15 @@ R_API R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs
 		return response;
 	}
 
+	R_LOG_DEBUG ("[RAWTOOLS] Raw model response: %s", response->message->content);
+
 	// Check if the response contains a raw tool call
 	char *tool_name = NULL;
 	char *tool_args = NULL;
 
 	if (parse_raw_tool_call (response->message->content, &tool_name, &tool_args)) {
 		R_LOG_DEBUG ("Raw tool call detected: %s with args: %s", tool_name, tool_args);
+		R2_PRINTF ("\x1b[35m[RAWTOOLS] Detected tool call: %s\x1b[0m\n", tool_name);
 
 		// Find the tool in our tools list
 		const R2AI_Tools *tools = r2ai_get_tools ();

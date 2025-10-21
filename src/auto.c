@@ -107,6 +107,11 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 	bool interrupted = false;
 	const int max_runs = r_config_get_i (core->config, "r2ai.auto.max_runs");
 
+	R2_PRINTF ("\x1b[35m[DEBUG] process_messages called with n_run=%d, max_runs=%d\x1b[0m\n", n_run, max_runs);
+	bool rawtools_check = r_config_get_b (core->config, "r2ai.rawtools");
+	R2_PRINTF ("\x1b[35m[DEBUG] rawtools config check in process_messages: %s\x1b[0m\n", rawtools_check ? "true" : "false");
+	R2_FLUSH ();
+
 	if (n_run > max_runs) {
 		R2_PRINTF ("\x1b[1;31m[r2ai] Max runs reached\x1b[0m\n");
 		R2_FLUSH ();
@@ -114,21 +119,32 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 	}
 
 	if (!system_prompt) {
+		R2_PRINTF ("\x1b[35m[DEBUG] system_prompt is NULL, setting up init commands\x1b[0m\n");
+		system_prompt = Gprompt_auto;
 		const char *init_commands = r_config_get (core->config, "r2ai.auto.init_commands");
+		R2_PRINTF ("\x1b[35m[DEBUG] init_commands: %s\x1b[0m\n", init_commands ? init_commands : "NULL");
 		if (R_STR_ISNOTEMPTY (init_commands)) {
+			R2_PRINTF ("\x1b[35m[DEBUG] Executing init commands\x1b[0m\n");
 			char *edited_command = NULL;
 			char *cmd_output = execute_tool (core, "r2cmd", r_str_newf ("{\"command\":\"%s\"}", init_commands), &edited_command);
+			R2_PRINTF ("\x1b[35m[DEBUG] Init commands executed, output length: %zu\x1b[0m\n", cmd_output ? strlen (cmd_output) : 0);
 			if (cmd_output) {
-				system_prompt = r_str_newf ("%s\n\nHere is some information about the binary to get you started:\n>%s\n%s", Gprompt_auto, edited_command, cmd_output);
+				R2AI_Message init_msg = {
+					.role = "system",
+					.content = r_str_newf ("Here is some information about the binary to get you started:\n>%s\n%s", edited_command, cmd_output)
+				};
+				r2ai_msgs_add (messages, &init_msg);
+				R2_PRINTF ("\x1b[35m[DEBUG] Added init message to conversation\x1b[0m\n");
 				free (cmd_output);
 			}
 			free (edited_command);
-		} else {
-			system_prompt = Gprompt_auto;
 		}
 	}
 
 	r2ai_stats_init_run (state, n_run);
+
+	R2_PRINTF ("\x1b[35m[DEBUG] About to call r2ai_llmcall with n_run=%d\x1b[0m\n", n_run);
+	R2_FLUSH ();
 
 	// Set up args for r2ai_llmcall call with tools directly
 	R2AIArgs args = {
@@ -139,10 +155,17 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 		.system_prompt = system_prompt
 	};
 
-	// Call r2ai_llmcall to get a response
+	R2_PRINTF ("\x1b[35m[DEBUG] tools: %p, system_prompt length: %zu\x1b[0m\n", args.tools, system_prompt ? strlen (system_prompt) : 0);
+	R2_FLUSH ();
+
 	R2AI_ChatResponse *response = r2ai_llmcall (cps, args);
 
+	R2_PRINTF ("\x1b[35m[DEBUG] r2ai_llmcall returned: %p\x1b[0m\n", response);
+	R2_FLUSH ();
+
 	if (!response) {
+		R2_PRINTF ("\x1b[31m[DEBUG] r2ai_llmcall failed - probably no API key or provider issue\x1b[0m\n");
+		R2_FLUSH ();
 		return;
 	}
 
@@ -153,6 +176,22 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 		R_LOG_ERROR ("No message in response");
 		free (response);
 		return;
+	}
+
+	// Debug logging for rawtools
+	R_LOG_DEBUG ("[DEBUG] Model response - Role: %s", message->role ? message->role : "null");
+	if (message->content) {
+		R_LOG_DEBUG ("[DEBUG] Content: %s", message->content);
+	}
+	if (message->reasoning_content) {
+		R_LOG_DEBUG ("[DEBUG] Reasoning: %s", message->reasoning_content);
+	}
+	if (message->tool_calls && message->n_tool_calls > 0) {
+		R_LOG_DEBUG ("[DEBUG] Tool calls: %d", message->n_tool_calls);
+		for (int i = 0; i < message->n_tool_calls; i++) {
+			const R2AI_ToolCall *tc = &message->tool_calls[i];
+			R_LOG_DEBUG ("[DEBUG] Tool %d: %s - %s", i, tc->name ? tc->name : "null", tc->arguments ? tc->arguments : "null");
+		}
 	}
 
 	// Process the response - we need to add it to our messages array
@@ -176,16 +215,19 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 
 	// Check for tool calls and process them
 	if (message->tool_calls && message->n_tool_calls > 0) {
-		R_LOG_DEBUG ("Found %d tool call (s)", message->n_tool_calls);
+		R_LOG_DEBUG ("Found %d tool call(s)", message->n_tool_calls);
+		R2_PRINTF ("\x1b[33m[DEBUG] Processing %d tool call(s)\x1b[0m\n", message->n_tool_calls);
 
 		// Process each tool call
 		for (int i = 0; i < message->n_tool_calls; i++) {
 			const R2AI_ToolCall *tool_call = &message->tool_calls[i];
 
 			if (!tool_call->name || !tool_call->arguments || !tool_call->id) {
+				R_LOG_DEBUG ("Skipping invalid tool call %d", i);
 				continue;
 			}
-			R_LOG_DEBUG ("Tool call: %s", tool_call->name);
+			R_LOG_DEBUG ("Tool call %d: %s with args: %s", i, tool_call->name, tool_call->arguments);
+			R2_PRINTF ("\x1b[33m[DEBUG] Executing tool: %s\x1b[0m\n", tool_call->name);
 			// Don't log the full arguments which might get truncated
 			char *tool_name = strdup (tool_call->name);
 			char *tool_args = strdup (tool_call->arguments);
@@ -256,6 +298,8 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 
 			// Add the tool response to our messages array
 			r2ai_msgs_add (messages, &tool_response);
+			R_LOG_DEBUG ("[DEBUG] Added tool response to messages: %s", cmd_output ? cmd_output : "null");
+			R2_PRINTF ("\x1b[32m[DEBUG] Tool result: %s\x1b[0m\n", cmd_output ? cmd_output : "no output");
 			free (cmd_output);
 		}
 
@@ -263,7 +307,12 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 
 		// Check if we should continue with recursion
 		if (!interrupted && message->tool_calls && message->n_tool_calls > 0) {
+			R_LOG_DEBUG ("[DEBUG] Recursing to process_messages with n_run=%d", n_run + 1);
+			R2_PRINTF ("\x1b[36m[DEBUG] Continuing auto mode loop (run %d)\x1b[0m\n", n_run + 1);
 			process_messages (cps, messages, system_prompt, n_run + 1);
+		} else {
+			R_LOG_DEBUG ("[DEBUG] Auto mode loop ending - no more tool calls or interrupted");
+			R2_PRINTF ("\x1b[36m[DEBUG] Auto mode loop completed\x1b[0m\n");
 		}
 	} else {
 		r2ai_print_run_end (cps, usage, n_run, max_runs);
@@ -276,6 +325,8 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query) {
 	RCore *core = cps->core;
 	R2AI_State *state = cps->data;
+	R2_PRINTF ("\x1b[35m[DEBUG] cmd_r2ai_a called with query: %s\x1b[0m\n", user_query);
+	R2_FLUSH ();
 	// Get conversation
 	R2AI_Messages *messages = r2ai_conversation_get (state);
 	if (!messages) {
