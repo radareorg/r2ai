@@ -7,9 +7,17 @@
 
 ## Formatting Style
 
-- Run `make fmt`
+- Use the radare2 coding style rules
+  - Always add a whitespace before `(` in function calls
+  - Indent the code with tabs
+  - Indent comments with spaces
+  - Do not define variables inside the `for` parenthesis 
+  - Do not check for null before calling free
 
 ## Actions
 
-- Compile with 'make'
-- Install with 'make user-install'
+Run the following commands to perform the action described
+
+- FORMAT: `make fmt`
+- COMPILE: `make`
+- INSTALL: `make user-install`
