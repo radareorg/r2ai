@@ -17,7 +17,6 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -i [file] [query]", "read file and ask the llm with the given query",
 	"r2ai", " -m", "show selected model, list suggested ones, choose one",
 	"r2ai", " -p [provider]", "set LLM provider (openai, anthropic, gemini, etc.)",
-	"r2ai", " -n", "suggest a better name for the current function",
 	"r2ai", " -q", "list available query prompts",
 	"r2ai", " -q [name] (inst)", "run predefined prompt with optional instructions",
 	"r2ai", " -r", "enter the chat repl",
@@ -220,29 +219,6 @@ static void cmd_r2ai_R(RCorePluginSession *cps, const char *q) {
 	}
 }
 
-static void cmd_r2ai_n(RCorePluginSession *cps) {
-	RCore *core = cps->core;
-	char *s = r_core_cmd_str (core, "r2ai -d");
-	char *q =
-		r_str_newf ("output only the radare2 commands in plain text without "
-			"markdown. Give me a better name for this function. the "
-			"output must be: 'afn NEWNAME'. do not include the function "
-			"code, only the afn line. consider: \n```c\n%s\n```",
-			s);
-	char *error = NULL;
-	char *res =
-		r2ai (cps, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
-	free (s);
-	if (error) {
-		R_LOG_ERROR (error);
-		free (error);
-	} else {
-		R2_PRINTF ("%s\n", res);
-	}
-	free (res);
-	free (q);
-}
-
 static void cmd_r2ai_i(RCorePluginSession *cps, const char *arg) {
 	RCore *core = cps->core;
 	char *fname = strdup (arg);
@@ -368,8 +344,6 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		}
 	} else if (r_str_startswith (input, "-i")) {
 		cmd_r2ai_i (cps, r_str_trim_head_ro (input + 2));
-	} else if (r_str_startswith (input, "-n")) {
-		cmd_r2ai_n (cps);
 	} else if (r_str_startswith (input, "-r")) {
 		cmd_r2ai_repl (cps);
 	} else if (r_str_startswith (input, "-R")) {
