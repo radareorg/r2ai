@@ -38,6 +38,7 @@ ifeq ($(USE_LIBCURL),1)
 endif
 
 OBJS=r2ai.o
+OBJS+=llm.o
 OBJS+=auto.o
 OBJS+=vdb.o
 OBJS+=tools.o

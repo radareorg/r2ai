@@ -12,6 +12,7 @@
 #include "markdown.h"
 
 #define R2AI_VERSION "1.1.2"
+#define VDBDIM 16
 
 #if R2_VERSION_NUMBER < 60000
 #error Your radare2 is too old
