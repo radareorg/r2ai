@@ -2,7 +2,6 @@
 
 #include "r2ai_priv.h"
 
-
 static const R2AIProvider r2ai_providers[] = {
 	{ "openai", "https://api.openai.com/v1", true, false, false, false },
 	{ "gemini", "https://generativelanguage.googleapis.com/v1beta/openai", true, false, false, false },
@@ -345,4 +344,3 @@ R_IPI void r2ai_refresh_embeddings(RCore *core, R2AI_State *state) {
 	}
 	r_list_free (files);
 }
-

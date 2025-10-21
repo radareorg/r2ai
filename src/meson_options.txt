@@ -1,6 +1,6 @@
 option('r2_prefix',
   type: 'string',
-  value: '',
+  value: '/usr/local',
   description: 'Path prefix where radare2 is installed (include/ and lib/).'
 )
 

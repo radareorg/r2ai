@@ -19,5 +19,5 @@
 Run the following commands to perform the action described
 
 - FORMAT: `make fmt`
-- COMPILE: `make`
+- COMPILE: `make` (with no extra arguments)
 - INSTALL: `make user-install`

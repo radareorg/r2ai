@@ -18,6 +18,51 @@
 // Global flag for tracking interrupt status
 static volatile sig_atomic_t r2ai_http_interrupted = 0;
 
+// Helper function to get HTTP configuration with defaults
+static void get_http_config(RCore *core_param, int *timeout, int *max_retries, int *max_backoff) {
+	*timeout = 120;
+	*max_retries = 10;
+	*max_backoff = 30;
+	RCore *core = core_param? core_param: r_cons_singleton ()->user;
+	if (core) {
+		int t = r_config_get_i (core->config, "r2ai.http.timeout");
+		if (t > 0) {
+			*timeout = t;
+		}
+		int mr = r_config_get_i (core->config, "r2ai.http.max_retries");
+		if (mr >= 0) {
+			*max_retries = mr;
+		}
+		int mb = r_config_get_i (core->config, "r2ai.http.max_backoff");
+		if (mb > 0) {
+			*max_backoff = mb;
+		}
+	}
+}
+
+#ifdef _WIN32
+// Helper to append headers to PowerShell command
+static void append_headers_to_cmd(RStrBuf *cmd, const char *headers[]) {
+	r_strbuf_appendf (cmd, "$ProgressPreference='SilentlyContinue';$headers=@{");
+	if (headers) {
+		for (int i = 0; headers[i]; i++) {
+			char *header = strdup (headers[i]);
+			char *colon = strchr (header, ':');
+			if (colon) {
+				*colon = '\0';
+				char *key = r_str_trim_dup (header);
+				char *value = r_str_trim_dup (colon + 1);
+				r_strbuf_appendf (cmd, "'%s'='%s';", key, value);
+				free (key);
+				free (value);
+			}
+			free (header);
+		}
+	}
+	r_strbuf_appendf (cmd, "};");
+}
+#endif
+
 // Signal handler for SIGINT
 static void r2ai_http_sigint_handler(int sig) {
 	(void)sig;
@@ -41,33 +86,24 @@ static void restore_sigint_handler_local(void *old, int old_is_sigaction) {
 	signal (SIGINT, (void (*) (int))old);
 }
 
-// Helper function to implement exponential backoff sleep
+// Exponential backoff sleep with jitter
 static void r2ai_sleep_with_backoff(int retry_count, int max_sleep_seconds) {
-	// Calculate sleep time with exponential backoff: 2^retry * base_time with jitter
-	int base_time_ms = 1000; // 500ms base time
+	int base_time_ms = 1000;
 	int max_sleep_ms = max_sleep_seconds * 1000;
-
-	// Calculate exponential delay time with upper bound
 	int delay_ms = (1 << retry_count) * base_time_ms;
 	if (delay_ms > max_sleep_ms) {
 		delay_ms = max_sleep_ms;
 	}
-
-	// Add jitter (±20%)
 	int jitter = delay_ms / 5;
 	if (jitter > 0) {
 		srand (time (NULL) + retry_count);
 		delay_ms += (rand () % (jitter * 2)) - jitter;
 	}
-
-	// Ensure delay stays positive and within max limits
 	if (delay_ms <= 0) {
 		delay_ms = base_time_ms;
 	} else if (delay_ms > max_sleep_ms) {
 		delay_ms = max_sleep_ms;
 	}
-
-	// Sleep for the calculated time
 	struct timespec ts;
 	ts.tv_sec = delay_ms / 1000;
 	ts.tv_nsec = (delay_ms % 1000) * 1000000;
@@ -121,28 +157,8 @@ static char *curl_http_post(const char *url, const char *headers[], const char *
 		return NULL;
 	}
 
-	// Get timeout and retry configuration from config if available
-	int timeout = 120; // Default timeout in seconds
-	int max_retries = 10; // Default max retries
-	int max_backoff = 30; // Default max backoff in seconds
-
-	RCore *core = r_cons_singleton ()->user;
-	if (core) {
-		timeout = r_config_get_i (core->config, "r2ai.http.timeout");
-		if (timeout <= 0) {
-			timeout = 120; // Use default if invalid
-		}
-
-		max_retries = r_config_get_i (core->config, "r2ai.http.max_retries");
-		if (max_retries < 0) {
-			max_retries = 10; // Use default if invalid
-		}
-
-		max_backoff = r_config_get_i (core->config, "r2ai.http.max_backoff");
-		if (max_backoff <= 0) {
-			max_backoff = 30; // Use default if invalid
-		}
-	}
+	int timeout, max_retries, max_backoff;
+	get_http_config (NULL, &timeout, &max_retries, &max_backoff);
 
 	// Install signal handler for interruption (portable)
 	void *r2ai_old_sig = NULL;
@@ -292,23 +308,8 @@ static char *curl_http_post(const char *url, const char *headers[], const char *
  */
 static char *windows_http_post(const char *url, const char *headers[], const char *data, int *code, int *rlen, int timeout) {
 	RStrBuf *cmd = r_strbuf_new ("powershell -Command \"");
-	r_strbuf_appendf (cmd, "$ProgressPreference='SilentlyContinue';$headers=@{");
-	if (headers) {
-		for (int i = 0; headers[i]; i++) {
-			char *header = strdup (headers[i]);
-			char *colon = strchr (header, ':');
-			if (colon) {
-				*colon = '\0';
-				char *key = r_str_trim_dup (header);
-				char *value = r_str_trim_dup (colon + 1);
-				r_strbuf_appendf (cmd, "'%s'='%s';", key, value);
-				free (key);
-				free (value);
-			}
-			free (header);
-		}
-	}
-	r_strbuf_appendf (cmd, "};$body='%s';", data);
+	append_headers_to_cmd (cmd, headers);
+	r_strbuf_appendf (cmd, "$body='%s';", data);
 	r_strbuf_appendf (cmd, "try{$r=Invoke-WebRequest -Method Post -Uri '%s' -Headers $headers -Body $body -TimeoutSec %d;", url, timeout);
 	r_strbuf_appendf (cmd, "Write-Host $r.StatusCode;$r.Content}catch{Write-Host 0;$_.Exception.Message}\"");
 	char *cmd_str = r_strbuf_drain (cmd);
@@ -342,23 +343,7 @@ static char *windows_http_post(const char *url, const char *headers[], const cha
  */
 static char *windows_http_get(const char *url, const char *headers[], int *code, int *rlen, int timeout) {
 	RStrBuf *cmd = r_strbuf_new ("powershell -Command \"");
-	r_strbuf_appendf (cmd, "$ProgressPreference='SilentlyContinue';$headers=@{");
-	if (headers) {
-		for (int i = 0; headers[i]; i++) {
-			char *header = strdup (headers[i]);
-			char *colon = strchr (header, ':');
-			if (colon) {
-				*colon = '\0';
-				char *key = r_str_trim_dup (header);
-				char *value = r_str_trim_dup (colon + 1);
-				r_strbuf_appendf (cmd, "'%s'='%s';", key, value);
-				free (key);
-				free (value);
-			}
-			free (header);
-		}
-	}
-	r_strbuf_appendf (cmd, "};");
+	append_headers_to_cmd (cmd, headers);
 	r_strbuf_appendf (cmd, "try{$r=Invoke-WebRequest -Method Get -Uri '%s' -Headers $headers -TimeoutSec %d;", url, timeout);
 	r_strbuf_appendf (cmd, "Write-Host $r.StatusCode;$r.Content}catch{Write-Host 0;$_.Exception.Message}\"");
 	char *cmd_str = r_strbuf_drain (cmd);
@@ -404,20 +389,8 @@ static char *system_curl_post_file(RCore *core, const char *url, const char *hea
 		return NULL;
 	}
 
-	int timeout = r_config_get_i (core->config, "r2ai.http.timeout");
-	if (timeout <= 0) {
-		timeout = 120; // Use default if invalid
-	}
-
-	int max_retries = r_config_get_i (core->config, "r2ai.http.max_retries");
-	if (max_retries < 0) {
-		max_retries = 10; // Use default if invalid
-	}
-
-	int max_backoff = r_config_get_i (core->config, "r2ai.http.max_backoff");
-	if (max_backoff <= 0) {
-		max_backoff = 30; // Use default if invalid
-	}
+	int timeout, max_retries, max_backoff;
+	get_http_config (core, &timeout, &max_retries, &max_backoff);
 
 	// Install signal handler for interruption (portable)
 	void *r2ai_old_sig = NULL;
@@ -631,27 +604,8 @@ static char *system_curl_get(const char *url, const char *headers[], int *code, 
 	}
 
 	// Get timeout and retry configuration from config if available
-	int timeout = 120; // Default timeout in seconds
-	int max_retries = 10; // Default max retries
-	int max_backoff = 30; // Default max backoff in seconds
-
-	RCore *core = r_cons_singleton ()->user;
-	if (core) {
-		timeout = r_config_get_i (core->config, "r2ai.http.timeout");
-		if (timeout <= 0) {
-			timeout = 120; // Use default if invalid
-		}
-
-		max_retries = r_config_get_i (core->config, "r2ai.http.max_retries");
-		if (max_retries < 0) {
-			max_retries = 10; // Use default if invalid
-		}
-
-		max_backoff = r_config_get_i (core->config, "r2ai.http.max_backoff");
-		if (max_backoff <= 0) {
-			max_backoff = 30; // Use default if invalid
-		}
-	}
+	int timeout, max_retries, max_backoff;
+	get_http_config (NULL, &timeout, &max_retries, &max_backoff);
 
 	// Install signal handler for interruption (portable)
 	void *r2ai_old_sig = NULL;
@@ -756,27 +710,8 @@ static char *system_curl_get(const char *url, const char *headers[], int *code, 
 // Socket implementation with interrupt handling and retry logic
 static char *socket_http_post_with_interrupt(const char *url, const char *headers[], const char *data, int *code, int *rlen) {
 	// Get timeout and retry configuration from config if available
-	int timeout = 120; // Default timeout in seconds
-	int max_retries = 10; // Default max retries
-	int max_backoff = 30; // Default max backoff in seconds
-
-	RCore *core = r_cons_singleton ()->user;
-	if (core) {
-		timeout = r_config_get_i (core->config, "r2ai.http.timeout");
-		if (timeout <= 0) {
-			timeout = 120; // Use default if invalid
-		}
-
-		max_retries = r_config_get_i (core->config, "r2ai.http.max_retries");
-		if (max_retries < 0) {
-			max_retries = 10; // Use default if invalid
-		}
-
-		max_backoff = r_config_get_i (core->config, "r2ai.http.max_backoff");
-		if (max_backoff <= 0) {
-			max_backoff = 30; // Use default if invalid
-		}
-	}
+	int timeout, max_retries, max_backoff;
+	get_http_config (NULL, &timeout, &max_retries, &max_backoff);
 
 	// Install signal handler for interruption (portable)
 	void *r2ai_old_sig = NULL;
@@ -863,27 +798,8 @@ static char *curl_http_get(const char *url, const char *headers[], int *code, in
 	}
 
 	// Get timeout and retry configuration from config if available
-	int timeout = 120; // Default timeout in seconds
-	int max_retries = 10; // Default max retries
-	int max_backoff = 30; // Default max backoff in seconds
-
-	RCore *core = r_cons_singleton ()->user;
-	if (core) {
-		timeout = r_config_get_i (core->config, "r2ai.http.timeout");
-		if (timeout <= 0) {
-			timeout = 120; // Use default if invalid
-		}
-
-		max_retries = r_config_get_i (core->config, "r2ai.http.max_retries");
-		if (max_retries < 0) {
-			max_retries = 10; // Use default if invalid
-		}
-
-		max_backoff = r_config_get_i (core->config, "r2ai.http.max_backoff");
-		if (max_backoff <= 0) {
-			max_backoff = 30; // Use default if invalid
-		}
-	}
+	int timeout, max_retries, max_backoff;
+	get_http_config (NULL, &timeout, &max_retries, &max_backoff);
 
 	// Install signal handler for interruption (portable)
 	void *r2ai_old_sig = NULL;
@@ -1032,27 +948,8 @@ static char *curl_http_get(const char *url, const char *headers[], int *code, in
 // Socket implementation for GET requests
 static char *socket_http_get_with_interrupt(const char *url, const char *headers[], int *code, int *rlen) {
 	// Get timeout and retry configuration from config if available
-	int timeout = 120; // Default timeout in seconds
-	int max_retries = 10; // Default max retries
-	int max_backoff = 30; // Default max backoff in seconds
-
-	RCore *core = r_cons_singleton ()->user;
-	if (core) {
-		timeout = r_config_get_i (core->config, "r2ai.http.timeout");
-		if (timeout <= 0) {
-			timeout = 120; // Use default if invalid
-		}
-
-		max_retries = r_config_get_i (core->config, "r2ai.http.max_retries");
-		if (max_retries < 0) {
-			max_retries = 10; // Use default if invalid
-		}
-
-		max_backoff = r_config_get_i (core->config, "r2ai.http.max_backoff");
-		if (max_backoff <= 0) {
-			max_backoff = 30; // Use default if invalid
-		}
-	}
+	int timeout, max_retries, max_backoff;
+	get_http_config (NULL, &timeout, &max_retries, &max_backoff);
 
 	// Install signal handler for interruption (portable)
 	void *r2ai_old_sig = NULL;
