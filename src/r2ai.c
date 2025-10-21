@@ -16,9 +16,10 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -h", "Show this help message",
 	"r2ai", " -i [file] [query]", "read file and ask the llm with the given query",
 	"r2ai", " -m", "show selected model, list suggested ones, choose one",
+	"r2ai", " -p [provider]", "set LLM provider (openai, anthropic, gemini, etc.)",
 	"r2ai", " -n", "suggest a better name for the current function",
-	"r2ai", " -q", "query predefined prompts",
-	"r2ai", " -q [name]", "run predefined prompt",
+	"r2ai", " -q", "list available query prompts",
+	"r2ai", " -q [name] (inst)", "run predefined prompt with optional instructions",
 	"r2ai", " -r", "enter the chat repl",
 	"r2ai", " -L", "show chat logs (See -Lj for json). Only for auto mode.",
 	"r2ai", " -L-[N]", "delete the last (or N last messages from the chat history)",
@@ -521,6 +522,10 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		cmd_r2ai_R (cps, r_str_trim_head_ro (input + 3));
 	} else if (r_str_startswith (input, "-m")) {
 		cmd_r2ai_m (cps, r_str_trim_head_ro (input + 2));
+	} else if (r_str_startswith (input, "-p")) {
+		const char *provider = r_str_trim_head_ro (input + 2);
+		r_config_set (core->config, "r2ai.api", provider);
+		R2_PRINTF ("Provider set to %s\n", provider);
 	} else if (r_str_startswith (input, "-q")) {
 		cmd_r2ai_q (cps, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-")) {

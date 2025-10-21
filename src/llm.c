@@ -30,7 +30,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
 	R2AI_State *state = cps->data;
 	R2AI_ChatResponse *res = NULL;
-	const char *provider = r_config_get (core->config, "r2ai.api");
+	const char *provider = args.provider? args.provider: r_config_get (core->config, "r2ai.api");
 	if (!provider) {
 		provider = "gemini";
 	}
@@ -38,7 +38,9 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 		const char *config_model = r_config_get (core->config, "r2ai.model");
 		args.model = strdup (config_model? config_model: "");
 	}
-	args.provider = strdup (provider);
+	if (!args.provider) {
+		args.provider = strdup (provider);
+	}
 
 	if (!args.max_tokens) {
 		args.max_tokens = r_config_get_i (core->config, "r2ai.max_tokens");
@@ -118,7 +120,6 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 
 	args.thinking_tokens = r_config_get_i (core->config, "r2ai.thinking_tokens");
 
-	R_LOG_DEBUG ("Using provider: %s", provider);
 	const R2AIProvider *p = r2ai_get_provider (provider);
 	if (p && p->uses_anthropic_header) {
 		res = r2ai_anthropic (cps, args);
