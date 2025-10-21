@@ -20,37 +20,19 @@ typedef struct {
 	int error_flags; // Bitfield of ModelErrorFlags
 } ModelCompat;
 
-// Hash table to store model compatibility info
-static HtPP *model_compat_db = NULL;
-
-#if 0
-// Function to check if a model has a specific error flag
-static bool model_has_error(const char *provider, const char *model, ModelErrorFlags flag) {
-	if (!model_compat_db) {
-		return false;
-	}
-
-	char *key = r_str_newf ("%s:%s", provider, model? model: "default");
-	bool found_flag = false;
-	ModelCompat *compat = ht_pp_find (model_compat_db, key, &found_flag);
-	free (key);
-
-	if (found_flag && compat) {
-		return (compat->error_flags & flag) != 0;
-	}
-	return false;
-}
-#endif
-
 // Function to add an error flag to a model
-static void model_add_error(const char *provider, const char *model, ModelErrorFlags flag) {
-	if (!model_compat_db) {
-		model_compat_db = ht_pp_new0 ();
+static void model_add_error(R2AI_State *state, const char *provider, const char *model, ModelErrorFlags flag) {
+	if (!state) {
+		return;
+	}
+
+	if (!state->model_compat_db) {
+		state->model_compat_db = ht_pp_new0 ();
 	}
 
 	char *key = r_str_newf ("%s:%s", provider, model? model: "default");
 	bool found_flag = false;
-	ModelCompat *compat = ht_pp_find (model_compat_db, key, &found_flag);
+	ModelCompat *compat = ht_pp_find (state->model_compat_db, key, &found_flag);
 
 	if (found_flag && compat) {
 		// Update existing entry
@@ -60,7 +42,7 @@ static void model_add_error(const char *provider, const char *model, ModelErrorF
 		compat = R_NEW0 (ModelCompat);
 		compat->model_id = strdup (key);
 		compat->error_flags = flag;
-		ht_pp_insert (model_compat_db, key, compat);
+		ht_pp_insert (state->model_compat_db, key, compat);
 	}
 	free (key);
 }
@@ -78,18 +60,18 @@ static bool model_compat_free_cb(void *user, const void *k, const void *v) {
 }
 
 // Function to free the model_compat_db hash table
-R_IPI void r2ai_openai_fini(void) {
-	if (model_compat_db) {
-		ht_pp_foreach (model_compat_db, model_compat_free_cb, NULL);
-		ht_pp_free (model_compat_db);
-		model_compat_db = NULL;
+R_IPI void r2ai_openai_fini(R2AI_State *state) {
+	if (state && state->model_compat_db) {
+		ht_pp_foreach (state->model_compat_db, model_compat_free_cb, NULL);
+		ht_pp_free (state->model_compat_db);
+		state->model_compat_db = NULL;
 	}
 }
 
-R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
+R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AI_State *state, R2AIArgs args) {
 	// Initialize compatibility database if needed
-	if (!model_compat_db) {
-		model_compat_db = ht_pp_new0 ();
+	if (!state->model_compat_db) {
+		state->model_compat_db = ht_pp_new0 ();
 	}
 
 	const char *base_url = r2ai_get_provider_url (core, args.provider);
@@ -293,14 +275,9 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 				error_flag |= MODEL_ERROR_TEMPERATURE;
 			}
 
-			// Add more error type checks as needed
-			// if (strstr (res, "top_p")) {
-			//     error_flag |= MODEL_ERROR_TOP_P;
-			// }
-
 			if (error_flag != MODEL_ERROR_NONE) {
 				// Record the error flags for this provider/model
-				model_add_error (args.provider, model_name, error_flag);
+				model_add_error (state, args.provider, model_name, error_flag);
 
 				// Clean up
 				free (auth_header);
@@ -308,7 +285,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args) {
 
 				// Retry the call (it will skip problematic parameters this time)
 				R_LOG_INFO ("Retrying request with adjusted parameters for %s/%s", args.provider, model_name);
-				return r2ai_openai (core, args);
+				return r2ai_openai (core, state, args);
 			}
 		}
 		free (auth_header);

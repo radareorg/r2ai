@@ -27,8 +27,6 @@
 #define R_IPI static
 #endif
 
-// Forward declarations to avoid circular dependencies - these are defined in radare2 headers
-
 #define R2_PRINTF(...) r_cons_printf (core->cons, __VA_ARGS__)
 #define R2_FLUSH() r_cons_flush (core->cons)
 #define R2_NEWLINE() r_cons_newline (core->cons)
@@ -145,6 +143,7 @@ typedef struct r2ai_state_t {
 	bool theme_initialized; // Global theme flag (from markdown.c)
 	void *help_msg; // Global help message (from r2ai.c)
 	RVdb *db; // Vector database for embeddings
+	HtPP *model_compat_db; // Model compatibility database (from openai.c)
 } R2AI_State;
 
 /**
@@ -305,8 +304,8 @@ R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider);
 R_IPI R2AI_ChatResponse *r2ai_anthropic(RCore *core, R2AIArgs args);
 
 // openai
-R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AIArgs args);
-R_IPI void r2ai_openai_fini(void);
+R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AI_State *state, R2AIArgs args);
+R_IPI void r2ai_openai_fini(R2AI_State *state);
 
 // auto mode
 R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query);

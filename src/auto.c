@@ -1,62 +1,58 @@
 #include "r2ai.h"
-#include <time.h>
 
-// Forward declaration of the r2ai_llmcall function
-extern R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AI_State *state, R2AIArgs args);
-
-static R2AIStats stats = { 0 };
+// Stats are now stored in R2AI_State->stats, no longer need global variable
 
 // Helper function to format time duration
 static char *format_time_duration(time_t seconds) {
 	if (seconds < 60) {
-		return r_str_newf ("%llds", (long long)seconds);
+		return r_str_newf ("%" PFMT64d "s", (long long)seconds);
 	}
 	if (seconds < 3600) {
-		return r_str_newf ("%lldm%llds", (long long) (seconds / 60), (long long) (seconds % 60));
+		return r_str_newf ("%" PFMT64d "m%" PFMT64d "s", (long long) (seconds / 60), (long long) (seconds % 60));
 	}
-	return r_str_newf ("%lldh%lldm%llds",
+	return r_str_newf ("%" PFMT64d "h%" PFMT64d "m%" PFMT64d "s",
 		(long long) (seconds / 3600),
 		(long long) ((seconds % 3600) / 60),
 		(long long) (seconds % 60));
 }
 
 // Initialize timing and cost tracking for a run
-static void r2ai_stats_init_run(int n_run) {
+static void r2ai_stats_init_run(R2AI_State *state, int n_run) {
 	time_t run_start = time (NULL);
 	if (n_run == 1) {
 		// First run, initialize total timing
-		stats.total_cost = 0.0;
-		stats.run_cost = 0.0;
-		stats.total_start_time = run_start;
-		stats.total_tokens = 0;
-		stats.run_tokens = 0;
-		stats.total_prompt_tokens = 0;
-		stats.run_prompt_tokens = 0;
-		stats.total_completion_tokens = 0;
-		stats.run_completion_tokens = 0;
+		state->stats.total_cost = 0.0;
+		state->stats.run_cost = 0.0;
+		state->stats.total_start_time = run_start;
+		state->stats.total_tokens = 0;
+		state->stats.run_tokens = 0;
+		state->stats.total_prompt_tokens = 0;
+		state->stats.run_prompt_tokens = 0;
+		state->stats.total_completion_tokens = 0;
+		state->stats.run_completion_tokens = 0;
 	}
-	stats.start_time = run_start;
+	state->stats.start_time = run_start;
 }
 
 // Print a simple run indicator at the start
-static void r2ai_print_run_end(RCore *core, const R2AI_Usage *usage, int n_run, int max_runs) {
+static void r2ai_print_run_end(RCore *core, R2AI_State *state, const R2AI_Usage *usage, int n_run, int max_runs) {
 	(void)n_run;
 	(void)max_runs;
-	time_t run_time = time (NULL) - stats.start_time;
-	time_t total_time = time (NULL) - stats.total_start_time;
+	time_t run_time = time (NULL) - state->stats.start_time;
+	time_t total_time = time (NULL) - state->stats.total_start_time;
 	if (usage) {
-		stats.run_tokens = usage->total_tokens;
-		stats.run_prompt_tokens = usage->prompt_tokens;
-		stats.run_completion_tokens = usage->completion_tokens;
-		stats.total_tokens += usage->total_tokens;
-		stats.total_prompt_tokens += usage->prompt_tokens;
-		stats.total_completion_tokens += usage->completion_tokens;
+		state->stats.run_tokens = usage->total_tokens;
+		state->stats.run_prompt_tokens = usage->prompt_tokens;
+		state->stats.run_completion_tokens = usage->completion_tokens;
+		state->stats.total_tokens += usage->total_tokens;
+		state->stats.total_prompt_tokens += usage->prompt_tokens;
+		state->stats.total_completion_tokens += usage->completion_tokens;
 	}
 
 	if (r_config_get_b (core->config, "r2ai.chat.show_cost") == true) {
 		// TODO: calculate cost
-		stats.run_cost = 0.0 * run_time;
-		stats.total_cost += stats.run_cost;
+		state->stats.run_cost = 0.0 * run_time;
+		state->stats.total_cost += state->stats.run_cost;
 	}
 
 	// Format times for display
@@ -66,12 +62,12 @@ static void r2ai_print_run_end(RCore *core, const R2AI_Usage *usage, int n_run, 
 	// Print detailed stats
 	R2_PRINTF ("\x1b[1;34m%s | total: %d in: %d out: %d | run: %d in: %d out: %d | %s / %s\x1b[0m\n",
 		r_config_get (core->config, "r2ai.model"),
-		stats.total_tokens,
-		stats.total_prompt_tokens,
-		stats.total_completion_tokens,
-		stats.run_tokens,
-		stats.run_prompt_tokens,
-		stats.run_completion_tokens,
+		state->stats.total_tokens,
+		state->stats.total_prompt_tokens,
+		state->stats.total_completion_tokens,
+		state->stats.run_tokens,
+		state->stats.run_prompt_tokens,
+		state->stats.run_completion_tokens,
 		run_time_str,
 		total_time_str);
 	R2_NEWLINE ();
@@ -128,7 +124,7 @@ R_API void process_messages(RCore *core, R2AI_State *state, R2AI_Messages *messa
 		}
 	}
 
-	r2ai_stats_init_run (n_run);
+	r2ai_stats_init_run (state, n_run);
 
 	// Set up args for r2ai_llmcall call with tools directly
 	R2AIArgs args = {
@@ -228,14 +224,14 @@ R_API void process_messages(RCore *core, R2AI_State *state, R2AI_Messages *messa
 			free (cmd_output);
 		}
 
-		r2ai_print_run_end (core, usage, n_run, max_runs);
+		r2ai_print_run_end (core, state, usage, n_run, max_runs);
 
 		// Check if we should continue with recursion
 		if (!interrupted && message->tool_calls && message->n_tool_calls > 0) {
 			process_messages (core, state, messages, system_prompt, n_run + 1);
 		}
 	} else {
-		r2ai_print_run_end (core, usage, n_run, max_runs);
+		r2ai_print_run_end (core, state, usage, n_run, max_runs);
 	}
 
 	// Free the response struct itself since r2ai_message_free doesn't do it anymore

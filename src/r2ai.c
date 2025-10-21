@@ -709,7 +709,7 @@ R_API bool r2ai_fini(RCorePluginSession *cps) {
 
 	R2AI_State *state = cps->data;
 	r2ai_conversation_free (state);
-	r2ai_openai_fini ();
+	r2ai_openai_fini (state);
 
 	if (state) {
 		r_vdb_free (state->db);

@@ -119,7 +119,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AI_State *state, R2AIArgs a
 	if (p && p->uses_anthropic_header) {
 		res = r2ai_anthropic (core, args);
 	} else {
-		res = r2ai_openai (core, args);
+		res = r2ai_openai (core, state, args);
 	}
 	if (context_pullback != -1) {
 		R2AI_Message *msg = r_list_get_n (args.messages->messages, context_pullback);
