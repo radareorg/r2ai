@@ -1064,10 +1064,31 @@ R_API char *r2ai_http_post(RCore *core, const char *url, const char *headers[], 
 #if USE_LIBCURL && HAVE_LIBCURL
 			return curl_http_post (url, headers, data, code, rlen);
 #else
+#ifdef _WIN32
+			int timeout, max_retries, max_backoff;
+			get_http_config(core, &timeout, &max_retries, &max_backoff);
+			char *result = NULL;
+			int retry_count = 0;
+			bool success = false;
+			while (!success && retry_count <= max_retries) {
+				result = windows_http_post(url, headers, data, code, rlen, timeout);
+				if (result) {
+					success = true;
+				} else if (retry_count < max_retries) {
+					retry_count++;
+					R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
+					r2ai_sleep_with_backoff(retry_count, max_backoff);
+				} else {
+					*code = 0;
+				}
+			}
+			return result;
+#else
 #if USE_R2_CURL
 			r_sys_setenv ("R2_CURL", "1");
 #endif
 			return socket_http_post_with_interrupt (url, headers, data, code, rlen);
+#endif
 #endif
 		}
 	}
@@ -1098,10 +1119,31 @@ R_API char *r2ai_http_get(RCore *core, const char *url, const char *headers[], i
 #if USE_LIBCURL && HAVE_LIBCURL
 		return curl_http_get (url, headers, code, rlen);
 #else
+#ifdef _WIN32
+		int timeout, max_retries, max_backoff;
+		get_http_config(core, &timeout, &max_retries, &max_backoff);
+		char *result = NULL;
+		int retry_count = 0;
+		bool success = false;
+		while (!success && retry_count <= max_retries) {
+			result = windows_http_get(url, headers, code, rlen, timeout);
+			if (result) {
+				success = true;
+			} else if (retry_count < max_retries) {
+				retry_count++;
+				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
+				r2ai_sleep_with_backoff(retry_count, max_backoff);
+			} else {
+				*code = 0;
+			}
+		}
+		return result;
+#else
 #if USE_R2_CURL
 		r_sys_setenv ("R2_CURL", "1");
 #endif
 		return socket_http_get_with_interrupt (url, headers, code, rlen);
+#endif
 #endif
 	}
 }
