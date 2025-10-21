@@ -1,15 +1,42 @@
 /* Copyright r2ai - 2023-2025 - pancake */
 
-#include <r_core.h>
 #include "r2ai.h"
 
-int main(int argc, char **argv) {
-	if (argc < 2) {
-		eprintf ("Usage: r2ai <prompt>\n");
+static void show_help() {
+	printf ("Usage: r2ai [-vh] <prompt>\n"
+	"  -v           Show version information\n"
+	"  -h           Show this help message\n");
+}
+
+static void show_version() {
+	printf ("r2ai " R2AI_VERSION "\n");
+}
+
+int main(int argc, const char **argv) {
+	int c;
+
+	RGetopt opt;
+	r_getopt_init (&opt, argc, argv, "vh");
+	while ((c = r_getopt_next (&opt)) != -1) {
+		switch (c) {
+		case 'v':
+			show_version ();
+			return 0;
+		case 'h':
+			show_help ();
+			return 0;
+		default:
+			show_help ();
+			return 1;
+		}
+	}
+
+	if (opt.ind >= argc) {
+		show_help ();
 		return 1;
 	}
 
-	const char *prompt = argv[1];
+	const char *prompt = argv[opt.ind];
 
 	RCore *core = r_core_new ();
 	char *err = NULL;

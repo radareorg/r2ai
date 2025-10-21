@@ -34,7 +34,6 @@ static RCoreHelpMessage help_msg_r2ai = {
 
 extern void cmd_r2ai_q(RCorePluginSession *cps, const char *input);
 
-
 R_API char *r2ai(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
 	R2AI_State *state = cps->data;
