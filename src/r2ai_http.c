@@ -19,11 +19,10 @@
 static volatile sig_atomic_t r2ai_http_interrupted = 0;
 
 // Helper function to get HTTP configuration with defaults
-static void get_http_config(RCore *core_param, int *timeout, int *max_retries, int *max_backoff) {
+static void get_http_config(RCore *core, int *timeout, int *max_retries, int *max_backoff) {
 	*timeout = 120;
 	*max_retries = 10;
 	*max_backoff = 30;
-	RCore *core = core_param? core_param: r_cons_singleton ()->user;
 	if (core) {
 		int t = r_config_get_i (core->config, "r2ai.http.timeout");
 		if (t > 0) {
@@ -1074,8 +1073,7 @@ R_API char *r2ai_http_post(RCore *core, const char *url, const char *headers[], 
 	}
 }
 
-R_API char *r2ai_http_get(const char *url, const char *headers[], int *code, int *rlen) {
-	RCore *core = r_cons_singleton ()->user;
+R_API char *r2ai_http_get(RCore *core, const char *url, const char *headers[], int *code, int *rlen) {
 	const char *backend = "auto";
 
 	if (core) {

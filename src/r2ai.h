@@ -290,7 +290,7 @@ R_API char *r2ai_http_post(RCore *core, const char *url, const char *headers[], 
  * @param rlen Pointer to store the response length
  * @return Response body as string (must be freed by caller) or NULL on error
  */
-R_API char *r2ai_http_get(const char *url, const char *headers[], int *code, int *rlen);
+R_API char *r2ai_http_get(RCore *core, const char *url, const char *headers[], int *code, int *rlen);
 
 /**
  * Get the base URL for a given provider

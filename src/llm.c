@@ -237,14 +237,14 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 
 		// Make HTTP GET request
 		R_LOG_DEBUG ("GET %s Headers: %s", models_url, headers);
-		response = r2ai_http_get (models_url, headers, &code, NULL);
+		response = r2ai_http_get (core, models_url, headers, &code, NULL);
 		free (auth_header);
 		free (version_header);
 		free (api_key);
 	} else {
 		// We have no headers
 		R_LOG_DEBUG ("GET %s", models_url);
-		response = r2ai_http_get (models_url, NULL, &code, NULL);
+		response = r2ai_http_get (core, models_url, NULL, &code, NULL);
 	}
 
 	free (models_url);
