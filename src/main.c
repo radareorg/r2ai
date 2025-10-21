@@ -12,8 +12,6 @@ int main(int argc, char **argv) {
 	const char *prompt = argv[1];
 
 	RCore *core = r_core_new ();
-	R2AI_State *state = R_NEW0 (R2AI_State);
-	r2ai_conversation_init (state);
 	char *err = NULL;
 
 	R2AIArgs args = {
@@ -21,15 +19,18 @@ int main(int argc, char **argv) {
 		.error = &err,
 		.dorag = false,
 	};
-
-	char *res = r2ai (core, state, args);
+	RCorePluginSession cps = {
+		.core = core
+	};
+	r2ai_init (&cps);
+	char *res = r2ai (&cps, args);
 	if (res) {
-		R_LOG_INFO (res);
+		r_cons_println (core->cons, res);
 		free (res);
 	}
 	free (err);
-	r2ai_conversation_free (state);
-	free (state);
+	r_cons_flush (core->cons);
+	r2ai_fini (&cps);
 	r_core_free (core);
 	return 0;
 }

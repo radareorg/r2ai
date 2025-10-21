@@ -135,7 +135,6 @@ static char *replace_vars(RCore *core, const char *text) {
 
 void cmd_r2ai_q(RCorePluginSession *cps, const char *input) {
 	RCore *core = cps->core;
-	R2AI_State *state = cps->data;
 	const char *promptdir = r_config_get (core->config, "r2ai.promptdir");
 	if (!promptdir || !*promptdir) {
 		promptdir = "~/.config/r2ai/prompts";
@@ -220,7 +219,7 @@ void cmd_r2ai_q(RCorePluginSession *cps, const char *input) {
 		char *final_prompt = r_strbuf_drain (sb);
 		// now send to LLM
 		char *error = NULL;
-		char *res = r2ai (core, state, (R2AIArgs){ .input = final_prompt, .error = &error, .dorag = true });
+		char *res = r2ai (cps, (R2AIArgs){ .input = final_prompt, .error = &error, .dorag = true });
 		if (error) {
 			R_LOG_ERROR ("%s", error);
 			free (error);

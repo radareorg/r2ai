@@ -242,7 +242,9 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AI_State *state, R2AIArgs a
 	return res;
 }
 
-R_API char *r2ai(RCore *core, R2AI_State *state, R2AIArgs args) {
+R_API char *r2ai(RCorePluginSession *cps, R2AIArgs args) {
+	RCore *core = cps->core;
+	R2AI_State *state = cps->data;
 	if (R_STR_ISEMPTY (args.input) && !args.messages) {
 		if (args.error) {
 			*args.error = r_str_newf ("Usage: r2ai [-h] [prompt]");
@@ -292,7 +294,6 @@ R_API char *r2ai(RCore *core, R2AI_State *state, R2AIArgs args) {
 
 static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool recursive) {
 	RCore *core = cps->core;
-	R2AI_State *state = cps->data;
 	const char *prompt = r_config_get (core->config, "r2ai.prompt");
 	const char *lang = r_config_get (core->config, "r2ai.lang");
 	char *full_prompt;
@@ -344,7 +345,7 @@ static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool re
 	char *s = r_strbuf_drain (sb);
 	char *error = NULL;
 	R2AIArgs d_args = { .input = s, .error = &error, .dorag = true };
-	char *res = r2ai (core, state, d_args);
+	char *res = r2ai (cps, d_args);
 	free (s);
 	if (error) {
 		R_LOG_ERROR (error);
@@ -389,16 +390,10 @@ static void cmd_r2ai_x(RCorePluginSession *cps) {
 
 static void cmd_r2ai_repl(RCorePluginSession *cps) {
 	RCore *core = cps->core;
-	R2AI_State *state = cps->data;
 	RStrBuf *sb = r_strbuf_new ("");
 	while (true) {
-#if R2_VERSION_NUMBER >= 50909
 		r_line_set_prompt (core->cons->line, ">>> ");
 		const char *ptr = r_line_readline (core->cons);
-#else
-		r_line_set_prompt (">>> ");
-		const char *ptr = r_line_readline ();
-#endif
 		if (R_STR_ISEMPTY (ptr)) {
 			break;
 		}
@@ -419,7 +414,7 @@ static void cmd_r2ai_repl(RCorePluginSession *cps) {
 		const char *a = r_strbuf_tostring (sb);
 		char *error = NULL;
 		char *res =
-			r2ai (core, state, (R2AIArgs){ .input = a, .error = &error, .dorag = true });
+			r2ai (cps, (R2AIArgs){ .input = a, .error = &error, .dorag = true });
 		if (error) {
 			R_LOG_ERROR ("%s", error);
 			free (error);
@@ -472,7 +467,6 @@ static void cmd_r2ai_R(RCorePluginSession *cps, const char *q) {
 
 static void cmd_r2ai_n(RCorePluginSession *cps) {
 	RCore *core = cps->core;
-	R2AI_State *state = cps->data;
 	char *s = r_core_cmd_str (core, "r2ai -d");
 	char *q =
 		r_str_newf ("output only the radare2 commands in plain text without "
@@ -482,7 +476,7 @@ static void cmd_r2ai_n(RCorePluginSession *cps) {
 			s);
 	char *error = NULL;
 	char *res =
-		r2ai (core, state, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
+		r2ai (cps, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
 	free (s);
 	if (error) {
 		R_LOG_ERROR (error);
@@ -496,7 +490,6 @@ static void cmd_r2ai_n(RCorePluginSession *cps) {
 
 static void cmd_r2ai_i(RCorePluginSession *cps, const char *arg) {
 	RCore *core = cps->core;
-	R2AI_State *state = cps->data;
 	char *fname = strdup (arg);
 	char *query = strchr (fname, ' ');
 	if (query) {
@@ -511,7 +504,7 @@ static void cmd_r2ai_i(RCorePluginSession *cps, const char *arg) {
 	char *q = r_str_newf ("%s\n```\n%s\n```\n", query, s);
 	char *error = NULL;
 	char *res =
-		r2ai (core, state, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
+		r2ai (cps, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
 	free (s);
 	if (error) {
 		R_LOG_ERROR (error);
@@ -526,7 +519,6 @@ static void cmd_r2ai_i(RCorePluginSession *cps, const char *arg) {
 
 static void cmd_r2ai_s(RCorePluginSession *cps) {
 	RCore *core = cps->core;
-	R2AI_State *state = cps->data;
 	char *afv = r_core_cmd_str (core, "afv");
 	r_str_trim (afv);
 	char *s = r_core_cmd_str (core, "r2ai -d");
@@ -545,7 +537,7 @@ static void cmd_r2ai_s(RCorePluginSession *cps) {
 		afv, s);
 	char *error = NULL;
 	char *res =
-		r2ai (core, state, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
+		r2ai (cps, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
 	if (error) {
 		R_LOG_ERROR (error);
 		free (error);
@@ -572,7 +564,6 @@ static void cmd_r2ai_s(RCorePluginSession *cps) {
 
 static void cmd_r2ai_v(RCorePluginSession *cps) {
 	RCore *core = cps->core;
-	R2AI_State *state = cps->data;
 	char *s = r_core_cmd_str (core, "r2ai -d");
 	char *afv = r_core_cmd_str (core, "afv");
 	char *q = r_str_newf (
@@ -581,8 +572,12 @@ static void cmd_r2ai_v(RCorePluginSession *cps) {
 		"output an r2 script using afvn and afvt commands:\n```\n%s```",
 		afv);
 	char *error = NULL;
-	char *res =
-		r2ai (core, state, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
+	R2AIArgs args = {
+		.input = q,
+		.error = &error,
+		.dorag = true
+	};
+	char *res = r2ai (cps, args);
 	if (error) {
 		R_LOG_ERROR (error);
 		free (error);
@@ -597,7 +592,6 @@ static void cmd_r2ai_v(RCorePluginSession *cps) {
 
 static void cmd_r2ai_V(RCorePluginSession *cps, bool recursive) {
 	RCore *core = cps->core;
-	R2AI_State *state = cps->data;
 	char *s = r_core_cmd_str (core, recursive? "r2ai -d": "r2ai -dr");
 	char *q = r_str_newf (
 		"find vulnerabilities, dont show the code, only show the response, "
@@ -605,7 +599,7 @@ static void cmd_r2ai_V(RCorePluginSession *cps, bool recursive) {
 		s);
 	char *error = NULL;
 	char *res =
-		r2ai (core, state, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
+		r2ai (cps, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
 	if (error) {
 		R_LOG_ERROR (error);
 		free (error);
@@ -623,9 +617,7 @@ static void cmd_r2ai_m(RCorePluginSession *cps, const char *input) {
 		R2_PRINTF ("%s\n", r_config_get (core->config, "r2ai.model"));
 		return;
 	}
-	r_config_lock (core->config, false);
 	r_config_set (core->config, "r2ai.model", input);
-	r_config_lock (core->config, true);
 	R2_PRINTF ("Model set to %s\n", input);
 }
 
@@ -746,7 +738,7 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 	} else {
 		char *err = NULL;
 		char *res =
-			r2ai (core, state, (R2AIArgs){ .input = input, .error = &err, .dorag = true });
+			r2ai (cps, (R2AIArgs){ .input = input, .error = &err, .dorag = true });
 		if (err) {
 			R_LOG_ERROR ("%s", err);
 			R_FREE (err);
@@ -956,15 +948,11 @@ static bool cb_r2ai_model(void *user, void *data) {
 	return true;
 }
 
-#if R2_VERSION_NUMBER < 60000
-#error Your radare2 is too old
-#endif
-
-static bool r2ai_init(RCorePluginSession *cps) {
+R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	RCore *core = cps->core;
 	// Initialize state
 	R2AI_State *state = R_NEW0 (R2AI_State);
-	cps->data = state; /// <- note that the global state is in cps->data NOT in core->bin->user!! AITODO we must pass RCorePluginSession instead of RCore in the rest of functions to be able to have core and state everywhere. lets make R2_VERSION_NUMBER 600000 the minimum version supported
+	cps->data = state;
 
 	// Initialize conversation container
 	r2ai_conversation_init (state);
@@ -1050,14 +1038,8 @@ static bool r2ai_init(RCorePluginSession *cps) {
 	return true;
 }
 
-#if R2_VERSION_NUMBER >= 50909
-static bool r2ai_fini(RCorePluginSession *cps) {
+R_API bool r2ai_fini(RCorePluginSession *cps) {
 	RCore *core = cps->core;
-#else
-static int r2ai_fini(void *user, const char *input) {
-	RCmd *cmd = (RCmd *)user;
-	RCore *core = cmd->data;
-#endif
 	r_config_lock (core->config, false);
 	r_config_rm (core->config, "r2ai.api");
 	r_config_rm (core->config, "r2ai.cmds");
@@ -1076,23 +1058,13 @@ static int r2ai_fini(void *user, const char *input) {
 	r_config_rm (core->config, "r2ai.http.use_files");
 	r_config_lock (core->config, true);
 
-	// Get state from cps
 	R2AI_State *state = cps->data;
-
-	// Free the conversation
-	if (state) {
-		r2ai_conversation_free (state);
-	}
-
-	// Free the OpenAI resources
+	r2ai_conversation_free (state);
 	r2ai_openai_fini ();
 
-	// Free the state
 	if (state) {
-		if (state->db) {
-			r_vdb_free (state->db);
-			state->db = NULL;
-		}
+		r_vdb_free (state->db);
+		state->db = NULL;
 		free (state);
 		cps->data = NULL;
 	}
@@ -1113,7 +1085,7 @@ RCorePlugin r_core_plugin_r2ai_client = {
 		.name = "r2ai",
 		.desc = "r2ai plugin in plain C",
 		.author = "pancake",
-		.version = "1.1.2",
+		.version = R2AI_VERSION,
 		.license = "MIT",
 	},
 	.init = r2ai_init,
@@ -1125,9 +1097,7 @@ RCorePlugin r_core_plugin_r2ai_client = {
 R_API RLibStruct radare_plugin = {
 	.type = R_LIB_TYPE_CORE,
 	.data = &r_core_plugin_r2ai_client,
-#if R2_VERSION_NUMBER >= 50909
 	.abiversion = R2_ABIVERSION,
-#endif
 	.version = R2_VERSION
 };
 #endif

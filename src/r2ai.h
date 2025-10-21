@@ -11,6 +11,12 @@
 #include "r_vdb.h"
 #include "markdown.h"
 
+#define R2AI_VERSION "1.1.2"
+
+#if R2_VERSION_NUMBER < 60000
+#error Your radare2 is too old
+#endif
+
 // R_API definition if not available
 #ifndef R_API
 #define R_API
@@ -22,15 +28,11 @@
 
 // Forward declarations to avoid circular dependencies - these are defined in radare2 headers
 
-#if R2_VERSION_NUMBER >= 50909
 #define R2_PRINTF(...) r_cons_printf (core->cons, __VA_ARGS__)
 #define R2_FLUSH() r_cons_flush (core->cons)
 #define R2_NEWLINE() r_cons_newline (core->cons)
 #define R2_PRINTLN(x) r_cons_println (core->cons, x)
 #define R2_INTERRUPTED() r_cons_is_breaked (core->cons)
-#else
-#error your radare2 is too old
-#endif
 
 // Tool definition structure
 typedef struct {
@@ -307,7 +309,10 @@ R_IPI void r2ai_openai_fini(void);
 
 // auto mode
 R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query);
-R_API char *r2ai(RCore *core, R2AI_State *state, R2AIArgs args);
+// R_API char *r2ai(RCore *core, R2AI_State *state, R2AIArgs args);
+R_API char *r2ai(RCorePluginSession *cps, R2AIArgs args);
+R_API bool r2ai_init(RCorePluginSession *cps);
+R_API bool r2ai_fini(RCorePluginSession *cps);
 
 R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AI_State *state, R2AIArgs args);
 
