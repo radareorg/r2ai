@@ -144,7 +144,9 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 		headers[0] = "Content-Type: application/json";
 		headers[1] = auth_header;
 	}
-
+	if (!args.provider) {
+		return NULL;
+	}
 	const char *urlfmt = strcmp (args.provider, "ollama")
 		? "%s/chat/completions"
 		: "%s/chat";

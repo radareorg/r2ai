@@ -18,6 +18,9 @@ static const R2AIProvider r2ai_providers[] = {
 };
 
 R_IPI const R2AIProvider *r2ai_get_provider(const char *name) {
+	if (R_STR_ISEMPTY (name)) {
+		return NULL;
+	}
 	for (int i = 0; r2ai_providers[i].name; i++) {
 		if (!strcmp (name, r2ai_providers[i].name)) {
 			return &r2ai_providers[i];
@@ -26,8 +29,18 @@ R_IPI const R2AIProvider *r2ai_get_provider(const char *name) {
 	return NULL;
 }
 
+// Forward declaration for rawtools
+R_API R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args);
+
 R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
+
+	// Check if rawtools mode is enabled
+	bool rawtools_enabled = r_config_get_b(core->config, "r2ai.rawtools");
+	if (rawtools_enabled) {
+		return r2ai_rawtools_llmcall(cps, args);
+	}
+
 	R2AI_State *state = cps->data;
 	R2AI_ChatResponse *res = NULL;
 	const char *provider = args.provider? args.provider: r_config_get (core->config, "r2ai.api");
