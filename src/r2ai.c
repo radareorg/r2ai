@@ -26,7 +26,6 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -R", "reset the chat conversation context",
 	"r2ai", " -Rq ([text])", "refresh and query embeddings (see r2ai.data)",
 	"r2ai", " -s", "function signature",
-	"r2ai", " -x", "explain current function",
 	"r2ai", " -v", "suggest better variables names and types",
 	"r2ai", " [arg]", "send a post request to talk to r2ai and print the output",
 	NULL
@@ -144,36 +143,6 @@ static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool re
 	}
 	free (res);
 	r_list_free (cmdslist);
-}
-
-static void cmd_r2ai_x(RCorePluginSession *cps) {
-	RCore *core = cps->core;
-	const char *hlang = r_config_get (core->config, "r2ai.hlang");
-	char *explain_prompt = r_str_newf (
-		"Analyze function calls, comments and strings, ignore registers and "
-		"memory accesess. Considering the references and involved loops make "
-		"explain the purpose of this function in one or two short sentences. "
-		"Output must be only the translation of the explanation in %s",
-		hlang);
-	char *s = r_core_cmd_str (core, "r2ai -d");
-
-	// Create conversation
-	R2AI_Messages *msgs = create_conversation (s);
-	if (!msgs) {
-		R_LOG_ERROR ("Failed to create conversation");
-		free (s);
-		free (explain_prompt);
-		return;
-	}
-
-	// Process the conversation with custom system prompt (will print the result)
-	process_messages (cps, msgs, explain_prompt, 1);
-
-	// Free temporary messages
-	r2ai_msgs_free (msgs);
-
-	free (s);
-	free (explain_prompt);
 }
 
 static void cmd_r2ai_repl(RCorePluginSession *cps) {
@@ -454,8 +423,6 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		cmd_r2ai_d (cps, r_str_trim_head_ro (input + 2), false);
 	} else if (r_str_startswith (input, "-dr")) {
 		cmd_r2ai_d (cps, r_str_trim_head_ro (input + 2), true);
-	} else if (r_str_startswith (input, "-x")) {
-		cmd_r2ai_x (cps);
 	} else if (r_str_startswith (input, "-s")) {
 		cmd_r2ai_s (cps);
 	} else if (r_str_startswith (input, "-S")) {
