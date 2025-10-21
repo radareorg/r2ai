@@ -68,7 +68,9 @@ R_IPI void r2ai_openai_fini(R2AI_State *state) {
 	}
 }
 
-R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AI_State *state, R2AIArgs args) {
+R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
+	RCore *core = cps->core;
+	R2AI_State *state = cps->data;
 	// Initialize compatibility database if needed
 	if (!state->model_compat_db) {
 		state->model_compat_db = ht_pp_new0 ();
@@ -285,7 +287,8 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AI_State *state, R2AIArgs ar
 
 				// Retry the call (it will skip problematic parameters this time)
 				R_LOG_INFO ("Retrying request with adjusted parameters for %s/%s", args.provider, model_name);
-				return r2ai_openai (core, state, args);
+				RCorePluginSession retry_cps = { .core = core, .data = state };
+				return r2ai_openai (&retry_cps, args);
 			}
 		}
 		free (auth_header);

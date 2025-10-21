@@ -17,6 +17,6 @@ R_IPI const R2AIProvider *r2ai_get_provider(const char *name);
 R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider);
 R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider);
 R_IPI void r2ai_list_providers(RCore *core, RStrBuf *sb);
-R_IPI void r2ai_refresh_embeddings(RCore *core, R2AI_State *state);
+R_IPI void r2ai_refresh_embeddings(RCorePluginSession *cps);
 
 #endif

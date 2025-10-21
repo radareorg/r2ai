@@ -1,6 +1,8 @@
 #define R_LOG_ORIGIN "llm"
 
+#include "r2ai.h"
 #include "r2ai_priv.h"
+#include <string.h>
 
 static const R2AIProvider r2ai_providers[] = {
 	{ "openai", "https://api.openai.com/v1", true, false, false, false },
@@ -24,7 +26,9 @@ R_IPI const R2AIProvider *r2ai_get_provider(const char *name) {
 	return NULL;
 }
 
-R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AI_State *state, R2AIArgs args) {
+R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
+	RCore *core = cps->core;
+	R2AI_State *state = cps->data;
 	R2AI_ChatResponse *res = NULL;
 	const char *provider = r_config_get (core->config, "r2ai.api");
 	if (!provider) {
@@ -83,7 +87,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AI_State *state, R2AIArgs a
 		const int K = r_config_get_i (core->config, "r2ai.data.nth");
 		if (!state->db) {
 			state->db = r_vdb_new (VDBDIM);
-			r2ai_refresh_embeddings (core, state);
+			r2ai_refresh_embeddings (cps);
 		}
 		RStrBuf *sb = r_strbuf_new ("");
 		r_strbuf_appendf (sb, "\n ## Query\n\n%s\n ## Context\n", args.input);
@@ -117,9 +121,9 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AI_State *state, R2AIArgs a
 	R_LOG_DEBUG ("Using provider: %s", provider);
 	const R2AIProvider *p = r2ai_get_provider (provider);
 	if (p && p->uses_anthropic_header) {
-		res = r2ai_anthropic (core, args);
+		res = r2ai_anthropic (cps, args);
 	} else {
-		res = r2ai_openai (core, state, args);
+		res = r2ai_openai (cps, args);
 	}
 	if (context_pullback != -1) {
 		R2AI_Message *msg = r_list_get_n (args.messages->messages, context_pullback);
@@ -309,7 +313,9 @@ R_IPI void r2ai_list_providers(RCore *core, RStrBuf *sb) {
 	}
 }
 
-R_IPI void r2ai_refresh_embeddings(RCore *core, R2AI_State *state) {
+R_IPI void r2ai_refresh_embeddings(RCorePluginSession *cps) {
+	RCore *core = cps->core;
+	R2AI_State *state = cps->data;
 	RListIter *iter, *iter2;
 	char *line;
 	char *file;

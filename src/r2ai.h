@@ -301,10 +301,10 @@ R_API char *r2ai_http_get(RCore *core, const char *url, const char *headers[], i
 R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider);
 
 // anthropic
-R_IPI R2AI_ChatResponse *r2ai_anthropic(RCore *core, R2AIArgs args);
+R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args);
 
 // openai
-R_IPI R2AI_ChatResponse *r2ai_openai(RCore *core, R2AI_State *state, R2AIArgs args);
+R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args);
 R_IPI void r2ai_openai_fini(R2AI_State *state);
 
 // auto mode
@@ -314,7 +314,7 @@ R_API char *r2ai(RCorePluginSession *cps, R2AIArgs args);
 R_API bool r2ai_init(RCorePluginSession *cps);
 R_API bool r2ai_fini(RCorePluginSession *cps);
 
-R_IPI R2AI_ChatResponse *r2ai_llmcall(RCore *core, R2AI_State *state, R2AIArgs args);
+R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args);
 
 R_IPI void cmd_r2ai_logs(RCorePluginSession *cps);
 
@@ -326,7 +326,7 @@ R_API R2AI_Messages *create_conversation(const char *user_message);
 /**
  * Process messages through LLM and handle tool calls recursively
  */
-R_API void process_messages(RCore *core, R2AI_State *state, R2AI_Messages *messages, const char *system_prompt, int n_run);
+R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, const char *system_prompt, int n_run);
 
 /**
  * Helper function to convert RJson to string

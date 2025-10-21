@@ -35,7 +35,9 @@ static void r2ai_stats_init_run(R2AI_State *state, int n_run) {
 }
 
 // Print a simple run indicator at the start
-static void r2ai_print_run_end(RCore *core, R2AI_State *state, const R2AI_Usage *usage, int n_run, int max_runs) {
+static void r2ai_print_run_end(RCorePluginSession *cps, const R2AI_Usage *usage, int n_run, int max_runs) {
+	RCore *core = cps->core;
+	R2AI_State *state = cps->data;
 	(void)n_run;
 	(void)max_runs;
 	time_t run_time = time (NULL) - state->stats.start_time;
@@ -98,7 +100,9 @@ const char *Gprompt_auto = "You are a reverse engineer and you are using radare2
 			"- Make sure you call tools and functions correctly.\n";
 
 // Helper function to process messages and handle tool calls recursively
-R_API void process_messages(RCore *core, R2AI_State *state, R2AI_Messages *messages, const char *system_prompt, int n_run) {
+R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, const char *system_prompt, int n_run) {
+	RCore *core = cps->core;
+	R2AI_State *state = cps->data;
 	char *error = NULL;
 	bool interrupted = false;
 	const int max_runs = r_config_get_i (core->config, "r2ai.auto.max_runs");
@@ -136,7 +140,7 @@ R_API void process_messages(RCore *core, R2AI_State *state, R2AI_Messages *messa
 	};
 
 	// Call r2ai_llmcall to get a response
-	R2AI_ChatResponse *response = r2ai_llmcall (core, state, args);
+	R2AI_ChatResponse *response = r2ai_llmcall (cps, args);
 
 	if (!response) {
 		return;
@@ -224,14 +228,14 @@ R_API void process_messages(RCore *core, R2AI_State *state, R2AI_Messages *messa
 			free (cmd_output);
 		}
 
-		r2ai_print_run_end (core, state, usage, n_run, max_runs);
+		r2ai_print_run_end (cps, usage, n_run, max_runs);
 
 		// Check if we should continue with recursion
 		if (!interrupted && message->tool_calls && message->n_tool_calls > 0) {
-			process_messages (core, state, messages, system_prompt, n_run + 1);
+			process_messages (cps, messages, system_prompt, n_run + 1);
 		}
 	} else {
-		r2ai_print_run_end (core, state, usage, n_run, max_runs);
+		r2ai_print_run_end (cps, usage, n_run, max_runs);
 	}
 
 	// Free the response struct itself since r2ai_message_free doesn't do it anymore
@@ -261,7 +265,7 @@ R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query) {
 	};
 	r2ai_msgs_add (messages, &user_msg);
 
-	process_messages (core, state, messages, NULL, 1);
+	process_messages (cps, messages, NULL, 1);
 }
 
 // Helper function to display content with length indication for long content

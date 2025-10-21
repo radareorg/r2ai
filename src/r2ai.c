@@ -36,7 +36,6 @@ extern void cmd_r2ai_q(RCorePluginSession *cps, const char *input);
 
 R_API char *r2ai(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
-	R2AI_State *state = cps->data;
 	if (R_STR_ISEMPTY (args.input) && !args.messages) {
 		if (args.error) {
 			*args.error = r_str_newf ("Usage: r2ai [-h] [prompt]");
@@ -57,7 +56,7 @@ R_API char *r2ai(RCorePluginSession *cps, R2AIArgs args) {
 
 	args.messages = msgs;
 
-	R2AI_ChatResponse *res = r2ai_llmcall (core, state, args);
+	R2AI_ChatResponse *res = r2ai_llmcall (cps, args);
 	if (!res) {
 		return NULL;
 	}
@@ -149,7 +148,6 @@ static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool re
 
 static void cmd_r2ai_x(RCorePluginSession *cps) {
 	RCore *core = cps->core;
-	R2AI_State *state = cps->data;
 	const char *hlang = r_config_get (core->config, "r2ai.hlang");
 	char *explain_prompt = r_str_newf (
 		"Analyze function calls, comments and strings, ignore registers and "
@@ -169,7 +167,7 @@ static void cmd_r2ai_x(RCorePluginSession *cps) {
 	}
 
 	// Process the conversation with custom system prompt (will print the result)
-	process_messages (core, state, msgs, explain_prompt, 1);
+	process_messages (cps, msgs, explain_prompt, 1);
 
 	// Free temporary messages
 	r2ai_msgs_free (msgs);
@@ -230,9 +228,9 @@ static void cmd_r2ai_R(RCorePluginSession *cps, const char *q) {
 			r_vdb_free (state->db);
 			state->db = NULL;
 		}
-		r2ai_refresh_embeddings (core, state);
+		r2ai_refresh_embeddings (cps);
 	} else {
-		r2ai_refresh_embeddings (core, state);
+		r2ai_refresh_embeddings (cps);
 		const int K = r_config_get_i (core->config, "r2ai.data.nth");
 		RVdbResultSet *rs = r_vdb_query (state->db, q, K);
 
@@ -411,7 +409,9 @@ static void cmd_r2ai_m(RCorePluginSession *cps, const char *input) {
 	R2_PRINTF ("Model set to %s\n", input);
 }
 
-static void load_embeddings(RCore *core, R2AI_State *state) {
+static void load_embeddings(RCorePluginSession *cps) {
+	RCore *core = cps->core;
+	R2AI_State *state = cps->data;
 	RListIter *iter, *iter2;
 	char *line;
 	char *file;
@@ -482,7 +482,7 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 	} else if (r_str_startswith (input, "-S")) {
 		if (state->db == NULL) {
 			state->db = r_vdb_new (VDBDIM);
-			load_embeddings (core, state);
+			load_embeddings (cps);
 		}
 		const char *arg = r_str_trim_head_ro (input + 2);
 		const int K = 10;

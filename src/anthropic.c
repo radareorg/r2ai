@@ -4,7 +4,8 @@ static const char *modelname(const char *model_name) {
 	return model_name? model_name: "claude-3-7-sonnet-20250219";
 }
 
-R_IPI R2AI_ChatResponse *r2ai_anthropic(RCore *core, R2AIArgs args) {
+R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) {
+	RCore *core = cps->core;
 	const char *model = args.model;
 	char **error = args.error;
 	const R2AI_Tools *tools = args.tools;
