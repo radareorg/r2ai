@@ -509,7 +509,7 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_desc (core->config, "r2ai.auto.max_runs", "Maximum number of automated steps/runs in auto mode");
 	r_config_set_b (core->config, "r2ai.auto.hide_tool_output", false);
 	r_config_desc (core->config, "r2ai.auto.hide_tool_output", "Hide tool output when running automated actions");
-	r_config_set (core->config, "r2ai.auto.init_commands", "aaa;iI;afl");
+	r_config_set (core->config, "r2ai.auto.init_commands", "iI"); // "aaa;iI;afl~[3]"
 	r_config_desc (core->config, "r2ai.auto.init_commands", "Initial commands executed when auto mode starts (semicolon separated)");
 	r_config_set_b (core->config, "r2ai.auto.yolo", false);
 	r_config_desc (core->config, "r2ai.auto.yolo", "Execute potentially dangerous commands in auto mode without asking");
