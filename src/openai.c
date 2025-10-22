@@ -417,7 +417,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 
 	free (auth_header);
 	free (res);
-		eprintf ("final \n");
+	eprintf ("final \n");
 	return NULL;
 }
 

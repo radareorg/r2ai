@@ -25,32 +25,24 @@ static char *build_rawtools_prompt(const R2AI_Tools *tools) {
 	if (!sb) {
 		return NULL;
 	}
-	r_strbuf_append (sb, "You have access to the following tools:\n\n");
 
-	for (int i = 0; i < tools->n_tools; i++) {
-		const R2AI_Tool *tool = &tools->tools[i];
-		r_strbuf_append (sb, "TOOL: ");
-		if (tool->name) {
-			r_strbuf_append (sb, tool->name);
-		}
-		r_strbuf_append (sb, "\n");
-		if (tool->description) {
-			r_strbuf_append (sb, "DESCRIPTION: ");
-			r_strbuf_append (sb, tool->description);
-			r_strbuf_append (sb, "\n");
-		}
-		if (tool->parameters) {
-			r_strbuf_append (sb, "PARAMETERS: ");
-			r_strbuf_append (sb, tool->parameters);
-			r_strbuf_append (sb, "\n");
-		}
-		r_strbuf_append (sb, "\n");
-	}
+	// Add basic r2 commands cheatsheet
+	r_strbuf_append (sb, "Common radare2 commands you can use with r2cmd:\n");
+	r_strbuf_append (sb, "- i: Show binary information\n");
+	r_strbuf_append (sb, "- iI: Show detailed binary info\n");
+	r_strbuf_append (sb, "- iz: Show strings\n");
+	r_strbuf_append (sb, "- afl: List functions\n");
+	r_strbuf_append (sb, "- pdf @ function: Disassemble function\n");
+	r_strbuf_append (sb, "- px @ address: Show hexdump\n");
+	r_strbuf_append (sb, "- aaa: Analyze all\n");
+	r_strbuf_append (sb, "- s address: Seek to address\n");
+	r_strbuf_append (sb, "- ? command: Get help\n\n");
 
-	r_strbuf_append (sb, "To use a tool, respond with exactly one line in this format:\n");
-	r_strbuf_append (sb, "TOOL: tool_name arguments\n\n");
-	r_strbuf_append (sb, "Where arguments is a JSON string with the tool parameters.\n");
-	r_strbuf_append (sb, "Do not include any other text or explanations in your response when using a tool.\n\n");
+	r_strbuf_append (sb, "To run radare2 commands, use the r2cmd tool with JSON arguments.\n\n");
+	r_strbuf_append (sb, "TOOL: r2cmd\n");
+	r_strbuf_append (sb, "USAGE: TOOL: r2cmd {\"command\": \"your_command_here\"}\n\n");
+	r_strbuf_append (sb, "Example: TOOL: r2cmd {\"command\": \"i\"}\n\n");
+	r_strbuf_append (sb, "If you don't need to run commands, just answer directly.\n\n");
 
 	return r_strbuf_drain (sb);
 }
@@ -64,7 +56,7 @@ static bool parse_raw_tool_call(const char *response, char **tool_name, char **t
 	*tool_name = NULL;
 	*tool_args = NULL;
 
-	// Look for "TOOL: " at the beginning of a line
+	// First try to parse "TOOL: " format
 	const char *tool_prefix = "TOOL: ";
 	const char *line_start = response;
 
@@ -105,6 +97,21 @@ static bool parse_raw_tool_call(const char *response, char **tool_name, char **t
 		line_start += strlen (tool_prefix);
 	}
 
+	// If no TOOL: format found, try to parse JSON response
+	// Look for JSON that looks like tool arguments
+	const char *json_start = strstr (response, "{\"command\"");
+	if (json_start) {
+		*tool_name = strdup ("r2cmd");
+		*tool_args = strdup (json_start);
+		// Trim trailing whitespace and newlines
+		char *end = *tool_args + strlen (*tool_args) - 1;
+		while (end > *tool_args && (*end == ' ' || *end == '\t' || *end == '\n' || *end == '\r')) {
+			*end = '\0';
+			end--;
+		}
+		return true;
+	}
+
 	return false;
 }
 
@@ -139,18 +146,42 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 
 	// For rawtools, use a shorter system prompt to avoid token limits
 	const char *short_system_prompt = "You are a reverse engineer using radare2. The binary is loaded. Use r2cmd tool for analysis.";
+
+	// Check for initial command output in messages
+	char *init_output = NULL;
+	if (args.messages && args.messages->messages) {
+		RList *msgs = args.messages->messages;
+		int n_msgs = r_list_length (msgs);
+		for (int i = 0; i < n_msgs; i++) {
+			R2AI_Message *msg = r_list_get_n (msgs, i);
+			if (msg && msg->role && !strcmp (msg->role, "system") && msg->content &&
+				strstr (msg->content, "Here is some information about the binary")) {
+				init_output = strdup (msg->content);
+				break;
+			}
+		}
+	}
+
 	size_t total_len = strlen (short_system_prompt) + strlen (rawtools_prompt) + 3; // +3 for \n\n and null
+	if (init_output) {
+		total_len += strlen (init_output) + 3; // +3 for \n\n
+	}
 	char *enhanced_system_prompt = malloc (total_len);
 	if (enhanced_system_prompt) {
-		snprintf (enhanced_system_prompt, total_len, "%s\n\n%s", short_system_prompt, rawtools_prompt);
+		if (init_output) {
+			snprintf (enhanced_system_prompt, total_len, "%s\n\n%s\n\n%s", short_system_prompt, init_output, rawtools_prompt);
+		} else {
+			snprintf (enhanced_system_prompt, total_len, "%s\n\n%s", short_system_prompt, rawtools_prompt);
+		}
 	}
+	free (init_output);
 
 	eprintf ("PROMPT (%s)\n", enhanced_system_prompt);
 	// Temporarily modify args to use enhanced prompt and no tools (since we're using prompt engineering)
 	R2AIArgs rawtools_args = args;
 	rawtools_args.system_prompt = enhanced_system_prompt;
 	rawtools_args.tools = NULL; // Disable native tool calling
-	R2_PRINTF ("\x1b[35m[RAWTOOLS] Enhanced prompt length: %zu\x1b[0m\n", enhanced_system_prompt ? strlen (enhanced_system_prompt) : 0);
+	R2_PRINTF ("\x1b[35m[RAWTOOLS] Enhanced prompt length: %zu\x1b[0m\n", enhanced_system_prompt? strlen (enhanced_system_prompt): 0);
 	R2_FLUSH ();
 
 	// Make the LLM call directly to provider
@@ -177,7 +208,7 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 		// Fall back to normal provider call directly to avoid recursion
 		R2AIArgs fallback_args = args;
 		fallback_args.tools = NULL; // Disable tools for fallback
-		const char *provider = fallback_args.provider ? fallback_args.provider : r_config_get (core->config, "r2ai.api");
+		const char *provider = fallback_args.provider? fallback_args.provider: r_config_get (core->config, "r2ai.api");
 		if (!provider) {
 			provider = "gemini";
 		}

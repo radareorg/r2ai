@@ -37,11 +37,11 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 
 	// Check if rawtools mode is enabled
 	bool rawtools_enabled = r_config_get_b (core->config, "r2ai.rawtools");
-	const char *provider = args.provider ? args.provider : r_config_get (core->config, "r2ai.api");
+	const char *provider = args.provider? args.provider: r_config_get (core->config, "r2ai.api");
 	if (!provider) {
 		provider = "gemini";
 	}
-	R2_PRINTF ("\x1b[35m[DEBUG] Rawtools enabled: %s\x1b[0m\n", rawtools_enabled ? "true" : "false");
+	R2_PRINTF ("\x1b[35m[DEBUG] Rawtools enabled: %s\x1b[0m\n", rawtools_enabled? "true": "false");
 	R2_FLUSH ();
 	if (rawtools_enabled && args.tools && args.tools->n_tools > 0) {
 		R2_PRINTF ("\x1b[35m[DEBUG] Calling r2ai_rawtools_llmcall\x1b[0m\n");
