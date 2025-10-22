@@ -75,6 +75,8 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	if (!state->model_compat_db) {
 		state->model_compat_db = ht_pp_new0 ();
 	}
+	args.provider = r_config_get (core->config, "r2ai.api");
+	args.model = r_config_get (core->config, "r2ai.model");
 
 	const char *base_url = r2ai_get_provider_url (core, args.provider);
 	// TODO: default model name should depend on api
@@ -87,6 +89,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 		if (error) {
 			*error = strdup ("Failed to create temporary messages array");
 		}
+		eprintf ("ERROR\n");
 		return NULL;
 	}
 	R2AI_Message system_msg = {
@@ -144,9 +147,6 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 		headers[0] = "Content-Type: application/json";
 		headers[1] = auth_header;
 	}
-	if (!args.provider) {
-		return NULL;
-	}
 	const char *urlfmt = strcmp (args.provider, "ollama")
 		? "%s/chat/completions"
 		: "%s/chat";
@@ -170,6 +170,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 			*error = strdup ("No messages provided");
 		}
 		free (auth_header);
+		eprintf ("NOULL \n");
 		return NULL;
 	}
 
@@ -225,6 +226,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 		if (openai_tools_json) {
 			free (openai_tools_json);
 		}
+		eprintf ("anothereNOULL \n");
 		return NULL;
 	}
 
@@ -255,6 +257,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 			*error = strdup ("Failed to create complete request JSON");
 		}
 		free (auth_header);
+		eprintf ("back to null\n");
 		return NULL;
 	}
 
@@ -282,30 +285,31 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 			R_LOG_ERROR ("OpenAI API error response: %s", res);
 			// Check for specific error types in the response
 			ModelErrorFlags error_flag = MODEL_ERROR_NONE;
-			const char *model_name = args.model? args.model: "gpt-5-mini";
 
 			// Check for temperature errors
 			if (strstr (res, "temperature")) {
-				R_LOG_DEBUG ("Detected temperature error for %s model %s", args.provider, model_name);
+				R_LOG_DEBUG ("Detected temperature error for %s model %s", args.provider, args.model);
 				error_flag |= MODEL_ERROR_TEMPERATURE;
 			}
 
 			if (error_flag != MODEL_ERROR_NONE) {
 				// Record the error flags for this provider/model
-				model_add_error (state, args.provider, model_name, error_flag);
+				model_add_error (state, args.provider, args.model, error_flag);
 
 				// Clean up
 				free (auth_header);
 				free (res);
 
 				// Retry the call (it will skip problematic parameters this time)
-				R_LOG_INFO ("Retrying request with adjusted parameters for %s/%s", args.provider, model_name);
+				R_LOG_INFO ("Retrying request with adjusted parameters for %s/%s", args.provider, args.model);
 				RCorePluginSession retry_cps = { .core = core, .data = state };
+				eprintf ("PROVIDER %s\n", args.provider);
 				return r2ai_openai (&retry_cps, args);
 			}
 		}
 		free (auth_header);
 		free (res);
+		eprintf ("trito null\n");
 		return NULL;
 	}
 
@@ -413,6 +417,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 
 	free (auth_header);
 	free (res);
+		eprintf ("final \n");
 	return NULL;
 }
 

@@ -357,8 +357,12 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		cmd_r2ai_m (cps, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-p")) {
 		const char *provider = r_str_trim_head_ro (input + 2);
-		r_config_set (core->config, "r2ai.api", provider);
-		R2_PRINTF ("Provider set to %s\n", provider);
+		if (R_STR_ISEMPTY (provider)) {
+			R2_PRINTF ("%s\n", r_config_get (core->config, "r2ai.api"));
+		} else {
+			r_config_set (core->config, "r2ai.api", provider);
+			R2_PRINTF ("Provider set to %s\n", provider);
+		}
 	} else if (r_str_startswith (input, "-q")) {
 		r2ai_cmd_q (cps, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-")) {

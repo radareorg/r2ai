@@ -128,11 +128,12 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 			char *edited_command = NULL;
 			char *cmd_output = execute_tool (core, "r2cmd", r_str_newf ("{\"command\":\"%s\"}", init_commands), &edited_command);
 			R2_PRINTF ("\x1b[35m[DEBUG] Init commands executed, output length: %zu\x1b[0m\n", cmd_output ? strlen (cmd_output) : 0);
-			if (cmd_output) {
+			if (R_STR_ISNOTEMPTY (cmd_output)) {
 				R2AI_Message init_msg = {
 					.role = "system",
 					.content = r_str_newf ("Here is some information about the binary to get you started:\n>%s\n%s", edited_command, cmd_output)
 				};
+				eprintf ("ADD MSG\n");
 				r2ai_msgs_add (messages, &init_msg);
 				R2_PRINTF ("\x1b[35m[DEBUG] Added init message to conversation\x1b[0m\n");
 				free (cmd_output);
@@ -151,7 +152,7 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 		.messages = messages,
 		.error = &error,
 		.dorag = true,
-		.tools = (n_run == 1)? r2ai_get_tools (): NULL, // Only send tools for the first call
+		.tools = r2ai_get_tools (), // Always send tools in auto mode
 		.system_prompt = system_prompt
 	};
 
@@ -164,7 +165,7 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 	R2_FLUSH ();
 
 	if (!response) {
-		R2_PRINTF ("\x1b[31m[DEBUG] r2ai_llmcall failed - probably no API key or provider issue\x1b[0m\n");
+		R2_PRINTF ("\x1b[31m[DEBUG] r2ai_llmcall failed\x1b[0m\n");
 		R2_FLUSH ();
 		return;
 	}

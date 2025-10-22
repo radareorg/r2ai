@@ -117,25 +117,6 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 	R2_PRINTF ("\x1b[35m[RAWTOOLS] r2ai_rawtools_llmcall called with cps=%p, core=%p\x1b[0m\n", cps, core);
 	R2_FLUSH ();
 
-	// Check if this is a recursive call (has tool messages) - if so, disable rawtools
-	bool has_tool_messages = false;
-	if (args.messages) {
-		for (int i = 0; i < r_list_length (args.messages->messages); i++) {
-			R2AI_Message *msg = r_list_get_n (args.messages->messages, i);
-			if (msg && !strcmp (msg->role, "tool")) {
-				has_tool_messages = true;
-				break;
-			}
-		}
-	}
-
-	// Check if rawtools is enabled
-	if (!r2ai_rawtools_enabled (core) || has_tool_messages) {
-		R_LOG_DEBUG ("Rawtools not enabled or recursive call, falling back to normal LLM call");
-		// Fall back to normal LLM call
-		return r2ai_llmcall (cps, args);
-	}
-
 	// Build the rawtools prompt
 	char *rawtools_prompt = build_rawtools_prompt (args.tools);
 	if (!rawtools_prompt) {
@@ -155,21 +136,16 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 
 	// Modify the system prompt to include rawtools instructions only if no tool messages
 	const char *original_system_prompt = args.system_prompt;
-	char *enhanced_system_prompt = NULL;
 
-	if (!has_tool_messages) {
-		// For rawtools, use a shorter system prompt to avoid token limits
-		const char *short_system_prompt = "You are a reverse engineer using radare2. The binary is loaded. Use r2cmd tool for analysis.";
-		size_t total_len = strlen (short_system_prompt) + strlen (rawtools_prompt) + 3; // +3 for \n\n and null
-		enhanced_system_prompt = malloc (total_len);
-		if (enhanced_system_prompt) {
-			snprintf (enhanced_system_prompt, total_len, "%s\n\n%s", short_system_prompt, rawtools_prompt);
-		}
-	} else {
-		// For recursive calls with tool results, use original system prompt
-		enhanced_system_prompt = original_system_prompt? strdup (original_system_prompt): NULL;
+	// For rawtools, use a shorter system prompt to avoid token limits
+	const char *short_system_prompt = "You are a reverse engineer using radare2. The binary is loaded. Use r2cmd tool for analysis.";
+	size_t total_len = strlen (short_system_prompt) + strlen (rawtools_prompt) + 3; // +3 for \n\n and null
+	char *enhanced_system_prompt = malloc (total_len);
+	if (enhanced_system_prompt) {
+		snprintf (enhanced_system_prompt, total_len, "%s\n\n%s", short_system_prompt, rawtools_prompt);
 	}
 
+	eprintf ("PROMPT (%s)\n", enhanced_system_prompt);
 	// Temporarily modify args to use enhanced prompt and no tools (since we're using prompt engineering)
 	R2AIArgs rawtools_args = args;
 	rawtools_args.system_prompt = enhanced_system_prompt;
@@ -194,6 +170,25 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 		response = r2ai_openai (cps, rawtools_args);
 	}
 	R2_PRINTF ("\x1b[35m[RAWTOOLS] Provider call returned: %p\x1b[0m\n", response);
+
+#if 0
+	if (!response) {
+		R_LOG_DEBUG ("Rawtools provider call failed, falling back to normal mode");
+		// Fall back to normal provider call directly to avoid recursion
+		R2AIArgs fallback_args = args;
+		fallback_args.tools = NULL; // Disable tools for fallback
+		const char *provider = fallback_args.provider ? fallback_args.provider : r_config_get (core->config, "r2ai.api");
+		if (!provider) {
+			provider = "gemini";
+		}
+		const R2AIProvider *p = r2ai_get_provider (provider);
+		if (p && p->uses_anthropic_header) {
+			return r2ai_anthropic (cps, fallback_args);
+		} else {
+			return r2ai_openai (cps, fallback_args);
+		}
+	}
+#endif
 
 	if (enhanced_system_prompt != rawtools_prompt) {
 		free (enhanced_system_prompt);
@@ -304,7 +299,7 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 		// Modify args to use original system prompt without rawtools enhancement
 		R2AIArgs fallback_args = args;
 		fallback_args.system_prompt = original_system_prompt;
-		fallback_args.tools = NULL; // Disable tools for fallback
+		fallback_args.tools = args.tools; // Keep tools for fallback
 
 		// Call provider directly
 		const char *provider = fallback_args.provider? fallback_args.provider: r_config_get (core->config, "r2ai.api");
