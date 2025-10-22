@@ -89,12 +89,11 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 		if (error) {
 			*error = strdup ("Failed to create temporary messages array");
 		}
-		eprintf ("ERROR\n");
 		return NULL;
 	}
 	R2AI_Message system_msg = {
 		.role = "system",
-		.content = args.system_prompt
+		.content = (char *)args.system_prompt
 	};
 	// Add system message if available from args.system_prompt
 	if (R_STR_ISNOTEMPTY (args.system_prompt)) {
@@ -102,10 +101,10 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 		// if the model name contains "o1" or "o3", it's "developer" role
 		if (strstr (model_name, "o1") || strstr (model_name, "o3")) {
 			system_msg.role = "developer";
-			system_msg.content = args.system_prompt;
+			system_msg.content = (char *)args.system_prompt;
 		} else {
 			system_msg.role = "system";
-			system_msg.content = args.system_prompt;
+			system_msg.content = (char *)args.system_prompt;
 		}
 		r2ai_msgs_add (temp_msgs, &system_msg);
 	} else {
@@ -118,7 +117,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 			} else {
 				system_msg.role = "system";
 			}
-			system_msg.content = sysprompt;
+			system_msg.content = (char *)sysprompt;
 			r2ai_msgs_add (temp_msgs, &system_msg);
 		}
 	}
@@ -170,7 +169,6 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 			*error = strdup ("No messages provided");
 		}
 		free (auth_header);
-		eprintf ("NOULL \n");
 		return NULL;
 	}
 
@@ -226,7 +224,6 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 		if (openai_tools_json) {
 			free (openai_tools_json);
 		}
-		eprintf ("anothereNOULL \n");
 		return NULL;
 	}
 
@@ -257,7 +254,6 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 			*error = strdup ("Failed to create complete request JSON");
 		}
 		free (auth_header);
-		eprintf ("back to null\n");
 		return NULL;
 	}
 
@@ -303,13 +299,11 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 				// Retry the call (it will skip problematic parameters this time)
 				R_LOG_INFO ("Retrying request with adjusted parameters for %s/%s", args.provider, args.model);
 				RCorePluginSession retry_cps = { .core = core, .data = state };
-				eprintf ("PROVIDER %s\n", args.provider);
 				return r2ai_openai (&retry_cps, args);
 			}
 		}
 		free (auth_header);
 		free (res);
-		eprintf ("trito null\n");
 		return NULL;
 	}
 
@@ -400,8 +394,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 				if (reasoning_content && reasoning_content->type == R_JSON_STRING) {
 					message->reasoning_content = strdup (reasoning_content->str_value);
 				}
-
-				// TODO: Handle tool calls if present
+				// TODO: Handle tool calls if present?
 			}
 		}
 		r_json_free (jres);
@@ -417,7 +410,6 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 
 	free (auth_header);
 	free (res);
-	eprintf ("final \n");
 	return NULL;
 }
 

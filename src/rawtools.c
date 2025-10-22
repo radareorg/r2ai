@@ -6,47 +6,27 @@
 #include <stdio.h>
 #include <time.h>
 
-// Raw tools implementation using prompt engineering instead of native tool calling
-
-// Function to check if rawtools mode is enabled
-static bool r2ai_rawtools_enabled(RCore *core) {
-	bool enabled = r_config_get_b (core->config, "r2ai.auto.raw");
-	R_LOG_DEBUG ("Rawtools enabled: %s", enabled? "true": "false");
-	return enabled;
-}
-
 // Function to build the rawtools prompt with available tools
-static char *build_rawtools_prompt(const R2AI_Tools *tools) {
+static const char *build_rawtools_prompt(const R2AI_Tools *tools) {
 	if (!tools || tools->n_tools == 0) {
-		return strdup ("No tools available.\n");
+		return "No tools available.\n";
 	}
-
-	RStrBuf *sb = r_strbuf_new ("");
-	if (!sb) {
-		return NULL;
-	}
-
-	// Add basic r2 commands cheatsheet
-	r_strbuf_append (sb, "Common radare2 commands you can use with r2cmd:\n");
-	r_strbuf_append (sb, "- i: Show binary information\n");
-	r_strbuf_append (sb, "- iI: Show detailed binary info\n");
-	r_strbuf_append (sb, "- iz: Show strings\n");
-	r_strbuf_append (sb, "- afl: List functions\n");
-	r_strbuf_append (sb, "- pdf @ function: Disassemble function\n");
-	r_strbuf_append (sb, "- px @ address: Show hexdump\n");
-	r_strbuf_append (sb, "- aaa: Analyze all\n");
-	r_strbuf_append (sb, "- s address: Seek to address\n");
-	r_strbuf_append (sb, "- ? command: Get help\n\n");
-
-	r_strbuf_append (sb, "To run radare2 commands, use the r2cmd tool with JSON arguments.\n\n");
-	r_strbuf_append (sb, "TOOL: r2cmd\n");
-	r_strbuf_append (sb, "USAGE: TOOL: r2cmd {\"command\": \"your_command_here\"}\n\n");
-	r_strbuf_append (sb, "Example: TOOL: r2cmd {\"command\": \"i\"}\n\n");
-	r_strbuf_append (sb, "If you don't need to run commands, just answer directly.\n\n");
-
-	return r_strbuf_drain (sb);
+	return "Common radare2 commands you can use with r2cmd:\n"
+	       "- i: Show binary information\n"
+	       "- iI: Show detailed binary info\n"
+	       "- iz: Show strings\n"
+	       "- afl: List functions\n"
+	       "- pdf @ function: Disassemble function\n"
+	       "- px @ address: Show hexdump\n"
+	       "- aaa: Analyze all\n"
+	       "- s address: Seek to address\n"
+	       "- ? command: Get help\n\n"
+	       "To run radare2 commands, use the r2cmd tool with JSON arguments.\n\n"
+	       "TOOL: r2cmd\n"
+	       "USAGE: TOOL: r2cmd {\"command\": \"your_command_here\"}\n\n"
+	       "Example: TOOL: r2cmd {\"command\": \"i\"}\n\n"
+	       "If you don't need to run commands, just answer directly.\n\n";
 }
-
 // Function to parse raw tool call from response text
 static bool parse_raw_tool_call(const char *response, char **tool_name, char **tool_args) {
 	if (!response || !tool_name || !tool_args) {
@@ -123,21 +103,7 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 	RCore *core = cps->core;
 
 	// Build the rawtools prompt
-	char *rawtools_prompt = build_rawtools_prompt (args.tools);
-	if (!rawtools_prompt) {
-		R_LOG_ERROR ("Failed to build rawtools prompt");
-		// Fall back to normal mode by calling provider directly
-		const char *provider = args.provider? args.provider: r_config_get (core->config, "r2ai.api");
-		if (!provider) {
-			provider = "gemini";
-		}
-		const R2AIProvider *p = r2ai_get_provider (provider);
-		if (p && p->uses_anthropic_header) {
-			return r2ai_anthropic (cps, args);
-		} else {
-			return r2ai_openai (cps, args);
-		}
-	}
+	const char *rawtools_prompt = build_rawtools_prompt (args.tools);
 
 	// Modify the system prompt to include rawtools instructions only if no tool messages
 	const char *original_system_prompt = args.system_prompt;
@@ -159,21 +125,14 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 			}
 		}
 	}
-	free (init_output);
 
-	size_t total_len = strlen (short_system_prompt) + strlen (rawtools_prompt) + 3; // +3 for \n\n and null
+	char *enhanced_system_prompt = NULL;
 	if (init_output) {
-		total_len += strlen (init_output) + 3; // +3 for \n\n
+		enhanced_system_prompt = r_str_newf ("%s\n\n%s\n\n%s", short_system_prompt, init_output, rawtools_prompt);
+	} else {
+		enhanced_system_prompt = r_str_newf ("%s\n\n%s", short_system_prompt, rawtools_prompt);
 	}
-	char *enhanced_system_prompt = malloc (total_len);
-	if (enhanced_system_prompt) {
-		if (init_output) {
-			snprintf (enhanced_system_prompt, total_len, "%s\n\n%s\n\n%s", short_system_prompt, init_output, rawtools_prompt);
-		} else {
-			snprintf (enhanced_system_prompt, total_len, "%s\n\n%s", short_system_prompt, rawtools_prompt);
-		}
-	}
-	// DOUBLE FREE free (init_output);
+	free (init_output);
 	// Temporarily modify args to use enhanced prompt and no tools (since we're using prompt engineering)
 	R2AIArgs rawtools_args = args;
 	rawtools_args.system_prompt = enhanced_system_prompt;
@@ -182,7 +141,8 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 	// Make the LLM call directly to provider
 	const char *provider = rawtools_args.provider? rawtools_args.provider: r_config_get (core->config, "r2ai.api");
 	if (!provider) {
-		provider = "gemini";
+		R_LOG_ERROR ("No provider defined");
+		return NULL;
 	}
 
 	R2AI_ChatResponse *response = NULL;
@@ -193,29 +153,7 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 		response = r2ai_openai (cps, rawtools_args);
 	}
 
-#if 0
-	if (!response) {
-		R_LOG_DEBUG ("Rawtools provider call failed, falling back to normal mode");
-		// Fall back to normal provider call directly to avoid recursion
-		R2AIArgs fallback_args = args;
-		fallback_args.tools = NULL; // Disable tools for fallback
-		const char *provider = fallback_args.provider? fallback_args.provider: r_config_get (core->config, "r2ai.api");
-		if (!provider) {
-			provider = "gemini";
-		}
-		const R2AIProvider *p = r2ai_get_provider (provider);
-		if (p && p->uses_anthropic_header) {
-			return r2ai_anthropic (cps, fallback_args);
-		} else {
-			return r2ai_openai (cps, fallback_args);
-		}
-	}
-#endif
-
-	if (enhanced_system_prompt != rawtools_prompt) {
-		free (enhanced_system_prompt);
-	}
-	free (rawtools_prompt);
+	free (enhanced_system_prompt);
 
 	if (!response || !response->message || !response->message->content) {
 		return response;
@@ -308,16 +246,12 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 	}
 
 	// No tool call found
-	if (tool_name) {
-		free (tool_name);
-	}
-	if (tool_args) {
-		free (tool_args);
-	}
+	free (tool_name);
+	free (tool_args);
 
-  // If the response has no content, try again with normal mode (without rawtools prompt)
-  if (!response->message || !response->message->content || !*response->message->content) {
-    R_LOG_DEBUG ("No tool call found and no content, falling back to normal mode");
+	// If the response has no content, try again with normal mode (without rawtools prompt)
+	if (!response->message || !response->message->content || !*response->message->content) {
+		R_LOG_DEBUG ("No tool call found and no content, falling back to normal mode");
 
 		// Free the current response
 		if (response->message) {
@@ -333,7 +267,8 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 		// Call provider directly
 		const char *provider = fallback_args.provider? fallback_args.provider: r_config_get (core->config, "r2ai.api");
 		if (!provider) {
-			provider = "gemini";
+			R_LOG_ERROR ("No provider defined");
+			return NULL;
 		}
 
 		R2AI_ChatResponse *fallback_response = NULL;
@@ -358,14 +293,10 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 
 		// Create a warning response
 		R2AI_ChatResponse *warning_response = R_NEW0 (R2AI_ChatResponse);
-		if (warning_response) {
-			R2AI_Message *msg = R_NEW0 (R2AI_Message);
-			if (msg) {
-				msg->role = strdup ("assistant");
-				msg->content = strdup ("Warning: LLM provided no response content");
-				*((R2AI_Message **)&warning_response->message) = msg;
-			}
-		}
+		R2AI_Message *msg = R_NEW0 (R2AI_Message);
+		msg->role = strdup ("assistant");
+		msg->content = strdup ("Warning: LLM provided no response content");
+		*((R2AI_Message **)&warning_response->message) = msg;
 		R_LOG_WARN ("LLM provided no response content");
 		return warning_response;
 	}
