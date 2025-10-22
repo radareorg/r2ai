@@ -121,8 +121,6 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 		return NULL;
 	}
 	RCore *core = cps->core;
-	R2_PRINTF ("\x1b[35m[RAWTOOLS] r2ai_rawtools_llmcall called with cps=%p, core=%p\x1b[0m\n", cps, core);
-	R2_FLUSH ();
 
 	// Build the rawtools prompt
 	char *rawtools_prompt = build_rawtools_prompt (args.tools);
@@ -161,6 +159,7 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 			}
 		}
 	}
+	free (init_output);
 
 	size_t total_len = strlen (short_system_prompt) + strlen (rawtools_prompt) + 3; // +3 for \n\n and null
 	if (init_output) {
@@ -174,15 +173,11 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 			snprintf (enhanced_system_prompt, total_len, "%s\n\n%s", short_system_prompt, rawtools_prompt);
 		}
 	}
-	free (init_output);
-
-	eprintf ("PROMPT (%s)\n", enhanced_system_prompt);
+	// DOUBLE FREE free (init_output);
 	// Temporarily modify args to use enhanced prompt and no tools (since we're using prompt engineering)
 	R2AIArgs rawtools_args = args;
 	rawtools_args.system_prompt = enhanced_system_prompt;
 	rawtools_args.tools = NULL; // Disable native tool calling
-	R2_PRINTF ("\x1b[35m[RAWTOOLS] Enhanced prompt length: %zu\x1b[0m\n", enhanced_system_prompt? strlen (enhanced_system_prompt): 0);
-	R2_FLUSH ();
 
 	// Make the LLM call directly to provider
 	const char *provider = rawtools_args.provider? rawtools_args.provider: r_config_get (core->config, "r2ai.api");
@@ -192,15 +187,11 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 
 	R2AI_ChatResponse *response = NULL;
 	const R2AIProvider *p = r2ai_get_provider (provider);
-	R2_PRINTF ("\x1b[35m[RAWTOOLS] Calling provider: %s\x1b[0m\n", provider);
 	if (p && p->uses_anthropic_header) {
-		R2_PRINTF ("\x1b[35m[RAWTOOLS] Using anthropic API\x1b[0m\n");
 		response = r2ai_anthropic (cps, rawtools_args);
 	} else {
-		R2_PRINTF ("\x1b[35m[RAWTOOLS] Using openai-compatible API\x1b[0m\n");
 		response = r2ai_openai (cps, rawtools_args);
 	}
-	R2_PRINTF ("\x1b[35m[RAWTOOLS] Provider call returned: %p\x1b[0m\n", response);
 
 #if 0
 	if (!response) {
@@ -238,7 +229,6 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 
 	if (parse_raw_tool_call (response->message->content, &tool_name, &tool_args)) {
 		R_LOG_DEBUG ("Raw tool call detected: %s with args: %s", tool_name, tool_args);
-		R2_PRINTF ("\x1b[35m[RAWTOOLS] Detected tool call: %s\x1b[0m\n", tool_name);
 
 		// Find the tool in our tools list
 		const R2AI_Tools *tools = r2ai_get_tools ();
@@ -282,6 +272,8 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 					modified_message->tool_calls[0].id = strdup (id_buf);
 					modified_message->n_tool_calls = 1;
 				}
+				tool_name = NULL;
+				tool_args = NULL;
 
 				// Replace the response message
 				if (response->message) {
@@ -308,18 +300,24 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 			}
 			free (tool_name);
 			free (tool_args);
+			tool_name = NULL;
+			tool_args = NULL;
 		}
 
 		return response;
 	}
 
 	// No tool call found
-	free (tool_name);
-	free (tool_args);
+	if (tool_name) {
+		free (tool_name);
+	}
+	if (tool_args) {
+		free (tool_args);
+	}
 
-	// If the response has no content, try again with normal mode (without rawtools prompt)
-	if (!response->message || !response->message->content || !*response->message->content) {
-		R_LOG_DEBUG ("No tool call found and no content, falling back to normal mode");
+  // If the response has no content, try again with normal mode (without rawtools prompt)
+  if (!response->message || !response->message->content || !*response->message->content) {
+    R_LOG_DEBUG ("No tool call found and no content, falling back to normal mode");
 
 		// Free the current response
 		if (response->message) {

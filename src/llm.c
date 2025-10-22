@@ -32,8 +32,6 @@ R_IPI const R2AIProvider *r2ai_get_provider(const char *name) {
 // Forward declaration for rawtools
 R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
-	R2_PRINTF ("\x1b[35m[DEBUG] r2ai_llmcall called\x1b[0m\n");
-	R2_FLUSH ();
 
 	// Check if rawtools mode is enabled
 	bool rawtools_enabled = r_config_get_b (core->config, "r2ai.rawtools");
@@ -41,16 +39,9 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	if (!provider) {
 		provider = "gemini";
 	}
-	R2_PRINTF ("\x1b[35m[DEBUG] Rawtools enabled: %s\x1b[0m\n", rawtools_enabled? "true": "false");
-	R2_FLUSH ();
 	if (rawtools_enabled && args.tools && args.tools->n_tools > 0) {
-		R2_PRINTF ("\x1b[35m[DEBUG] Calling r2ai_rawtools_llmcall\x1b[0m\n");
-		R2_FLUSH ();
 		return r2ai_rawtools_llmcall (cps, args);
 	}
-
-	R2_PRINTF ("\x1b[35m[DEBUG] Falling back to normal LLM call\x1b[0m\n");
-	R2_FLUSH ();
 	R2AI_State *state = cps->data;
 	R2AI_ChatResponse *res = NULL;
 	if (!args.model) {
@@ -356,6 +347,7 @@ R_IPI void r2ai_refresh_embeddings(RCorePluginSession *cps) {
 		char *filepath = r_file_new (path, file, NULL);
 		char *text = r_file_slurp (filepath, NULL);
 		if (text) {
+			R_LOG_DEBUG ("Index %s", file);
 			RList *lines = r_str_split_list (text, "\n", -1);
 			r_list_foreach (lines, iter2, line) {
 				if (r_str_trim_head_ro (line)[0] == 0) {

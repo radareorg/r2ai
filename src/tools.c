@@ -289,8 +289,6 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 		} else {
 			// For single-line commands, push the command to input buffer
 			R2_NEWLINE ();
-			R2_PRINTF ("\x1b[31m[edit cmd]>\x1b[0m ");
-			R2_FLUSH ();
 			// Push the command to the input buffer
 
 			// Get user input with command pre-filled
@@ -371,8 +369,6 @@ R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output) {
 			script = edited_script;
 		} else {
 			// For single-line scripts, push the script to input buffer
-			R2_PRINTF ("\x1b[31m[edit js]>\x1b[0m ");
-			R2_FLUSH ();
 
 			r_cons_readpush (core->cons, script, strlen (script));
 			r_cons_readpush (core->cons, "\x05", 1); // Ctrl+E - move to end
@@ -457,12 +453,6 @@ R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, c
 	}
 
 	bool hide_tool_output = r_config_get_b (core->config, "r2ai.auto.hide_tool_output");
-
-	char *print_name = r_str_newf ("\x1b[1;32m\x1b[4m[%s]>\x1b[0m ", tool_name);
-	R2_PRINTF ("%s\n", print_name);
-	R2_FLUSH ();
-
-	free (print_name);
 	char *tool_result = NULL;
 
 	if (strcmp (tool_name, "r2cmd") == 0) {
