@@ -34,7 +34,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
 
 	// Check if rawtools mode is enabled
-	bool rawtools_enabled = r_config_get_b (core->config, "r2ai.rawtools");
+	bool rawtools_enabled = r_config_get_b (core->config, "r2ai.auto.raw");
 	const char *provider = args.provider? args.provider: r_config_get (core->config, "r2ai.api");
 	if (!provider) {
 		provider = "gemini";

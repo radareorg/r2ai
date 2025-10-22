@@ -10,7 +10,7 @@
 
 // Function to check if rawtools mode is enabled
 static bool r2ai_rawtools_enabled(RCore *core) {
-	bool enabled = r_config_get_b (core->config, "r2ai.rawtools");
+	bool enabled = r_config_get_b (core->config, "r2ai.auto.raw");
 	R_LOG_DEBUG ("Rawtools enabled: %s", enabled? "true": "false");
 	return enabled;
 }
