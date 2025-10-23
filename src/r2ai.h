@@ -17,7 +17,9 @@
 #define R2AI_DEFAULT_MODEL "gpt-5-mini"
 #define R2AI_DEFAULT_PROVIDER "openai"
 #else
-#define R2AI_DEFAULT_MODEL "gpt-oss:20b"
+// #define R2AI_DEFAULT_MODEL "gpt-oss:20b"
+// #define R2AI_DEFAULT_MODEL "gemma3:12b"
+#define R2AI_DEFAULT_MODEL "mannix/jan-nano"
 #define R2AI_DEFAULT_PROVIDER "ollama"
 #endif
 

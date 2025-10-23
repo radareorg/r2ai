@@ -728,8 +728,9 @@ Use radare2 to resolve user requests.
         "x-api-key: " + key[0],
       ];
 
+      let res = {};
       try {
-        const res = http.post(
+        res = http.post(
           provider.defaultBaseurl + "/v1/messages",
           headers,
           JSON.stringify(payload),
