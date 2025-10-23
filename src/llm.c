@@ -18,6 +18,9 @@ static const R2AIProvider r2ai_providers[] = {
 };
 
 R_IPI const R2AIProvider *r2ai_get_provider(const char *name) {
+	if (R_STR_ISEMPTY (name)) {
+		return NULL;
+	}
 	for (int i = 0; r2ai_providers[i].name; i++) {
 		if (!strcmp (name, r2ai_providers[i].name)) {
 			return &r2ai_providers[i];
@@ -26,14 +29,21 @@ R_IPI const R2AIProvider *r2ai_get_provider(const char *name) {
 	return NULL;
 }
 
+// Forward declaration for rawtools
 R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
-	R2AI_State *state = cps->data;
-	R2AI_ChatResponse *res = NULL;
+
+	// Check if rawtools mode is enabled
+	bool rawtools_enabled = r_config_get_b (core->config, "r2ai.auto.raw");
 	const char *provider = args.provider? args.provider: r_config_get (core->config, "r2ai.api");
 	if (!provider) {
 		provider = "gemini";
 	}
+	if (rawtools_enabled && args.tools && args.tools->n_tools > 0) {
+		return r2ai_rawtools_llmcall (cps, args);
+	}
+	R2AI_State *state = cps->data;
+	R2AI_ChatResponse *res = NULL;
 	if (!args.model) {
 		const char *config_model = r_config_get (core->config, "r2ai.model");
 		args.model = strdup (config_model? config_model: "");
@@ -113,7 +123,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 
 	// Add the rest of the messages one by one
 	if (!args.messages && args.input) {
-		R2AI_Message msg = { .role = "user", .content = args.input };
+		R2AI_Message msg = { .role = "user", .content = (char *)args.input };
 		args.messages = r2ai_msgs_new ();
 		r2ai_msgs_add (args.messages, &msg);
 	}
@@ -337,6 +347,7 @@ R_IPI void r2ai_refresh_embeddings(RCorePluginSession *cps) {
 		char *filepath = r_file_new (path, file, NULL);
 		char *text = r_file_slurp (filepath, NULL);
 		if (text) {
+			R_LOG_DEBUG ("Index %s", file);
 			RList *lines = r_str_split_list (text, "\n", -1);
 			r_list_foreach (lines, iter2, line) {
 				if (r_str_trim_head_ro (line)[0] == 0) {

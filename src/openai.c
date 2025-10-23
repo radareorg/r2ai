@@ -75,6 +75,8 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	if (!state->model_compat_db) {
 		state->model_compat_db = ht_pp_new0 ();
 	}
+	args.provider = r_config_get (core->config, "r2ai.api");
+	args.model = r_config_get (core->config, "r2ai.model");
 
 	const char *base_url = r2ai_get_provider_url (core, args.provider);
 	// TODO: default model name should depend on api
@@ -91,7 +93,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	}
 	R2AI_Message system_msg = {
 		.role = "system",
-		.content = args.system_prompt
+		.content = (char *)args.system_prompt
 	};
 	// Add system message if available from args.system_prompt
 	if (R_STR_ISNOTEMPTY (args.system_prompt)) {
@@ -99,10 +101,10 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 		// if the model name contains "o1" or "o3", it's "developer" role
 		if (strstr (model_name, "o1") || strstr (model_name, "o3")) {
 			system_msg.role = "developer";
-			system_msg.content = args.system_prompt;
+			system_msg.content = (char *)args.system_prompt;
 		} else {
 			system_msg.role = "system";
-			system_msg.content = args.system_prompt;
+			system_msg.content = (char *)args.system_prompt;
 		}
 		r2ai_msgs_add (temp_msgs, &system_msg);
 	} else {
@@ -115,7 +117,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 			} else {
 				system_msg.role = "system";
 			}
-			system_msg.content = sysprompt;
+			system_msg.content = (char *)sysprompt;
 			r2ai_msgs_add (temp_msgs, &system_msg);
 		}
 	}
@@ -144,7 +146,6 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 		headers[0] = "Content-Type: application/json";
 		headers[1] = auth_header;
 	}
-
 	const char *urlfmt = strcmp (args.provider, "ollama")
 		? "%s/chat/completions"
 		: "%s/chat";
@@ -280,24 +281,23 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 			R_LOG_ERROR ("OpenAI API error response: %s", res);
 			// Check for specific error types in the response
 			ModelErrorFlags error_flag = MODEL_ERROR_NONE;
-			const char *model_name = args.model? args.model: "gpt-5-mini";
 
 			// Check for temperature errors
 			if (strstr (res, "temperature")) {
-				R_LOG_DEBUG ("Detected temperature error for %s model %s", args.provider, model_name);
+				R_LOG_DEBUG ("Detected temperature error for %s model %s", args.provider, args.model);
 				error_flag |= MODEL_ERROR_TEMPERATURE;
 			}
 
 			if (error_flag != MODEL_ERROR_NONE) {
 				// Record the error flags for this provider/model
-				model_add_error (state, args.provider, model_name, error_flag);
+				model_add_error (state, args.provider, args.model, error_flag);
 
 				// Clean up
 				free (auth_header);
 				free (res);
 
 				// Retry the call (it will skip problematic parameters this time)
-				R_LOG_INFO ("Retrying request with adjusted parameters for %s/%s", args.provider, model_name);
+				R_LOG_INFO ("Retrying request with adjusted parameters for %s/%s", args.provider, args.model);
 				RCorePluginSession retry_cps = { .core = core, .data = state };
 				return r2ai_openai (&retry_cps, args);
 			}
@@ -394,8 +394,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 				if (reasoning_content && reasoning_content->type == R_JSON_STRING) {
 					message->reasoning_content = strdup (reasoning_content->str_value);
 				}
-
-				// TODO: Handle tool calls if present
+				// TODO: Handle tool calls if present?
 			}
 		}
 		r_json_free (jres);

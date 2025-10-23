@@ -725,18 +725,3 @@ R_API char *r_json_to_string(const RJson *json) {
 	PJ *pj = r_json_to_pj (json, NULL);
 	return pj? pj_drain (pj): NULL;
 }
-
-// Create a conversation with optional initial user message
-R_API R2AI_Messages *create_conversation(const char *user_message) {
-	// Create a temporary message container (not using static storage)
-	R2AI_Messages *msgs = r2ai_msgs_new ();
-	// Add user message if provided (no system message - that's added during processing)
-	if (msgs && R_STR_ISNOTEMPTY (user_message)) {
-		R2AI_Message user_msg = {
-			.role = "user",
-			.content = user_message
-		};
-		r2ai_msgs_add (msgs, &user_msg);
-	}
-	return msgs;
-}

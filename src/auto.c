@@ -114,32 +114,37 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 	}
 
 	if (!system_prompt) {
+		system_prompt = Gprompt_auto;
 		const char *init_commands = r_config_get (core->config, "r2ai.auto.init_commands");
 		if (R_STR_ISNOTEMPTY (init_commands)) {
 			char *edited_command = NULL;
 			char *cmd_output = execute_tool (core, "r2cmd", r_str_newf ("{\"command\":\"%s\"}", init_commands), &edited_command);
-			if (cmd_output) {
-				system_prompt = r_str_newf ("%s\n\nHere is some information about the binary to get you started:\n>%s\n%s", Gprompt_auto, edited_command, cmd_output);
+			if (R_STR_ISNOTEMPTY (cmd_output)) {
+				R2AI_Message init_msg = {
+					.role = "system",
+					.content = r_str_newf ("Here is some information about the binary to get you started:\n>%s\n%s", edited_command, cmd_output)
+				};
+				r2ai_msgs_add (messages, &init_msg);
 				free (cmd_output);
 			}
 			free (edited_command);
-		} else {
-			system_prompt = Gprompt_auto;
 		}
 	}
 
 	r2ai_stats_init_run (state, n_run);
+
+	R2_PRINTF ("\x1b[35m[DEBUG] About to call r2ai_llmcall with n_run=%d\x1b[0m\n", n_run);
+	R2_FLUSH ();
 
 	// Set up args for r2ai_llmcall call with tools directly
 	R2AIArgs args = {
 		.messages = messages,
 		.error = &error,
 		.dorag = true,
-		.tools = r2ai_get_tools (),
+		.tools = r2ai_get_tools (), // Always send tools in auto mode
 		.system_prompt = system_prompt
 	};
 
-	// Call r2ai_llmcall to get a response
 	R2AI_ChatResponse *response = r2ai_llmcall (cps, args);
 
 	if (!response) {
@@ -153,6 +158,22 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 		R_LOG_ERROR ("No message in response");
 		free (response);
 		return;
+	}
+
+	// Debug logging for rawtools
+	R_LOG_DEBUG ("[DEBUG] Model response - Role: %s", message->role? message->role: "null");
+	if (message->content) {
+		R_LOG_DEBUG ("[DEBUG] Content: %s", message->content);
+	}
+	if (message->reasoning_content) {
+		R_LOG_DEBUG ("[DEBUG] Reasoning: %s", message->reasoning_content);
+	}
+	if (message->tool_calls && message->n_tool_calls > 0) {
+		R_LOG_DEBUG ("[DEBUG] Tool calls: %d", message->n_tool_calls);
+		for (int i = 0; i < message->n_tool_calls; i++) {
+			const R2AI_ToolCall *tc = &message->tool_calls[i];
+			R_LOG_DEBUG ("[DEBUG] Tool %d: %s - %s", i, tc->name? tc->name: "null", tc->arguments? tc->arguments: "null");
+		}
 	}
 
 	// Process the response - we need to add it to our messages array
@@ -176,16 +197,17 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 
 	// Check for tool calls and process them
 	if (message->tool_calls && message->n_tool_calls > 0) {
-		R_LOG_DEBUG ("Found %d tool call (s)", message->n_tool_calls);
+		R_LOG_DEBUG ("Found %d tool call(s)", message->n_tool_calls);
 
 		// Process each tool call
 		for (int i = 0; i < message->n_tool_calls; i++) {
 			const R2AI_ToolCall *tool_call = &message->tool_calls[i];
 
 			if (!tool_call->name || !tool_call->arguments || !tool_call->id) {
+				R_LOG_DEBUG ("Skipping invalid tool call %d", i);
 				continue;
 			}
-			R_LOG_DEBUG ("Tool call: %s", tool_call->name);
+			R_LOG_DEBUG ("Tool call %d: %s with args: %s", i, tool_call->name, tool_call->arguments);
 			// Don't log the full arguments which might get truncated
 			char *tool_name = strdup (tool_call->name);
 			char *tool_args = strdup (tool_call->arguments);
@@ -202,7 +224,38 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 			} else {
 				char *edited_command = NULL;
 				cmd_output = execute_tool (core, tool_name, tool_args, &edited_command);
-				// TODO: need to edit the R2AI_Messages* and modify the command of the last tool_use
+				if (edited_command) {
+					// Update the last message's tool call arguments with the edited command
+					R2AI_Message *last_msg = r_list_get_n (messages->messages, r_list_length (messages->messages) - 1);
+					if (last_msg && last_msg->tool_calls && last_msg->n_tool_calls > 0) {
+						for (int j = 0; j < last_msg->n_tool_calls; j++) {
+							R2AI_ToolCall *tc = (R2AI_ToolCall *)&last_msg->tool_calls[j];
+							if (tc->id && strcmp (tc->id, tool_call->id) == 0) {
+								// For r2cmd, update the command in arguments
+								if (strcmp (tool_name, "r2cmd") == 0) {
+									char *args_dup = strdup (tc->arguments);
+									RJson *args_json = r_json_parse (args_dup);
+									if (args_json) {
+										RJson *cmd_json = (RJson *)r_json_get (args_json, "command");
+										if (cmd_json && cmd_json->str_value) {
+											// Update the command field
+											free ((char *)cmd_json->str_value);
+											cmd_json->str_value = strdup (edited_command);
+											// Serialize back to JSON
+											char *new_args = r_json_to_string (args_json);
+											if (new_args) {
+												free ((void *)tc->arguments);
+												tc->arguments = new_args;
+											}
+										}
+										r_json_free (args_json);
+									}
+								}
+								break;
+							}
+						}
+					}
+				}
 				free (edited_command);
 			}
 
@@ -225,6 +278,8 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 
 			// Add the tool response to our messages array
 			r2ai_msgs_add (messages, &tool_response);
+			R_LOG_DEBUG ("[DEBUG] Added tool response to messages: %s", cmd_output? cmd_output: "null");
+			R2_PRINTF ("\x1b[32m[DEBUG] Tool result: %s\x1b[0m\n", cmd_output? cmd_output: "no output");
 			free (cmd_output);
 		}
 
@@ -232,7 +287,10 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 
 		// Check if we should continue with recursion
 		if (!interrupted && message->tool_calls && message->n_tool_calls > 0) {
+			R_LOG_DEBUG ("[DEBUG] Recursing to process_messages with n_run=%d", n_run + 1);
 			process_messages (cps, messages, system_prompt, n_run + 1);
+		} else {
+			R_LOG_DEBUG ("[DEBUG] Auto mode loop ending - no more tool calls or interrupted");
 		}
 	} else {
 		r2ai_print_run_end (cps, usage, n_run, max_runs);
@@ -245,6 +303,8 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query) {
 	RCore *core = cps->core;
 	R2AI_State *state = cps->data;
+	R2_PRINTF ("\x1b[35m[DEBUG] cmd_r2ai_a called with query: %s\x1b[0m\n", user_query);
+	R2_FLUSH ();
 	// Get conversation
 	R2AI_Messages *messages = r2ai_conversation_get (state);
 	if (!messages) {
@@ -261,7 +321,7 @@ R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query) {
 	// Add user query
 	R2AI_Message user_msg = {
 		.role = "user",
-		.content = user_query
+		.content = (char *)user_query
 	};
 	r2ai_msgs_add (messages, &user_msg);
 
@@ -318,33 +378,24 @@ R_IPI void cmd_r2ai_logs(RCorePluginSession *cps) {
 
 		for (int i = 0; i < r_list_length (messages->messages); i++) {
 			const R2AI_Message *msg = r_list_get_n (messages->messages, i);
-
 			pj_o (pj);
-
 			pj_ks (pj, "role", msg->role? msg->role: "unknown");
 			pj_ks (pj, "content", msg->content? msg->content: "");
-
 			if (msg->tool_calls && msg->n_tool_calls > 0) {
 				pj_ka (pj, "tool_calls");
-
 				for (int j = 0; j < msg->n_tool_calls; j++) {
 					const R2AI_ToolCall *tc = &msg->tool_calls[j];
-
 					pj_o (pj);
-
 					if (tc->name) {
 						pj_ks (pj, "name", tc->name);
 					}
 					if (tc->arguments) {
 						pj_ks (pj, "arguments", tc->arguments);
 					}
-
 					pj_end (pj);
 				}
-
 				pj_end (pj);
 			}
-
 			pj_end (pj);
 		}
 

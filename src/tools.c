@@ -284,29 +284,17 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 		if (is_multiline) {
 			// Use editor for multi-line commands
 			*edited_command = strdup (command);
-#if R2_VERSION_NUMBER >= 50909
 			r_cons_editor (core->cons, NULL, *edited_command);
-#else
-			r_cons_editor (NULL, *edited_command);
-#endif
 			command = *edited_command;
 		} else {
 			// For single-line commands, push the command to input buffer
 			R2_NEWLINE ();
-			R2_PRINTF ("\x1b[31m[edit cmd]>\x1b[0m ");
-			R2_FLUSH ();
 			// Push the command to the input buffer
 
 			// Get user input with command pre-filled
-#if R2_VERSION_NUMBER >= 50909
 			r_cons_readpush (core->cons, command, strlen (command));
 			r_cons_readpush (core->cons, "\x05", 1); // Ctrl+E - move to end
 			const char *readline_result = r_line_readline (core->cons);
-#else
-			r_cons_readpush (command, strlen (command));
-			r_cons_readpush ("\x05", 1); // Ctrl+E - move to end
-			const char *readline_result = r_line_readline ();
-#endif
 			// Check if interrupted or ESC pressed (readline_result is NULL or empty)
 			if (R2_INTERRUPTED () || R_STR_ISEMPTY (readline_result)) {
 				R_LOG_INFO ("Command execution cancelled %s", readline_result);
@@ -377,26 +365,14 @@ R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output) {
 		if (is_multiline) {
 			// Use editor for multi-line scripts
 			edited_script = strdup (script);
-#if R2_VERSION_NUMBER >= 50909
 			r_cons_editor (core->cons, NULL, edited_script);
-#else
-			r_cons_editor (NULL, edited_script);
-#endif
 			script = edited_script;
 		} else {
 			// For single-line scripts, push the script to input buffer
-			R2_PRINTF ("\x1b[31m[edit js]>\x1b[0m ");
-			R2_FLUSH ();
 
-#if R2_VERSION_NUMBER >= 50909
 			r_cons_readpush (core->cons, script, strlen (script));
 			r_cons_readpush (core->cons, "\x05", 1); // Ctrl+E - move to end
 			const char *readline_result = r_line_readline (core->cons);
-#else
-			r_cons_readpush (script, strlen (script));
-			r_cons_readpush ("\x05", 1); // Ctrl+E - move to end
-			const char *readline_result = r_line_readline ();
-#endif
 
 			// Check if interrupted or ESC pressed (readline_result is NULL or empty)
 			if (R2_INTERRUPTED () || R_STR_ISEMPTY (readline_result)) {
@@ -435,11 +411,7 @@ R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output) {
 		return strdup ("{ \"res\":\"Failed to create script payload\" }");
 	}
 
-#if R2_VERSION_NUMBER >= 50909
 	char *payload_base64 = r_base64_encode_dyn ((const ut8 *)payload, strlen (payload));
-#else
-	char *payload_base64 = r_base64_encode_dyn ((const char *)payload, strlen (payload));
-#endif
 	if (!payload_base64) {
 		free (payload);
 		return strdup ("{ \"res\":\"Failed to encode script\" }");
@@ -481,12 +453,6 @@ R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, c
 	}
 
 	bool hide_tool_output = r_config_get_b (core->config, "r2ai.auto.hide_tool_output");
-
-	char *print_name = r_str_newf ("\x1b[1;32m\x1b[4m[%s]>\x1b[0m ", tool_name);
-	R2_PRINTF ("%s\n", print_name);
-	R2_FLUSH ();
-
-	free (print_name);
 	char *tool_result = NULL;
 
 	if (strcmp (tool_name, "r2cmd") == 0) {

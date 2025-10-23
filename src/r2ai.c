@@ -44,7 +44,7 @@ R_API char *r2ai(RCorePluginSession *cps, R2AIArgs args) {
 	R2AI_Messages *msgs = r2ai_msgs_new ();
 
 	if (args.input) {
-		R2AI_Message msg = { .role = "user", .content = args.input };
+		R2AI_Message msg = { .role = "user", .content = (char *)args.input };
 		r2ai_msgs_add (msgs, &msg);
 	}
 
@@ -357,8 +357,11 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		cmd_r2ai_m (cps, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-p")) {
 		const char *provider = r_str_trim_head_ro (input + 2);
-		r_config_set (core->config, "r2ai.api", provider);
-		R2_PRINTF ("Provider set to %s\n", provider);
+		if (R_STR_ISEMPTY (provider)) {
+			R2_PRINTF ("%s\n", r_config_get (core->config, "r2ai.api"));
+		} else {
+			r_config_set (core->config, "r2ai.api", provider);
+		}
 	} else if (r_str_startswith (input, "-q")) {
 		r2ai_cmd_q (cps, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-")) {
@@ -505,7 +508,7 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_desc (core->config, "r2ai.auto.max_runs", "Maximum number of automated steps/runs in auto mode");
 	r_config_set_b (core->config, "r2ai.auto.hide_tool_output", false);
 	r_config_desc (core->config, "r2ai.auto.hide_tool_output", "Hide tool output when running automated actions");
-	r_config_set (core->config, "r2ai.auto.init_commands", "aaa;iI;afl");
+	r_config_set (core->config, "r2ai.auto.init_commands", "iI"); // "aaa;iI;afl~[3]"
 	r_config_desc (core->config, "r2ai.auto.init_commands", "Initial commands executed when auto mode starts (semicolon separated)");
 	r_config_set_b (core->config, "r2ai.auto.yolo", false);
 	r_config_desc (core->config, "r2ai.auto.yolo", "Execute potentially dangerous commands in auto mode without asking");
@@ -524,6 +527,8 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_desc (core->config, "r2ai.http.backend", "HTTP backend to use (auto, libcurl, socket, system)");
 	r_config_set_b (core->config, "r2ai.http.use_files", false);
 	r_config_desc (core->config, "r2ai.http.use_files", "Use temporary files to pass HTTP request/response payloads (true/false)");
+	r_config_set_b (core->config, "r2ai.auto.raw", true);
+	r_config_desc (core->config, "r2ai.auto.raw", "Use prompt engineering for tool calling instead of native API support (true/false)");
 	r_config_lock (core->config, true);
 	return true;
 }

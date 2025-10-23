@@ -71,7 +71,7 @@ typedef struct {
 
 typedef struct {
 	char *role;
-	const char *content;
+	char *content;
 	char *reasoning_content;
 	R2AI_ContentBlocks *content_blocks;
 	char *tool_call_id;
@@ -317,12 +317,9 @@ R_API bool r2ai_fini(RCorePluginSession *cps);
 
 R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args);
 
-R_IPI void cmd_r2ai_logs(RCorePluginSession *cps);
+R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args);
 
-/**
- * Create a conversation with system prompt and optional user message
- */
-R_API R2AI_Messages *create_conversation(const char *user_message);
+R_IPI void cmd_r2ai_logs(RCorePluginSession *cps);
 
 /**
  * Process messages through LLM and handle tool calls recursively

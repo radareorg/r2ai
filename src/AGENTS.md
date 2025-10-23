@@ -14,6 +14,15 @@
   - Do not define variables inside the `for` parenthesis 
   - Do not check for null before calling free
 
+## Test
+
+Run `r2ai` cli tool or radare2 oneliners running the `r2ai` command.
+
+* `r2pm -r r2ai -h` -> help message for the r2ai tool
+* `r2 -qc 'r2ai -h' /bin/ls -> help message of the r2ai plugin
+* `r2 -qc 'r2ai -a what arch is used here' -> testing auto mode
+* `r2 -e r2ai.model=gemma3:12b -e r2ai.auto.raw=true -qc 'r2ai -a what arch is used here' -> testing auto mode
+
 ## Actions
 
 Run the following commands to perform the action described
