@@ -1,32 +1,25 @@
+/* r2ai - Copyright 2023-2025 pancake */
+
+#define R_LOG_ORIGIN "rawtools"
 #include "r2ai.h"
 #include "r2ai_priv.h"
-#include <r_util/r_strbuf.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <time.h>
 
 // Function to build the rawtools prompt with available tools
-static const char *build_rawtools_prompt(const R2AI_Tools *tools) {
-	if (!tools || tools->n_tools == 0) {
-		return "No tools available.\n";
-	}
-	return "Common radare2 commands you can use with r2cmd:\n"
-	       "- i: Show binary information\n"
-	       "- iI: Show detailed binary info\n"
-	       "- iz: Show strings\n"
-	       "- afl: List functions\n"
-	       "- pdf @ function: Disassemble function\n"
-	       "- px @ address: Show hexdump\n"
-	       "- aaa: Analyze all\n"
-	       "- s address: Seek to address\n"
-	       "- ? command: Get help\n\n"
-	       "To run radare2 commands, use the r2cmd tool with JSON arguments.\n\n"
-	       "TOOL: r2cmd\n"
-	       "USAGE: TOOL: r2cmd {\"command\": \"your_command_here\"}\n\n"
-	       "Example: TOOL: r2cmd {\"command\": \"i\"}\n\n"
-	       "If you don't need to run commands, just answer directly.\n\n";
-}
+static const char *RAWTOOLS_PROMPT = "Common radare2 commands you can use with r2cmd:\n"
+				"- i: Show binary information\n"
+				"- iI: Show detailed binary info\n"
+				"- iz: Show strings\n"
+				"- afl: List functions\n"
+				"- pdf @ function: Disassemble function\n"
+				"- px @ address: Show hexdump\n"
+				"- aaa: Analyze all\n"
+				"- s address: Seek to address\n"
+				"- ? command: Get help\n\n"
+				"To run radare2 commands, use the r2cmd tool with JSON arguments.\n\n"
+				"TOOL: r2cmd\n"
+				"USAGE: TOOL: r2cmd {\"command\": \"your_command_here\"}\n\n"
+				"Example: TOOL: r2cmd {\"command\": \"i\"}\n\n"
+				"If you don't need to run commands, just answer directly.\n\n";
 // Function to parse raw tool call from response text
 static bool parse_raw_tool_call(const char *response, char **tool_name, char **tool_args) {
 	if (!response || !tool_name || !tool_args) {
@@ -102,9 +95,6 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 	}
 	RCore *core = cps->core;
 
-	// Build the rawtools prompt
-	const char *rawtools_prompt = build_rawtools_prompt (args.tools);
-
 	// Modify the system prompt to include rawtools instructions only if no tool messages
 	const char *original_system_prompt = args.system_prompt;
 
@@ -128,9 +118,9 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 
 	char *enhanced_system_prompt = NULL;
 	if (init_output) {
-		enhanced_system_prompt = r_str_newf ("%s\n\n%s\n\n%s", short_system_prompt, init_output, rawtools_prompt);
+		enhanced_system_prompt = r_str_newf ("%s\n\n%s\n\n%s", short_system_prompt, init_output, RAWTOOLS_PROMPT);
 	} else {
-		enhanced_system_prompt = r_str_newf ("%s\n\n%s", short_system_prompt, rawtools_prompt);
+		enhanced_system_prompt = r_str_newf ("%s\n\n%s", short_system_prompt, RAWTOOLS_PROMPT);
 	}
 	free (init_output);
 	// Temporarily modify args to use enhanced prompt and no tools (since we're using prompt engineering)
