@@ -5,21 +5,23 @@
 #include "r2ai_priv.h"
 
 // Function to build the rawtools prompt with available tools
-static const char *RAWTOOLS_PROMPT = "Common radare2 commands you can use with r2cmd:\n"
-				"- i: Show binary information\n"
-				"- iI: Show detailed binary info\n"
-				"- iz: Show strings\n"
-				"- afl: List functions\n"
-				"- pdf @ function: Disassemble function\n"
-				"- px @ address: Show hexdump\n"
-				"- aaa: Analyze all\n"
-				"- s address: Seek to address\n"
-				"- ? command: Get help\n\n"
-				"To run radare2 commands, use the r2cmd tool with JSON arguments.\n\n"
-				"TOOL: r2cmd\n"
-				"USAGE: TOOL: r2cmd {\"command\": \"your_command_here\"}\n\n"
-				"Example: TOOL: r2cmd {\"command\": \"i\"}\n\n"
-				"If you don't need to run commands, just answer directly.\n\n";
+static const char *RAWTOOLS_PROMPT =
+	"Common radare2 commands you can use with r2cmd:\n"
+	"- i: Show binary information\n"
+	"- iI: Show detailed binary info\n"
+	"- iz: Show strings\n"
+	"- afl: List functions\n"
+	"- pdf @ function: Disassemble function\n"
+	"- px @ address: Show hexdump\n"
+	"- aaa: Analyze all\n"
+	"- s address: Seek to address\n"
+	"- ? command: Get help\n\n"
+	"To run radare2 commands, use the r2cmd tool with JSON arguments.\n\n"
+	"TOOL: r2cmd\n"
+	"USAGE: TOOL: r2cmd {\"command\": \"your_command_here\"}\n\n"
+	"Example: TOOL: r2cmd {\"command\": \"i\"}\n\n"
+	"If you don't need to run commands, just answer directly.\n\n";
+
 // Function to parse raw tool call from response text
 static bool parse_raw_tool_call(const char *response, char **tool_name, char **tool_args) {
 	if (!response || !tool_name || !tool_args) {

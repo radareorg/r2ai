@@ -527,7 +527,7 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_desc (core->config, "r2ai.http.backend", "HTTP backend to use (auto, libcurl, socket, system)");
 	r_config_set_b (core->config, "r2ai.http.use_files", false);
 	r_config_desc (core->config, "r2ai.http.use_files", "Use temporary files to pass HTTP request/response payloads (true/false)");
-	r_config_set_b (core->config, "r2ai.auto.raw", true);
+	r_config_set_b (core->config, "r2ai.auto.raw", false);
 	r_config_desc (core->config, "r2ai.auto.raw", "Use prompt engineering for tool calling instead of native API support (true/false)");
 	r_config_lock (core->config, true);
 	return true;
