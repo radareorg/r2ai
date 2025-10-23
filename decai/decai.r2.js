@@ -767,7 +767,7 @@ Use radare2 to resolve user requests.
 
       try {
         const res = http.post(url, [], JSON.stringify(payload));
-        if (res.error) {
+        if (res && res.error) {
           throw new Error(res.error);
         }
         if (res.message && res.message.content) {
