@@ -191,6 +191,7 @@ srcs = files(
   'llm.c',
   'tools.c',
   'query.c',
+  'rawtools.c',
   'messages.c',
   'anthropic.c',
   'r2ai_http.c',
