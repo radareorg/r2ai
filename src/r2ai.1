@@ -1,0 +1,158 @@
+.TH R2AI 1 "October 2025" "radare2" "User Commands"
+.SH NAME
+r2ai \- AI assistant for radare2
+.SH SYNOPSIS
+.B r2ai
+[\fIoptions\fR] [\fIquery\fR]
+.SH DESCRIPTION
+r2ai is an AI-powered plugin and command-line tool for radare2 that provides assistance with reverse engineering tasks, including decompilation, function analysis, vulnerability detection, and more. It integrates with various LLM providers like OpenAI, Anthropic, and Ollama.
+.SH OPTIONS
+.TP
+.B \-d
+Decompile the current function.
+.TP
+.B \-d \fIquery\fR
+Ask a question about the current function.
+.TP
+.B \-dr
+Decompile the current function with one level of recursivity.
+.TP
+.B \-a \fIquery\fR
+Resolve a question using auto mode, which allows the AI to use tools.
+.TP
+.B \-e \fIk(=v)\fR
+Set configuration option (same as 'r2ai.' prefix).
+.TP
+.B \-h
+Show help message.
+.TP
+.B \-i \fIfile\fR \fIquery\fR
+Read a file and ask the LLM with the given query.
+.TP
+.B \-m
+Show selected model, list suggested ones, and choose one.
+.TP
+.B \-p \fIprovider\fR
+Set LLM provider (openai, anthropic, gemini, etc.).
+.TP
+.B \-q
+List available query prompts.
+.TP
+.B \-q \fIname\fR [\fIinstructions\fR]
+Run predefined prompt with optional custom instructions.
+.TP
+.B \-r
+Enter the chat REPL.
+.TP
+.B \-L
+Show chat logs (use -Lj for JSON). Only for auto mode.
+.TP
+.B \-L-\fIN\fR
+Delete the last N messages from the chat history.
+.TP
+.B \-R
+Reset the chat conversation context.
+.TP
+.B \-Rq [\fItext\fR]
+Refresh and query embeddings (see r2ai.data).
+.TP
+.B \fIquery\fR
+Query the selected model and provider with the given query.
+.SH CONFIGURATION
+Configuration options can be set with \fBr2ai -e \fIkeyname\fR=\fIvalue\fR.
+.TP
+.B r2ai.api
+Name of the provider (e.g., openai). List possibilities with \fBr2ai -e r2ai.api=?\fR.
+.TP
+.B r2ai.model
+Model name. List possibilities with \fBr2ai -e r2ai.model=?\fR.
+.TP
+.B r2ai.baseurl
+Remote LLM base URL (e.g., http://127.0.0.1:11434).
+.TP
+.B r2ai.max_tokens
+Maximum output tokens or total tokens.
+.TP
+.B r2ai.temperature
+Creativity level (0=not creative, 1=very creative).
+.TP
+.B r2ai.cmds
+R2 command to issue and send output in context to model.
+.TP
+.B r2ai.lang
+Programming language for decompilation (only for \fBr2ai -d\fR).
+.TP
+.B r2ai.hlang
+Language for AI responses.
+.TP
+.B r2ai.prompt
+User prompt for \fBr2ai -d\fR.
+.TP
+.B r2ai.auto.max_runs
+Maximum loops in auto mode (\fBr2ai -a\fR).
+.TP
+.B r2ai.auto.hide_tool_output
+Hide tool output in auto mode.
+.TP
+.B r2ai.auto.yolo
+Allow AI to run commands without approval (dangerous, default false).
+.TP
+.B r2ai.http.use_files
+Use files for arguments if CURL argument too long.
+.SH QUERY PROMPTS
+Query prompts are predefined templates for common tasks. Available prompts:
+.TP
+.B autoname
+Automatically rename functions and variables.
+.TP
+.B decompile
+Decompile the current function.
+.TP
+.B devices
+Analyze device-related code.
+.TP
+.B dlopen
+Analyze dynamic library loading.
+.TP
+.B explain
+Explain the purpose of the current function.
+.TP
+.B libs
+Analyze library usage.
+.TP
+.B signature
+Improve function signatures.
+.TP
+.B varnames
+Rename variables based on context.
+.TP
+.B vulns
+Find vulnerabilities in the current function.
+.SH EXAMPLES
+.TP
+Decompile current function:
+.B r2ai -d
+.TP
+Ask about current function:
+.B r2ai -d "what is the input buffer size?"
+.TP
+Use auto mode:
+.B r2ai -a "find vulnerabilities in this function"
+.TP
+List prompts:
+.B r2ai -q
+.TP
+Run a prompt:
+.B r2ai -q explain
+.TP
+Set provider:
+.B r2ai -p openai
+.TP
+Enter REPL:
+.B r2ai -r
+.SH SEE ALSO
+.BR radare2 (1),
+.BR r2pm (1),
+.BR r2agent (1)
+.SH AUTHOR
+radare2 community

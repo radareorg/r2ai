@@ -5,6 +5,7 @@ DOTLIB=.$(shell r2 -NNH R2_LIBEXT)
 R2SYSPLUGDIR=$(shell r2 -NNH R2_LIBR_PLUGINS)
 R2USRPLUGDIR=$(shell r2 -NNH R2_USER_PLUGINS)
 R2BINDIR=$(shell r2pm -H R2PM_BINDIR)
+R2MANDIR=$(shell r2pm -H R2PM_MANDIR)
 
 R2_CFLAGS=$(shell pkg-config --cflags r_core)
 R2_LDFLAGS=$(shell pkg-config --libs r_core)
@@ -70,15 +71,18 @@ fmt format indent:
 user-install: user-uninstall
 	mkdir -p $(R2USRPLUGDIR)
 	mkdir -p $(R2BINDIR)
+	mkdir -p $(R2MANDIR)/man1
 	mkdir -p $(HOME)/.config/r2ai/prompts
 	$(MAKE) user-uninstall
 	cp -f r2ai$(DOTLIB) $(R2USRPLUGDIR)/r2ai$(DOTLIB)
 	cp -f r2ai$(DOTEXE) $(R2BINDIR)/r2ai$(DOTEXE)
+	cp -f r2ai.1 $(R2MANDIR)/man1/r2ai.1
 	cp -r ../prompts/* $(HOME)/.config/r2ai/prompts/
 
 user-uninstall:
 	rm -f $(R2USRPLUGDIR)/r2ai$(DOTLIB)
 	rm -f $(R2BINDIR)/r2ai$(DOTEXE)
+	rm -f $(R2MANDIR)/man1/r2ai.1
 
 install:
 	$(MAKE) uninstall
