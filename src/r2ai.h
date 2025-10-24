@@ -90,6 +90,8 @@ typedef struct {
 	char *requires;
 	char *if_empty;
 	char *if_command;
+	char *model;
+	char *provider;
 } R2AIPrompt;
 
 typedef struct {

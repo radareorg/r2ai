@@ -14,6 +14,8 @@ R_API void r2aiprompt_free(R2AIPrompt *prompt) {
 	free (prompt->requires);
 	free (prompt->if_empty);
 	free (prompt->if_command);
+	free (prompt->model);
+	free (prompt->provider);
 	free (prompt);
 }
 
@@ -24,44 +26,92 @@ static R2AIPrompt *parse_prompt_file(const char *filepath) {
 		free (prompt);
 		return NULL;
 	}
-	RList *lines = r_str_split_list (content, "\n", -1);
-	RListIter *iter;
-	char *line;
-	r_list_foreach (lines, iter, line) {
-		r_str_trim (line);
-		if (*line == '#' || *line == 0) {
-			continue;
+
+	// Check if it's a markdown file with YAML frontmatter
+	if (r_str_startswith (content, "---\n")) {
+		// Parse YAML frontmatter
+		char *frontmatter_end = strstr (content + 4, "\n---\n");
+		if (frontmatter_end) {
+			char *frontmatter = r_str_ndup (content + 4, frontmatter_end - (content + 4));
+			RList *lines = r_str_split_list (frontmatter, "\n", -1);
+			RListIter *iter;
+			char *line;
+			r_list_foreach (lines, iter, line) {
+				r_str_trim (line);
+				if (*line == 0) {
+					continue;
+				}
+				char *colon = strchr (line, ':');
+				if (!colon) {
+					continue;
+				}
+				*colon = 0;
+				char *key = line;
+				char *value = colon + 1;
+				r_str_trim (key);
+				r_str_trim (value);
+				if (!strcmp (key, "title")) {
+					prompt->desc = strdup (value);
+				} else if (!strcmp (key, "author")) {
+					prompt->author = strdup (value);
+				} else if (!strcmp (key, "description")) {
+					prompt->title = strdup (value);
+				} else if (!strcmp (key, "command")) {
+					prompt->command = strdup (value);
+				} else if (!strcmp (key, "model")) {
+					prompt->model = strdup (value);
+				} else if (!strcmp (key, "provider")) {
+					prompt->provider = strdup (value);
+				}
+			}
+			r_list_free (lines);
+			free (frontmatter);
+			// The prompt content starts after the second ---
+			char *prompt_start = frontmatter_end + 5; // Skip "\n---\n"
+			prompt->prompt = strdup (prompt_start);
 		}
-		char *colon = strchr (line, ':');
-		if (!colon) {
-			continue;
+	} else {
+		// Original parsing for .txt files
+		RList *lines = r_str_split_list (content, "\n", -1);
+		RListIter *iter;
+		char *line;
+		r_list_foreach (lines, iter, line) {
+			r_str_trim (line);
+			if (*line == '#' || *line == 0) {
+				continue;
+			}
+			char *colon = strchr (line, ':');
+			if (!colon) {
+				continue;
+			}
+			*colon = 0;
+			char *key = line;
+			char *value = colon + 1;
+			r_str_trim (key);
+			r_str_trim (value);
+			if (!strcmp (key, "Title")) {
+				prompt->title = strdup (value);
+			} else if (!strcmp (key, "Author")) {
+				prompt->author = strdup (value);
+			} else if (!strcmp (key, "Description")) {
+				prompt->desc = strdup (value);
+			} else if (!strcmp (key, "Command") || !strcmp (key, "Commands")) {
+				prompt->command = strdup (value);
+			} else if (!strcmp (key, "Prompt") || !strcmp (key, "Query")) {
+				prompt->prompt = strdup (value);
+			} else if (!strcmp (key, "Depends")) {
+				prompt->
+					requires
+				= strdup (value);
+			} else if (!strcmp (key, "If-Empty")) {
+				prompt->if_empty = strdup (value);
+			} else if (!strcmp (key, "If-Command")) {
+				prompt->if_command = strdup (value);
+			}
 		}
-		*colon = 0;
-		char *key = line;
-		char *value = colon + 1;
-		r_str_trim (key);
-		r_str_trim (value);
-		if (!strcmp (key, "Title")) {
-			prompt->title = strdup (value);
-		} else if (!strcmp (key, "Author")) {
-			prompt->author = strdup (value);
-		} else if (!strcmp (key, "Description")) {
-			prompt->desc = strdup (value);
-		} else if (!strcmp (key, "Command") || !strcmp (key, "Commands")) {
-			prompt->command = strdup (value);
-		} else if (!strcmp (key, "Prompt") || !strcmp (key, "Query")) {
-			prompt->prompt = strdup (value);
-		} else if (!strcmp (key, "Depends")) {
-			prompt->
-				requires
-			= strdup (value);
-		} else if (!strcmp (key, "If-Empty")) {
-			prompt->if_empty = strdup (value);
-		} else if (!strcmp (key, "If-Command")) {
-			prompt->if_command = strdup (value);
-		}
+		r_list_free (lines);
 	}
-	r_list_free (lines);
+
 	free (content);
 	return prompt;
 }
@@ -140,33 +190,61 @@ R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input) {
 		promptdir = "~/.config/r2ai/prompts";
 	}
 	char *expanded_dir = r_file_abspath (promptdir);
-	if (!r_file_is_directory (expanded_dir)) {
-		R_LOG_ERROR ("Prompt directory does not exist: %s", expanded_dir);
+	char *local_prompts = r_file_abspath ("../prompts");
+	RList *search_dirs = r_list_newf (free);
+	if (r_file_is_directory (expanded_dir)) {
+		r_list_append (search_dirs, expanded_dir);
+	} else {
 		free (expanded_dir);
+		expanded_dir = NULL;
+	}
+	if (r_file_is_directory (local_prompts)) {
+		r_list_append (search_dirs, local_prompts);
+	} else {
+		free (local_prompts);
+		local_prompts = NULL;
+	}
+	if (r_list_empty (search_dirs)) {
+		R_LOG_ERROR ("No prompt directories found");
+		r_list_free (search_dirs);
 		return;
 	}
 	if (!input || !*input) {
 		// list prompts
-		RList *files = r_sys_dir (expanded_dir);
-		RListIter *iter;
-		char *file;
-		r_list_foreach (files, iter, file) {
-			if (r_str_endswith (file, ".r2ai.txt")) {
-				char *dot = strchr (file, '.');
-				char *name = dot? r_str_ndup (file, dot - file): strdup (file);
-				char *filepath = r_str_newf ("%s/%s.r2ai.txt", expanded_dir, name);
-				R2AIPrompt *prompt = parse_prompt_file (filepath);
-				if (prompt) {
-					R2_PRINTF ("%s: %s - %s\n", name, prompt->title? prompt->title: "", prompt->desc? prompt->desc: "");
-					r2aiprompt_free (prompt);
-				} else {
-					R2_PRINTLN (name);
+		RListIter *dir_iter;
+		char *dir;
+		r_list_foreach (search_dirs, dir_iter, dir) {
+			RList *files = r_sys_dir (dir);
+			RListIter *iter;
+			char *file;
+			r_list_foreach (files, iter, file) {
+				if (r_str_endswith (file, ".r2ai.txt") || r_str_endswith (file, ".r2ai.md")) {
+					char *dot = strchr (file, '.');
+					char *name = dot? r_str_ndup (file, dot - file): strdup (file);
+					char *filepath_txt = r_str_newf ("%s/%s.r2ai.txt", dir, name);
+					char *filepath_md = r_str_newf ("%s/%s.r2ai.md", dir, name);
+					char *filepath = NULL;
+					if (r_file_exists (filepath_txt)) {
+						filepath = filepath_txt;
+					} else if (r_file_exists (filepath_md)) {
+						filepath = filepath_md;
+					}
+					if (filepath) {
+						R2AIPrompt *prompt = parse_prompt_file (filepath);
+						if (prompt) {
+							R2_PRINTF ("%s: %s - %s\n", name, prompt->title? prompt->title: "", prompt->desc? prompt->desc: "");
+							r2aiprompt_free (prompt);
+						} else {
+							R2_PRINTLN (name);
+						}
+					}
+					free (name);
+					free (filepath_txt);
+					free (filepath_md);
 				}
-				free (name);
-				free (filepath);
 			}
+			r_list_free (files);
 		}
-		r_list_free (files);
 	} else {
 		// run prompt
 		char *name = strdup (input);
@@ -176,11 +254,35 @@ R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input) {
 			r_str_trim (extra);
 		}
 		r_str_trim (name);
-		char *filepath = r_str_newf ("%s/%s.r2ai.txt", expanded_dir, name);
+		char *filepath = NULL;
+		RListIter *dir_iter;
+		char *dir;
+		r_list_foreach (search_dirs, dir_iter, dir) {
+			char *filepath_txt = r_str_newf ("%s/%s.r2ai.txt", dir, name);
+			char *filepath_md = r_str_newf ("%s/%s.r2ai.md", dir, name);
+			if (r_file_exists (filepath_txt)) {
+				filepath = filepath_txt;
+				free (filepath_md);
+				break;
+			} else if (r_file_exists (filepath_md)) {
+				filepath = filepath_md;
+				free (filepath_txt);
+				break;
+			}
+			free (filepath_txt);
+			free (filepath_md);
+		}
+		if (!filepath) {
+			R_LOG_ERROR ("Cannot find prompt file: %s.r2ai.txt or %s.r2ai.md", name, name);
+			r_list_free (search_dirs);
+			free (name);
+			return;
+		}
 		R2AIPrompt *prompt = parse_prompt_file (filepath);
 		if (!prompt) {
 			R_LOG_ERROR ("Cannot read prompt file: %s", filepath);
 			free (filepath);
+			r_list_free (search_dirs);
 			free (name);
 			return;
 		}
@@ -203,7 +305,16 @@ R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input) {
 		// determine the prompt to use
 		char *use_prompt = prompt->prompt;
 		if ((!cmd_output || !*cmd_output) && prompt->if_empty) {
-			use_prompt = prompt->if_empty;
+			if (!strcmp (prompt->if_empty, "exit")) {
+				R_LOG_ERROR ("Command output is empty, exiting prompt");
+				r2aiprompt_free (prompt);
+				free (cmd_output);
+				free (name);
+				r_list_free (search_dirs);
+				return;
+			} else {
+				use_prompt = prompt->if_empty;
+			}
 		}
 		// replace vars in prompt
 		char *replaced_prompt = replace_vars (core, use_prompt);
@@ -219,7 +330,7 @@ R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input) {
 		char *final_prompt = r_strbuf_drain (sb);
 		// now send to LLM
 		char *error = NULL;
-		char *res = r2ai (cps, (R2AIArgs){ .input = final_prompt, .error = &error, .dorag = true });
+		char *res = r2ai (cps, (R2AIArgs){ .input = final_prompt, .model = prompt->model, .provider = prompt->provider, .error = &error, .dorag = true });
 		if (error) {
 			R_LOG_ERROR ("%s", error);
 			free (error);
@@ -231,5 +342,5 @@ R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input) {
 		free (final_prompt);
 		free (name);
 	}
-	free (expanded_dir);
+	r_list_free (search_dirs);
 }
