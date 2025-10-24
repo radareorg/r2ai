@@ -13,6 +13,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -dr", "Decompile current function (+ 1 level of recursivity)",
 	"r2ai", " -a [query]", "Resolve question using auto mode",
 	"r2ai", " -e (k(=v))", "Same as '-e r2ai.'",
+	"r2ai", " -E", "Edit the r2ai rc file",
 	"r2ai", " -h", "Show this help message",
 	"r2ai", " -i [file] [query]", "read file and ask the llm with the given query",
 	"r2ai", " -m", "show selected model, list suggested ones, choose one",
@@ -295,6 +296,10 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 	R2AI_State *state = cps->data;
 	if (*input == '?' || r_str_startswith (input, "-h")) {
 		r_core_cmd_help (core, help_msg_r2ai);
+	} else if (r_str_startswith (input, "-E")) {
+		char *rc_path = r_file_home (".config/r2ai/rc");
+		r_cons_editor (core->cons, rc_path, NULL);
+		free (rc_path);
 	} else if (r_str_startswith (input, "-e")) {
 		const char *arg = r_str_trim_head_ro (input + 2);
 		if (r_str_startswith (arg, "r2ai")) {
@@ -454,6 +459,12 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 
 	// Initialize conversation container
 	r2ai_conversation_init (state);
+
+	char *rc_path = r_file_home (".config/r2ai/rc");
+	if (rc_path && r_file_exists (rc_path)) {
+		r_core_cmdf (core, ". %s", rc_path);
+	}
+	free (rc_path);
 
 	r_config_lock (core->config, false);
 	r_config_set_cb (core->config, "r2ai.api", R2AI_DEFAULT_PROVIDER, &cb_r2ai_api);
