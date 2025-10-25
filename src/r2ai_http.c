@@ -85,28 +85,13 @@ static void restore_sigint_handler_local(void *old, int old_is_sigaction) {
 	signal (SIGINT, (void (*) (int))old);
 }
 
-// Exponential backoff sleep with jitter
-static void r2ai_sleep_with_backoff(int retry_count, int max_sleep_seconds) {
-	int base_time_ms = 1000;
-	int max_sleep_ms = max_sleep_seconds * 1000;
-	int delay_ms = (1 << retry_count) * base_time_ms;
-	if (delay_ms > max_sleep_ms) {
-		delay_ms = max_sleep_ms;
+// Simple retry sleep
+static void sleep_retry(int retry_count, int max_sleep_seconds) {
+	int delay_seconds = retry_count + 1; // sleep 1, 2, 3, ... seconds
+	if (delay_seconds > max_sleep_seconds) {
+		delay_seconds = max_sleep_seconds;
 	}
-	int jitter = delay_ms / 5;
-	if (jitter > 0) {
-		srand (time (NULL) + retry_count);
-		delay_ms += (rand () % (jitter * 2)) - jitter;
-	}
-	if (delay_ms <= 0) {
-		delay_ms = base_time_ms;
-	} else if (delay_ms > max_sleep_ms) {
-		delay_ms = max_sleep_ms;
-	}
-	struct timespec ts;
-	ts.tv_sec = delay_ms / 1000;
-	ts.tv_nsec = (delay_ms % 1000) * 1000000;
-	nanosleep (&ts, NULL);
+	r_sys_sleep (delay_seconds);
 }
 
 #if HAVE_LIBCURL
@@ -183,7 +168,7 @@ static char *curl_http_post(const char *url, const char *headers[], const char *
 		if (!response.data) {
 			if (retry_count < max_retries) {
 				retry_count++;
-				r2ai_sleep_with_backoff (retry_count, max_backoff);
+				sleep_retry (retry_count, max_backoff);
 				continue;
 			}
 			restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction); // Restore signal handler
@@ -197,7 +182,7 @@ static char *curl_http_post(const char *url, const char *headers[], const char *
 			free (response.data);
 			if (retry_count < max_retries) {
 				retry_count++;
-				r2ai_sleep_with_backoff (retry_count, max_backoff);
+				sleep_retry (retry_count, max_backoff);
 				continue;
 			}
 			restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction); // Restore signal handler
@@ -260,7 +245,7 @@ static char *curl_http_post(const char *url, const char *headers[], const char *
 			if (retry_count < max_retries) {
 				retry_count++;
 				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-				r2ai_sleep_with_backoff (retry_count, max_backoff);
+				sleep_retry (retry_count, max_backoff);
 				continue;
 			}
 			break; // Exit the retry loop after max retries
@@ -276,7 +261,7 @@ static char *curl_http_post(const char *url, const char *headers[], const char *
 			if (retry_count < max_retries) {
 				retry_count++;
 				R_LOG_INFO ("Retrying request (%d/%d) after rate limiting...", retry_count, max_retries);
-				r2ai_sleep_with_backoff (retry_count, max_backoff);
+				sleep_retry (retry_count, max_backoff);
 				continue;
 			}
 			break; // Exit the retry loop after max retries
@@ -411,7 +396,7 @@ static char *system_curl_post_file(RCore *core, const char *url, const char *hea
 			R_LOG_ERROR ("Failed to create temporary file for curl data");
 			if (retry_count < max_retries) {
 				retry_count++;
-				r2ai_sleep_with_backoff (retry_count, max_backoff);
+				sleep_retry (retry_count, max_backoff);
 				continue;
 			}
 			break;
@@ -424,7 +409,7 @@ static char *system_curl_post_file(RCore *core, const char *url, const char *hea
 				free (temp_file);
 				if (retry_count < max_retries) {
 					retry_count++;
-					r2ai_sleep_with_backoff (retry_count, max_backoff);
+					sleep_retry (retry_count, max_backoff);
 					continue;
 				}
 				break;
@@ -499,7 +484,7 @@ static char *system_curl_post_file(RCore *core, const char *url, const char *hea
 			if (retry_count < max_retries) {
 				retry_count++;
 				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-				r2ai_sleep_with_backoff (retry_count, max_backoff);
+				sleep_retry (retry_count, max_backoff);
 				continue;
 			}
 			*code = 0;
@@ -573,7 +558,7 @@ static char *system_curl_post_file(RCore *core, const char *url, const char *hea
 			if (retry_count < max_retries) {
 				retry_count++;
 				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-				r2ai_sleep_with_backoff (retry_count, max_backoff);
+				sleep_retry (retry_count, max_backoff);
 				continue;
 			}
 			*code = 0;
@@ -627,7 +612,7 @@ static char *system_curl_get(const char *url, const char *headers[], int *code, 
 		} else if (retry_count < max_retries) {
 			retry_count++;
 			R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-			r2ai_sleep_with_backoff (retry_count, max_backoff);
+			sleep_retry (retry_count, max_backoff);
 			continue;
 		} else {
 			*code = 0;
@@ -691,7 +676,7 @@ static char *system_curl_get(const char *url, const char *headers[], int *code, 
 			if (retry_count < max_retries) {
 				retry_count++;
 				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-				r2ai_sleep_with_backoff (retry_count, max_backoff);
+				sleep_retry (retry_count, max_backoff);
 				continue;
 			}
 			*code = 0;
@@ -762,7 +747,7 @@ static char *socket_http_post_with_interrupt(const char *url, const char *header
 				if (retry_count < max_retries) {
 					retry_count++;
 					R_LOG_INFO ("Retrying request (%d/%d) after error...", retry_count, max_retries);
-					r2ai_sleep_with_backoff (retry_count, max_backoff);
+					sleep_retry (retry_count, max_backoff);
 					continue;
 				}
 				break; // Exit the retry loop after max retries
@@ -774,7 +759,7 @@ static char *socket_http_post_with_interrupt(const char *url, const char *header
 			if (retry_count < max_retries) {
 				retry_count++;
 				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-				r2ai_sleep_with_backoff (retry_count, max_backoff);
+				sleep_retry (retry_count, max_backoff);
 				continue;
 			}
 			break; // Exit the retry loop after max retries
@@ -824,7 +809,7 @@ static char *curl_http_get(const char *url, const char *headers[], int *code, in
 		if (!response.data) {
 			if (retry_count < max_retries) {
 				retry_count++;
-				r2ai_sleep_with_backoff (retry_count, max_backoff);
+				sleep_retry (retry_count, max_backoff);
 				continue;
 			}
 			restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction); // Restore signal handler
@@ -838,7 +823,7 @@ static char *curl_http_get(const char *url, const char *headers[], int *code, in
 			free (response.data);
 			if (retry_count < max_retries) {
 				retry_count++;
-				r2ai_sleep_with_backoff (retry_count, max_backoff);
+				sleep_retry (retry_count, max_backoff);
 				continue;
 			}
 			restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction); // Restore signal handler
@@ -903,7 +888,7 @@ static char *curl_http_get(const char *url, const char *headers[], int *code, in
 			if (retry_count < max_retries) {
 				retry_count++;
 				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-				r2ai_sleep_with_backoff (retry_count, max_backoff);
+				sleep_retry (retry_count, max_backoff);
 				continue;
 			}
 			break; // Exit the retry loop after max retries
@@ -919,7 +904,7 @@ static char *curl_http_get(const char *url, const char *headers[], int *code, in
 			if (retry_count < max_retries) {
 				retry_count++;
 				R_LOG_INFO ("Retrying request (%d/%d) after rate limiting...", retry_count, max_retries);
-				r2ai_sleep_with_backoff (retry_count, max_backoff);
+				sleep_retry (retry_count, max_backoff);
 				continue;
 			}
 			break; // Exit the retry loop after max retries
@@ -1003,7 +988,7 @@ static char *socket_http_get_with_interrupt(const char *url, const char *headers
 				if (retry_count < max_retries) {
 					retry_count++;
 					R_LOG_INFO ("Retrying request (%d/%d) after error...", retry_count, max_retries);
-					r2ai_sleep_with_backoff (retry_count, max_backoff);
+					sleep_retry (retry_count, max_backoff);
 					continue;
 				}
 				break; // Exit the retry loop after max retries
@@ -1015,7 +1000,7 @@ static char *socket_http_get_with_interrupt(const char *url, const char *headers
 			if (retry_count < max_retries) {
 				retry_count++;
 				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-				r2ai_sleep_with_backoff (retry_count, max_backoff);
+				sleep_retry (retry_count, max_backoff);
 				continue;
 			}
 			break; // Exit the retry loop after max retries
@@ -1077,7 +1062,7 @@ R_API char *r2ai_http_post(RCore *core, const char *url, const char *headers[], 
 				} else if (retry_count < max_retries) {
 					retry_count++;
 					R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-					r2ai_sleep_with_backoff (retry_count, max_backoff);
+					sleep_retry (retry_count, max_backoff);
 				} else {
 					*code = 0;
 				}
@@ -1132,7 +1117,7 @@ R_API char *r2ai_http_get(RCore *core, const char *url, const char *headers[], i
 			} else if (retry_count < max_retries) {
 				retry_count++;
 				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-				r2ai_sleep_with_backoff (retry_count, max_backoff);
+				sleep_retry (retry_count, max_backoff);
 			} else {
 				*code = 0;
 			}
