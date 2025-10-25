@@ -451,6 +451,28 @@ static bool cb_r2ai_model(void *user, void *data) {
 	return true;
 }
 
+static bool cb_r2ai_http_backend(void *user, void *data) {
+	RCore *core = (RCore *)user;
+	RConfigNode *node = (RConfigNode *)data;
+	if (*node->value == '?') {
+		r_cons_println (core->cons, "auto");
+		r_cons_println (core->cons, "libcurl");
+		r_cons_println (core->cons, "socket");
+		r_cons_println (core->cons, "system");
+		return false;
+	}
+	// Validate the backend
+	if (!strcmp (node->value, "auto") ||
+		!strcmp (node->value, "libcurl") ||
+		!strcmp (node->value, "socket") ||
+		!strcmp (node->value, "system")) {
+		return true;
+	}
+	R_LOG_ERROR ("Invalid backend '%s'. Use '?' to list valid backends.", node->value);
+	return false;
+	// return false; // always return false to test
+}
+
 R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	RCore *core = cps->core;
 	// Initialize state
@@ -476,6 +498,8 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 		r_config_desc (core->config, "r2ai.api", desc);
 		free (desc);
 	}
+	r_config_set_cb (core->config, "r2ai.http.backend", "auto", &cb_r2ai_http_backend); // Options: auto, libcurl, socket, system
+	r_config_desc (core->config, "r2ai.http.backend", "HTTP backend to use (auto, libcurl, socket, system)");
 	r_config_set_cb (core->config, "r2ai.model", R2AI_DEFAULT_MODEL, &cb_r2ai_model);
 	r_config_desc (core->config, "r2ai.model", "Model identifier for the selected provider (e.g. gpt-5-mini)");
 	r_config_set (core->config, "r2ai.baseurl", "");
@@ -534,8 +558,6 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_desc (core->config, "r2ai.http.max_retries", "Maximum number of HTTP retries for failed requests");
 	r_config_set_i (core->config, "r2ai.http.max_backoff", 30);
 	r_config_desc (core->config, "r2ai.http.max_backoff", "Maximum backoff time (seconds) between HTTP retries");
-	r_config_set (core->config, "r2ai.http.backend", "auto"); // Options: auto, libcurl, socket, system
-	r_config_desc (core->config, "r2ai.http.backend", "HTTP backend to use (auto, libcurl, socket, system)");
 	r_config_set_b (core->config, "r2ai.http.use_files", false);
 	r_config_desc (core->config, "r2ai.http.use_files", "Use temporary files to pass HTTP request/response payloads (true/false)");
 	r_config_set_b (core->config, "r2ai.auto.raw", false);

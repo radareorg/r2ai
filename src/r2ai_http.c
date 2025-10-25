@@ -718,11 +718,7 @@ static char *socket_http_post_with_interrupt(const char *url, const char *header
 #endif
 
 		// Make the request
-#if R2_VERSION_NUMBER >= 50909
 		result = r_socket_http_post (url, headers, data, code, rlen);
-#else
-		result = r_socket_http_post (url, data, code, rlen);
-#endif
 
 		// Clear the alarm
 #if R2__UNIX__
@@ -939,8 +935,6 @@ static char *socket_http_get_with_interrupt(const char *url, const char *headers
 	void *r2ai_old_sig = NULL;
 	int r2ai_old_is_sigaction = 0;
 	install_sigint_handler_local (&r2ai_old_sig, &r2ai_old_is_sigaction);
-
-	// Reset interrupt flag
 	r2ai_http_interrupted = 0;
 
 	// Retry loop
@@ -956,20 +950,10 @@ static char *socket_http_get_with_interrupt(const char *url, const char *headers
 #endif
 
 		// Make the request - use r_socket_http_get if available
-#if R2_VERSION_NUMBER >= 50909
 		result = r_socket_http_get (url, headers, code, rlen);
-#else
-		// For older radare2 versions, we might need to use a different approach
-		// or create a custom implementation
-		result = NULL;
-		*code = 0;
-#endif
-
-		// Clear the alarm
 #if R2__UNIX__
 		alarm (0);
 #endif
-
 		// Check if we were interrupted
 		if (r2ai_http_interrupted) {
 			R_LOG_DEBUG ("HTTP request was interrupted by user");
@@ -994,7 +978,6 @@ static char *socket_http_get_with_interrupt(const char *url, const char *headers
 				break; // Exit the retry loop after max retries
 			}
 		}
-
 		// Check for other failures
 		if (!result) {
 			if (retry_count < max_retries) {
@@ -1005,7 +988,6 @@ static char *socket_http_get_with_interrupt(const char *url, const char *headers
 			}
 			break; // Exit the retry loop after max retries
 		}
-
 		// If we get here, the request was successful
 		success = true;
 	}
@@ -1031,52 +1013,80 @@ R_API char *r2ai_http_post(RCore *core, const char *url, const char *headers[], 
 	if (!strcmp (backend, "system")) {
 		// Always use system curl with files for POST requests
 		return system_curl_post_file (core, url, headers, data, code, rlen, use_files);
-	} else if (!strcmp (backend, "libcurl")) {
+	}
+	if (!strcmp (backend, "libcurl")) {
 #if USE_LIBCURL && HAVE_LIBCURL
 		return curl_http_post (url, headers, data, code, rlen);
 #else
 		R_LOG_WARN ("LibCurl requested but not available, falling back to socket implementation");
 		return socket_http_post_with_interrupt (url, headers, data, code, rlen);
 #endif
-	} else if (!strcmp (backend, "socket")) {
+	}
+	if (!strcmp (backend, "socket")) {
 		return socket_http_post_with_interrupt (url, headers, data, code, rlen);
-	} else {
-		// Auto-select best available implementation
-		if (use_files) {
-			// If use_files is true, always use system curl
-			return system_curl_post_file (core, url, headers, data, code, rlen, use_files);
-		} else {
+	}
+	// Auto-select best available implementation
+	if (use_files) {
+		// If use_files is true, always use system curl
+		return system_curl_post_file (core, url, headers, data, code, rlen, use_files);
+	}
 #if USE_LIBCURL && HAVE_LIBCURL
-			return curl_http_post (url, headers, data, code, rlen);
+	return curl_http_post (url, headers, data, code, rlen);
 #else
 #ifdef _WIN32
-			int timeout, max_retries, max_backoff;
-			get_http_config (core, &timeout, &max_retries, &max_backoff);
-			char *result = NULL;
-			int retry_count = 0;
-			bool success = false;
-			while (!success && retry_count <= max_retries) {
-				result = windows_http_post (url, headers, data, code, rlen, timeout);
-				if (result) {
-					success = true;
-				} else if (retry_count < max_retries) {
-					retry_count++;
-					R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-					sleep_retry (retry_count, max_backoff);
-				} else {
-					*code = 0;
-				}
-			}
-			return result;
-#else
-#if USE_R2_CURL
-			r_sys_setenv ("R2_CURL", "1");
-#endif
-			return socket_http_post_with_interrupt (url, headers, data, code, rlen);
-#endif
-#endif
+	int timeout, max_retries, max_backoff;
+	get_http_config (core, &timeout, &max_retries, &max_backoff);
+	char *result = NULL;
+	int retry_count = 0;
+	bool success = false;
+	while (!success && retry_count <= max_retries) {
+		result = windows_http_post (url, headers, data, code, rlen, timeout);
+		if (result) {
+			success = true;
+		} else if (retry_count < max_retries) {
+			retry_count++;
+			R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
+			sleep_retry (retry_count, max_backoff);
+		} else {
+			*code = 0;
 		}
 	}
+	return result;
+#else
+#if USE_R2_CURL
+	r_sys_setenv ("R2_CURL", "1");
+#endif
+	return socket_http_post_with_interrupt (url, headers, data, code, rlen);
+#endif
+#endif
+}
+
+static char *http_fallback(const char *url, const char *headers[], int *code, int *rlen) {
+#ifdef _WIN32
+	int timeout, max_retries, max_backoff;
+	get_http_config (core, &timeout, &max_retries, &max_backoff);
+	char *result = NULL;
+	int retry_count = 0;
+	bool success = false;
+	while (!success && retry_count <= max_retries) {
+		result = windows_http_get (url, headers, code, rlen, timeout);
+		if (result) {
+			success = true;
+		} else if (retry_count < max_retries) {
+			retry_count++;
+			R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
+			sleep_retry (retry_count, max_backoff);
+		} else {
+			*code = 0;
+		}
+	}
+	return result;
+#else
+#if USE_R2_CURL
+	r_sys_setenv ("R2_CURL", "1");
+#endif
+	return socket_http_get_with_interrupt (url, headers, code, rlen);
+#endif
 }
 
 R_API char *r2ai_http_get(RCore *core, const char *url, const char *headers[], int *code, int *rlen) {
@@ -1090,45 +1100,22 @@ R_API char *r2ai_http_get(RCore *core, const char *url, const char *headers[], i
 	if (!strcmp (backend, "system")) {
 		// Use system curl for GET requests
 		return system_curl_get (url, headers, code, rlen);
-	} else if (!strcmp (backend, "libcurl")) {
+	}
+	if (!strcmp (backend, "libcurl")) {
 #if USE_LIBCURL && HAVE_LIBCURL
 		return curl_http_get (url, headers, code, rlen);
 #else
 		R_LOG_WARN ("LibCurl requested but not available, falling back to socket implementation");
 		return socket_http_get_with_interrupt (url, headers, code, rlen);
 #endif
-	} else if (!strcmp (backend, "socket")) {
-		return socket_http_get_with_interrupt (url, headers, code, rlen);
-	} else {
-		// Auto-select best available implementation
-#if USE_LIBCURL && HAVE_LIBCURL
-		return curl_http_get (url, headers, code, rlen);
-#else
-#ifdef _WIN32
-		int timeout, max_retries, max_backoff;
-		get_http_config (core, &timeout, &max_retries, &max_backoff);
-		char *result = NULL;
-		int retry_count = 0;
-		bool success = false;
-		while (!success && retry_count <= max_retries) {
-			result = windows_http_get (url, headers, code, rlen, timeout);
-			if (result) {
-				success = true;
-			} else if (retry_count < max_retries) {
-				retry_count++;
-				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-				sleep_retry (retry_count, max_backoff);
-			} else {
-				*code = 0;
-			}
-		}
-		return result;
-#else
-#if USE_R2_CURL
-		r_sys_setenv ("R2_CURL", "1");
-#endif
-		return socket_http_get_with_interrupt (url, headers, code, rlen);
-#endif
-#endif
 	}
+	if (!strcmp (backend, "socket")) {
+		return socket_http_get_with_interrupt (url, headers, code, rlen);
+	}
+	// Auto-select best available implementation
+#if USE_LIBCURL && HAVE_LIBCURL
+	return curl_http_get (url, headers, code, rlen);
+#else
+	return http_fallback (url, headers, code, rlen);
+#endif
 }
