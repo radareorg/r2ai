@@ -288,7 +288,7 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 			command = *edited_command;
 		} else {
 			// For single-line commands, push the command to input buffer
-			R2_NEWLINE ();
+			r_cons_newline (core->cons);
 			// Push the command to the input buffer
 
 			// Get user input with command pre-filled
@@ -296,7 +296,7 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 			r_cons_readpush (core->cons, "\x05", 1); // Ctrl+E - move to end
 			const char *readline_result = r_line_readline (core->cons);
 			// Check if interrupted or ESC pressed (readline_result is NULL or empty)
-			if (R2_INTERRUPTED () || R_STR_ISEMPTY (readline_result)) {
+			if (r_cons_is_breaked (core->cons) || R_STR_ISEMPTY (readline_result)) {
 				R_LOG_INFO ("Command execution cancelled %s", readline_result);
 				return strdup ("R2AI_SIGINT");
 			}
@@ -318,8 +318,8 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 
 	if (!hide_tool_output) {
 		char *red_command = r_str_newf ("\x1b[31m%s\x1b[0m\n", *edited_command);
-		R2_PRINTF ("%s", red_command);
-		R2_FLUSH ();
+		r_cons_printf (core->cons, "%s", red_command);
+		r_cons_flush (core->cons);
 		free (red_command);
 	}
 
@@ -375,7 +375,7 @@ R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output) {
 			const char *readline_result = r_line_readline (core->cons);
 
 			// Check if interrupted or ESC pressed (readline_result is NULL or empty)
-			if (R2_INTERRUPTED () || R_STR_ISEMPTY (readline_result)) {
+			if (r_cons_is_breaked (core->cons) || R_STR_ISEMPTY (readline_result)) {
 				free (edited_script); // Free if already allocated
 				return strdup ("R2AI_SIGINT");
 			}
@@ -395,8 +395,8 @@ R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output) {
 	if (!hide_tool_output) {
 		char *print_script = r_str_newf ("\n```js\n%s\n```", script);
 		char *print_script_rendered = r2ai_markdown (print_script);
-		R2_PRINTF ("%s\n", print_script_rendered);
-		R2_FLUSH ();
+		r_cons_printf (core->cons, "%s\n", print_script_rendered);
+		r_cons_flush (core->cons);
 		free (print_script);
 		free (print_script_rendered);
 	}
@@ -593,10 +593,10 @@ R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, c
 		return r_str_newf ("Error running tool: Unknown error\nCommand: %s", args);
 	}
 	if (!hide_tool_output) {
-		R2_NEWLINE ();
-		R2_PRINTF ("%s\n", result);
-		R2_NEWLINE ();
-		R2_FLUSH ();
+		r_cons_newline (core->cons);
+		r_cons_printf (core->cons, "%s\n", result);
+		r_cons_newline (core->cons);
+		r_cons_flush (core->cons);
 	}
 
 	r_str_ansi_strip (result);

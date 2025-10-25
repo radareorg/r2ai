@@ -319,7 +319,7 @@ R_IPI void r2ai_list_providers(RCore *core, RStrBuf *sb) {
 			}
 			r_strbuf_append (sb, r2ai_providers[i].name);
 		} else {
-			R2_PRINTLN (r2ai_providers[i].name);
+			r_cons_println (core->cons, r2ai_providers[i].name);
 		}
 	}
 }

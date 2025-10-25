@@ -232,10 +232,10 @@ R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input) {
 					if (filepath) {
 						R2AIPrompt *prompt = parse_prompt_file (filepath);
 						if (prompt) {
-							R2_PRINTF ("%s: %s - %s\n", name, prompt->title? prompt->title: "", prompt->desc? prompt->desc: "");
+							r_cons_printf (core->cons, "%s: %s - %s\n", name, prompt->title? prompt->title: "", prompt->desc? prompt->desc: "");
 							r2aiprompt_free (prompt);
 						} else {
-							R2_PRINTLN (name);
+							r_cons_println (core->cons, name);
 						}
 					}
 					free (name);
@@ -335,7 +335,7 @@ R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input) {
 			R_LOG_ERROR ("%s", error);
 			free (error);
 		} else if (res) {
-			R2_PRINTF ("%s\n", res);
+			r_cons_printf (core->cons, "%s\n", res);
 			free (res);
 		}
 		r2aiprompt_free (prompt);

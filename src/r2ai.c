@@ -135,7 +135,7 @@ static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool re
 		R_LOG_ERROR (error);
 		free (error);
 	} else {
-		R2_PRINTF ("%s\n", res);
+		r_cons_printf (core->cons, "%s\n", res);
 	}
 	free (res);
 	r_list_free (cmdslist);
@@ -152,9 +152,9 @@ static void cmd_r2ai_repl(RCorePluginSession *cps) {
 		}
 		if (*ptr == '/') {
 			if (ptr[1] == '?' || r_str_startswith (ptr, "/help")) {
-				R2_PRINTLN ("/help    show this help");
-				R2_PRINTLN ("/reset   reset conversation");
-				R2_PRINTLN ("/quit    same as ^D, leave the repl");
+				r_cons_println (core->cons, "/help    show this help");
+				r_cons_println (core->cons, "/reset   reset conversation");
+				r_cons_println (core->cons, "/quit    same as ^D, leave the repl");
 			} else if (r_str_startswith (ptr, "/reset")) {
 				r_strbuf_free (sb);
 				sb = r_strbuf_new ("");
@@ -173,8 +173,8 @@ static void cmd_r2ai_repl(RCorePluginSession *cps) {
 			free (error);
 		} else if (res) {
 			r_strbuf_appendf (sb, "Assistant: %s\n", res);
-			R2_PRINTF ("%s\n", res);
-			R2_FLUSH ();
+			r_cons_printf (core->cons, "%s\n", res);
+			r_cons_flush (core->cons);
 		}
 		free (res);
 	}
@@ -240,7 +240,7 @@ static void cmd_r2ai_i(RCorePluginSession *cps, const char *arg) {
 		R_LOG_ERROR (error);
 		free (error);
 	} else {
-		R2_PRINTF ("%s\n", res);
+		r_cons_printf (core->cons, "%s\n", res);
 	}
 	free (fname);
 	free (res);
@@ -250,7 +250,7 @@ static void cmd_r2ai_i(RCorePluginSession *cps, const char *arg) {
 static void cmd_r2ai_m(RCorePluginSession *cps, const char *input) {
 	RCore *core = cps->core;
 	if (R_STR_ISEMPTY (input)) {
-		R2_PRINTF ("%s\n", r_config_get (core->config, "r2ai.model"));
+		r_cons_printf (core->cons, "%s\n", r_config_get (core->config, "r2ai.model"));
 	} else {
 		r_config_set (core->config, "r2ai.model", input);
 	}
@@ -314,10 +314,10 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		const int N = atoi (arg);
 		R2AI_Messages *messages = r2ai_conversation_get (state);
 		if (!messages || r_list_length (messages->messages) == 0) {
-			R2_PRINTF ("No conversation history available\n");
+			r_cons_printf (core->cons, "No conversation history available\n");
 		} else {
 			r2ai_delete_last_messages (messages, N);
-			R2_PRINTF ("Deleted %d message%s from chat history\n", N > 0? N: 1,
+			r_cons_printf (core->cons, "Deleted %d message%s from chat history\n", N > 0? N: 1,
 				(N > 0 && N != 1)? "s": "");
 		}
 	} else if (r_str_startswith (input, "-L")) {
@@ -340,7 +340,7 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 			for (i = 0; i < rs->size; i++) {
 				RVdbResult *r = &rs->results[i];
 				KDNode *n = r->node;
-				R2_PRINTF ("- (%.4f) %s\n", r->dist_sq, n->text);
+				r_cons_printf (core->cons, "- (%.4f) %s\n", r->dist_sq, n->text);
 			}
 			r_vdb_result_free (rs);
 		}
@@ -351,10 +351,10 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 	} else if (r_str_startswith (input, "-R")) {
 		R2AI_Messages *messages = r2ai_conversation_get (state);
 		if (!messages || r_list_length (messages->messages) == 0) {
-			R2_PRINTF ("No conversation history to reset\n");
+			r_cons_printf (core->cons, "No conversation history to reset\n");
 		} else {
 			r2ai_msgs_clear (messages);
-			R2_PRINTF ("Chat conversation context has been reset\n");
+			r_cons_printf (core->cons, "Chat conversation context has been reset\n");
 		}
 	} else if (r_str_startswith (input, "-Rq")) {
 		cmd_r2ai_R (cps, r_str_trim_head_ro (input + 3));
@@ -363,7 +363,7 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 	} else if (r_str_startswith (input, "-p")) {
 		const char *provider = r_str_trim_head_ro (input + 2);
 		if (R_STR_ISEMPTY (provider)) {
-			R2_PRINTF ("%s\n", r_config_get (core->config, "r2ai.api"));
+			r_cons_printf (core->cons, "%s\n", r_config_get (core->config, "r2ai.api"));
 		} else {
 			r_config_set (core->config, "r2ai.api", provider);
 		}
@@ -380,7 +380,7 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 			R_FREE (err);
 		}
 		if (res) {
-			R2_PRINTF ("%s\n", res);
+			r_cons_printf (core->cons, "%s\n", res);
 			free (res);
 		}
 	}
@@ -413,7 +413,7 @@ static bool cb_r2ai_model(void *user, void *data) {
 			RListIter *iter;
 			char *model;
 			r_list_foreach (models, iter, model) {
-				R2_PRINTLN (model);
+				r_cons_println (core->cons, model);
 			}
 			r_list_free (models);
 		} else {
@@ -434,7 +434,7 @@ static bool cb_r2ai_model(void *user, void *data) {
 							if (s) {
 								*s = 0;
 							}
-							R2_PRINTLN (item);
+							r_cons_println (core->cons, item);
 						}
 						r_list_free (items);
 						free (s);
