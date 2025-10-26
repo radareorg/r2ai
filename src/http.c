@@ -153,10 +153,10 @@ static char *socket_http_get_with_interrupt(RCore *core, const char *url, const 
 // Forward declarations for functions defined in include files
 char *curl_http_post(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen);
 char *curl_http_get(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen);
-char *windows_http_post(const char *url, const char *headers[], const char *data, int *code, int *rlen, int timeout);
-char *windows_http_get(const char *url, const char *headers[], int *code, int *rlen, int timeout);
-char *system_curl_post_file(const char *url, const char *headers[], const char *data, int *code, int *rlen, int timeout, bool use_files);
-char *system_curl_get(const char *url, const char *headers[], int *code, int *rlen, int timeout);
+char *windows_http_post(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen);
+char *windows_http_get(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen);
+char *system_curl_post_file(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen);
+char *system_curl_get(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen);
 
 #include "http_libcurl.inc.c"
 
@@ -164,45 +164,7 @@ char *system_curl_get(const char *url, const char *headers[], int *code, int *rl
 
 #include "http_curl.inc.c"
 
-#ifdef _WIN32
-// Wrapper for Windows POST
-static char *windows_http_post_wrapper(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
-	R2AI_HttpConfig config = get_http_config (core);
-	return windows_http_post (url, headers, data, code, rlen, config.timeout);
-}
 
-// Wrapper for Windows GET
-static char *windows_http_get_wrapper(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
-	R2AI_HttpConfig config = get_http_config (core);
-	return windows_http_get (url, headers, code, rlen, config.timeout);
-}
-#endif
-
-// Wrapper for system curl POST with files
-static char *system_curl_post_file_wrapper(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
-	R2AI_HttpConfig config = get_http_config (core);
-	return system_curl_post_file (url, headers, data, code, rlen, config.timeout, true);
-}
-
-// Wrapper for libcurl POST
-static char *libcurl_http_post_wrapper(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
-#if USE_LIBCURL && HAVE_LIBCURL
-	return curl_http_post (core, url, headers, data, code, rlen);
-#else
-	R_LOG_WARN ("LibCurl requested but not available, falling back to socket implementation");
-	return socket_http_post_with_interrupt (core, url, headers, data, code, rlen);
-#endif
-}
-
-// Wrapper for libcurl GET
-static char *libcurl_http_get_wrapper(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
-#if USE_LIBCURL && HAVE_LIBCURL
-	return curl_http_get (core, url, headers, data, code, rlen);
-#else
-	R_LOG_WARN ("LibCurl requested but not available, falling back to socket implementation");
-	return socket_http_get_with_interrupt (core, url, headers, data, code, rlen);
-#endif
-}
 
 /**
  * Execute curl as a system command, sending data via temporary file
@@ -298,21 +260,26 @@ static char *r2ai_http_request(const char *method, RCore *core, const char *url,
 
 	// Select the appropriate backend function
 	if (!strcmp (backend, "system")) {
-		func = is_post? system_curl_post_wrapper: system_curl_get_wrapper;
+		func = is_post? system_curl_post_file: system_curl_get;
 	} else if (!strcmp (backend, "libcurl")) {
-		func = is_post? libcurl_http_post_wrapper: libcurl_http_get_wrapper;
+#if USE_LIBCURL && HAVE_LIBCURL
+		func = is_post? curl_http_post: curl_http_get;
+#else
+		R_LOG_WARN ("LibCurl requested but not available, falling back to socket implementation");
+		func = is_post? socket_http_post_with_interrupt: socket_http_get_with_interrupt;
+#endif
 	} else if (!strcmp (backend, "socket")) {
 		func = is_post? socket_http_post_with_interrupt: socket_http_get_with_interrupt;
 	} else {
 		// Auto backend selection
 		if (is_post && use_files) {
 			// Special case: use system curl with files
-			return r2ai_http_request_with_retry (core, system_curl_post_file_wrapper, url, headers, data, code, rlen);
+			return r2ai_http_request_with_retry (core, system_curl_post_file, url, headers, data, code, rlen);
 		}
 #if USE_LIBCURL && HAVE_LIBCURL
-		func = is_post? libcurl_http_post_wrapper: libcurl_http_get_wrapper;
+		func = is_post? curl_http_post: curl_http_get;
 #elif defined(_WIN32)
-		func = is_post? windows_http_post_wrapper: windows_http_get_wrapper;
+		func = is_post? windows_http_post: windows_http_get;
 #else
 #if USE_R2_CURL
 		r_sys_setenv ("R2_CURL", "1");

@@ -4,20 +4,10 @@
 
 // System curl implementations
 
-// Wrapper for system curl POST
-static char *system_curl_post_wrapper(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
+char *system_curl_post_file(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
 	R2AI_HttpConfig config = get_http_config (core);
-	bool use_files = core? r_config_get_b (core->config, "r2ai.http.use_files"): false;
-	return system_curl_post_file (url, headers, data, code, rlen, config.timeout, use_files);
-}
-
-// Wrapper for system curl GET
-static char *system_curl_get_wrapper(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
-	R2AI_HttpConfig config = get_http_config (core);
-	return system_curl_get (url, headers, code, rlen, config.timeout);
-}
-
-char *system_curl_post_file(const char *url, const char *headers[], const char *data, int *code, int *rlen, int timeout, bool use_files) {
+	int timeout = config.timeout;
+	bool use_files = core ? r_config_get_b (core->config, "r2ai.http.use_files") : false;
 	if (!url || !headers || !data || !code) {
 		return NULL;
 	}
@@ -112,7 +102,9 @@ char *system_curl_post_file(const char *url, const char *headers[], const char *
 	return result;
 }
 
-char *system_curl_get(const char *url, const char *headers[], int *code, int *rlen, int timeout) {
+char *system_curl_get(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
+	R2AI_HttpConfig config = get_http_config (core);
+	int timeout = config.timeout;
 	if (!url || !code) {
 		return NULL;
 	}
