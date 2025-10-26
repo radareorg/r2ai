@@ -66,7 +66,7 @@ doc-install:
 vdb.o: vdb_embed.inc.c
 
 fmt format indent:
-	clang-format-radare2 *.c
+	clang-format-radare2 *.c http/*.c
 
 user-install: user-uninstall
 	mkdir -p $(R2USRPLUGDIR)
