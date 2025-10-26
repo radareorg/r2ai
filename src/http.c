@@ -129,33 +129,8 @@ static HttpResponse r2ai_http_request_with_retry(HttpRequestFunc func, const HTT
 #include "http/curl.inc.c"
 #include "http/r2.inc.c"
 
-// Generic HTTP request function that handles backend selection
-static HttpResponse r2ai_http_request(const char *method, RCore *core, const char *url, const char *headers[], const char *data) {
-	const char *backend = "auto";
-	bool use_files = false;
-	bool is_post = (data != NULL);
+static HttpRequestFunc select_backend(const char *backend, bool is_post, bool use_files) {
 	HttpRequestFunc func = NULL;
-
-	R2AI_HttpConfig config = get_http_config (core);
-
-	// Create HTTPRequest structure
-	HTTPRequest request = {
-		.config = config,
-		.url = url,
-		.data = data,
-		.headers = headers
-	};
-
-	if (core) {
-		const char *config_backend = r_config_get (core->config, "r2ai.http.backend");
-		if (config_backend) {
-			backend = config_backend;
-		}
-		if (is_post) {
-			use_files = r_config_get_b (core->config, "r2ai.http.use_files");
-		}
-	}
-
 	// Select the appropriate backend function
 	if (!strcmp (backend, "system")) {
 		func = is_post? system_curl_post_file: system_curl_get;
@@ -168,24 +143,40 @@ static HttpResponse r2ai_http_request(const char *method, RCore *core, const cha
 #endif
 	} else if (!strcmp (backend, "socket")) {
 		func = is_post? socket_http_post_with_interrupt: socket_http_get_with_interrupt;
-	} else {
-		// Auto backend selection
-		if (is_post && use_files) {
-			// Special case: use system curl with files
-			return r2ai_http_request_with_retry (system_curl_post_file, &request, core);
+	} else if (!strcmp (backend, "curl")) {
+		if (is_post) {
+			func = use_files? system_curl_post_file: system_curl_post;
+		} else {
+			func = system_curl_get;
 		}
-#if USE_LIBCURL && HAVE_LIBCURL
-		func = is_post? curl_http_post: curl_http_get;
-#elif defined(_WIN32)
+	} else if (!strcmp (backend, "pwsh") || !strcmp (backend, "powershell")) {
+#if defined(_WIN32)
 		func = is_post? windows_http_post: windows_http_get;
 #else
-#if USE_R2_CURL
-		r_sys_setenv ("R2_CURL", "1");
-#endif
+		R_LOG_WARN ("powershell is only available on Windows");
 		func = is_post? socket_http_post_with_interrupt: socket_http_get_with_interrupt;
 #endif
+	} else if (!strcmp (backend, "r2curl")) {
+		r_sys_setenv ("R2_CURL", "1");
+		func = is_post? socket_http_post_with_interrupt: socket_http_get_with_interrupt;
 	}
+	return func;
+}
 
+// Generic HTTP request function that handles backend selection
+static HttpResponse r2ai_http_request(const char *method, RCore *core, const char *url, const char *headers[], const char *data) {
+	bool is_post = (data != NULL);
+	bool use_files = is_post? r_config_get_b (core->config, "r2ai.http.use_files"): false;
+
+	HTTPRequest request = {
+		.config = get_http_config (core),
+		.url = url,
+		.data = data,
+		.headers = headers
+	};
+
+	const char *backend = r_config_get (core->config, "r2ai.http.backend");
+	HttpRequestFunc func = select_backend (backend, is_post, use_files);
 	if (func) {
 		return r2ai_http_request_with_retry (func, &request, core);
 	}

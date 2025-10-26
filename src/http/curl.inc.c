@@ -98,3 +98,47 @@ HttpResponse system_curl_get(const HTTPRequest *request) {
 	}
 	return error;
 }
+
+HttpResponse system_curl_post(const HTTPRequest *request) {
+	HttpResponse error = { .code = -1 };
+	int timeout = request->config.timeout;
+	if (!request->url || !request->data) {
+		return error;
+	}
+
+	// Compose curl command
+	RStrBuf *cmd = r_strbuf_new ("curl -s -X POST");
+
+	// Add timeout
+	r_strbuf_appendf (cmd, " --connect-timeout %d --max-time %d", 10, timeout);
+
+	// Add headers
+	if (request->headers) {
+		for (int i = 0; request->headers[i] != NULL; i++) {
+			r_strbuf_appendf (cmd, " -H \"%s\"", request->headers[i]);
+		}
+	}
+
+	// Add data
+	r_strbuf_appendf (cmd, " -d \"%s\"", request->data);
+
+	// Add URL
+	r_strbuf_appendf (cmd, " \"%s\"", request->url);
+
+	// Execute the curl command
+	char *cmd_str = r_strbuf_drain (cmd);
+	r_sys_setenv ("R2_CURL", "1"); // Ensure R2 uses system curl
+
+	R_LOG_DEBUG ("Running system curl: %s", cmd_str);
+	char *response = r_sys_cmd_str (cmd_str, NULL, NULL);
+
+	free (cmd_str);
+
+	// We can't easily get the HTTP status code using this method
+	// Let's assume 200 if we got a response, and 0 otherwise
+	if (response) {
+		return (HttpResponse){ .body = response, .code = 200, .length = strlen (response) };
+	} else {
+		return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
+	}
+}
