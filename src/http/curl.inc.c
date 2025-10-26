@@ -1,4 +1,4 @@
-static HttpResponse build_and_execute_curl(const char *cmd_start, const HTTPRequest *request, const char *input_data, const char *data_file) {
+static HttpResponse build_and_execute_curl(const char *cmd_start, const HTTPRequest *request, const char *input_data) {
 	HttpResponse error = { .code = -1 };
 	int timeout = request->config.timeout;
 	if (!request->url) {
@@ -48,7 +48,7 @@ static HttpResponse build_and_execute_curl(const char *cmd_start, const HTTPRequ
 
 HttpResponse system_curl_get(const HTTPRequest *request) {
 	R_LOG_DEBUG ("Using system curl GET");
-	return build_and_execute_curl ("curl -s", request, NULL, NULL);
+	return build_and_execute_curl ("curl -s", request, NULL);
 }
 
 HttpResponse system_curl_post(const HTTPRequest *request) {
@@ -58,6 +58,6 @@ HttpResponse system_curl_post(const HTTPRequest *request) {
 	}
 
 	R_LOG_DEBUG ("Using system curl POST without files");
-	HttpResponse res = build_and_execute_curl ("curl -s -X POST -d @-", request, request->data, NULL);
+	HttpResponse res = build_and_execute_curl ("curl -s -X POST -d @-", request, request->data);
 	return res;
 }
