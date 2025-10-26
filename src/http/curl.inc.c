@@ -1,10 +1,4 @@
-#include "r2ai.h"
-#include <signal.h>
-#include <time.h>
-
-// System curl implementations
-
-static HttpResponse build_and_execute_curl(const char *cmd_start, const HTTPRequest *request, const char *data, const char *data_file) {
+static HttpResponse build_and_execute_curl(const char *cmd_start, const HTTPRequest *request, const char *input_data, const char *data_file) {
 	HttpResponse error = { .code = -1 };
 	int timeout = request->config.timeout;
 	if (!request->url) {
@@ -20,70 +14,50 @@ static HttpResponse build_and_execute_curl(const char *cmd_start, const HTTPRequ
 	// Add headers
 	if (request->headers) {
 		for (int i = 0; request->headers[i] != NULL; i++) {
-			r_strbuf_appendf (cmd, " -H \"%s\"", request->headers[i]);
+			r_strbuf_appendf (cmd, " -H '%s'", request->headers[i]);
 		}
 	}
-
-	// Add data
-	if (data_file) {
-		r_strbuf_appendf (cmd, " --data-binary @%s", data_file);
-	} else if (data) {
-		r_strbuf_appendf (cmd, " -d \"%s\"", data);
-	}
-
-	// Add URL
-	r_strbuf_appendf (cmd, " \"%s\"", request->url);
-
-	// Execute the curl command
+	r_strbuf_appendf (cmd, " -w '\\n%%{http_code}' '%s'", request->url);
 	char *cmd_str = r_strbuf_drain (cmd);
-	r_sys_setenv ("R2_CURL", "1"); // Ensure R2 uses system curl
-
 	R_LOG_DEBUG ("Running system curl: %s", cmd_str);
-	char *response = r_sys_cmd_str (cmd_str, NULL, NULL);
+	char *response = r_sys_cmd_str (cmd_str, input_data, NULL);
 
 	free (cmd_str);
 
-	// We can't easily get the HTTP status code using this method
-	// Let's assume 200 if we got a response, and 0 otherwise
-	if (response) {
-		return (HttpResponse){ .body = response, .code = 200, .length = strlen (response) };
+	if (!response) {
+		return error;
+	}
+
+	// Parse the response: body\ncode
+	char *last_nl = (char *)r_str_rchr (response, NULL, '\n');
+	int code = -1;
+	char *body = response;
+	if (last_nl) {
+		*last_nl = '\0';
+		code = atoi (last_nl + 1);
+		if (code == 0) {
+			code = -1; // Invalid code
+		}
 	} else {
-		return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
-	}
-}
-
-HttpResponse system_curl_post_file(const HTTPRequest *request) {
-	HttpResponse error = { .code = -1 };
-	if (!request->url || !request->headers || !request->data) {
-		return error;
+		// No newline, assume 200 if response
+		code = 200;
 	}
 
-	// Create a temporary file for the data
-	char *temp_file = r_file_temp ("r2ai_data");
-	if (!temp_file) {
-		R_LOG_ERROR ("Failed to create temporary file for curl data");
-		return error;
-	}
-
-	// Write data to the temporary file
-	if (!r_file_dump (temp_file, (const ut8 *)request->data, strlen (request->data), 0)) {
-		R_LOG_ERROR ("Failed to write data to temporary file");
-		free (temp_file);
-		return error;
-	}
-
-	HttpResponse res = build_and_execute_curl ("curl -s -X POST", request, NULL, temp_file);
-	free (temp_file);
-	return res;
+	return (HttpResponse){ .body = body, .code = code, .length = strlen (body) };
 }
 
 HttpResponse system_curl_get(const HTTPRequest *request) {
+	R_LOG_DEBUG ("Using system curl GET");
 	return build_and_execute_curl ("curl -s", request, NULL, NULL);
 }
 
 HttpResponse system_curl_post(const HTTPRequest *request) {
-	if (!request->data) {
-		return (HttpResponse){ .code = -1 };
+	HttpResponse error = { .code = -1 };
+	if (!request->url || !request->data) {
+		return error;
 	}
-	return build_and_execute_curl ("curl -s -X POST", request, request->data, NULL);
+
+	R_LOG_DEBUG ("Using system curl POST without files");
+	HttpResponse res = build_and_execute_curl ("curl -s -X POST -d @-", request, request->data, NULL);
+	return res;
 }

@@ -131,20 +131,20 @@ static HttpResponse r2ai_http_request_with_retry(HttpRequestFunc func, const HTT
 #include "http/curl.inc.c"
 #include "http/r2.inc.c"
 
-static HttpRequestFunc select_backend(const char *backend, bool is_post, bool use_files) {
+static HttpRequestFunc select_backend(const char *backend, bool is_post) {
 	HttpRequestFunc func = NULL;
 	// Select the appropriate backend function
 	if (!strcmp (backend, "auto")) {
 		// Auto-select the best available backend
 #if USE_LIBCURL && HAVE_LIBCURL
-		func = is_post? curl_http_post: curl_http_get;
-		R_LOG_DEBUG ("Auto-selected libcurl backend");
+		backend = "libcurl";
 #else
-		func = is_post? system_curl_post_file: system_curl_get;
-		R_LOG_DEBUG ("Auto-selected system curl backend");
+		backend = "system";
 #endif
-	} else if (!strcmp (backend, "system")) {
-		func = is_post? system_curl_post_file: system_curl_get;
+		R_LOG_DEBUG ("Auto-selected %s backend", backend);
+	}
+	if (!strcmp (backend, "system") || !strcmp (backend, "curl")) {
+		func = is_post? system_curl_post: system_curl_get;
 	} else if (!strcmp (backend, "libcurl")) {
 #if USE_LIBCURL && HAVE_LIBCURL
 		func = is_post? curl_http_post: curl_http_get;
@@ -154,12 +154,6 @@ static HttpRequestFunc select_backend(const char *backend, bool is_post, bool us
 #endif
 	} else if (!strcmp (backend, "socket")) {
 		func = is_post? socket_http_post_with_interrupt: socket_http_get_with_interrupt;
-	} else if (!strcmp (backend, "curl")) {
-		if (is_post) {
-			func = use_files? system_curl_post_file: system_curl_post;
-		} else {
-			func = system_curl_get;
-		}
 	} else if (!strcmp (backend, "pwsh") || !strcmp (backend, "powershell")) {
 #if defined(_WIN32)
 		func = is_post? windows_http_post: windows_http_get;
@@ -178,7 +172,6 @@ static HttpRequestFunc select_backend(const char *backend, bool is_post, bool us
 static HttpResponse r2ai_http_request(const char *method, RCore *core, const char *url, const char *headers[], const char *data) {
 	(void)method;
 	bool is_post = (data != NULL);
-	bool use_files = is_post? r_config_get_b (core->config, "r2ai.http.use_files"): false;
 
 	HTTPRequest request = {
 		.config = get_http_config (core),
@@ -188,7 +181,7 @@ static HttpResponse r2ai_http_request(const char *method, RCore *core, const cha
 	};
 
 	const char *backend = r_config_get (core->config, "r2ai.http.backend");
-	HttpRequestFunc func = select_backend (backend, is_post, use_files);
+	HttpRequestFunc func = select_backend (backend, is_post);
 	if (func) {
 		return r2ai_http_request_with_retry (func, &request, core);
 	}
@@ -201,6 +194,9 @@ R_API char *r2ai_http_post(RCore *core, const char *url, const char *headers[], 
 	if (response.code <= 0) {
 		if (response.body) {
 			free (response.body);
+		}
+		if (code) {
+			*code = response.code;
 		}
 		return NULL;
 	}
@@ -218,6 +214,9 @@ R_API char *r2ai_http_get(RCore *core, const char *url, const char *headers[], i
 	if (response.code <= 0) {
 		if (response.body) {
 			free (response.body);
+		}
+		if (code) {
+			*code = response.code;
 		}
 		return NULL;
 	}
