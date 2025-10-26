@@ -1,7 +1,7 @@
 #ifdef _WIN32
 
 // Helper to append headers to PowerShell command
-static void append_headers_to_cmd(RStrBuf *cmd, const char *headers[]) {
+static void append_headers_to_cmd(RStrBuf *cmd, const char * const *headers) {
 	r_strbuf_appendf (cmd, "$ProgressPreference='SilentlyContinue';$headers=@{");
 	if (headers) {
 		for (int i = 0; headers[i]; i++) {
@@ -25,7 +25,7 @@ static void append_headers_to_cmd(RStrBuf *cmd, const char *headers[]) {
  */
 HttpResponse windows_http_post(const HTTPRequest *request) {
 	const char *url = request->url;
-	const char *headers[] = request->headers;
+	const char * const *headers = request->headers;
 	const char *data = request->data;
 	int timeout = request->config.timeout;
 	RStrBuf *cmd = r_strbuf_new ("powershell -Command \"");
@@ -57,7 +57,7 @@ HttpResponse windows_http_post(const HTTPRequest *request) {
  */
 HttpResponse windows_http_get(const HTTPRequest *request) {
 	const char *url = request->url;
-	const char *headers[] = request->headers;
+	const char * const *headers = request->headers;
 	int timeout = request->config.timeout;
 	RStrBuf *cmd = r_strbuf_new ("powershell -Command \"");
 	append_headers_to_cmd (cmd, headers);

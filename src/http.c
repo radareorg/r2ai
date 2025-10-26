@@ -25,12 +25,14 @@ static R2AI_HttpConfig get_http_config(RCore *core) {
 	return config;
 }
 
+#ifndef _WIN32
 // Signal handler for timeout (SIGALRM)
 static void r2ai_http_sigint_handler(int sig) {
 	if (sig == SIGALRM) {
 		r2ai_http_interrupted = 1;
 	}
 }
+#endif
 
 // Portable break callback for r_cons_break (handles SIGINT)
 static void r2ai_http_break_callback(void *user) {
@@ -165,6 +167,7 @@ static HttpRequestFunc select_backend(const char *backend, bool is_post, bool us
 
 // Generic HTTP request function that handles backend selection
 static HttpResponse r2ai_http_request(const char *method, RCore *core, const char *url, const char *headers[], const char *data) {
+	(void)method;
 	bool is_post = (data != NULL);
 	bool use_files = is_post? r_config_get_b (core->config, "r2ai.http.use_files"): false;
 
