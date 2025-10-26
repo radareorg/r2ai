@@ -40,12 +40,10 @@ static int progress_callback(void *clientp, curl_off_t dltotal, curl_off_t dlnow
 	return 0; // Return 0 to continue
 }
 
-char *curl_http_post(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
-	if (!url || !headers || !data || !code) {
+HttpResponse *curl_http_post(const HTTPRequest *request) {
+	if (!request->url || !request->headers || !request->data) {
 		return NULL;
 	}
-
-	R2AI_HttpConfig config = get_http_config (core);
 
 	CURL *curl;
 	CURLcode res;
@@ -67,14 +65,14 @@ char *curl_http_post(RCore *core, const char *url, const char *headers[], const 
 	}
 
 	// Set URL
-	curl_easy_setopt (curl, CURLOPT_URL, url);
+	curl_easy_setopt (curl, CURLOPT_URL, request->url);
 
 	// Set POST data
-	curl_easy_setopt (curl, CURLOPT_POSTFIELDS, data);
+	curl_easy_setopt (curl, CURLOPT_POSTFIELDS, request->data);
 
 	// Set headers
-	for (int i = 0; headers[i] != NULL; i++) {
-		curl_headers = curl_slist_append (curl_headers, headers[i]);
+	for (int i = 0; request->headers[i] != NULL; i++) {
+		curl_headers = curl_slist_append (curl_headers, request->headers[i]);
 	}
 	curl_easy_setopt (curl, CURLOPT_HTTPHEADER, curl_headers);
 
@@ -109,7 +107,6 @@ char *curl_http_post(RCore *core, const char *url, const char *headers[], const 
 	// Get response code
 	long http_code;
 	curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
-	*code = (int)http_code;
 
 	// Check for errors
 	if (res != CURLE_OK) {
@@ -121,9 +118,11 @@ char *curl_http_post(RCore *core, const char *url, const char *headers[], const 
 	}
 
 	// If we get here, the request was successful
-	char *result = response.data;
-	if (rlen) {
-		*rlen = response.size;
+	HttpResponse *result = R_NEW0 (HttpResponse);
+	if (result) {
+		result->body = response.data;
+		result->code = (int)http_code;
+		result->length = response.size;
 	}
 
 	// Cleanup
@@ -133,12 +132,10 @@ char *curl_http_post(RCore *core, const char *url, const char *headers[], const 
 	return result;
 }
 
-char *curl_http_get(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
-	if (!url || !code) {
+HttpResponse *curl_http_get(const HTTPRequest *request) {
+	if (!request->url) {
 		return NULL;
 	}
-
-	R2AI_HttpConfig config = get_http_config (core);
 
 	CURL *curl;
 	CURLcode res;
@@ -160,15 +157,15 @@ char *curl_http_get(RCore *core, const char *url, const char *headers[], const c
 	}
 
 	// Set URL
-	curl_easy_setopt (curl, CURLOPT_URL, url);
+	curl_easy_setopt (curl, CURLOPT_URL, request->url);
 
 	// This is a GET request - no POST data
 	curl_easy_setopt (curl, CURLOPT_HTTPGET, 1L);
 
 	// Set headers if provided
-	if (headers) {
-		for (int i = 0; headers[i] != NULL; i++) {
-			curl_headers = curl_slist_append (curl_headers, headers[i]);
+	if (request->headers) {
+		for (int i = 0; request->headers[i] != NULL; i++) {
+			curl_headers = curl_slist_append (curl_headers, request->headers[i]);
 		}
 		curl_easy_setopt (curl, CURLOPT_HTTPHEADER, curl_headers);
 	}
@@ -184,7 +181,7 @@ char *curl_http_get(RCore *core, const char *url, const char *headers[], const c
 
 	// Set timeout options
 	curl_easy_setopt (curl, CURLOPT_CONNECTTIMEOUT, 10L); // 10 seconds connect timeout
-	curl_easy_setopt (curl, CURLOPT_TIMEOUT, (long)config.timeout); // Use configured timeout
+	curl_easy_setopt (curl, CURLOPT_TIMEOUT, (long)request->config.timeout); // Use configured timeout
 
 	// Follow redirects
 	curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
@@ -204,7 +201,6 @@ char *curl_http_get(RCore *core, const char *url, const char *headers[], const c
 	// Get response code
 	long http_code;
 	curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
-	*code = (int)http_code;
 
 	// Check for errors
 	if (res != CURLE_OK) {
@@ -216,9 +212,11 @@ char *curl_http_get(RCore *core, const char *url, const char *headers[], const c
 	}
 
 	// If we get here, the request was successful
-	char *result = response.data;
-	if (rlen) {
-		*rlen = response.size;
+	HttpResponse *result = R_NEW0 (HttpResponse);
+	if (result) {
+		result->body = response.data;
+		result->code = (int)http_code;
+		result->length = response.size;
 	}
 
 	// Cleanup

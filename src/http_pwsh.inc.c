@@ -23,9 +23,7 @@ static void append_headers_to_cmd(RStrBuf *cmd, const char *headers[]) {
 /**
  * Windows-specific HTTP POST using PowerShell
  */
-char *windows_http_post(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
-	R2AI_HttpConfig config = get_http_config (core);
-	int timeout = config.timeout;
+HttpResponse *windows_http_post(const char *url, const char *headers[], const char *data, int timeout) {
 	RStrBuf *cmd = r_strbuf_new ("powershell -Command \"");
 	append_headers_to_cmd (cmd, headers);
 	r_strbuf_appendf (cmd, "$body='%s';", data);
@@ -34,35 +32,38 @@ char *windows_http_post(RCore *core, const char *url, const char *headers[], con
 	char *cmd_str = r_strbuf_drain (cmd);
 	char *full_response = r_sys_cmd_str (cmd_str, NULL, NULL);
 	free (cmd_str);
+	HttpResponse *result = NULL;
 	if (full_response) {
 		char *newline = strchr (full_response, '\n');
 		if (newline) {
 			*newline = '\0';
-			*code = atoi (full_response);
+			int code = atoi (full_response);
 			char *body = newline + 1;
-			if (rlen) {
-				*rlen = strlen (body);
+			result = R_NEW0 (HttpResponse);
+			if (result) {
+				result->body = strdup (body);
+				result->code = code;
+				result->length = strlen (body);
 			}
-			char *result = strdup (body);
-			free (full_response);
-			return result;
+		} else {
+			result = R_NEW0 (HttpResponse);
+			if (result) {
+				result->body = full_response;
+				result->code = 200;
+				result->length = strlen (full_response);
+				full_response = NULL; // Don't free it since we're using it
+			}
 		}
-		*code = 200;
-		if (rlen) {
-			*rlen = strlen (full_response);
-		}
-		return full_response;
 	}
-	*code = 0;
-	return NULL;
+	free (full_response);
+	return result;
 }
 
 /**
  * Windows-specific HTTP GET using PowerShell
  */
-char *windows_http_get(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
-	R2AI_HttpConfig config = get_http_config (core);
-	int timeout = config.timeout;
+HttpResponse *windows_http_get(const char *url, const char *headers[], int timeout) {
+
 	RStrBuf *cmd = r_strbuf_new ("powershell -Command \"");
 	append_headers_to_cmd (cmd, headers);
 	r_strbuf_appendf (cmd, "try{$r=Invoke-WebRequest -Method Get -Uri '%s' -Headers $headers -TimeoutSec %d;", url, timeout);
@@ -70,26 +71,30 @@ char *windows_http_get(RCore *core, const char *url, const char *headers[], cons
 	char *cmd_str = r_strbuf_drain (cmd);
 	char *full_response = r_sys_cmd_str (cmd_str, NULL, NULL);
 	free (cmd_str);
+	HttpResponse *result = NULL;
 	if (full_response) {
 		char *newline = strchr (full_response, '\n');
 		if (newline) {
 			*newline = '\0';
-			*code = atoi (full_response);
+			int code = atoi (full_response);
 			char *body = newline + 1;
-			if (rlen) {
-				*rlen = strlen (body);
+			result = R_NEW0 (HttpResponse);
+			if (result) {
+				result->body = strdup (body);
+				result->code = code;
+				result->length = strlen (body);
 			}
-			char *result = strdup (body);
-			free (full_response);
-			return result;
+		} else {
+			result = R_NEW0 (HttpResponse);
+			if (result) {
+				result->body = full_response;
+				result->code = 200;
+				result->length = strlen (full_response);
+				full_response = NULL; // Don't free it since we're using it
+			}
 		}
-		*code = 200;
-		if (rlen) {
-			*rlen = strlen (full_response);
-		}
-		return full_response;
 	}
-	*code = 0;
-	return NULL;
+	free (full_response);
+	return result;
 }
 #endif

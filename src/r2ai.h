@@ -25,6 +25,28 @@
 
 #define R2AI_DEFAULT_VECTORS 16
 
+// HTTP configuration structure
+typedef struct {
+	int timeout;
+	int max_retries;
+	int max_backoff;
+} R2AI_HttpConfig;
+
+// HTTP request structure
+typedef struct {
+	R2AI_HttpConfig config;
+	const char *url;
+	const char *data;
+	const char * const *headers;
+} HTTPRequest;
+
+// HTTP response structure
+typedef struct {
+	char *body;
+	int code;
+	int length;
+} HttpResponse;
+
 #if R2_VERSION_NUMBER < 60000
 #error Your radare2 is too old
 #endif

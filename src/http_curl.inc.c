@@ -4,11 +4,9 @@
 
 // System curl implementations
 
-char *system_curl_post_file(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
-	R2AI_HttpConfig config = get_http_config (core);
-	int timeout = config.timeout;
-	bool use_files = core ? r_config_get_b (core->config, "r2ai.http.use_files") : false;
-	if (!url || !headers || !data || !code) {
+HttpResponse *system_curl_post_file(const HTTPRequest *request) {
+	int timeout = request->config.timeout;
+	if (!request->url || !request->headers || !request->data) {
 		return NULL;
 	}
 
@@ -19,37 +17,28 @@ char *system_curl_post_file(RCore *core, const char *url, const char *headers[],
 		return NULL;
 	}
 
-	if (use_files) {
-		// Write data to the temporary file
-		if (!r_file_dump (temp_file, (const ut8 *)data, strlen (data), 0)) {
-			R_LOG_ERROR ("Failed to write data to temporary file");
-			free (temp_file);
-			return NULL;
-		}
+	// Write data to the temporary file
+	if (!r_file_dump (temp_file, (const ut8 *)request->data, strlen (request->data), 0)) {
+		R_LOG_ERROR ("Failed to write data to temporary file");
+		free (temp_file);
+		return NULL;
 	}
 
-	char *result = NULL;
+	HttpResponse *result = NULL;
 
 #ifdef _WIN32
 	// On Windows, use PowerShell for HTTP requests
-	char *data_to_send = NULL;
-	if (use_files) {
-		// Read file content
-		data_to_send = r_file_slurp (temp_file, NULL);
-		if (!data_to_send) {
-			r_file_rm (temp_file);
-			free (temp_file);
-			return NULL;
-		}
-	} else {
-		data_to_send = (char *)data;
+	// Read file content
+	char *data_to_send = r_file_slurp (temp_file, NULL);
+	if (!data_to_send) {
+		r_file_rm (temp_file);
+		free (temp_file);
+		return NULL;
 	}
 
-	result = windows_http_post (url, headers, data_to_send, code, rlen, timeout);
+	HttpResponse *result = windows_http_post (request->url, request->headers, data_to_send, timeout);
 
-	if (use_files) {
-		free (data_to_send);
-	}
+	free (data_to_send);
 	r_file_rm (temp_file);
 	free (temp_file);
 #else
@@ -60,21 +49,12 @@ char *system_curl_post_file(RCore *core, const char *url, const char *headers[],
 	r_strbuf_appendf (cmd, " --connect-timeout %d --max-time %d", 10, timeout);
 
 	// Add headers
-	for (int i = 0; headers[i] != NULL; i++) {
-		r_strbuf_appendf (cmd, " -H \"%s\"", headers[i]);
+	for (int i = 0; request->headers[i] != NULL; i++) {
+		r_strbuf_appendf (cmd, " -H \"%s\"", request->headers[i]);
 	}
 
-	if (use_files) {
-		// Add data file with @ prefix for curl
-		r_strbuf_appendf (cmd, " -X POST -d @%s \"%s\"", temp_file, url);
-	} else {
-		char *s = strdup (data);
-		s = r_str_replace_all (s, "\\", "\\\\");
-		// s = r_str_replace_all (s, "'", "\\'");
-		s = r_str_replace_all (s, "'", "'\\''");
-		r_strbuf_appendf (cmd, " -X POST -d '%s' \"%s\"", s, url);
-		free (s);
-	}
+	// Add data file with @ prefix for curl
+	r_strbuf_appendf (cmd, " -X POST -d @%s \"%s\"", temp_file, request->url);
 
 	// Execute the curl command
 	char *cmd_str = r_strbuf_drain (cmd);
@@ -90,22 +70,22 @@ char *system_curl_post_file(RCore *core, const char *url, const char *headers[],
 	// We can't easily get the HTTP status code using this method
 	// Let's assume 200 if we got a response, and 0 otherwise
 	if (response) {
-		*code = 200;
-		if (rlen) {
-			*rlen = strlen (response);
+		result = R_NEW0 (HttpResponse);
+		if (result) {
+			result->body = response;
+			result->code = 200;
+			result->length = strlen (response);
 		}
-		result = response;
 	} else {
-		*code = 0;
+		result = NULL;
 	}
 #endif
 	return result;
 }
 
-char *system_curl_get(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
-	R2AI_HttpConfig config = get_http_config (core);
-	int timeout = config.timeout;
-	if (!url || !code) {
+HttpResponse *system_curl_get(const HTTPRequest *request) {
+	int timeout = request->config.timeout;
+	if (!request->url) {
 		return NULL;
 	}
 
@@ -117,10 +97,10 @@ char *system_curl_get(RCore *core, const char *url, const char *headers[], const
 	// Reset interrupt flag
 	r2ai_http_interrupted = 0;
 
-	char *result = NULL;
+	HttpResponse *result = NULL;
 
 #ifdef _WIN32
-	result = windows_http_get (url, headers, code, rlen, timeout);
+	HttpResponse *result = windows_http_get (request->url, request->headers, timeout);
 #else
 	// Compose curl command
 	RStrBuf *cmd = r_strbuf_new ("curl -s");
@@ -129,14 +109,14 @@ char *system_curl_get(RCore *core, const char *url, const char *headers[], const
 	r_strbuf_appendf (cmd, " --connect-timeout %d --max-time %d", 10, timeout);
 
 	// Add headers
-	if (headers) {
-		for (int i = 0; headers[i] != NULL; i++) {
-			r_strbuf_appendf (cmd, " -H \"%s\"", headers[i]);
+	if (request->headers) {
+		for (int i = 0; request->headers[i] != NULL; i++) {
+			r_strbuf_appendf (cmd, " -H \"%s\"", request->headers[i]);
 		}
 	}
 
 	// Add URL
-	r_strbuf_appendf (cmd, " \"%s\"", url);
+	r_strbuf_appendf (cmd, " \"%s\"", request->url);
 
 	// Execute the curl command
 	char *cmd_str = r_strbuf_drain (cmd);
@@ -169,13 +149,14 @@ char *system_curl_get(RCore *core, const char *url, const char *headers[], const
 	// We can't easily get the HTTP status code using this method
 	// Let's assume 200 if we got a response, and 0 otherwise
 	if (response) {
-		*code = 200;
-		if (rlen) {
-			*rlen = strlen (response);
+		result = R_NEW0 (HttpResponse);
+		if (result) {
+			result->body = response;
+			result->code = 200;
+			result->length = strlen (response);
 		}
-		result = response;
 	} else {
-		*code = 0;
+		result = NULL;
 	}
 #endif
 
