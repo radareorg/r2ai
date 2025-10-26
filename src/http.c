@@ -136,7 +136,9 @@ static HttpRequestFunc select_backend(const char *backend, bool is_post) {
 	// Select the appropriate backend function
 	if (!strcmp (backend, "auto")) {
 		// Auto-select the best available backend
-#if USE_LIBCURL && HAVE_LIBCURL
+#if defined(_WIN32)
+		backend = "pwsh";
+#elif USE_LIBCURL && HAVE_LIBCURL
 		backend = "libcurl";
 #else
 		backend = "system";
