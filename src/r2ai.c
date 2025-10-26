@@ -459,13 +459,21 @@ static bool cb_r2ai_http_backend(void *user, void *data) {
 		r_cons_println (core->cons, "libcurl");
 		r_cons_println (core->cons, "socket");
 		r_cons_println (core->cons, "system");
+		r_cons_println (core->cons, "curl");
+		r_cons_println (core->cons, "pwsh");
+		r_cons_println (core->cons, "powershell");
+		r_cons_println (core->cons, "r2curl");
 		return false;
 	}
 	// Validate the backend
 	if (!strcmp (node->value, "auto") ||
 		!strcmp (node->value, "libcurl") ||
 		!strcmp (node->value, "socket") ||
-		!strcmp (node->value, "system")) {
+		!strcmp (node->value, "system") ||
+		!strcmp (node->value, "curl") ||
+		!strcmp (node->value, "pwsh") ||
+		!strcmp (node->value, "powershell") ||
+		!strcmp (node->value, "r2curl")) {
 		return true;
 	}
 	R_LOG_ERROR ("Invalid backend '%s'. Use '?' to list valid backends.", node->value);
@@ -498,8 +506,8 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 		r_config_desc (core->config, "r2ai.api", desc);
 		free (desc);
 	}
-	r_config_set_cb (core->config, "r2ai.http.backend", "auto", &cb_r2ai_http_backend); // Options: auto, libcurl, socket, system
-	r_config_desc (core->config, "r2ai.http.backend", "HTTP backend to use (auto, libcurl, socket, system)");
+	r_config_set_cb (core->config, "r2ai.http.backend", "auto", &cb_r2ai_http_backend); // Options: auto, libcurl, socket, system, curl, pwsh, powershell, r2curl
+	r_config_desc (core->config, "r2ai.http.backend", "HTTP backend to use (auto, libcurl, socket, system, curl, pwsh, powershell, r2curl)");
 	r_config_set_cb (core->config, "r2ai.model", R2AI_DEFAULT_MODEL, &cb_r2ai_model);
 	r_config_desc (core->config, "r2ai.model", "Model identifier for the selected provider (e.g. gpt-5-mini)");
 	r_config_set (core->config, "r2ai.baseurl", "");

@@ -194,7 +194,7 @@ srcs = files(
   'rawtools.c',
   'messages.c',
   'anthropic.c',
-  'r2ai_http.c',
+  'http.c',
   'openai.c',
   'markdown.c',
 )

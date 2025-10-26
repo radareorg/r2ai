@@ -45,7 +45,7 @@ OBJS+=vdb.o
 OBJS+=tools.o
 OBJS+=messages.o
 OBJS+=anthropic.o
-OBJS+=r2ai_http.o
+OBJS+=http.o
 OBJS+=openai.o
 OBJS+=markdown.o
 OBJS+=query.o
@@ -66,7 +66,7 @@ doc-install:
 vdb.o: vdb_embed.inc.c
 
 fmt format indent:
-	clang-format-radare2 *.c
+	clang-format-radare2 *.c http/*.c
 
 user-install: user-uninstall
 	mkdir -p $(R2USRPLUGDIR)
