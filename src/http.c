@@ -324,9 +324,10 @@ static char *r2ai_http_request(const char *method, RCore *core, const char *url,
 	if (func) {
 		return r2ai_http_request_with_retry (core, func, url, headers, data, code, rlen);
 	}
-
+	R_LOG_ERROR ("Cannot find a valid http backend");
 	return NULL;
 }
+
 R_API char *r2ai_http_post(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
 	return r2ai_http_request ("POST", core, url, headers, data, code, rlen);
 }
