@@ -15,8 +15,6 @@
  * - r2ai.http.max_backoff: Maximum backoff time in seconds (default: 30)
  */
 
-
-
 // Global flag for tracking interrupt status
 static volatile sig_atomic_t r2ai_http_interrupted = 0;
 
@@ -64,7 +62,7 @@ static void restore_sigint_handler_local(void *old, int old_is_sigaction) {
 }
 
 // Function pointer type for HTTP request implementations
-typedef HttpResponse *(*HttpRequestFunc)(const HTTPRequest *request);
+typedef HttpResponse (*HttpRequestFunc)(const HTTPRequest *request);
 
 // Simple retry sleep
 static void sleep_retry(int retry_count, int max_sleep_seconds) {
@@ -76,7 +74,7 @@ static void sleep_retry(int retry_count, int max_sleep_seconds) {
 }
 
 // Generic HTTP request with retry logic
-static HttpResponse *r2ai_http_request_with_retry(HttpRequestFunc func, const HTTPRequest *request) {
+static HttpResponse r2ai_http_request_with_retry(HttpRequestFunc func, const HTTPRequest *request) {
 	// Install signal handler for interruption (portable)
 	void *r2ai_old_sig = NULL;
 	int r2ai_old_is_sigaction = 0;
@@ -86,7 +84,7 @@ static HttpResponse *r2ai_http_request_with_retry(HttpRequestFunc func, const HT
 	r2ai_http_interrupted = 0;
 
 	// Retry loop
-	HttpResponse *result = NULL;
+	HttpResponse result = {0};
 	int retry_count = 0;
 	bool success = false;
 
@@ -96,21 +94,21 @@ static HttpResponse *r2ai_http_request_with_retry(HttpRequestFunc func, const HT
 		// Check if we were interrupted
 		if (r2ai_http_interrupted) {
 			R_LOG_DEBUG ("HTTP request was interrupted by user");
-			if (result) {
-				free (result->body);
-				free (result);
+			if (result.body) {
+				free (result.body);
 			}
-			result = NULL;
+			result.body = NULL;
+			result.code = -1;
 			break; // Exit the retry loop
 		}
 
 		// Check for rate limiting or server errors (429, 500, 502, 503, 504)
-		if (result && result->code) {
-			if (result->code == 429 || (result->code >= 500 && result->code < 600)) {
-				R_LOG_WARN ("Server returned %d response code", result->code);
-				free (result->body);
-				free (result);
-				result = NULL;
+		if (result.code > 0) {
+			if (result.code == 429 || (result.code >= 500 && result.code < 600)) {
+				R_LOG_WARN ("Server returned %d response code", result.code);
+				free (result.body);
+				result.body = NULL;
+				result.code = 0;
 
 				if (retry_count < request->config.max_retries) {
 					retry_count++;
@@ -118,16 +116,18 @@ static HttpResponse *r2ai_http_request_with_retry(HttpRequestFunc func, const HT
 					sleep_retry (retry_count, request->config.max_backoff);
 					continue;
 				}
+				result.code = -1;
 				break; // Exit the retry loop after max retries
 			}
 		}
 
 		// Check for other failures
-		if (!result || !result->body) {
-			if (result) {
-				free (result);
+		if (result.code <= 0 || !result.body) {
+			if (result.body) {
+				free (result.body);
 			}
-			result = NULL;
+			result.body = NULL;
+			result.code = -1;
 			if (retry_count < request->config.max_retries) {
 				retry_count++;
 				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, request->config.max_retries);
@@ -155,34 +155,8 @@ static HttpResponse *r2ai_http_request_with_retry(HttpRequestFunc func, const HT
 
 #include "http_r2.c"
 
-
-
-/**
- * Execute curl as a system command, sending data via temporary file
- * On Windows, use PowerShell as fallback when curl is not available
- *
- * @param url The URL to send the request to
- * @param headers Array of headers, NULL terminated
- * @param data The data to send in the request
- * @param code Pointer to store the response code
- * @param rlen Pointer to store the response length
- * @return Response body as string (must be freed by caller) or NULL on error
- */
-
-/**
- * Execute curl as a system command for GET requests
- *
- * @param url The URL to send the request to
- * @param headers Array of headers, NULL terminated
- * @param code Pointer to store the response code
- * @param rlen Pointer to store the response length
- * @return Response body as string (must be freed by caller) or NULL on error
- */
-
-
-
 // Generic HTTP request function that handles backend selection
-static HttpResponse *r2ai_http_request(const char *method, RCore *core, const char *url, const char *headers[], const char *data) {
+static HttpResponse r2ai_http_request(const char *method, RCore *core, const char *url, const char *headers[], const char *data) {
 	const char *backend = "auto";
 	bool use_files = false;
 	bool is_post = (data != NULL);
@@ -242,37 +216,39 @@ static HttpResponse *r2ai_http_request(const char *method, RCore *core, const ch
 		return r2ai_http_request_with_retry (func, &request);
 	}
 	R_LOG_ERROR ("Cannot find a valid http backend");
-	return NULL;
+	return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
 }
 
 R_API char *r2ai_http_post(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
-	HttpResponse *response = r2ai_http_request ("POST", core, url, headers, data);
-	if (!response) {
+	HttpResponse response = r2ai_http_request ("POST", core, url, headers, data);
+	if (response.code <= 0) {
+		if (response.body) {
+			free (response.body);
+		}
 		return NULL;
 	}
 	if (code) {
-		*code = response->code;
+		*code = response.code;
 	}
 	if (rlen) {
-		*rlen = response->length;
+		*rlen = response.length;
 	}
-	char *body = response->body;
-	free (response);
-	return body;
+	return response.body;
 }
 
 R_API char *r2ai_http_get(RCore *core, const char *url, const char *headers[], int *code, int *rlen) {
-	HttpResponse *response = r2ai_http_request ("GET", core, url, headers, NULL);
-	if (!response) {
+	HttpResponse response = r2ai_http_request ("GET", core, url, headers, NULL);
+	if (response.code <= 0) {
+		if (response.body) {
+			free (response.body);
+		}
 		return NULL;
 	}
 	if (code) {
-		*code = response->code;
+		*code = response.code;
 	}
 	if (rlen) {
-		*rlen = response->length;
+		*rlen = response.length;
 	}
-	char *body = response->body;
-	free (response);
-	return body;
+	return response.body;
 }

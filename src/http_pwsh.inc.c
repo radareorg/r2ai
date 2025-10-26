@@ -23,7 +23,7 @@ static void append_headers_to_cmd(RStrBuf *cmd, const char *headers[]) {
 /**
  * Windows-specific HTTP POST using PowerShell
  */
-HttpResponse *windows_http_post(const char *url, const char *headers[], const char *data, int timeout) {
+HttpResponse windows_http_post(const char *url, const char *headers[], const char *data, int timeout) {
 	RStrBuf *cmd = r_strbuf_new ("powershell -Command \"");
 	append_headers_to_cmd (cmd, headers);
 	r_strbuf_appendf (cmd, "$body='%s';", data);
@@ -32,37 +32,26 @@ HttpResponse *windows_http_post(const char *url, const char *headers[], const ch
 	char *cmd_str = r_strbuf_drain (cmd);
 	char *full_response = r_sys_cmd_str (cmd_str, NULL, NULL);
 	free (cmd_str);
-	HttpResponse *result = NULL;
 	if (full_response) {
 		char *newline = strchr (full_response, '\n');
 		if (newline) {
 			*newline = '\0';
 			int code = atoi (full_response);
 			char *body = newline + 1;
-			result = R_NEW0 (HttpResponse);
-			if (result) {
-				result->body = strdup (body);
-				result->code = code;
-				result->length = strlen (body);
-			}
+			char *body_copy = strdup (body);
+			free (full_response);
+			return (HttpResponse){ .body = body_copy, .code = code, .length = strlen (body) };
 		} else {
-			result = R_NEW0 (HttpResponse);
-			if (result) {
-				result->body = full_response;
-				result->code = 200;
-				result->length = strlen (full_response);
-				full_response = NULL; // Don't free it since we're using it
-			}
+			return (HttpResponse){ .body = full_response, .code = 200, .length = strlen (full_response) };
 		}
 	}
-	free (full_response);
-	return result;
+	return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
 }
 
 /**
  * Windows-specific HTTP GET using PowerShell
  */
-HttpResponse *windows_http_get(const char *url, const char *headers[], int timeout) {
+HttpResponse windows_http_get(const char *url, const char *headers[], int timeout) {
 
 	RStrBuf *cmd = r_strbuf_new ("powershell -Command \"");
 	append_headers_to_cmd (cmd, headers);
@@ -71,30 +60,19 @@ HttpResponse *windows_http_get(const char *url, const char *headers[], int timeo
 	char *cmd_str = r_strbuf_drain (cmd);
 	char *full_response = r_sys_cmd_str (cmd_str, NULL, NULL);
 	free (cmd_str);
-	HttpResponse *result = NULL;
 	if (full_response) {
 		char *newline = strchr (full_response, '\n');
 		if (newline) {
 			*newline = '\0';
 			int code = atoi (full_response);
 			char *body = newline + 1;
-			result = R_NEW0 (HttpResponse);
-			if (result) {
-				result->body = strdup (body);
-				result->code = code;
-				result->length = strlen (body);
-			}
+			char *body_copy = strdup (body);
+			free (full_response);
+			return (HttpResponse){ .body = body_copy, .code = code, .length = strlen (body) };
 		} else {
-			result = R_NEW0 (HttpResponse);
-			if (result) {
-				result->body = full_response;
-				result->code = 200;
-				result->length = strlen (full_response);
-				full_response = NULL; // Don't free it since we're using it
-			}
+			return (HttpResponse){ .body = full_response, .code = 200, .length = strlen (full_response) };
 		}
 	}
-	free (full_response);
-	return result;
+	return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
 }
 #endif
