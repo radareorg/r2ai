@@ -15,28 +15,34 @@
  * - r2ai.http.max_backoff: Maximum backoff time in seconds (default: 30)
  */
 
+// HTTP configuration structure
+typedef struct {
+	int timeout;
+	int max_retries;
+	int max_backoff;
+} R2AI_HttpConfig;
+
 // Global flag for tracking interrupt status
 static volatile sig_atomic_t r2ai_http_interrupted = 0;
 
 // Helper function to get HTTP configuration with defaults
-static void get_http_config(RCore *core, int *timeout, int *max_retries, int *max_backoff) {
-	*timeout = 120;
-	*max_retries = 10;
-	*max_backoff = 30;
+static R2AI_HttpConfig get_http_config(RCore *core) {
+	R2AI_HttpConfig config = {120, 10, 30};
 	if (core) {
 		int t = r_config_get_i (core->config, "r2ai.http.timeout");
 		if (t > 0) {
-			*timeout = t;
+			config.timeout = t;
 		}
 		int mr = r_config_get_i (core->config, "r2ai.http.max_retries");
 		if (mr >= 0) {
-			*max_retries = mr;
+			config.max_retries = mr;
 		}
 		int mb = r_config_get_i (core->config, "r2ai.http.max_backoff");
 		if (mb > 0) {
-			*max_backoff = mb;
+			config.max_backoff = mb;
 		}
 	}
+	return config;
 }
 
 #ifdef _WIN32
@@ -94,6 +100,108 @@ static void sleep_retry(int retry_count, int max_sleep_seconds) {
 	r_sys_sleep (delay_seconds);
 }
 
+// Function pointer type for HTTP request implementations
+typedef char *(*HttpRequestFunc)(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen);
+
+// Forward declarations
+static char *curl_http_post(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen);
+static char *curl_http_get(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen);
+static char *system_curl_post_file(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen, bool use_files);
+static char *system_curl_get(RCore *core, const char *url, const char *headers[], int *code, int *rlen);
+static char *windows_http_post(const char *url, const char *headers[], const char *data, int *code, int *rlen, int timeout);
+static char *windows_http_get(const char *url, const char *headers[], int *code, int *rlen, int timeout);
+static char *socket_http_post_with_interrupt(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen);
+static char *socket_http_get_with_interrupt(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen);
+
+// Wrapper for system curl POST
+static char *system_curl_post_wrapper(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
+	bool use_files = core ? r_config_get_b (core->config, "r2ai.http.use_files") : false;
+	return system_curl_post_file (core, url, headers, data, code, rlen, use_files);
+}
+
+// Wrapper for system curl GET
+static char *system_curl_get_wrapper(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
+	return system_curl_get (core, url, headers, code, rlen);
+}
+
+// Wrapper for Windows POST
+static char *windows_http_post_wrapper(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
+	R2AI_HttpConfig config = get_http_config (core);
+	return windows_http_post (url, headers, data, code, rlen, config.timeout);
+}
+
+// Wrapper for Windows GET
+static char *windows_http_get_wrapper(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
+	R2AI_HttpConfig config = get_http_config (core);
+	return windows_http_get (url, headers, code, rlen, config.timeout);
+}
+
+// Generic retry wrapper for HTTP requests
+static char *http_request_with_retry(HttpRequestFunc func, RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
+	R2AI_HttpConfig config = get_http_config (core);
+
+	// Install signal handler for interruption (portable)
+	void *r2ai_old_sig = NULL;
+	int r2ai_old_is_sigaction = 0;
+	install_sigint_handler_local (&r2ai_old_sig, &r2ai_old_is_sigaction);
+
+	// Reset interrupt flag
+	r2ai_http_interrupted = 0;
+
+	// Retry loop
+	char *result = NULL;
+	int retry_count = 0;
+	bool success = false;
+
+	while (!success && retry_count <= config.max_retries && !r2ai_http_interrupted) {
+		result = func (core, url, headers, data, code, rlen);
+
+		// Check if we were interrupted
+		if (r2ai_http_interrupted) {
+			R_LOG_DEBUG ("HTTP request was interrupted by user");
+			free (result);
+			result = NULL;
+			break; // Exit the retry loop
+		}
+
+		// Check for rate limiting or server errors (429, 500, 502, 503, 504)
+		if (result && code && *code) {
+			if (*code == 429 || (*code >= 500 && *code < 600)) {
+				R_LOG_WARN ("Server returned %d response code", *code);
+				free (result);
+				result = NULL;
+
+				if (retry_count < config.max_retries) {
+					retry_count++;
+					R_LOG_INFO ("Retrying request (%d/%d) after error...", retry_count, config.max_retries);
+					sleep_retry (retry_count, config.max_backoff);
+					continue;
+				}
+				break; // Exit the retry loop after max retries
+			}
+		}
+
+		// Check for other failures
+		if (!result) {
+			if (retry_count < config.max_retries) {
+				retry_count++;
+				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, config.max_retries);
+				sleep_retry (retry_count, config.max_backoff);
+				continue;
+			}
+			break; // Exit the retry loop after max retries
+		}
+
+		// If we get here, the request was successful
+		success = true;
+	}
+
+	// Restore the original signal handler
+	restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction);
+
+	return result;
+}
+
 #if HAVE_LIBCURL
 #include <curl/curl.h>
 
@@ -136,151 +244,95 @@ static int progress_callback(void *clientp, curl_off_t dltotal, curl_off_t dlnow
 	return 0; // Return 0 to continue
 }
 
-static char *curl_http_post(const char *url, const char *headers[], const char *data, int *code, int *rlen) {
+static char *curl_http_post(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
 	if (!url || !headers || !data || !code) {
 		return NULL;
 	}
 
-	int timeout, max_retries, max_backoff;
-	get_http_config (NULL, &timeout, &max_retries, &max_backoff);
+	R2AI_HttpConfig config = get_http_config (core);
 
-	// Install signal handler for interruption (portable)
-	void *r2ai_old_sig = NULL;
-	int r2ai_old_is_sigaction = 0;
-	install_sigint_handler_local (&r2ai_old_sig, &r2ai_old_is_sigaction);
+	CURL *curl;
+	CURLcode res;
+	struct curl_slist *curl_headers = NULL;
+	CurlResponse response = { 0 };
 
-	// Reset interrupt flag
-	r2ai_http_interrupted = 0;
+	// Initialize response
+	response.data = malloc (1);
+	if (!response.data) {
+		return NULL;
+	}
+	response.data[0] = '\0';
+	response.size = 0;
 
-	// Retry loop
-	char *result = NULL;
-	int retry_count = 0;
-	bool success = false;
-
-	while (!success && retry_count <= max_retries && !r2ai_http_interrupted) {
-		CURL *curl;
-		CURLcode res;
-		struct curl_slist *curl_headers = NULL;
-		CurlResponse response = { 0 };
-
-		// Initialize response
-		response.data = malloc (1);
-		if (!response.data) {
-			if (retry_count < max_retries) {
-				retry_count++;
-				sleep_retry (retry_count, max_backoff);
-				continue;
-			}
-			restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction); // Restore signal handler
-			return NULL;
-		}
-		response.data[0] = '\0';
-		response.size = 0;
-
-		curl = curl_easy_init ();
-		if (!curl) {
-			free (response.data);
-			if (retry_count < max_retries) {
-				retry_count++;
-				sleep_retry (retry_count, max_backoff);
-				continue;
-			}
-			restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction); // Restore signal handler
-			return NULL;
-		}
-
-		// Set URL
-		curl_easy_setopt (curl, CURLOPT_URL, url);
-
-		// Set POST data
-		curl_easy_setopt (curl, CURLOPT_POSTFIELDS, data);
-
-		// Set headers
-		for (int i = 0; headers[i] != NULL; i++) {
-			curl_headers = curl_slist_append (curl_headers, headers[i]);
-		}
-		curl_easy_setopt (curl, CURLOPT_HTTPHEADER, curl_headers);
-
-		// Set write callback
-		curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, write_callback);
-		curl_easy_setopt (curl, CURLOPT_WRITEDATA, (void *)&response);
-
-		// Set progress callback to handle interrupts
-		curl_easy_setopt (curl, CURLOPT_NOPROGRESS, 0L);
-		curl_easy_setopt (curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
-		curl_easy_setopt (curl, CURLOPT_XFERINFODATA, NULL);
-
-		// Set timeout options
-		curl_easy_setopt (curl, CURLOPT_CONNECTTIMEOUT, 10L); // 10 seconds connect timeout
-		curl_easy_setopt (curl, CURLOPT_TIMEOUT, (long)timeout); // Use configured timeout
-
-		// Follow redirects
-		curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
-
-		// Perform the request
-		res = curl_easy_perform (curl);
-
-		// Check for interruption
-		if (r2ai_http_interrupted) {
-			R_LOG_DEBUG ("HTTP request was interrupted by user");
-			free (response.data);
-			curl_slist_free_all (curl_headers);
-			curl_easy_cleanup (curl);
-			break; // Exit the retry loop
-		}
-
-		// Get response code
-		long http_code;
-		curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
-		*code = (int)http_code;
-
-		// Check for errors
-		if (res != CURLE_OK) {
-			R_LOG_ERROR ("curl_easy_perform () failed: %s", curl_easy_strerror (res));
-			free (response.data);
-			curl_slist_free_all (curl_headers);
-			curl_easy_cleanup (curl);
-
-			// Retry on network errors
-			if (retry_count < max_retries) {
-				retry_count++;
-				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-				sleep_retry (retry_count, max_backoff);
-				continue;
-			}
-			break; // Exit the retry loop after max retries
-		}
-
-		// Check for rate limiting or server errors (429, 500, 502, 503, 504)
-		if (http_code == 429 || (http_code >= 500 && http_code < 600)) {
-			R_LOG_WARN ("Server returned %d response code", (int)http_code);
-			free (response.data);
-			curl_slist_free_all (curl_headers);
-			curl_easy_cleanup (curl);
-
-			if (retry_count < max_retries) {
-				retry_count++;
-				R_LOG_INFO ("Retrying request (%d/%d) after rate limiting...", retry_count, max_retries);
-				sleep_retry (retry_count, max_backoff);
-				continue;
-			}
-			break; // Exit the retry loop after max retries
-		}
-
-		// If we get here, the request was successful
-		success = true;
-		result = response.data;
-		if (rlen) {
-			*rlen = response.size;
-		}
-
-		// Cleanup
-		curl_slist_free_all (curl_headers);
-		curl_easy_cleanup (curl);
+	curl = curl_easy_init ();
+	if (!curl) {
+		free (response.data);
+		return NULL;
 	}
 
-	// Restore the original signal handler
-	restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction);
+	// Set URL
+	curl_easy_setopt (curl, CURLOPT_URL, url);
+
+	// Set POST data
+	curl_easy_setopt (curl, CURLOPT_POSTFIELDS, data);
+
+	// Set headers
+	for (int i = 0; headers[i] != NULL; i++) {
+		curl_headers = curl_slist_append (curl_headers, headers[i]);
+	}
+	curl_easy_setopt (curl, CURLOPT_HTTPHEADER, curl_headers);
+
+	// Set write callback
+	curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, write_callback);
+	curl_easy_setopt (curl, CURLOPT_WRITEDATA, (void *)&response);
+
+	// Set progress callback to handle interrupts
+	curl_easy_setopt (curl, CURLOPT_NOPROGRESS, 0L);
+	curl_easy_setopt (curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
+	curl_easy_setopt (curl, CURLOPT_XFERINFODATA, NULL);
+
+	// Set timeout options
+	curl_easy_setopt (curl, CURLOPT_CONNECTTIMEOUT, 10L); // 10 seconds connect timeout
+	curl_easy_setopt (curl, CURLOPT_TIMEOUT, (long)config.timeout); // Use configured timeout
+
+	// Follow redirects
+	curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
+
+	// Perform the request
+	res = curl_easy_perform (curl);
+
+	// Check for interruption
+	if (r2ai_http_interrupted) {
+		R_LOG_DEBUG ("HTTP request was interrupted by user");
+		free (response.data);
+		curl_slist_free_all (curl_headers);
+		curl_easy_cleanup (curl);
+		return NULL;
+	}
+
+	// Get response code
+	long http_code;
+	curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
+	*code = (int)http_code;
+
+	// Check for errors
+	if (res != CURLE_OK) {
+		R_LOG_ERROR ("curl_easy_perform () failed: %s", curl_easy_strerror (res));
+		free (response.data);
+		curl_slist_free_all (curl_headers);
+		curl_easy_cleanup (curl);
+		return NULL;
+	}
+
+	// If we get here, the request was successful
+	char *result = response.data;
+	if (rlen) {
+		*rlen = response.size;
+	}
+
+	// Cleanup
+	curl_slist_free_all (curl_headers);
+	curl_easy_cleanup (curl);
 
 	return result;
 }
@@ -373,202 +425,139 @@ static char *system_curl_post_file(RCore *core, const char *url, const char *hea
 		return NULL;
 	}
 
-	int timeout, max_retries, max_backoff;
-	get_http_config (core, &timeout, &max_retries, &max_backoff);
+	R2AI_HttpConfig config = get_http_config (core);
 
-	// Install signal handler for interruption (portable)
-	void *r2ai_old_sig = NULL;
-	int r2ai_old_is_sigaction = 0;
-	install_sigint_handler_local (&r2ai_old_sig, &r2ai_old_is_sigaction);
-
-	// Reset interrupt flag
-	r2ai_http_interrupted = 0;
-
-	// Retry loop
-	char *result = NULL;
-	int retry_count = 0;
-	bool success = false;
-
-	while (!success && retry_count <= max_retries && !r2ai_http_interrupted) {
-		// Create a temporary file for the data
-		char *temp_file = r_file_temp ("r2ai_data");
-		if (!temp_file) {
-			R_LOG_ERROR ("Failed to create temporary file for curl data");
-			if (retry_count < max_retries) {
-				retry_count++;
-				sleep_retry (retry_count, max_backoff);
-				continue;
-			}
-			break;
-		}
-
-		if (use_files) {
-			// Write data to the temporary file
-			if (!r_file_dump (temp_file, (const ut8 *)data, strlen (data), 0)) {
-				R_LOG_ERROR ("Failed to write data to temporary file");
-				free (temp_file);
-				if (retry_count < max_retries) {
-					retry_count++;
-					sleep_retry (retry_count, max_backoff);
-					continue;
-				}
-				break;
-			}
-		}
-
-#ifdef _WIN32
-		// On Windows, use PowerShell for HTTP requests
-		RStrBuf *cmd = r_strbuf_new ("powershell -Command \"");
-		r_strbuf_appendf (cmd, "$ProgressPreference = 'SilentlyContinue'; ");
-		r_strbuf_appendf (cmd, "$headers = @{");
-
-		// Add headers as PowerShell hashtable
-		for (int i = 0; headers[i] != NULL; i++) {
-			char *header = strdup (headers[i]);
-			char *colon = strchr (header, ':');
-			if (colon) {
-				*colon = '\0';
-				char *key = r_str_trim_dup (header);
-				char *value = r_str_trim_dup (colon + 1);
-				r_strbuf_appendf (cmd, "'%s'='%s';", key, value);
-				free (key);
-				free (value);
-			}
-			free (header);
-		}
-		r_strbuf_appendf (cmd, "}; ");
-
-		// Add body
-		if (use_files) {
-			r_strbuf_appendf (cmd, "$body = Get-Content '%s' -Raw; ", temp_file);
-		} else {
-			char *escaped_data = r_str_replace_all (strdup (data), "'", "''");
-			r_strbuf_appendf (cmd, "$body = '%s'; ", escaped_data);
-			free (escaped_data);
-		}
-
-		r_strbuf_appendf (cmd, "try { $response = Invoke-WebRequest -Method Post -Uri '%s' -Headers $headers -Body $body -TimeoutSec %d; ", url, timeout);
-		r_strbuf_appendf (cmd, "Write-Host $response.StatusCode; $response.Content } catch { Write-Host $_.Exception.Response.StatusCode.Value__; $_.Exception.Response.GetResponseStream().ReadToEnd() }\"");
-
-		// Execute the PowerShell command
-		char *cmd_str = r_strbuf_drain (cmd);
-
-		R_LOG_DEBUG ("Running PowerShell: %s", cmd_str);
-		char *full_response = r_sys_cmd_str (cmd_str, NULL, NULL);
-
-		free (cmd_str);
-		r_file_rm (temp_file);
-		free (temp_file);
-
-		// Parse PowerShell response: first line is status code, rest is body
-		if (full_response) {
-			char *newline = strchr (full_response, '\n');
-			if (newline) {
-				*newline = '\0';
-				*code = atoi (full_response);
-				char *body = newline + 1;
-				if (rlen) {
-					*rlen = strlen (body);
-				}
-				result = strdup (body);
-			} else {
-				*code = 200; // Assume success if no newline
-				if (rlen) {
-					*rlen = strlen (full_response);
-				}
-				result = full_response;
-			}
-			free (full_response);
-			success = true;
-		} else {
-			if (retry_count < max_retries) {
-				retry_count++;
-				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-				sleep_retry (retry_count, max_backoff);
-				continue;
-			}
-			*code = 0;
-			break;
-		}
-#else
-		// Compose curl command
-		RStrBuf *cmd = r_strbuf_new ("curl -s");
-
-		// Add timeout
-		r_strbuf_appendf (cmd, " --connect-timeout %d --max-time %d", 10, timeout);
-
-		// Add headers
-		for (int i = 0; headers[i] != NULL; i++) {
-			r_strbuf_appendf (cmd, " -H \"%s\"", headers[i]);
-		}
-
-		if (use_files) {
-			// Add data file with @ prefix for curl
-			r_strbuf_appendf (cmd, " -X POST -d @%s \"%s\"", temp_file, url);
-		} else {
-			char *s = strdup (data);
-			s = r_str_replace_all (s, "\\", "\\\\");
-			// s = r_str_replace_all (s, "'", "\\'");
-			s = r_str_replace_all (s, "'", "'\\''");
-			r_strbuf_appendf (cmd, " -X POST -d '%s' \"%s\"", s, url);
-			free (s);
-		}
-
-		// Execute the curl command
-		char *cmd_str = r_strbuf_drain (cmd);
-		r_sys_setenv ("R2_CURL", "1"); // Ensure R2 uses system curl
-
-		// Set an alarm to limit the request time
-#if R2__UNIX__
-		signal (SIGALRM, r2ai_http_sigint_handler);
-		alarm (timeout + 10); // Add a little extra for process startup
-#endif
-
-		R_LOG_DEBUG ("Running system curl: %s", cmd_str);
-		char *response = r_sys_cmd_str (cmd_str, NULL, NULL);
-
-		// Clear the alarm
-#if R2__UNIX__
-		alarm (0);
-#endif
-
-		free (cmd_str);
-		r_file_rm (temp_file);
-		free (temp_file);
-
-		// Check if we were interrupted
-		if (r2ai_http_interrupted) {
-			R_LOG_DEBUG ("HTTP request was interrupted by user");
-			free (response);
-			response = NULL;
-			restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction);
-			return NULL;
-		}
-
-		// We can't easily get the HTTP status code using this method
-		// Let's assume 200 if we got a response, and 0 otherwise
-		if (response) {
-			*code = 200;
-			if (rlen) {
-				*rlen = strlen (response);
-			}
-			result = response;
-			success = true;
-		} else {
-			if (retry_count < max_retries) {
-				retry_count++;
-				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-				sleep_retry (retry_count, max_backoff);
-				continue;
-			}
-			*code = 0;
-			break;
-		}
-#endif
+	// Create a temporary file for the data
+	char *temp_file = r_file_temp ("r2ai_data");
+	if (!temp_file) {
+		R_LOG_ERROR ("Failed to create temporary file for curl data");
+		return NULL;
 	}
 
-	// Restore the original signal handler
-	restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction);
+	if (use_files) {
+		// Write data to the temporary file
+		if (!r_file_dump (temp_file, (const ut8 *)data, strlen (data), 0)) {
+			R_LOG_ERROR ("Failed to write data to temporary file");
+			free (temp_file);
+			return NULL;
+		}
+	}
+
+	char *result = NULL;
+
+#ifdef _WIN32
+	// On Windows, use PowerShell for HTTP requests
+	RStrBuf *cmd = r_strbuf_new ("powershell -Command \"");
+	r_strbuf_appendf (cmd, "$ProgressPreference = 'SilentlyContinue'; ");
+	r_strbuf_appendf (cmd, "$headers = @{");
+
+	// Add headers as PowerShell hashtable
+	for (int i = 0; headers[i] != NULL; i++) {
+		char *header = strdup (headers[i]);
+		char *colon = strchr (header, ':');
+		if (colon) {
+			*colon = '\0';
+			char *key = r_str_trim_dup (header);
+			char *value = r_str_trim_dup (colon + 1);
+			r_strbuf_appendf (cmd, "'%s'='%s';", key, value);
+			free (key);
+			free (value);
+		}
+		free (header);
+	}
+	r_strbuf_appendf (cmd, "}; ");
+
+	// Add body
+	if (use_files) {
+		r_strbuf_appendf (cmd, "$body = Get-Content '%s' -Raw; ", temp_file);
+	} else {
+		char *escaped_data = r_str_replace_all (strdup (data), "'", "''");
+		r_strbuf_appendf (cmd, "$body = '%s'; ", escaped_data);
+		free (escaped_data);
+	}
+
+	r_strbuf_appendf (cmd, "try { $response = Invoke-WebRequest -Method Post -Uri '%s' -Headers $headers -Body $body -TimeoutSec %d; ", url, config.timeout);
+	r_strbuf_appendf (cmd, "Write-Host $response.StatusCode; $response.Content } catch { Write-Host $_.Exception.Response.StatusCode.Value__; $_.Exception.Response.GetResponseStream().ReadToEnd() }\"");
+
+	// Execute the PowerShell command
+	char *cmd_str = r_strbuf_drain (cmd);
+
+	R_LOG_DEBUG ("Running PowerShell: %s", cmd_str);
+	char *full_response = r_sys_cmd_str (cmd_str, NULL, NULL);
+
+	free (cmd_str);
+	r_file_rm (temp_file);
+	free (temp_file);
+
+	// Parse PowerShell response: first line is status code, rest is body
+	if (full_response) {
+		char *newline = strchr (full_response, '\n');
+		if (newline) {
+			*newline = '\0';
+			*code = atoi (full_response);
+			char *body = newline + 1;
+			if (rlen) {
+				*rlen = strlen (body);
+			}
+			result = strdup (body);
+		} else {
+			*code = 200; // Assume success if no newline
+			if (rlen) {
+				*rlen = strlen (full_response);
+			}
+			result = full_response;
+		}
+		free (full_response);
+	} else {
+		*code = 0;
+	}
+#else
+	// Compose curl command
+	RStrBuf *cmd = r_strbuf_new ("curl -s");
+
+	// Add timeout
+	r_strbuf_appendf (cmd, " --connect-timeout %d --max-time %d", 10, config.timeout);
+
+	// Add headers
+	for (int i = 0; headers[i] != NULL; i++) {
+		r_strbuf_appendf (cmd, " -H \"%s\"", headers[i]);
+	}
+
+	if (use_files) {
+		// Add data file with @ prefix for curl
+		r_strbuf_appendf (cmd, " -X POST -d @%s \"%s\"", temp_file, url);
+	} else {
+		char *s = strdup (data);
+		s = r_str_replace_all (s, "\\", "\\\\");
+		// s = r_str_replace_all (s, "'", "\\'");
+		s = r_str_replace_all (s, "'", "'\\''");
+		r_strbuf_appendf (cmd, " -X POST -d '%s' \"%s\"", s, url);
+		free (s);
+	}
+
+	// Execute the curl command
+	char *cmd_str = r_strbuf_drain (cmd);
+	r_sys_setenv ("R2_CURL", "1"); // Ensure R2 uses system curl
+
+	R_LOG_DEBUG ("Running system curl: %s", cmd_str);
+	char *response = r_sys_cmd_str (cmd_str, NULL, NULL);
+
+	free (cmd_str);
+	r_file_rm (temp_file);
+	free (temp_file);
+
+	// We can't easily get the HTTP status code using this method
+	// Let's assume 200 if we got a response, and 0 otherwise
+	if (response) {
+		*code = 200;
+		if (rlen) {
+			*rlen = strlen (response);
+		}
+		result = response;
+	} else {
+		*code = 0;
+	}
+#endif
 
 	return result;
 }
@@ -582,14 +571,13 @@ static char *system_curl_post_file(RCore *core, const char *url, const char *hea
  * @param rlen Pointer to store the response length
  * @return Response body as string (must be freed by caller) or NULL on error
  */
-static char *system_curl_get(const char *url, const char *headers[], int *code, int *rlen) {
+static char *system_curl_get(RCore *core, const char *url, const char *headers[], int *code, int *rlen) {
 	if (!url || !code) {
 		return NULL;
 	}
 
 	// Get timeout and retry configuration from config if available
-	int timeout, max_retries, max_backoff;
-	get_http_config (NULL, &timeout, &max_retries, &max_backoff);
+	R2AI_HttpConfig config = get_http_config (NULL);
 
 	// Install signal handler for interruption (portable)
 	void *r2ai_old_sig = NULL;
@@ -604,15 +592,15 @@ static char *system_curl_get(const char *url, const char *headers[], int *code, 
 	int retry_count = 0;
 	bool success = false;
 
-	while (!success && retry_count <= max_retries && !r2ai_http_interrupted) {
+	while (!success && retry_count <= config.max_retries && !r2ai_http_interrupted) {
 #ifdef _WIN32
-		result = windows_http_get (url, headers, code, rlen, timeout);
+		result = windows_http_get (url, headers, code, rlen, config.timeout);
 		if (result) {
 			success = true;
-		} else if (retry_count < max_retries) {
+		} else if (retry_count < config.max_retries) {
 			retry_count++;
-			R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-			sleep_retry (retry_count, max_backoff);
+			R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, config.max_retries);
+			sleep_retry (retry_count, config.max_backoff);
 			continue;
 		} else {
 			*code = 0;
@@ -623,7 +611,7 @@ static char *system_curl_get(const char *url, const char *headers[], int *code, 
 		RStrBuf *cmd = r_strbuf_new ("curl -s");
 
 		// Add timeout
-		r_strbuf_appendf (cmd, " --connect-timeout %d --max-time %d", 10, timeout);
+		r_strbuf_appendf (cmd, " --connect-timeout %d --max-time %d", 10, config.timeout);
 
 		// Add headers
 		if (headers) {
@@ -639,10 +627,10 @@ static char *system_curl_get(const char *url, const char *headers[], int *code, 
 		char *cmd_str = r_strbuf_drain (cmd);
 		r_sys_setenv ("R2_CURL", "1"); // Ensure R2 uses system curl
 
-		// Set an alarm to limit the request time
+	// Set an alarm to limit the request time
 #if R2__UNIX__
-		signal (SIGALRM, r2ai_http_sigint_handler);
-		alarm (timeout + 10); // Add a little extra for process startup
+	signal (SIGALRM, r2ai_http_sigint_handler);
+	alarm (config.timeout); // Use configured timeout
 #endif
 
 		R_LOG_DEBUG ("Running system curl: %s", cmd_str);
@@ -673,10 +661,10 @@ static char *system_curl_get(const char *url, const char *headers[], int *code, 
 			result = response;
 			success = true;
 		} else {
-			if (retry_count < max_retries) {
+			if (retry_count < config.max_retries) {
 				retry_count++;
-				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-				sleep_retry (retry_count, max_backoff);
+				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, config.max_retries);
+				sleep_retry (retry_count, config.max_backoff);
 				continue;
 			}
 			*code = 0;
@@ -692,308 +680,152 @@ static char *system_curl_get(const char *url, const char *headers[], int *code, 
 }
 
 // Socket implementation with interrupt handling and retry logic
-static char *socket_http_post_with_interrupt(const char *url, const char *headers[], const char *data, int *code, int *rlen) {
-	// Get timeout and retry configuration from config if available
-	int timeout, max_retries, max_backoff;
-	get_http_config (NULL, &timeout, &max_retries, &max_backoff);
+static char *socket_http_post_with_interrupt(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
+	R2AI_HttpConfig config = get_http_config (core);
 
-	// Install signal handler for interruption (portable)
-	void *r2ai_old_sig = NULL;
-	int r2ai_old_is_sigaction = 0;
-	install_sigint_handler_local (&r2ai_old_sig, &r2ai_old_is_sigaction);
-
-	// Reset interrupt flag
-	r2ai_http_interrupted = 0;
-
-	// Retry loop
-	char *result = NULL;
-	int retry_count = 0;
-	bool success = false;
-
-	while (!success && retry_count <= max_retries && !r2ai_http_interrupted) {
-		// Set an alarm to limit the request time
+	// Set an alarm to limit the request time
 #if R2__UNIX__
-		signal (SIGALRM, r2ai_http_sigint_handler);
-		alarm (timeout); // Use configured timeout
+	signal (SIGALRM, r2ai_http_sigint_handler);
+	alarm (config.timeout); // Use configured timeout
 #endif
 
-		// Make the request
-		result = r_socket_http_post (url, headers, data, code, rlen);
+	// Make the request
+	char *result = r_socket_http_post (url, headers, data, code, rlen);
 
-		// Clear the alarm
+	// Clear the alarm
 #if R2__UNIX__
-		alarm (0);
+	alarm (0);
 #endif
 
-		// Check if we were interrupted
-		if (r2ai_http_interrupted) {
-			R_LOG_DEBUG ("HTTP request was interrupted by user");
-			free (result);
-			result = NULL;
-			break; // Exit the retry loop
-		}
-
-		// Check for rate limiting or server errors (429, 500, 502, 503, 504)
-		if (result && *code) {
-			if (*code == 429 || (*code >= 500 && *code < 600)) {
-				R_LOG_WARN ("Server returned %d response code", *code);
-				free (result);
-				result = NULL;
-
-				if (retry_count < max_retries) {
-					retry_count++;
-					R_LOG_INFO ("Retrying request (%d/%d) after error...", retry_count, max_retries);
-					sleep_retry (retry_count, max_backoff);
-					continue;
-				}
-				break; // Exit the retry loop after max retries
-			}
-		}
-
-		// Check for other failures
-		if (!result) {
-			if (retry_count < max_retries) {
-				retry_count++;
-				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-				sleep_retry (retry_count, max_backoff);
-				continue;
-			}
-			break; // Exit the retry loop after max retries
-		}
-
-		// If we get here, the request was successful
-		success = true;
+	// Check if we were interrupted
+	if (r2ai_http_interrupted) {
+		R_LOG_DEBUG ("HTTP request was interrupted by user");
+		free (result);
+		result = NULL;
 	}
-
-	// Restore the original signal handler
-	restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction);
 
 	return result;
 }
 
 #if HAVE_LIBCURL
-static char *curl_http_get(const char *url, const char *headers[], int *code, int *rlen) {
+static char *curl_http_get(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
 	if (!url || !code) {
 		return NULL;
 	}
 
-	// Get timeout and retry configuration from config if available
-	int timeout, max_retries, max_backoff;
-	get_http_config (NULL, &timeout, &max_retries, &max_backoff);
+	R2AI_HttpConfig config = get_http_config (core);
 
-	// Install signal handler for interruption (portable)
-	void *r2ai_old_sig = NULL;
-	int r2ai_old_is_sigaction = 0;
-	install_sigint_handler_local (&r2ai_old_sig, &r2ai_old_is_sigaction);
+	CURL *curl;
+	CURLcode res;
+	struct curl_slist *curl_headers = NULL;
+	CurlResponse response = { 0 };
 
-	// Reset interrupt flag
-	r2ai_http_interrupted = 0;
+	// Initialize response
+	response.data = malloc (1);
+	if (!response.data) {
+		return NULL;
+	}
+	response.data[0] = '\0';
+	response.size = 0;
 
-	// Retry loop
-	char *result = NULL;
-	int retry_count = 0;
-	bool success = false;
-
-	while (!success && retry_count <= max_retries && !r2ai_http_interrupted) {
-		CURL *curl;
-		CURLcode res;
-		struct curl_slist *curl_headers = NULL;
-		CurlResponse response = { 0 };
-
-		// Initialize response
-		response.data = malloc (1);
-		if (!response.data) {
-			if (retry_count < max_retries) {
-				retry_count++;
-				sleep_retry (retry_count, max_backoff);
-				continue;
-			}
-			restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction); // Restore signal handler
-			return NULL;
-		}
-		response.data[0] = '\0';
-		response.size = 0;
-
-		curl = curl_easy_init ();
-		if (!curl) {
-			free (response.data);
-			if (retry_count < max_retries) {
-				retry_count++;
-				sleep_retry (retry_count, max_backoff);
-				continue;
-			}
-			restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction); // Restore signal handler
-			return NULL;
-		}
-
-		// Set URL
-		curl_easy_setopt (curl, CURLOPT_URL, url);
-
-		// This is a GET request - no POST data
-		curl_easy_setopt (curl, CURLOPT_HTTPGET, 1L);
-
-		// Set headers if provided
-		if (headers) {
-			for (int i = 0; headers[i] != NULL; i++) {
-				curl_headers = curl_slist_append (curl_headers, headers[i]);
-			}
-			curl_easy_setopt (curl, CURLOPT_HTTPHEADER, curl_headers);
-		}
-
-		// Set write callback
-		curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, write_callback);
-		curl_easy_setopt (curl, CURLOPT_WRITEDATA, (void *)&response);
-
-		// Set progress callback to handle interrupts
-		curl_easy_setopt (curl, CURLOPT_NOPROGRESS, 0L);
-		curl_easy_setopt (curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
-		curl_easy_setopt (curl, CURLOPT_XFERINFODATA, NULL);
-
-		// Set timeout options
-		curl_easy_setopt (curl, CURLOPT_CONNECTTIMEOUT, 10L); // 10 seconds connect timeout
-		curl_easy_setopt (curl, CURLOPT_TIMEOUT, (long)timeout); // Use configured timeout
-
-		// Follow redirects
-		curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
-
-		// Perform the request
-		res = curl_easy_perform (curl);
-
-		// Check for interruption
-		if (r2ai_http_interrupted) {
-			R_LOG_DEBUG ("HTTP request was interrupted by user");
-			free (response.data);
-			curl_slist_free_all (curl_headers);
-			curl_easy_cleanup (curl);
-			break; // Exit the retry loop
-		}
-
-		// Get response code
-		long http_code;
-		curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
-		*code = (int)http_code;
-
-		// Check for errors
-		if (res != CURLE_OK) {
-			R_LOG_ERROR ("curl_easy_perform () failed: %s", curl_easy_strerror (res));
-			free (response.data);
-			curl_slist_free_all (curl_headers);
-			curl_easy_cleanup (curl);
-
-			// Retry on network errors
-			if (retry_count < max_retries) {
-				retry_count++;
-				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-				sleep_retry (retry_count, max_backoff);
-				continue;
-			}
-			break; // Exit the retry loop after max retries
-		}
-
-		// Check for rate limiting or server errors (429, 500, 502, 503, 504)
-		if (http_code == 429 || (http_code >= 500 && http_code < 600)) {
-			R_LOG_WARN ("Server returned %d response code", (int)http_code);
-			free (response.data);
-			curl_slist_free_all (curl_headers);
-			curl_easy_cleanup (curl);
-
-			if (retry_count < max_retries) {
-				retry_count++;
-				R_LOG_INFO ("Retrying request (%d/%d) after rate limiting...", retry_count, max_retries);
-				sleep_retry (retry_count, max_backoff);
-				continue;
-			}
-			break; // Exit the retry loop after max retries
-		}
-
-		// If we get here, the request was successful
-		success = true;
-		result = response.data;
-		if (rlen) {
-			*rlen = response.size;
-		}
-
-		// Cleanup
-		curl_slist_free_all (curl_headers);
-		curl_easy_cleanup (curl);
+	curl = curl_easy_init ();
+	if (!curl) {
+		free (response.data);
+		return NULL;
 	}
 
-	// Restore the original signal handler
-	restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction);
+	// Set URL
+	curl_easy_setopt (curl, CURLOPT_URL, url);
+
+	// This is a GET request - no POST data
+	curl_easy_setopt (curl, CURLOPT_HTTPGET, 1L);
+
+	// Set headers if provided
+	if (headers) {
+		for (int i = 0; headers[i] != NULL; i++) {
+			curl_headers = curl_slist_append (curl_headers, headers[i]);
+		}
+		curl_easy_setopt (curl, CURLOPT_HTTPHEADER, curl_headers);
+	}
+
+	// Set write callback
+	curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, write_callback);
+	curl_easy_setopt (curl, CURLOPT_WRITEDATA, (void *)&response);
+
+	// Set progress callback to handle interrupts
+	curl_easy_setopt (curl, CURLOPT_NOPROGRESS, 0L);
+	curl_easy_setopt (curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
+	curl_easy_setopt (curl, CURLOPT_XFERINFODATA, NULL);
+
+	// Set timeout options
+	curl_easy_setopt (curl, CURLOPT_CONNECTTIMEOUT, 10L); // 10 seconds connect timeout
+	curl_easy_setopt (curl, CURLOPT_TIMEOUT, (long)config.timeout); // Use configured timeout
+
+	// Follow redirects
+	curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
+
+	// Perform the request
+	res = curl_easy_perform (curl);
+
+	// Check for interruption
+	if (r2ai_http_interrupted) {
+		R_LOG_DEBUG ("HTTP request was interrupted by user");
+		free (response.data);
+		curl_slist_free_all (curl_headers);
+		curl_easy_cleanup (curl);
+		return NULL;
+	}
+
+	// Get response code
+	long http_code;
+	curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
+	*code = (int)http_code;
+
+	// Check for errors
+	if (res != CURLE_OK) {
+		R_LOG_ERROR ("curl_easy_perform () failed: %s", curl_easy_strerror (res));
+		free (response.data);
+		curl_slist_free_all (curl_headers);
+		curl_easy_cleanup (curl);
+		return NULL;
+	}
+
+	// If we get here, the request was successful
+	char *result = response.data;
+	if (rlen) {
+		*rlen = response.size;
+	}
+
+	// Cleanup
+	curl_slist_free_all (curl_headers);
+	curl_easy_cleanup (curl);
 
 	return result;
 }
 #endif // HAVE_LIBCURL
 
 // Socket implementation for GET requests
-static char *socket_http_get_with_interrupt(const char *url, const char *headers[], int *code, int *rlen) {
-	// Get timeout and retry configuration from config if available
-	int timeout, max_retries, max_backoff;
-	get_http_config (NULL, &timeout, &max_retries, &max_backoff);
+static char *socket_http_get_with_interrupt(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
+	R2AI_HttpConfig config = get_http_config (core);
 
-	// Install signal handler for interruption (portable)
-	void *r2ai_old_sig = NULL;
-	int r2ai_old_is_sigaction = 0;
-	install_sigint_handler_local (&r2ai_old_sig, &r2ai_old_is_sigaction);
-	r2ai_http_interrupted = 0;
-
-	// Retry loop
-	char *result = NULL;
-	int retry_count = 0;
-	bool success = false;
-
-	while (!success && retry_count <= max_retries && !r2ai_http_interrupted) {
-		// Set an alarm to limit the request time
+	// Set an alarm to limit the request time
 #if R2__UNIX__
-		signal (SIGALRM, r2ai_http_sigint_handler);
-		alarm (timeout); // Use configured timeout
+	signal (SIGALRM, r2ai_http_sigint_handler);
+	alarm (config.timeout); // Use configured timeout
 #endif
 
-		// Make the request - use r_socket_http_get if available
-		result = r_socket_http_get (url, headers, code, rlen);
+	// Make the request - use r_socket_http_get if available
+	char *result = r_socket_http_get (url, headers, code, rlen);
 #if R2__UNIX__
-		alarm (0);
+	alarm (0);
 #endif
-		// Check if we were interrupted
-		if (r2ai_http_interrupted) {
-			R_LOG_DEBUG ("HTTP request was interrupted by user");
-			free (result);
-			result = NULL;
-			break; // Exit the retry loop
-		}
 
-		// Check for rate limiting or server errors (429, 500, 502, 503, 504)
-		if (result && *code) {
-			if (*code == 429 || (*code >= 500 && *code < 600)) {
-				R_LOG_WARN ("Server returned %d response code", *code);
-				free (result);
-				result = NULL;
-
-				if (retry_count < max_retries) {
-					retry_count++;
-					R_LOG_INFO ("Retrying request (%d/%d) after error...", retry_count, max_retries);
-					sleep_retry (retry_count, max_backoff);
-					continue;
-				}
-				break; // Exit the retry loop after max retries
-			}
-		}
-		// Check for other failures
-		if (!result) {
-			if (retry_count < max_retries) {
-				retry_count++;
-				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-				sleep_retry (retry_count, max_backoff);
-				continue;
-			}
-			break; // Exit the retry loop after max retries
-		}
-		// If we get here, the request was successful
-		success = true;
+	// Check if we were interrupted
+	if (r2ai_http_interrupted) {
+		R_LOG_DEBUG ("HTTP request was interrupted by user");
+		free (result);
+		result = NULL;
 	}
-
-	// Restore the original signal handler
-	restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction);
 
 	return result;
 }
@@ -1017,34 +849,69 @@ static char *r2ai_http_request(const char *method, RCore *core, const char *url,
 	// Choose implementation based on backend config
 	if (!strcmp (backend, "system")) {
 		if (is_post) {
-			// Always use system curl with files for POST requests
-			return system_curl_post_file (core, url, headers, data, code, rlen, use_files);
+			return http_request_with_retry (system_curl_post_wrapper, core, url, headers, data, code, rlen);
 		} else {
-			// Use system curl for GET requests
-			return system_curl_get (url, headers, code, rlen);
+			return http_request_with_retry (system_curl_get_wrapper, core, url, headers, data, code, rlen);
 		}
 	}
-	if (!strcmp (backend, "libcurl")) {
+		if (!strcmp (backend, "libcurl")) {
 #if USE_LIBCURL && HAVE_LIBCURL
 		if (is_post) {
-			return curl_http_post (url, headers, data, code, rlen);
+			return http_request_with_retry (curl_http_post, core, url, headers, data, code, rlen);
 		} else {
-			return curl_http_get (url, headers, code, rlen);
+			return http_request_with_retry (curl_http_get, core, url, headers, NULL, code, rlen);
 		}
 #else
 		R_LOG_WARN ("LibCurl requested but not available, falling back to socket implementation");
 		if (is_post) {
-			return socket_http_post_with_interrupt (url, headers, data, code, rlen);
+			return http_request_with_retry (socket_http_post_with_interrupt, core, url, headers, data, code, rlen);
 		} else {
-			return socket_http_get_with_interrupt (url, headers, code, rlen);
+			return http_request_with_retry (socket_http_get_with_interrupt, core, url, headers, NULL, code, rlen);
 		}
 #endif
 	}
 	if (!strcmp (backend, "socket")) {
 		if (is_post) {
-			return socket_http_post_with_interrupt (url, headers, data, code, rlen);
+			return http_request_with_retry (socket_http_post_with_interrupt, core, url, headers, data, code, rlen);
 		} else {
-			return socket_http_get_with_interrupt (url, headers, code, rlen);
+			return http_request_with_retry (socket_http_get_with_interrupt, core, url, headers, NULL, code, rlen);
+		}
+	}
+
+	// Auto-select best available implementation
+	if (is_post && use_files) {
+		// If use_files is true, always use system curl for POST
+		return http_request_with_retry (system_curl_post_wrapper, core, url, headers, data, code, rlen);
+	}
+#if USE_LIBCURL && HAVE_LIBCURL
+	if (is_post) {
+		return http_request_with_retry (curl_http_post, core, url, headers, data, code, rlen);
+	} else {
+		return http_request_with_retry (curl_http_get, core, url, headers, NULL, code, rlen);
+	}
+#else
+#ifdef _WIN32
+	if (is_post) {
+		return http_request_with_retry (windows_http_post_wrapper, core, url, headers, data, code, rlen);
+	} else {
+		return http_request_with_retry (windows_http_get_wrapper, core, url, headers, NULL, code, rlen);
+	}
+#else
+#if USE_R2_CURL
+	r_sys_setenv ("R2_CURL", "1");
+#endif
+	if (is_post) {
+		return http_request_with_retry (socket_http_post_with_interrupt, core, url, headers, data, code, rlen);
+	} else {
+		return http_request_with_retry (socket_http_get_with_interrupt, core, url, headers, NULL, code, rlen);
+	}
+#endif
+#endif
+	if (!strcmp (backend, "socket")) {
+		if (is_post) {
+			return http_request_with_retry (socket_http_post_with_interrupt, core, url, headers, data, code, rlen);
+		} else {
+			return http_request_with_retry (socket_http_get_with_interrupt, core, url, headers, NULL, code, rlen);
 		}
 	}
 
@@ -1061,20 +928,19 @@ static char *r2ai_http_request(const char *method, RCore *core, const char *url,
 	}
 #else
 #ifdef _WIN32
-	int timeout, max_retries, max_backoff;
-	get_http_config (core, &timeout, &max_retries, &max_backoff);
+	R2AI_HttpConfig config = get_http_config (core);
 	if (is_post) {
 		char *result = NULL;
 		int retry_count = 0;
 		bool success = false;
-		while (!success && retry_count <= max_retries) {
-			result = windows_http_post (url, headers, data, code, rlen, timeout);
+		while (!success && retry_count <= config.max_retries) {
+			result = windows_http_post (url, headers, data, code, rlen, config.timeout);
 			if (result) {
 				success = true;
-			} else if (retry_count < max_retries) {
+			} else if (retry_count < config.max_retries) {
 				retry_count++;
-				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-				sleep_retry (retry_count, max_backoff);
+				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, config.max_retries);
+				sleep_retry (retry_count, config.max_backoff);
 			} else {
 				*code = 0;
 			}
@@ -1084,14 +950,14 @@ static char *r2ai_http_request(const char *method, RCore *core, const char *url,
 		char *result = NULL;
 		int retry_count = 0;
 		bool success = false;
-		while (!success && retry_count <= max_retries) {
-			result = windows_http_get (url, headers, code, rlen, timeout);
+		while (!success && retry_count <= config.max_retries) {
+			result = windows_http_get (url, headers, code, rlen, config.timeout);
 			if (result) {
 				success = true;
-			} else if (retry_count < max_retries) {
+			} else if (retry_count < config.max_retries) {
 				retry_count++;
-				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, max_retries);
-				sleep_retry (retry_count, max_backoff);
+				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, config.max_retries);
+				sleep_retry (retry_count, config.max_backoff);
 			} else {
 				*code = 0;
 			}
@@ -1103,9 +969,9 @@ static char *r2ai_http_request(const char *method, RCore *core, const char *url,
 	r_sys_setenv ("R2_CURL", "1");
 #endif
 	if (is_post) {
-		return socket_http_post_with_interrupt (url, headers, data, code, rlen);
+		return http_request_with_retry (socket_http_post_with_interrupt, core, url, headers, data, code, rlen);
 	} else {
-		return socket_http_get_with_interrupt (url, headers, code, rlen);
+		return http_request_with_retry (socket_http_get_with_interrupt, core, url, headers, NULL, code, rlen);
 	}
 #endif
 #endif
