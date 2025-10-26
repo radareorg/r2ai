@@ -134,7 +134,16 @@ static HttpResponse r2ai_http_request_with_retry(HttpRequestFunc func, const HTT
 static HttpRequestFunc select_backend(const char *backend, bool is_post, bool use_files) {
 	HttpRequestFunc func = NULL;
 	// Select the appropriate backend function
-	if (!strcmp (backend, "system")) {
+	if (!strcmp (backend, "auto")) {
+		// Auto-select the best available backend
+#if USE_LIBCURL && HAVE_LIBCURL
+		func = is_post? curl_http_post: curl_http_get;
+		R_LOG_DEBUG ("Auto-selected libcurl backend");
+#else
+		func = is_post? system_curl_post_file: system_curl_get;
+		R_LOG_DEBUG ("Auto-selected system curl backend");
+#endif
+	} else if (!strcmp (backend, "system")) {
 		func = is_post? system_curl_post_file: system_curl_get;
 	} else if (!strcmp (backend, "libcurl")) {
 #if USE_LIBCURL && HAVE_LIBCURL
