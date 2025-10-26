@@ -43,8 +43,9 @@ HttpResponse windows_http_post(const HTTPRequest *request) {
 			int code = atoi (full_response);
 			char *body = newline + 1;
 			char *body_copy = strdup (body);
+			size_t length = strlen (body);
 			free (full_response);
-			return (HttpResponse){ .body = body_copy, .code = code, .length = strlen (body) };
+			return (HttpResponse){ .body = body_copy, .code = code, .length = length };
 		} else {
 			return (HttpResponse){ .body = full_response, .code = 200, .length = strlen (full_response) };
 		}
@@ -73,8 +74,9 @@ HttpResponse windows_http_get(const HTTPRequest *request) {
 			int code = atoi (full_response);
 			char *body = newline + 1;
 			char *body_copy = strdup (body);
+			size_t length = strlen (body);
 			free (full_response);
-			return (HttpResponse){ .body = body_copy, .code = code, .length = strlen (body) };
+			return (HttpResponse){ .body = body_copy, .code = code, .length = length };
 		} else {
 			return (HttpResponse){ .body = full_response, .code = 200, .length = strlen (full_response) };
 		}
