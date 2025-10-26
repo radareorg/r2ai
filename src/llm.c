@@ -150,7 +150,42 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	return res;
 }
 
-/* Return a malloc'd API key read from the environment or from ~/.r2ai.<provider>-key
+static char *r2ai_get_api_key_from_config(const char *provider) {
+	char *config_file = r_file_abspath ("~/.config/r2ai/apikeys.txt");
+	if (!r_file_exists (config_file)) {
+		free (config_file);
+		return NULL;
+	}
+	char *content = r_file_slurp (config_file, NULL);
+	free (config_file);
+	if (!content) {
+		return NULL;
+	}
+	RList *lines = r_str_split_list (content, "\n", 0);
+	free (content);
+	if (!lines) {
+		return NULL;
+	}
+	char *prefix = r_str_newf ("%s=", provider);
+	char *key = NULL;
+	RListIter *iter;
+	char *line;
+	r_list_foreach (lines, iter, line) {
+		if (r_str_startswith (line, prefix)) {
+			char *eq = strchr (line, '=');
+			if (eq) {
+				key = strdup (eq + 1);
+				r_str_trim (key);
+			}
+			break;
+		}
+	}
+	r_list_free (lines);
+	free (prefix);
+	return key;
+}
+
+/* Return a malloc'd API key read from the env, ~/.config/r2ai/apikeys.txt, or ~/.r2ai.<provider>-key
  * Caller is responsible for freeing the returned string (or NULL if not found). */
 R_IPI char *r2ai_get_api_key(RCore *core, const char *provider) {
 	(void)core;
@@ -163,16 +198,19 @@ R_IPI char *r2ai_get_api_key(RCore *core, const char *provider) {
 		api_key = s;
 	} else {
 		free (s);
-		char *api_key_filename = r_str_newf ("~/.r2ai.%s-key", provider);
-		char *absolute_apikey = r_file_abspath (api_key_filename);
-		if (r_file_exists (absolute_apikey)) {
-			api_key = r_file_slurp (absolute_apikey, NULL);
-			if (api_key) {
-				r_str_trim (api_key);
+		api_key = r2ai_get_api_key_from_config (provider);
+		if (!api_key) {
+			char *api_key_filename = r_str_newf ("~/.r2ai.%s-key", provider);
+			char *absolute_apikey = r_file_abspath (api_key_filename);
+			if (r_file_exists (absolute_apikey)) {
+				api_key = r_file_slurp (absolute_apikey, NULL);
+				if (api_key) {
+					r_str_trim (api_key);
+				}
 			}
+			free (api_key_filename);
+			free (absolute_apikey);
 		}
-		free (api_key_filename);
-		free (absolute_apikey);
 	}
 	return api_key;
 }
@@ -190,15 +228,13 @@ R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider) {
 			if (r_str_startswith (host, "http")) {
 				if (!strcmp (provider, "openai")) {
 					return r_str_newf ("%s/v1", host);
-				} else {
-					return r_str_newf ("%s/api", host);
 				}
+				return r_str_newf ("%s/api", host);
 			}
 			if (!strcmp (provider, "openai")) {
 				return r_str_newf ("http://%s/v1", host);
-			} else {
-				return r_str_newf ("http://%s/api", host);
 			}
+			return r_str_newf ("http://%s/api", host);
 		}
 	}
 
@@ -211,16 +247,9 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 	}
 
 	// Create models endpoint URL
-	char *models_url = NULL;
 	const R2AIProvider *prov = r2ai_get_provider (provider);
-	if (prov && prov->uses_tags_endpoint) {
-		models_url = r_str_newf ("%s/tags", purl);
-	} else {
-		models_url = r_str_newf ("%s/models", purl);
-	}
-	if (!models_url) {
-		return NULL;
-	}
+	const bool usetags = (prov && prov->uses_tags_endpoint);
+	char *models_url = r_str_newf ("%s/%s", purl, usetags? "tags": "models");
 
 	// Get API key for authentication (except for providers that don't require it)
 	char *api_key = NULL;
@@ -279,13 +308,9 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 
 	RJson *json = r_json_parse (response);
 	if (json) {
-		const RJson *data;
 		const R2AIProvider *prov = r2ai_get_provider (provider);
-		if (prov && prov->uses_tags_endpoint) {
-			data = r_json_get (json, "models");
-		} else {
-			data = r_json_get (json, "data");
-		}
+		const bool usetags = (prov && prov->uses_tags_endpoint);
+		const RJson *data = r_json_get (json, usetags? "models": "data");
 
 		if (data && data->type == R_JSON_ARRAY) {
 			const RJson *model_item = data->children.first;
@@ -311,8 +336,7 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 }
 
 R_IPI void r2ai_list_providers(RCore *core, RStrBuf *sb) {
-	size_t i;
-	for (i = 0; r2ai_providers[i].name; i++) {
+	for (size_t i = 0; r2ai_providers[i].name; i++) {
 		if (sb) {
 			if (i > 0) {
 				r_strbuf_append (sb, ", ");
