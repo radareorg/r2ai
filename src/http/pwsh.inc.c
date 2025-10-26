@@ -45,14 +45,13 @@ HttpResponse windows_http_post(const char *url, const char *headers[], const cha
 			return (HttpResponse){ .body = full_response, .code = 200, .length = strlen (full_response) };
 		}
 	}
-	return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
+	return (HttpResponse){ .code = -1 };
 }
 
 /**
  * Windows-specific HTTP GET using PowerShell
  */
 HttpResponse windows_http_get(const char *url, const char *headers[], int timeout) {
-
 	RStrBuf *cmd = r_strbuf_new ("powershell -Command \"");
 	append_headers_to_cmd (cmd, headers);
 	r_strbuf_appendf (cmd, "try{$r=Invoke-WebRequest -Method Get -Uri '%s' -Headers $headers -TimeoutSec %d;", url, timeout);
@@ -73,6 +72,6 @@ HttpResponse windows_http_get(const char *url, const char *headers[], int timeou
 			return (HttpResponse){ .body = full_response, .code = 200, .length = strlen (full_response) };
 		}
 	}
-	return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
+	return (HttpResponse){ .code = -1 };
 }
 #endif

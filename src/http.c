@@ -2,19 +2,6 @@
 #include <signal.h>
 #include <time.h>
 
-/**
- * r2ai HTTP implementation with:
- * - Interrupt handling (SIGINT)
- * - Timeout handling
- * - Rate limiting with exponential backoff
- * - Retrying on errors (429, 5xx)
- *
- * Configuration variables:
- * - r2ai.http.timeout: Request timeout in seconds (default: 120)
- * - r2ai.http.max_retries: Maximum number of retry attempts (default: 3)
- * - r2ai.http.max_backoff: Maximum backoff time in seconds (default: 30)
- */
-
 // Global flag for tracking interrupt status
 static volatile sig_atomic_t r2ai_http_interrupted = 0;
 
@@ -62,7 +49,7 @@ static void restore_sigint_handler_local(void *old, int old_is_sigaction) {
 }
 
 // Function pointer type for HTTP request implementations
-typedef HttpResponse (*HttpRequestFunc)(const HTTPRequest *request);
+typedef HttpResponse(*HttpRequestFunc)(const HTTPRequest *request);
 
 // Simple retry sleep
 static void sleep_retry(int retry_count, int max_sleep_seconds) {
@@ -84,7 +71,7 @@ static HttpResponse r2ai_http_request_with_retry(HttpRequestFunc func, const HTT
 	r2ai_http_interrupted = 0;
 
 	// Retry loop
-	HttpResponse result = {0};
+	HttpResponse result = { 0 };
 	int retry_count = 0;
 	bool success = false;
 
@@ -136,8 +123,6 @@ static HttpResponse r2ai_http_request_with_retry(HttpRequestFunc func, const HTT
 			}
 			break; // Exit the retry loop after max retries
 		}
-
-		// If we get here, the request was successful
 		success = true;
 	}
 
@@ -147,13 +132,10 @@ static HttpResponse r2ai_http_request_with_retry(HttpRequestFunc func, const HTT
 	return result;
 }
 
-#include "http_libcurl.inc.c"
-
-#include "http_pwsh.inc.c"
-
-#include "http_curl.inc.c"
-
-#include "http_r2.c"
+#include "http/libcurl.inc.c"
+#include "http/pwsh.inc.c"
+#include "http/curl.inc.c"
+#include "http/r2.inc.c"
 
 // Generic HTTP request function that handles backend selection
 static HttpResponse r2ai_http_request(const char *method, RCore *core, const char *url, const char *headers[], const char *data) {

@@ -5,42 +5,26 @@
 // System curl implementations
 
 HttpResponse system_curl_post_file(const HTTPRequest *request) {
+	HttpResponse error = { .code = -1 };
 	int timeout = request->config.timeout;
 	if (!request->url || !request->headers || !request->data) {
-		return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
+		return error;
 	}
 
 	// Create a temporary file for the data
 	char *temp_file = r_file_temp ("r2ai_data");
 	if (!temp_file) {
 		R_LOG_ERROR ("Failed to create temporary file for curl data");
-		return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
+		return error;
 	}
 
 	// Write data to the temporary file
 	if (!r_file_dump (temp_file, (const ut8 *)request->data, strlen (request->data), 0)) {
 		R_LOG_ERROR ("Failed to write data to temporary file");
 		free (temp_file);
-		return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
+		return error;
 	}
 
-#ifdef _WIN32
-	// On Windows, use PowerShell for HTTP requests
-	// Read file content
-	char *data_to_send = r_file_slurp (temp_file, NULL);
-	if (!data_to_send) {
-		r_file_rm (temp_file);
-		free (temp_file);
-		return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
-	}
-
-	HttpResponse result = windows_http_post (request->url, request->headers, data_to_send, timeout);
-
-	free (data_to_send);
-	r_file_rm (temp_file);
-	free (temp_file);
-	return result;
-#else
 	// Compose curl command
 	RStrBuf *cmd = r_strbuf_new ("curl -s");
 
@@ -73,15 +57,14 @@ HttpResponse system_curl_post_file(const HTTPRequest *request) {
 	} else {
 		return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
 	}
-#endif
 }
 
 HttpResponse system_curl_get(const HTTPRequest *request) {
+	HttpResponse error = { .code = -1 };
 	int timeout = request->config.timeout;
 	if (!request->url) {
-		return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
+		return error;
 	}
-
 	// Install signal handler for interruption (portable)
 	void *r2ai_old_sig = NULL;
 	int r2ai_old_is_sigaction = 0;
@@ -90,12 +73,6 @@ HttpResponse system_curl_get(const HTTPRequest *request) {
 	// Reset interrupt flag
 	r2ai_http_interrupted = 0;
 
-#ifdef _WIN32
-	HttpResponse result = windows_http_get (request->url, request->headers, timeout);
-	// Restore the original signal handler
-	restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction);
-	return result;
-#else
 	// Compose curl command
 	RStrBuf *cmd = r_strbuf_new ("curl -s");
 
@@ -137,7 +114,7 @@ HttpResponse system_curl_get(const HTTPRequest *request) {
 		R_LOG_DEBUG ("HTTP request was interrupted by user");
 		free (response);
 		restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction);
-		return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
+		return error;
 	}
 
 	// We can't easily get the HTTP status code using this method
@@ -147,8 +124,6 @@ HttpResponse system_curl_get(const HTTPRequest *request) {
 
 	if (response) {
 		return (HttpResponse){ .body = response, .code = 200, .length = strlen (response) };
-	} else {
-		return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
 	}
-#endif
+	return error;
 }

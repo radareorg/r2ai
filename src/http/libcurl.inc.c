@@ -41,8 +41,9 @@ static int progress_callback(void *clientp, curl_off_t dltotal, curl_off_t dlnow
 }
 
 HttpResponse curl_http_post(const HTTPRequest *request) {
+	HttpResponse error = { .code = -1 };
 	if (!request->url || !request->headers || !request->data) {
-		return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
+		return error;
 	}
 
 	CURL *curl;
@@ -53,7 +54,7 @@ HttpResponse curl_http_post(const HTTPRequest *request) {
 	// Initialize response
 	response.data = malloc (1);
 	if (!response.data) {
-		return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
+		return error;
 	}
 	response.data[0] = '\0';
 	response.size = 0;
@@ -74,7 +75,7 @@ HttpResponse curl_http_post(const HTTPRequest *request) {
 	curl = curl_easy_init ();
 	if (!curl) {
 		free (response.data);
-		return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
+		return error;
 	}
 
 	// Set URL
@@ -116,7 +117,7 @@ HttpResponse curl_http_post(const HTTPRequest *request) {
 		free (response.data);
 		curl_slist_free_all (curl_headers);
 		curl_easy_cleanup (curl);
-		return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
+		return error;
 	}
 
 	// Get response code
@@ -129,7 +130,7 @@ HttpResponse curl_http_post(const HTTPRequest *request) {
 		free (response.data);
 		curl_slist_free_all (curl_headers);
 		curl_easy_cleanup (curl);
-		return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
+		return error;
 	}
 
 	// If we get here, the request was successful
