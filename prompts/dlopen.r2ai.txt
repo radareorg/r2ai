@@ -1,6 +1,0 @@
-Title: List libraries loaded with dlopen
-Description: Some libraries are loaded
-Requires: analysis
-Command: iiq~dlopen
-If-Empty: This binary is not using dlopen
-If-Command: e emu.str=true;pd--5@@c:axtq sym.imp.dlopen

@@ -71,45 +71,7 @@ static R2AIPrompt *parse_prompt_file(const char *filepath) {
 			prompt->prompt = strdup (prompt_start);
 		}
 	} else {
-		// Original parsing for .txt files
-		RList *lines = r_str_split_list (content, "\n", -1);
-		RListIter *iter;
-		char *line;
-		r_list_foreach (lines, iter, line) {
-			r_str_trim (line);
-			if (*line == '#' || *line == 0) {
-				continue;
-			}
-			char *colon = strchr (line, ':');
-			if (!colon) {
-				continue;
-			}
-			*colon = 0;
-			char *key = line;
-			char *value = colon + 1;
-			r_str_trim (key);
-			r_str_trim (value);
-			if (!strcmp (key, "Title")) {
-				prompt->title = strdup (value);
-			} else if (!strcmp (key, "Author")) {
-				prompt->author = strdup (value);
-			} else if (!strcmp (key, "Description")) {
-				prompt->desc = strdup (value);
-			} else if (!strcmp (key, "Command") || !strcmp (key, "Commands")) {
-				prompt->command = strdup (value);
-			} else if (!strcmp (key, "Prompt") || !strcmp (key, "Query")) {
-				prompt->prompt = strdup (value);
-			} else if (!strcmp (key, "Depends")) {
-				prompt->
-					requires
-				= strdup (value);
-			} else if (!strcmp (key, "If-Empty")) {
-				prompt->if_empty = strdup (value);
-			} else if (!strcmp (key, "If-Command")) {
-				prompt->if_command = strdup (value);
-			}
-		}
-		r_list_free (lines);
+		R_LOG_ERROR ("Invalid prompt file format: %s", filepath);
 	}
 
 	free (content);

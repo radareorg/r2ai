@@ -1,4 +1,0 @@
-Title: Augmented decompilation based on LLM
-Author: pancake
-Command: pdc
-Prompt: $(-e r2ai.prompt). Translate the code into $(-e r2ai.lang) programming language.

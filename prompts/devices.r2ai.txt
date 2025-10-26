@@ -1,4 +1,0 @@
-Title: Find and explain devices used
-Author: pancake
-Command: izqq~^/dev
-Prompt: explain in one line the purpose of each of these devices

@@ -1,4 +1,0 @@
-Title: Find vulnerabilities or bugs in the current function
-Author: pancake
-Command: pdc
-Prompt: Find vulnerabilities, do not show the code, only a short summary of the resulting analysis report including suggested good practices to address the problem and a practical exploit example.

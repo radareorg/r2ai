@@ -1,4 +1,0 @@
-Title: Group imports by Libraries
-Author: pancake
-Commands: iiq;il
-Query: Group the imports that belong to each library and describe its purpose and usage scope

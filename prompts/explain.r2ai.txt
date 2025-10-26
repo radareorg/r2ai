@@ -1,4 +1,0 @@
-Title: Explain the current function
-Author: pancake
-Command: r2ai -d
-Prompt: Analyze function calls, comments and strings, ignore registers and memory accesses. Considering the references and involved loops; explain the purpose of this function in one or two short sentences. Output must be only the translation of the explanation in $(-e r2ai.hlang)

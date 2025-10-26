@@ -1,4 +1,0 @@
-Title: Automatically suggest a better name for this function
-Author: pancake
-Command: afv;r2ai -d
-Prompt: Suggest a better name for this function. Output only the suggested function name (must be one alphanumeric word) prefixed with `'afn '. Check the code below:
