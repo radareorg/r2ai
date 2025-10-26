@@ -45,29 +45,6 @@ static R2AI_HttpConfig get_http_config(RCore *core) {
 	return config;
 }
 
-#ifdef _WIN32
-// Helper to append headers to PowerShell command
-static void append_headers_to_cmd(RStrBuf *cmd, const char *headers[]) {
-	r_strbuf_appendf (cmd, "$ProgressPreference='SilentlyContinue';$headers=@{");
-	if (headers) {
-		for (int i = 0; headers[i]; i++) {
-			char *header = strdup (headers[i]);
-			char *colon = strchr (header, ':');
-			if (colon) {
-				*colon = '\0';
-				char *key = r_str_trim_dup (header);
-				char *value = r_str_trim_dup (colon + 1);
-				r_strbuf_appendf (cmd, "'%s'='%s';", key, value);
-				free (key);
-				free (value);
-			}
-			free (header);
-		}
-	}
-	r_strbuf_appendf (cmd, "};");
-}
-#endif
-
 // Signal handler for SIGINT
 static void r2ai_http_sigint_handler(int sig) {
 	(void)sig;
@@ -136,71 +113,7 @@ static char *windows_http_get_wrapper(RCore *core, const char *url, const char *
 	return windows_http_get (url, headers, code, rlen, config.timeout);
 }
 
-// Generic retry wrapper for HTTP requests
-static char *http_request_with_retry(HttpRequestFunc func, RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
-	R2AI_HttpConfig config = get_http_config (core);
 
-	// Install signal handler for interruption (portable)
-	void *r2ai_old_sig = NULL;
-	int r2ai_old_is_sigaction = 0;
-	install_sigint_handler_local (&r2ai_old_sig, &r2ai_old_is_sigaction);
-
-	// Reset interrupt flag
-	r2ai_http_interrupted = 0;
-
-	// Retry loop
-	char *result = NULL;
-	int retry_count = 0;
-	bool success = false;
-
-	while (!success && retry_count <= config.max_retries && !r2ai_http_interrupted) {
-		result = func (core, url, headers, data, code, rlen);
-
-		// Check if we were interrupted
-		if (r2ai_http_interrupted) {
-			R_LOG_DEBUG ("HTTP request was interrupted by user");
-			free (result);
-			result = NULL;
-			break; // Exit the retry loop
-		}
-
-		// Check for rate limiting or server errors (429, 500, 502, 503, 504)
-		if (result && code && *code) {
-			if (*code == 429 || (*code >= 500 && *code < 600)) {
-				R_LOG_WARN ("Server returned %d response code", *code);
-				free (result);
-				result = NULL;
-
-				if (retry_count < config.max_retries) {
-					retry_count++;
-					R_LOG_INFO ("Retrying request (%d/%d) after error...", retry_count, config.max_retries);
-					sleep_retry (retry_count, config.max_backoff);
-					continue;
-				}
-				break; // Exit the retry loop after max retries
-			}
-		}
-
-		// Check for other failures
-		if (!result) {
-			if (retry_count < config.max_retries) {
-				retry_count++;
-				R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, config.max_retries);
-				sleep_retry (retry_count, config.max_backoff);
-				continue;
-			}
-			break; // Exit the retry loop after max retries
-		}
-
-		// If we get here, the request was successful
-		success = true;
-	}
-
-	// Restore the original signal handler
-	restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction);
-
-	return result;
-}
 
 #if HAVE_LIBCURL
 #include <curl/curl.h>
@@ -339,6 +252,27 @@ static char *curl_http_post(RCore *core, const char *url, const char *headers[],
 #endif // HAVE_LIBCURL
 
 #ifdef _WIN32
+
+// Helper to append headers to PowerShell command
+static void append_headers_to_cmd(RStrBuf *cmd, const char *headers[]) {
+	r_strbuf_appendf (cmd, "$ProgressPreference='SilentlyContinue';$headers=@{");
+	if (headers) {
+		for (int i = 0; headers[i]; i++) {
+			char *header = strdup (headers[i]);
+			char *colon = strchr (header, ':');
+			if (colon) {
+				*colon = '\0';
+				char *key = r_str_trim_dup (header);
+				char *value = r_str_trim_dup (colon + 1);
+				r_strbuf_appendf (cmd, "'%s'='%s';", key, value);
+				free (key);
+				free (value);
+			}
+			free (header);
+		}
+	}
+	r_strbuf_appendf (cmd, "};");
+}
 /**
  * Windows-specific HTTP POST using PowerShell
  */
@@ -558,7 +492,6 @@ static char *system_curl_post_file(RCore *core, const char *url, const char *hea
 		*code = 0;
 	}
 #endif
-
 	return result;
 }
 
@@ -813,7 +746,6 @@ static char *socket_http_get_with_interrupt(RCore *core, const char *url, const 
 	signal (SIGALRM, r2ai_http_sigint_handler);
 	alarm (config.timeout); // Use configured timeout
 #endif
-
 	// Make the request - use r_socket_http_get if available
 	char *result = r_socket_http_get (url, headers, code, rlen);
 #if R2__UNIX__
@@ -848,72 +780,498 @@ static char *r2ai_http_request(const char *method, RCore *core, const char *url,
 
 	// Choose implementation based on backend config
 	if (!strcmp (backend, "system")) {
-		if (is_post) {
-			return http_request_with_retry (system_curl_post_wrapper, core, url, headers, data, code, rlen);
-		} else {
-			return http_request_with_retry (system_curl_get_wrapper, core, url, headers, data, code, rlen);
+		R2AI_HttpConfig config = get_http_config (core);
+
+		// Install signal handler for interruption (portable)
+		void *r2ai_old_sig = NULL;
+		int r2ai_old_is_sigaction = 0;
+		install_sigint_handler_local (&r2ai_old_sig, &r2ai_old_is_sigaction);
+
+		// Reset interrupt flag
+		r2ai_http_interrupted = 0;
+
+		// Retry loop
+		char *result = NULL;
+		int retry_count = 0;
+		bool success = false;
+
+		while (!success && retry_count <= config.max_retries && !r2ai_http_interrupted) {
+			if (is_post) {
+				result = system_curl_post_wrapper (core, url, headers, data, code, rlen);
+			} else {
+				result = system_curl_get_wrapper (core, url, headers, data, code, rlen);
+			}
+
+			// Check if we were interrupted
+			if (r2ai_http_interrupted) {
+				R_LOG_DEBUG ("HTTP request was interrupted by user");
+				free (result);
+				result = NULL;
+				break; // Exit the retry loop
+			}
+
+			// Check for rate limiting or server errors (429, 500, 502, 503, 504)
+			if (result && code && *code) {
+				if (*code == 429 || (*code >= 500 && *code < 600)) {
+					R_LOG_WARN ("Server returned %d response code", *code);
+					free (result);
+					result = NULL;
+
+					if (retry_count < config.max_retries) {
+						retry_count++;
+						R_LOG_INFO ("Retrying request (%d/%d) after error...", retry_count, config.max_retries);
+						sleep_retry (retry_count, config.max_backoff);
+						continue;
+					}
+					break; // Exit the retry loop after max retries
+				}
+			}
+
+			// Check for other failures
+			if (!result) {
+				if (retry_count < config.max_retries) {
+					retry_count++;
+					R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, config.max_retries);
+					sleep_retry (retry_count, config.max_backoff);
+					continue;
+				}
+				break; // Exit the retry loop after max retries
+			}
+
+			// If we get here, the request was successful
+			success = true;
 		}
+
+		// Restore the original signal handler
+		restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction);
+
+		return result;
 	}
 		if (!strcmp (backend, "libcurl")) {
+		R2AI_HttpConfig config = get_http_config (core);
+
+		// Install signal handler for interruption (portable)
+		void *r2ai_old_sig = NULL;
+		int r2ai_old_is_sigaction = 0;
+		install_sigint_handler_local (&r2ai_old_sig, &r2ai_old_is_sigaction);
+
+		// Reset interrupt flag
+		r2ai_http_interrupted = 0;
+
+		// Retry loop
+		char *result = NULL;
+		int retry_count = 0;
+		bool success = false;
+
+		while (!success && retry_count <= config.max_retries && !r2ai_http_interrupted) {
 #if USE_LIBCURL && HAVE_LIBCURL
-		if (is_post) {
-			return http_request_with_retry (curl_http_post, core, url, headers, data, code, rlen);
-		} else {
-			return http_request_with_retry (curl_http_get, core, url, headers, NULL, code, rlen);
-		}
+			if (is_post) {
+				result = curl_http_post (core, url, headers, data, code, rlen);
+			} else {
+				result = curl_http_get (core, url, headers, NULL, code, rlen);
+			}
 #else
-		R_LOG_WARN ("LibCurl requested but not available, falling back to socket implementation");
-		if (is_post) {
-			return http_request_with_retry (socket_http_post_with_interrupt, core, url, headers, data, code, rlen);
-		} else {
-			return http_request_with_retry (socket_http_get_with_interrupt, core, url, headers, NULL, code, rlen);
-		}
+			R_LOG_WARN ("LibCurl requested but not available, falling back to socket implementation");
+			if (is_post) {
+				result = socket_http_post_with_interrupt (core, url, headers, data, code, rlen);
+			} else {
+				result = socket_http_get_with_interrupt (core, url, headers, NULL, code, rlen);
+			}
 #endif
+
+			// Check if we were interrupted
+			if (r2ai_http_interrupted) {
+				R_LOG_DEBUG ("HTTP request was interrupted by user");
+				free (result);
+				result = NULL;
+				break; // Exit the retry loop
+			}
+
+			// Check for rate limiting or server errors (429, 500, 502, 503, 504)
+			if (result && code && *code) {
+				if (*code == 429 || (*code >= 500 && *code < 600)) {
+					R_LOG_WARN ("Server returned %d response code", *code);
+					free (result);
+					result = NULL;
+
+					if (retry_count < config.max_retries) {
+						retry_count++;
+						R_LOG_INFO ("Retrying request (%d/%d) after error...", retry_count, config.max_retries);
+						sleep_retry (retry_count, config.max_backoff);
+						continue;
+					}
+					break; // Exit the retry loop after max retries
+				}
+			}
+
+			// Check for other failures
+			if (!result) {
+				if (retry_count < config.max_retries) {
+					retry_count++;
+					R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, config.max_retries);
+					sleep_retry (retry_count, config.max_backoff);
+					continue;
+				}
+				break; // Exit the retry loop after max retries
+			}
+
+			// If we get here, the request was successful
+			success = true;
+		}
+
+		// Restore the original signal handler
+		restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction);
+
+		return result;
 	}
 	if (!strcmp (backend, "socket")) {
-		if (is_post) {
-			return http_request_with_retry (socket_http_post_with_interrupt, core, url, headers, data, code, rlen);
-		} else {
-			return http_request_with_retry (socket_http_get_with_interrupt, core, url, headers, NULL, code, rlen);
+		R2AI_HttpConfig config = get_http_config (core);
+
+		// Install signal handler for interruption (portable)
+		void *r2ai_old_sig = NULL;
+		int r2ai_old_is_sigaction = 0;
+		install_sigint_handler_local (&r2ai_old_sig, &r2ai_old_is_sigaction);
+
+		// Reset interrupt flag
+		r2ai_http_interrupted = 0;
+
+		// Retry loop
+		char *result = NULL;
+		int retry_count = 0;
+		bool success = false;
+
+		while (!success && retry_count <= config.max_retries && !r2ai_http_interrupted) {
+			if (is_post) {
+				result = socket_http_post_with_interrupt (core, url, headers, data, code, rlen);
+			} else {
+				result = socket_http_get_with_interrupt (core, url, headers, NULL, code, rlen);
+			}
+
+			// Check if we were interrupted
+			if (r2ai_http_interrupted) {
+				R_LOG_DEBUG ("HTTP request was interrupted by user");
+				free (result);
+				result = NULL;
+				break; // Exit the retry loop
+			}
+
+			// Check for rate limiting or server errors (429, 500, 502, 503, 504)
+			if (result && code && *code) {
+				if (*code == 429 || (*code >= 500 && *code < 600)) {
+					R_LOG_WARN ("Server returned %d response code", *code);
+					free (result);
+					result = NULL;
+
+					if (retry_count < config.max_retries) {
+						retry_count++;
+						R_LOG_INFO ("Retrying request (%d/%d) after error...", retry_count, config.max_retries);
+						sleep_retry (retry_count, config.max_backoff);
+						continue;
+					}
+					break; // Exit the retry loop after max retries
+				}
+			}
+
+			// Check for other failures
+			if (!result) {
+				if (retry_count < config.max_retries) {
+					retry_count++;
+					R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, config.max_retries);
+					sleep_retry (retry_count, config.max_backoff);
+					continue;
+				}
+				break; // Exit the retry loop after max retries
+			}
+
+			// If we get here, the request was successful
+			success = true;
 		}
+
+		// Restore the original signal handler
+		restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction);
+
+		return result;
 	}
 
 	// Auto-select best available implementation
 	if (is_post && use_files) {
 		// If use_files is true, always use system curl for POST
-		return http_request_with_retry (system_curl_post_wrapper, core, url, headers, data, code, rlen);
+		R2AI_HttpConfig config = get_http_config (core);
+
+		// Install signal handler for interruption (portable)
+		void *r2ai_old_sig = NULL;
+		int r2ai_old_is_sigaction = 0;
+		install_sigint_handler_local (&r2ai_old_sig, &r2ai_old_is_sigaction);
+
+		// Reset interrupt flag
+		r2ai_http_interrupted = 0;
+
+		// Retry loop
+		char *result = NULL;
+		int retry_count = 0;
+		bool success = false;
+
+		while (!success && retry_count <= config.max_retries && !r2ai_http_interrupted) {
+			result = system_curl_post_wrapper (core, url, headers, data, code, rlen);
+
+			// Check if we were interrupted
+			if (r2ai_http_interrupted) {
+				R_LOG_DEBUG ("HTTP request was interrupted by user");
+				free (result);
+				result = NULL;
+				break; // Exit the retry loop
+			}
+
+			// Check for rate limiting or server errors (429, 500, 502, 503, 504)
+			if (result && code && *code) {
+				if (*code == 429 || (*code >= 500 && *code < 600)) {
+					R_LOG_WARN ("Server returned %d response code", *code);
+					free (result);
+					result = NULL;
+
+					if (retry_count < config.max_retries) {
+						retry_count++;
+						R_LOG_INFO ("Retrying request (%d/%d) after error...", retry_count, config.max_retries);
+						sleep_retry (retry_count, config.max_backoff);
+						continue;
+					}
+					break; // Exit the retry loop after max retries
+				}
+			}
+
+			// Check for other failures
+			if (!result) {
+				if (retry_count < config.max_retries) {
+					retry_count++;
+					R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, config.max_retries);
+					sleep_retry (retry_count, config.max_backoff);
+					continue;
+				}
+				break; // Exit the retry loop after max retries
+			}
+
+			// If we get here, the request was successful
+			success = true;
+		}
+
+		// Restore the original signal handler
+		restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction);
+
+		return result;
 	}
 #if USE_LIBCURL && HAVE_LIBCURL
-	if (is_post) {
-		return http_request_with_retry (curl_http_post, core, url, headers, data, code, rlen);
-	} else {
-		return http_request_with_retry (curl_http_get, core, url, headers, NULL, code, rlen);
+	{
+		R2AI_HttpConfig config = get_http_config (core);
+
+		// Install signal handler for interruption (portable)
+		void *r2ai_old_sig = NULL;
+		int r2ai_old_is_sigaction = 0;
+		install_sigint_handler_local (&r2ai_old_sig, &r2ai_old_is_sigaction);
+
+		// Reset interrupt flag
+		r2ai_http_interrupted = 0;
+
+		// Retry loop
+		char *result = NULL;
+		int retry_count = 0;
+		bool success = false;
+
+		while (!success && retry_count <= config.max_retries && !r2ai_http_interrupted) {
+			if (is_post) {
+				result = curl_http_post (core, url, headers, data, code, rlen);
+			} else {
+				result = curl_http_get (core, url, headers, NULL, code, rlen);
+			}
+
+			// Check if we were interrupted
+			if (r2ai_http_interrupted) {
+				R_LOG_DEBUG ("HTTP request was interrupted by user");
+				free (result);
+				result = NULL;
+				break; // Exit the retry loop
+			}
+
+			// Check for rate limiting or server errors (429, 500, 502, 503, 504)
+			if (result && code && *code) {
+				if (*code == 429 || (*code >= 500 && *code < 600)) {
+					R_LOG_WARN ("Server returned %d response code", *code);
+					free (result);
+					result = NULL;
+
+					if (retry_count < config.max_retries) {
+						retry_count++;
+						R_LOG_INFO ("Retrying request (%d/%d) after error...", retry_count, config.max_retries);
+						sleep_retry (retry_count, config.max_backoff);
+						continue;
+					}
+					break; // Exit the retry loop after max retries
+				}
+			}
+
+			// Check for other failures
+			if (!result) {
+				if (retry_count < config.max_retries) {
+					retry_count++;
+					R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, config.max_retries);
+					sleep_retry (retry_count, config.max_backoff);
+					continue;
+				}
+				break; // Exit the retry loop after max retries
+			}
+
+			// If we get here, the request was successful
+			success = true;
+		}
+
+		// Restore the original signal handler
+		restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction);
+
+		return result;
 	}
 #else
 #ifdef _WIN32
-	if (is_post) {
-		return http_request_with_retry (windows_http_post_wrapper, core, url, headers, data, code, rlen);
-	} else {
-		return http_request_with_retry (windows_http_get_wrapper, core, url, headers, NULL, code, rlen);
+	{
+		R2AI_HttpConfig config = get_http_config (core);
+
+		// Install signal handler for interruption (portable)
+		void *r2ai_old_sig = NULL;
+		int r2ai_old_is_sigaction = 0;
+		install_sigint_handler_local (&r2ai_old_sig, &r2ai_old_is_sigaction);
+
+		// Reset interrupt flag
+		r2ai_http_interrupted = 0;
+
+		// Retry loop
+		char *result = NULL;
+		int retry_count = 0;
+		bool success = false;
+
+		while (!success && retry_count <= config.max_retries && !r2ai_http_interrupted) {
+			if (is_post) {
+				result = windows_http_post_wrapper (core, url, headers, data, code, rlen);
+			} else {
+				result = windows_http_get_wrapper (core, url, headers, NULL, code, rlen);
+			}
+
+			// Check if we were interrupted
+			if (r2ai_http_interrupted) {
+				R_LOG_DEBUG ("HTTP request was interrupted by user");
+				free (result);
+				result = NULL;
+				break; // Exit the retry loop
+			}
+
+			// Check for rate limiting or server errors (429, 500, 502, 503, 504)
+			if (result && code && *code) {
+				if (*code == 429 || (*code >= 500 && *code < 600)) {
+					R_LOG_WARN ("Server returned %d response code", *code);
+					free (result);
+					result = NULL;
+
+					if (retry_count < config.max_retries) {
+						retry_count++;
+						R_LOG_INFO ("Retrying request (%d/%d) after error...", retry_count, config.max_retries);
+						sleep_retry (retry_count, config.max_backoff);
+						continue;
+					}
+					break; // Exit the retry loop after max retries
+				}
+			}
+
+			// Check for other failures
+			if (!result) {
+				if (retry_count < config.max_retries) {
+					retry_count++;
+					R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, config.max_retries);
+					sleep_retry (retry_count, config.max_backoff);
+					continue;
+				}
+				break; // Exit the retry loop after max retries
+			}
+
+			// If we get here, the request was successful
+			success = true;
+		}
+
+		// Restore the original signal handler
+		restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction);
+
+		return result;
 	}
 #else
 #if USE_R2_CURL
 	r_sys_setenv ("R2_CURL", "1");
 #endif
-	if (is_post) {
-		return http_request_with_retry (socket_http_post_with_interrupt, core, url, headers, data, code, rlen);
-	} else {
-		return http_request_with_retry (socket_http_get_with_interrupt, core, url, headers, NULL, code, rlen);
-	}
-#endif
-#endif
-	if (!strcmp (backend, "socket")) {
-		if (is_post) {
-			return http_request_with_retry (socket_http_post_with_interrupt, core, url, headers, data, code, rlen);
-		} else {
-			return http_request_with_retry (socket_http_get_with_interrupt, core, url, headers, NULL, code, rlen);
+	{
+		R2AI_HttpConfig config = get_http_config (core);
+
+		// Install signal handler for interruption (portable)
+		void *r2ai_old_sig = NULL;
+		int r2ai_old_is_sigaction = 0;
+		install_sigint_handler_local (&r2ai_old_sig, &r2ai_old_is_sigaction);
+
+		// Reset interrupt flag
+		r2ai_http_interrupted = 0;
+
+		// Retry loop
+		char *result = NULL;
+		int retry_count = 0;
+		bool success = false;
+
+		while (!success && retry_count <= config.max_retries && !r2ai_http_interrupted) {
+			if (is_post) {
+				result = socket_http_post_with_interrupt (core, url, headers, data, code, rlen);
+			} else {
+				result = socket_http_get_with_interrupt (core, url, headers, NULL, code, rlen);
+			}
+
+			// Check if we were interrupted
+			if (r2ai_http_interrupted) {
+				R_LOG_DEBUG ("HTTP request was interrupted by user");
+				free (result);
+				result = NULL;
+				break; // Exit the retry loop
+			}
+
+			// Check for rate limiting or server errors (429, 500, 502, 503, 504)
+			if (result && code && *code) {
+				if (*code == 429 || (*code >= 500 && *code < 600)) {
+					R_LOG_WARN ("Server returned %d response code", *code);
+					free (result);
+					result = NULL;
+
+					if (retry_count < config.max_retries) {
+						retry_count++;
+						R_LOG_INFO ("Retrying request (%d/%d) after error...", retry_count, config.max_retries);
+						sleep_retry (retry_count, config.max_backoff);
+						continue;
+					}
+					break; // Exit the retry loop after max retries
+				}
+			}
+
+			// Check for other failures
+			if (!result) {
+				if (retry_count < config.max_retries) {
+					retry_count++;
+					R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, config.max_retries);
+					sleep_retry (retry_count, config.max_backoff);
+					continue;
+				}
+				break; // Exit the retry loop after max retries
+			}
+
+			// If we get here, the request was successful
+			success = true;
 		}
+
+		// Restore the original signal handler
+		restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction);
+
+		return result;
 	}
+#endif
+#endif
 
 	// Auto-select best available implementation
 	if (is_post && use_files) {
@@ -921,10 +1279,73 @@ static char *r2ai_http_request(const char *method, RCore *core, const char *url,
 		return system_curl_post_file (core, url, headers, data, code, rlen, use_files);
 	}
 #if USE_LIBCURL && HAVE_LIBCURL
-	if (is_post) {
-		return curl_http_post (url, headers, data, code, rlen);
-	} else {
-		return curl_http_get (url, headers, code, rlen);
+	{
+		R2AI_HttpConfig config = get_http_config (core);
+
+		// Install signal handler for interruption (portable)
+		void *r2ai_old_sig = NULL;
+		int r2ai_old_is_sigaction = 0;
+		install_sigint_handler_local (&r2ai_old_sig, &r2ai_old_is_sigaction);
+
+		// Reset interrupt flag
+		r2ai_http_interrupted = 0;
+
+		// Retry loop
+		char *result = NULL;
+		int retry_count = 0;
+		bool success = false;
+
+		while (!success && retry_count <= config.max_retries && !r2ai_http_interrupted) {
+			if (is_post) {
+				result = curl_http_post (core, url, headers, data, code, rlen);
+			} else {
+				result = curl_http_get (core, url, headers, NULL, code, rlen);
+			}
+
+			// Check if we were interrupted
+			if (r2ai_http_interrupted) {
+				R_LOG_DEBUG ("HTTP request was interrupted by user");
+				free (result);
+				result = NULL;
+				break; // Exit the retry loop
+			}
+
+			// Check for rate limiting or server errors (429, 500, 502, 503, 504)
+			if (result && code && *code) {
+				if (*code == 429 || (*code >= 500 && *code < 600)) {
+					R_LOG_WARN ("Server returned %d response code", *code);
+					free (result);
+					result = NULL;
+
+					if (retry_count < config.max_retries) {
+						retry_count++;
+						R_LOG_INFO ("Retrying request (%d/%d) after error...", retry_count, config.max_retries);
+						sleep_retry (retry_count, config.max_backoff);
+						continue;
+					}
+					break; // Exit the retry loop after max retries
+				}
+			}
+
+			// Check for other failures
+			if (!result) {
+				if (retry_count < config.max_retries) {
+					retry_count++;
+					R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, config.max_retries);
+					sleep_retry (retry_count, config.max_backoff);
+					continue;
+				}
+				break; // Exit the retry loop after max retries
+			}
+
+			// If we get here, the request was successful
+			success = true;
+		}
+
+		// Restore the original signal handler
+		restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction);
+
+		return result;
 	}
 #else
 #ifdef _WIN32
@@ -968,10 +1389,73 @@ static char *r2ai_http_request(const char *method, RCore *core, const char *url,
 #if USE_R2_CURL
 	r_sys_setenv ("R2_CURL", "1");
 #endif
-	if (is_post) {
-		return http_request_with_retry (socket_http_post_with_interrupt, core, url, headers, data, code, rlen);
-	} else {
-		return http_request_with_retry (socket_http_get_with_interrupt, core, url, headers, NULL, code, rlen);
+	{
+		R2AI_HttpConfig config = get_http_config (core);
+
+		// Install signal handler for interruption (portable)
+		void *r2ai_old_sig = NULL;
+		int r2ai_old_is_sigaction = 0;
+		install_sigint_handler_local (&r2ai_old_sig, &r2ai_old_is_sigaction);
+
+		// Reset interrupt flag
+		r2ai_http_interrupted = 0;
+
+		// Retry loop
+		char *result = NULL;
+		int retry_count = 0;
+		bool success = false;
+
+		while (!success && retry_count <= config.max_retries && !r2ai_http_interrupted) {
+			if (is_post) {
+				result = socket_http_post_with_interrupt (core, url, headers, data, code, rlen);
+			} else {
+				result = socket_http_get_with_interrupt (core, url, headers, NULL, code, rlen);
+			}
+
+			// Check if we were interrupted
+			if (r2ai_http_interrupted) {
+				R_LOG_DEBUG ("HTTP request was interrupted by user");
+				free (result);
+				result = NULL;
+				break; // Exit the retry loop
+			}
+
+			// Check for rate limiting or server errors (429, 500, 502, 503, 504)
+			if (result && code && *code) {
+				if (*code == 429 || (*code >= 500 && *code < 600)) {
+					R_LOG_WARN ("Server returned %d response code", *code);
+					free (result);
+					result = NULL;
+
+					if (retry_count < config.max_retries) {
+						retry_count++;
+						R_LOG_INFO ("Retrying request (%d/%d) after error...", retry_count, config.max_retries);
+						sleep_retry (retry_count, config.max_backoff);
+						continue;
+					}
+					break; // Exit the retry loop after max retries
+				}
+			}
+
+			// Check for other failures
+			if (!result) {
+				if (retry_count < config.max_retries) {
+					retry_count++;
+					R_LOG_INFO ("Retrying request (%d/%d) after failure...", retry_count, config.max_retries);
+					sleep_retry (retry_count, config.max_backoff);
+					continue;
+				}
+				break; // Exit the retry loop after max retries
+			}
+
+			// If we get here, the request was successful
+			success = true;
+		}
+
+		// Restore the original signal handler
+		restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction);
+
+		return result;
 	}
 #endif
 #endif
