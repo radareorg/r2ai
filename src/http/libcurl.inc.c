@@ -33,11 +33,7 @@ static size_t write_callback(void *contents, size_t size, size_t nmemb, void *us
 
 // Curl progress callback function to handle interrupts
 static int progress_callback(void *clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow) {
-	// Check if we've been interrupted
-	if (r2ai_http_interrupted) {
-		return 1; // Return non-zero to abort the transfer
-	}
-	return 0; // Return 0 to continue
+	return r2ai_http_interrupted? 1: 0;
 }
 
 HttpResponse curl_http_post(const HTTPRequest *request) {

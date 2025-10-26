@@ -25,27 +25,17 @@ static R2AI_HttpConfig get_http_config(RCore *core) {
 	return config;
 }
 
-// Signal handler for SIGINT
+// Signal handler for timeout (SIGALRM)
 static void r2ai_http_sigint_handler(int sig) {
-	(void)sig;
+	if (sig == SIGALRM) {
+		r2ai_http_interrupted = 1;
+	}
+}
+
+// Portable break callback for r_cons_break (handles SIGINT)
+static void r2ai_http_break_callback(void *user) {
+	(void)user;
 	r2ai_http_interrupted = 1;
-}
-
-/*
- * Portable install/restore helpers for SIGINT handler.
- * Some platforms may not have struct sigaction available; use signal ()
- * as a fallback. We allocate storage for the old handler when
- * sigaction is available so the restore function can restore it later.
- */
-static void install_sigint_handler_local(void **out_old, int *out_old_is_sigaction) {
-	void (*old) (int) = signal (SIGINT, r2ai_http_sigint_handler);
-	*out_old = (void *)old;
-	*out_old_is_sigaction = 0;
-}
-
-static void restore_sigint_handler_local(void *old, int old_is_sigaction) {
-	(void)old_is_sigaction;
-	signal (SIGINT, (void (*) (int))old);
 }
 
 // Function pointer type for HTTP request implementations
@@ -61,11 +51,11 @@ static void sleep_retry(int retry_count, int max_sleep_seconds) {
 }
 
 // Generic HTTP request with retry logic
-static HttpResponse r2ai_http_request_with_retry(HttpRequestFunc func, const HTTPRequest *request) {
-	// Install signal handler for interruption (portable)
-	void *r2ai_old_sig = NULL;
-	int r2ai_old_is_sigaction = 0;
-	install_sigint_handler_local (&r2ai_old_sig, &r2ai_old_is_sigaction);
+static HttpResponse r2ai_http_request_with_retry(HttpRequestFunc func, const HTTPRequest *request, RCore *core) {
+	// Install portable break handler for interruption
+	if (core && core->cons) {
+		r_cons_break_push (core->cons, r2ai_http_break_callback, NULL);
+	}
 
 	// Reset interrupt flag
 	r2ai_http_interrupted = 0;
@@ -126,8 +116,10 @@ static HttpResponse r2ai_http_request_with_retry(HttpRequestFunc func, const HTT
 		success = true;
 	}
 
-	// Restore the original signal handler
-	restore_sigint_handler_local (r2ai_old_sig, r2ai_old_is_sigaction);
+	// Restore the original break handler
+	if (core && core->cons) {
+		r_cons_break_pop (core->cons);
+	}
 
 	return result;
 }
@@ -180,7 +172,7 @@ static HttpResponse r2ai_http_request(const char *method, RCore *core, const cha
 		// Auto backend selection
 		if (is_post && use_files) {
 			// Special case: use system curl with files
-			return r2ai_http_request_with_retry (system_curl_post_file, &request);
+			return r2ai_http_request_with_retry (system_curl_post_file, &request, core);
 		}
 #if USE_LIBCURL && HAVE_LIBCURL
 		func = is_post? curl_http_post: curl_http_get;
@@ -195,7 +187,7 @@ static HttpResponse r2ai_http_request(const char *method, RCore *core, const cha
 	}
 
 	if (func) {
-		return r2ai_http_request_with_retry (func, &request);
+		return r2ai_http_request_with_retry (func, &request, core);
 	}
 	R_LOG_ERROR ("Cannot find a valid http backend");
 	return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };

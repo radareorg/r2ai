@@ -23,7 +23,11 @@ static void append_headers_to_cmd(RStrBuf *cmd, const char *headers[]) {
 /**
  * Windows-specific HTTP POST using PowerShell
  */
-HttpResponse windows_http_post(const char *url, const char *headers[], const char *data, int timeout) {
+HttpResponse windows_http_post(const HTTPRequest *request) {
+	const char *url = request->url;
+	const char *headers[] = request->headers;
+	const char *data = request->data;
+	int timeout = request->config.timeout;
 	RStrBuf *cmd = r_strbuf_new ("powershell -Command \"");
 	append_headers_to_cmd (cmd, headers);
 	r_strbuf_appendf (cmd, "$body='%s';", data);
@@ -51,7 +55,10 @@ HttpResponse windows_http_post(const char *url, const char *headers[], const cha
 /**
  * Windows-specific HTTP GET using PowerShell
  */
-HttpResponse windows_http_get(const char *url, const char *headers[], int timeout) {
+HttpResponse windows_http_get(const HTTPRequest *request) {
+	const char *url = request->url;
+	const char *headers[] = request->headers;
+	int timeout = request->config.timeout;
 	RStrBuf *cmd = r_strbuf_new ("powershell -Command \"");
 	append_headers_to_cmd (cmd, headers);
 	r_strbuf_appendf (cmd, "try{$r=Invoke-WebRequest -Method Get -Uri '%s' -Headers $headers -TimeoutSec %d;", url, timeout);
