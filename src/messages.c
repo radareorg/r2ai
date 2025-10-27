@@ -331,7 +331,7 @@ R_API char *r2ai_msgs_to_json(const RList *msgs) {
 		if (msg->content && *msg->content) {
 			pj_ks (pj, "content", msg->content);
 		} else if (msg->tool_calls && r_list_length (msg->tool_calls) > 0) {
-			pj_kn (pj, "content", 0); // null
+			pj_knull (pj, "content");
 		} else {
 			pj_ks (pj, "content", msg->content? msg->content: "");
 		}
