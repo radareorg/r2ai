@@ -91,6 +91,7 @@ const char *Gprompt_auto =
 	"- `this` or `here` might refer to the current address in the binary or the binary itself.\n"
 	"- If you need more information, try to use the r2cmd tool to run commands before answering.\n"
 	"- You can use the r2cmd tool multiple times if you need or you can pass a command with pipes if you need to chain commands.\n"
+	"- IMPORTANT: You must make only ONE tool call per response. Do not make multiple tool calls in a single response.\n"
 	"- If you're asked to decompile a function, make sure to return the code in the language you think it was originally written "
 	"and rewrite it to be as easy as possible to be understood. Make sure you use descriptive variable and function names and add comments.\n"
 	"- Don't just regurgitate the same code, figure out what it's doing and rewrite it to be more understandable.\n"
@@ -204,7 +205,7 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 	if (message->tool_calls && r_list_length (message->tool_calls) > 0) {
 		R_LOG_DEBUG ("Found %d tool call(s)", r_list_length (message->tool_calls));
 
-		// Process each tool call
+		// Process only the first tool call
 		RListIter *iter;
 		R2AI_ToolCall *tool_call;
 		int i = 0;
@@ -215,7 +216,7 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 				i++;
 				continue;
 			}
-			R_LOG_DEBUG ("Tool call %d: %s with args: %s", i, tool_call->name, tool_call->arguments);
+			R_LOG_DEBUG ("Processing first tool call %d: %s with args: %s", i, tool_call->name, tool_call->arguments);
 			// Don't log the full arguments which might get truncated
 			char *tool_name = strdup (tool_call->name);
 			char *tool_args = strdup (tool_call->arguments);
@@ -297,6 +298,10 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 			r_cons_printf (core->cons, Color_GREEN "Tool result: %s" Color_RESET, cmd_output? cmd_output: "no output");
 			free (cmd_output);
 			i++;
+#if 0
+			// Only process the first valid tool call
+			break;
+#endif
 		}
 
 		r2ai_print_run_end (cps, usage, n_run, max_runs);
