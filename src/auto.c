@@ -148,8 +148,8 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 	};
 
 	R2AI_ChatResponse *response = r2ai_llmcall (cps, args);
-
 	if (!response) {
+		R_LOG_ERROR ("No response from llmcall");
 		return;
 	}
 

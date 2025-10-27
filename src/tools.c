@@ -5,49 +5,40 @@
 static R2AI_Tool r2cmd_tool = {
 	.name = "r2cmd",
 	.description = "Run a radare2 command",
-	.parameters = "{\
-		\"type\": \"object\",\
-		\"properties\": {\
-			\"command\": {\
-				\"type\": \"string\",\
-				\"description\": \"The radare2 command to run\"\
-			}\
-		},\
-		\"required\": [\"command\"]\
-	}"
+	.parameters = "{"
+		"\"type\": \"object\","
+		"\"properties\": {"
+		"\"command\": {"
+		"\"type\": \"string\","
+		"\"description\": \"The radare2 command to run\""
+		"}"
+		"},"
+		"\"required\": [\"command\"]"
+		"}"
 };
 
 static R2AI_Tool qjs_tool = {
 	.name = "execute_js",
 	.description = "Execute a JavaScript script inside the radare2 environment. Use `var RESULT=r2.cmd(COMMAND)` to execute radare2 commands and `r2.log(MESSAGE)` instead of console.log`",
-	.parameters = "{\
-		\"type\": \"object\",\
-		\"properties\": {\
-			\"script\": {\
-				\"type\": \"string\",\
-				\"description\": \"The JavaScript script to execute\"\
-			}\
-		},\
-		\"required\": [\"script\"]\
-	}"
+	.parameters = "{"
+		"\"type\": \"object\","
+		"\"properties\": {"
+		"\"script\": {"
+		"\"type\": \"string\","
+		"\"description\": \"The JavaScript script to execute\""
+		"}"
+		"},"
+		"\"required\": [\"script\"]"
+		"}"
 };
-
-// Create a global tools structure with our tools
 
 // Function to get the tools instance from state
 R_API RList *r2ai_get_tools(R2AI_State *state) {
 	if (!state) {
 		return NULL;
 	}
-	// Initialize tools list if not done yet
 	if (!state->tools) {
-		state->tools = r_list_new ();
-		if (!state->tools) {
-			return NULL;
-		}
-		state->tools->free = (RListFree)free; // Tools are static, just free pointers
-
-		// Add the static tools
+		state->tools = r_list_newf (NULL);
 		r_list_append (state->tools, (void *)&r2cmd_tool);
 		r_list_append (state->tools, (void *)&qjs_tool);
 	}
@@ -137,35 +128,40 @@ R_API char *r2ai_tools_to_openai_json(const RList *tools) {
 
 	RListIter *iter;
 	R2AI_Tool *tool;
+	int a = 0;
 	r_list_foreach (tools, iter, tool) {
+		if (a > 0) {
+#if R2_VERSION_NUMBER < 60005
+			// XXX this is a bug
+//			pj_raw (pj, ",");
+#endif
+		}
+		a++;
 		if (!tool->name) {
 			continue;
 		}
-
 		pj_o (pj); // Start tool object
 		pj_ks (pj, "type", "function");
-
-		pj_k (pj, "function");
-		pj_o (pj); // Start function object
-
+		pj_ko (pj, "function");
 		pj_ks (pj, "name", tool->name);
-
 		if (tool->description) {
 			pj_ks (pj, "description", tool->description);
 		}
-
 		if (tool->parameters) {
-			pj_ka (pj, "parameters");
+			pj_k (pj, "parameters");
 			pj_raw (pj, tool->parameters);
-			pj_end (pj); // End function object
 		}
-
-		pj_end (pj);
+		pj_end (pj); // End function object
+		pj_end (pj); // End tool object
+#if R2_VERSION_NUMBER < 60005
+		break;
+#endif
 	}
 
 	pj_end (pj);
 
 	char *result = pj_drain (pj);
+	// eprintf ("((((((((((((((((((\n\n%s\n\n)))))))))))))\n", result);
 	R_LOG_DEBUG ("OpenAI tools JSON: %s", result);
 	return result;
 }
@@ -189,20 +185,15 @@ R_API char *r2ai_tools_to_anthropic_json(const RList *tools) {
 		if (!tool->name) {
 			continue;
 		}
-
 		pj_o (pj); // Start tool object
-
 		pj_ks (pj, "name", tool->name);
-
 		if (tool->description) {
 			pj_ks (pj, "description", tool->description);
 		}
-
 		if (tool->parameters) {
 			pj_k (pj, "input_schema");
 			pj_raw (pj, tool->parameters);
 		}
-
 		pj_end (pj); // End tool object
 	}
 
