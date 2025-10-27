@@ -3,12 +3,13 @@
 #include "r2ai_priv.h"
 
 static void show_help() {
-	printf ("Usage: r2ai [-vhp:m:q:E] <prompt>\n"
+	printf ("Usage: r2ai [-vhp:m:q:Eb:] <prompt>\n"
 	"  -v           Show version information\n"
 	"  -h           Show this help message\n"
 	"  -p <provider> Select LLM provider\n"
 	"  -m <model>   Select LLM model\n"
 	"  -q <query>   Execute predefined prompt query (can be used multiple times)\n"
+	"  -b <url>     Set base URL for provider API\n"
 	"  -E           Edit the r2ai rc file\n");
 }
 
@@ -20,10 +21,11 @@ int main(int argc, const char **argv) {
 	int c;
 	const char *provider = NULL;
 	const char *model = NULL;
+	const char *baseurl = NULL;
 	RList *queries = r_list_newf (free);
 
 	RGetopt opt;
-	r_getopt_init (&opt, argc, argv, "vhp:m:q:E");
+	r_getopt_init (&opt, argc, argv, "vhp:m:q:Eb:");
 	while ((c = r_getopt_next (&opt)) != -1) {
 		switch (c) {
 		case 'v':
@@ -42,6 +44,9 @@ int main(int argc, const char **argv) {
 			break;
 		case 'q':
 			r_list_append (queries, strdup (opt.arg));
+			break;
+		case 'b':
+			baseurl = opt.arg;
 			break;
 		case 'E':
 			{
@@ -70,6 +75,9 @@ int main(int argc, const char **argv) {
 		.core = core
 	};
 	r2ai_init (&cps);
+	if (baseurl) {
+		r_config_set (core->config, "r2ai.baseurl", baseurl);
+	}
 
 	// Process queries if any
 	if (!r_list_empty (queries)) {
