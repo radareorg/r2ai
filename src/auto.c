@@ -92,6 +92,7 @@ const char *Gprompt_auto =
 	"- If you need more information, try to use the r2cmd tool to run commands before answering.\n"
 	"- You can use the r2cmd tool multiple times if you need or you can pass a command with pipes if you need to chain commands.\n"
 	"- IMPORTANT: You must make only ONE tool call per response. Do not make multiple tool calls in a single response.\n"
+	"- Keep your reasoning concise and avoid repeating the same thoughts. If you have a clear next step, execute it immediately with a tool call.\n"
 	"- If you're asked to decompile a function, make sure to return the code in the language you think it was originally written "
 	"and rewrite it to be as easy as possible to be understood. Make sure you use descriptive variable and function names and add comments.\n"
 	"- Don't just regurgitate the same code, figure out what it's doing and rewrite it to be more understandable.\n"
@@ -100,7 +101,9 @@ const char *Gprompt_auto =
 	"- Formulate a plan. Think step by step. Analyze the binary as much as possible before answering.\n"
 	"- You must keep going until you have a final answer.\n"
 	"- Double check that final answer. Make sure you didn't miss anything.\n"
-	"- Make sure you call tools and functions correctly.\n";
+	"- Make sure you call tools and functions correctly.\n"
+	"- When calling tools, use the exact format: {\"tool_calls\": [{\"id\": \"call_123\", \"type\": \"function\", \"function\": {\"name\": \"r2cmd\", \"arguments\": \"{\\\"command\\\":\\\"aa\\\"}\"}}]}\n"
+	"- Arguments must be a JSON string, not an object.\n";
 
 // Helper function to process messages and handle tool calls recursively
 R_API void process_messages(RCorePluginSession *cps, RList *messages, const char *system_prompt, int n_run) {
