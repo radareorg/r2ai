@@ -215,7 +215,7 @@ R_API char *r2ai_http_get(RCore *core, const char *url, const char *headers[], i
 	HttpResponse response = r2ai_http_request ("GET", core, url, headers, NULL);
 	if (response.code <= 0) {
 		if (response.body) {
-			free (response.body);
+			R_FREE (response.body);
 		}
 		if (code) {
 			*code = response.code;

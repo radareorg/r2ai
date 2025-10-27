@@ -1,3 +1,37 @@
+// Helper to escape double quotes for cmd double-quoted strings
+static char *escape_cmd_double_quotes(const char *str) {
+	if (!str) {
+		return NULL;
+	}
+	size_t len = strlen (str);
+	size_t count = 0;
+	for (size_t i = 0; i < len; i++) {
+		if (str[i] == '"') {
+			count++;
+		}
+	}
+	if (count == 0) {
+		return strdup (str);
+	}
+	char *escaped = malloc (len + count + 1);
+	if (!escaped) {
+		return NULL;
+	}
+	size_t j = 0;
+	for (size_t i = 0; i < len; i++) {
+		if (str[i] == '"') {
+			escaped[j++] = '\\';
+			escaped[j++] = '"';
+		} else {
+			escaped[j++] = str[i];
+		}
+	}
+	escaped[j] = '\0';
+	return escaped;
+}
+
+#include <string.h>
+
 static HttpResponse build_and_execute_curl(const char *cmd_start, const HTTPRequest *request, const char *input_data) {
 	HttpResponse error = { .code = -1 };
 	int timeout = request->config.timeout;
@@ -14,10 +48,14 @@ static HttpResponse build_and_execute_curl(const char *cmd_start, const HTTPRequ
 	// Add headers
 	if (request->headers) {
 		for (int i = 0; request->headers[i] != NULL; i++) {
-			r_strbuf_appendf (cmd, " -H '%s'", request->headers[i]);
+			char *escaped_header = escape_cmd_double_quotes (request->headers[i]);
+			r_strbuf_appendf (cmd, " -H \"%s\"", escaped_header);
+			free (escaped_header);
 		}
 	}
-	r_strbuf_appendf (cmd, " -w '\\n%%{http_code}' '%s'", request->url);
+	char *escaped_url = escape_cmd_double_quotes (request->url);
+	r_strbuf_appendf (cmd, " -w \"\\n%%{http_code}\" \"%s\"", escaped_url);
+	free (escaped_url);
 	char *cmd_str = r_strbuf_drain (cmd);
 	R_LOG_DEBUG ("Running system curl: %s", cmd_str);
 	char *response = r_sys_cmd_str (cmd_str, input_data, NULL);
