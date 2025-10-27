@@ -189,6 +189,7 @@ srcs = files(
   'auto.c',
   'vdb.c',
   'llm.c',
+  'json.c',
   'tools.c',
   'query.c',
   'rawtools.c',

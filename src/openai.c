@@ -374,6 +374,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 				const RJson *role = r_json_get (message_json, "role");
 				const RJson *content = r_json_get (message_json, "content");
 				const RJson *reasoning_content = r_json_get (message_json, "reasoning_content");
+				const RJson *thinking = r_json_get (message_json, "thinking");
 
 				// Set the basic message properties
 				message->role = (role && role->type == R_JSON_STRING)? strdup (role->str_value): strdup ("assistant");
@@ -382,8 +383,10 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 					message->content = strdup (content->str_value);
 				}
 
-				if (reasoning_content && reasoning_content->type == R_JSON_STRING) {
+				if (reasoning_content && reasoning_content->type == R_JSON_STRING && R_STR_ISNOTEMPTY (reasoning_content->str_value)) {
 					message->reasoning_content = strdup (reasoning_content->str_value);
+				} else if (thinking && thinking->type == R_JSON_STRING && R_STR_ISNOTEMPTY (thinking->str_value)) {
+					message->reasoning_content = strdup (thinking->str_value);
 				}
 				// TODO: Handle tool calls if present?
 			}
