@@ -170,11 +170,14 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 	if (message->reasoning_content) {
 		R_LOG_DEBUG ("Reasoning: %s", message->reasoning_content);
 	}
-	if (message->tool_calls && message->n_tool_calls > 0) {
-		R_LOG_DEBUG ("Tool calls: %d", message->n_tool_calls);
-		for (int i = 0; i < message->n_tool_calls; i++) {
-			const R2AI_ToolCall *tc = &message->tool_calls[i];
+	if (message->tool_calls && r_list_length (message->tool_calls) > 0) {
+		R_LOG_DEBUG ("Tool calls: %d", r_list_length (message->tool_calls));
+		RListIter *iter;
+		R2AI_ToolCall *tc;
+		int i = 0;
+		r_list_foreach (message->tool_calls, iter, tc) {
 			R_LOG_DEBUG ("Tool %d: %s - %s", i, tc->name? tc->name: "null", tc->arguments? tc->arguments: "null");
+			i++;
 		}
 	}
 
@@ -198,15 +201,18 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 	r2ai_msgs_add (messages, message);
 
 	// Check for tool calls and process them
-	if (message->tool_calls && message->n_tool_calls > 0) {
-		R_LOG_DEBUG ("Found %d tool call(s)", message->n_tool_calls);
+	if (message->tool_calls && r_list_length (message->tool_calls) > 0) {
+		R_LOG_DEBUG ("Found %d tool call(s)", r_list_length (message->tool_calls));
 
 		// Process each tool call
-		for (int i = 0; i < message->n_tool_calls; i++) {
-			const R2AI_ToolCall *tool_call = &message->tool_calls[i];
+		RListIter *iter;
+		R2AI_ToolCall *tool_call;
+		int i = 0;
+		r_list_foreach (message->tool_calls, iter, tool_call) {
 
 			if (!tool_call->name || !tool_call->arguments || !tool_call->id) {
 				R_LOG_DEBUG ("Skipping invalid tool call %d", i);
+				i++;
 				continue;
 			}
 			R_LOG_DEBUG ("Tool call %d: %s with args: %s", i, tool_call->name, tool_call->arguments);
@@ -229,9 +235,10 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 				if (edited_command) {
 					// Update the last message's tool call arguments with the edited command
 					R2AI_Message *last_msg = r_list_get_n (messages->messages, r_list_length (messages->messages) - 1);
-					if (last_msg && last_msg->tool_calls && last_msg->n_tool_calls > 0) {
-						for (int j = 0; j < last_msg->n_tool_calls; j++) {
-							R2AI_ToolCall *tc = (R2AI_ToolCall *)&last_msg->tool_calls[j];
+					if (last_msg && last_msg->tool_calls && r_list_length (last_msg->tool_calls) > 0) {
+						RListIter *iter;
+						R2AI_ToolCall *tc;
+						r_list_foreach (last_msg->tool_calls, iter, tc) {
 							if (tc->id && !strcmp (tc->id, tool_call->id)) {
 								// For r2cmd, update the command in arguments
 								if (!strcmp (tool_name, "r2cmd")) {
@@ -288,12 +295,13 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 			R_LOG_DEBUG ("Added tool response to messages: %s", cmd_output? cmd_output: "null");
 			r_cons_printf (core->cons, Color_GREEN"Tool result: %s"Color_RESET, cmd_output? cmd_output: "no output");
 			free (cmd_output);
+			i++;
 		}
 
 		r2ai_print_run_end (cps, usage, n_run, max_runs);
 
 		// Check if we should continue with recursion
-		if (!interrupted && message->tool_calls && message->n_tool_calls > 0) {
+		if (!interrupted && message->tool_calls && r_list_length (message->tool_calls) > 0) {
 			R_LOG_DEBUG ("Recursing to process_messages with n_run=%d", n_run + 1);
 			process_messages (cps, messages, system_prompt, n_run + 1);
 		} else {
@@ -388,10 +396,11 @@ R_IPI void cmd_r2ai_logs(RCorePluginSession *cps) {
 			pj_o (pj);
 			pj_ks (pj, "role", msg->role? msg->role: "unknown");
 			pj_ks (pj, "content", msg->content? msg->content: "");
-			if (msg->tool_calls && msg->n_tool_calls > 0) {
+			if (msg->tool_calls && r_list_length (msg->tool_calls) > 0) {
 				pj_ka (pj, "tool_calls");
-				for (int j = 0; j < msg->n_tool_calls; j++) {
-					const R2AI_ToolCall *tc = &msg->tool_calls[j];
+				RListIter *iter;
+				R2AI_ToolCall *tc;
+				r_list_foreach (msg->tool_calls, iter, tc) {
 					pj_o (pj);
 					if (tc->name) {
 						pj_ks (pj, "name", tc->name);
@@ -433,9 +442,10 @@ R_IPI void cmd_r2ai_logs(RCorePluginSession *cps) {
 			r_cons_printf (core->cons, "\x1b[1" Color_CYAN "[assistant]:" Color_RESET " ");
 			print_content_with_length (core, msg->content, "<no content>", false);
 			// Show tool calls if present
-			if (msg->tool_calls && msg->n_tool_calls > 0) {
-				for (int j = 0; j < msg->n_tool_calls; j++) {
-					const R2AI_ToolCall *tc = &msg->tool_calls[j];
+			if (msg->tool_calls && r_list_length (msg->tool_calls) > 0) {
+				RListIter *iter;
+				R2AI_ToolCall *tc;
+				r_list_foreach (msg->tool_calls, iter, tc) {
 					r_cons_printf (core->cons, "  \x1b[1" Color_MAGENTA "[tool call]:" Color_RESET " %s\n",
 						tc->name? tc->name: "<unnamed>");
 

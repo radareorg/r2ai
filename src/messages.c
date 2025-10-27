@@ -2,6 +2,35 @@
 
 #include "r2ai.h"
 
+R_API void r2ai_tool_call_free(R2AI_ToolCall *tc) {
+	if (!tc) {
+		return;
+	}
+	free ((void *)tc->id);
+	free ((void *)tc->name);
+	free ((void *)tc->arguments);
+	free (tc);
+}
+
+R_API R2AI_ContentBlocks *r2ai_content_blocks_new(void) {
+	R2AI_ContentBlocks *cb = R_NEW0 (R2AI_ContentBlocks);
+	cb->blocks = r_list_new ();
+	if (!cb->blocks) {
+		free (cb);
+		return NULL;
+	}
+	cb->blocks->free = (RListFree)free; // ContentBlocks contain pointers to structs, not structs themselves
+	return cb;
+}
+
+R_API void r2ai_content_blocks_free(R2AI_ContentBlocks *cb) {
+	if (!cb) {
+		return;
+	}
+	r_list_free (cb->blocks);
+	free (cb);
+}
+
 R_API void r2ai_message_free(R2AI_Message *msg) {
 	if (!msg) {
 		return;
@@ -13,28 +42,11 @@ R_API void r2ai_message_free(R2AI_Message *msg) {
 
 	// Free tool calls
 	if (msg->tool_calls) {
-		for (int i = 0; i < msg->n_tool_calls; i++) {
-			free ((void *)msg->tool_calls[i].id);
-			free ((void *)msg->tool_calls[i].name);
-			free ((void *)msg->tool_calls[i].arguments);
-		}
-		free ((void *)msg->tool_calls);
+		r_list_free (msg->tool_calls);
 	}
 
 	if (msg->content_blocks) {
-		for (int i = 0; i < msg->content_blocks->n_blocks; i++) {
-			R2AI_ContentBlock *block = &msg->content_blocks->blocks[i];
-			free (block->type);
-			free (block->data);
-			free (block->thinking);
-			free (block->signature);
-			free (block->text);
-			free (block->id);
-			free (block->name);
-			free (block->input);
-		}
-		free (msg->content_blocks->blocks);
-		free (msg->content_blocks);
+		r2ai_content_blocks_free (msg->content_blocks);
 	}
 	free (msg);
 }
@@ -100,23 +112,16 @@ R_API bool r2ai_msgs_add(R2AI_Messages *msgs, const R2AI_Message *msg) {
 	new_msg->reasoning_content = msg->reasoning_content? strdup (msg->reasoning_content): NULL;
 
 	if (msg->content_blocks) {
-		R2AI_ContentBlocks *cb = R_NEW0 (R2AI_ContentBlocks);
+		R2AI_ContentBlocks *cb = r2ai_content_blocks_new ();
 		if (!cb) {
 			r2ai_message_free (new_msg);
 			free (new_msg);
 			return false;
 		}
-		cb->n_blocks = msg->content_blocks->n_blocks;
-		cb->blocks = R_NEWS0 (R2AI_ContentBlock, cb->n_blocks);
-		if (!cb->blocks) {
-			free (cb);
-			r2ai_message_free (new_msg);
-			free (new_msg);
-			return false;
-		}
-		for (int i = 0; i < cb->n_blocks; i++) {
-			R2AI_ContentBlock *src = &msg->content_blocks->blocks[i];
-			R2AI_ContentBlock *dst = &cb->blocks[i];
+		RListIter *iter;
+		R2AI_ContentBlock *src;
+		r_list_foreach (msg->content_blocks->blocks, iter, src) {
+			R2AI_ContentBlock *dst = R_NEW0 (R2AI_ContentBlock);
 			dst->type = src->type? strdup (src->type): NULL;
 			dst->data = src->data? strdup (src->data): NULL;
 			dst->thinking = src->thinking? strdup (src->thinking): NULL;
@@ -125,31 +130,30 @@ R_API bool r2ai_msgs_add(R2AI_Messages *msgs, const R2AI_Message *msg) {
 			dst->id = src->id? strdup (src->id): NULL;
 			dst->name = src->name? strdup (src->name): NULL;
 			dst->input = src->input? strdup (src->input): NULL;
+			r_list_append (cb->blocks, dst);
 		}
 		new_msg->content_blocks = cb;
 	}
 
 	new_msg->tool_call_id = msg->tool_call_id? strdup (msg->tool_call_id): NULL;
-	new_msg->tool_calls = NULL;
-	new_msg->n_tool_calls = 0;
+	new_msg->tool_calls = r_list_new ();
+	if (!new_msg->tool_calls) {
+		r2ai_message_free (new_msg);
+		free (new_msg);
+		return false;
+	}
+	new_msg->tool_calls->free = (RListFree)r2ai_tool_call_free;
 
 	// Copy tool calls if any
-	if (msg->tool_calls && msg->n_tool_calls > 0) {
-		new_msg->tool_calls = R_NEWS0 (R2AI_ToolCall, msg->n_tool_calls);
-		if (!new_msg->tool_calls) {
-			r2ai_message_free (new_msg);
-			free (new_msg);
-			return false;
-		}
-
-		new_msg->n_tool_calls = msg->n_tool_calls;
-		for (int i = 0; i < msg->n_tool_calls; i++) {
-			const R2AI_ToolCall *src_tc = &msg->tool_calls[i];
-			R2AI_ToolCall *dst_tc = (R2AI_ToolCall *)&new_msg->tool_calls[i];
-
+	if (msg->tool_calls) {
+		RListIter *iter;
+		R2AI_ToolCall *src_tc;
+		r_list_foreach (msg->tool_calls, iter, src_tc) {
+			R2AI_ToolCall *dst_tc = R_NEW0 (R2AI_ToolCall);
 			dst_tc->name = src_tc->name? strdup (src_tc->name): NULL;
 			dst_tc->arguments = src_tc->arguments? strdup (src_tc->arguments): NULL;
 			dst_tc->id = src_tc->id? strdup (src_tc->id): NULL;
+			r_list_append (new_msg->tool_calls, dst_tc);
 		}
 	}
 
@@ -164,31 +168,22 @@ R_API bool r2ai_msgs_add_tool_call(R2AI_Messages *msgs, const R2AI_ToolCall *tc)
 
 	R2AI_Message *msg = r_list_get_n (msgs->messages, r_list_length (msgs->messages) - 1);
 
-	// Allocate or resize the tool_calls array
-	if (msg->n_tool_calls == 0) {
-		msg->tool_calls = R_NEWS0 (R2AI_ToolCall, 1);
+	// Ensure tool_calls list exists
+	if (!msg->tool_calls) {
+		msg->tool_calls = r_list_new ();
 		if (!msg->tool_calls) {
 			return false;
 		}
-	} else {
-		R2AI_ToolCall *new_tool_calls = realloc (
-			(void *)msg->tool_calls,
-			sizeof (R2AI_ToolCall) *(msg->n_tool_calls + 1));
-		if (!new_tool_calls) {
-			return false;
-		}
-		msg->tool_calls = new_tool_calls;
-		// Zero the new element
-		memset ((void *)&msg->tool_calls[msg->n_tool_calls], 0, sizeof (R2AI_ToolCall));
+		msg->tool_calls->free = (RListFree)r2ai_tool_call_free;
 	}
 
 	// Copy the tool call
-	R2AI_ToolCall *dst_tc = (R2AI_ToolCall *)&msg->tool_calls[msg->n_tool_calls];
+	R2AI_ToolCall *dst_tc = R_NEW0 (R2AI_ToolCall);
 	dst_tc->name = tc->name? strdup (tc->name): NULL;
 	dst_tc->arguments = tc->arguments? strdup (tc->arguments): NULL;
 	dst_tc->id = tc->id? strdup (tc->id): NULL;
 
-	msg->n_tool_calls++;
+	r_list_append (msg->tool_calls, dst_tc);
 	return true;
 }
 
@@ -237,27 +232,24 @@ R_API bool r2ai_msgs_from_json(R2AI_Messages *msgs, const RJson *json) {
 	new_msg.content = (content && content->type == R_JSON_STRING)? strdup (content->str_value): NULL;
 	new_msg.tool_call_id = NULL;
 	new_msg.tool_calls = NULL;
-	new_msg.n_tool_calls = 0;
 
 	if (content_blocks && content_blocks->type == R_JSON_ARRAY && content_blocks->children.count > 0) {
-		R2AI_ContentBlocks *cb = R_NEW0 (R2AI_ContentBlocks);
+		R2AI_ContentBlocks *cb = r2ai_content_blocks_new ();
 		if (!cb) {
 			r2ai_message_free (&new_msg);
 			return false;
 		}
-		cb->n_blocks = content_blocks->children.count;
-		cb->blocks = R_NEWS0 (R2AI_ContentBlock, cb->n_blocks);
-		if (!cb->blocks) {
-			free (cb);
-			r2ai_message_free (&new_msg);
-			return false;
-		}
-		for (int i = 0; i < cb->n_blocks; i++) {
+		for (size_t i = 0; i < content_blocks->children.count; i++) {
 			const RJson *block = r_json_item (content_blocks, i);
 			if (!block) {
 				continue;
 			}
-			R2AI_ContentBlock *dst = &cb->blocks[i];
+			R2AI_ContentBlock *dst = R_NEW0 (R2AI_ContentBlock);
+			if (!dst) {
+				r2ai_content_blocks_free (cb);
+				r2ai_message_free (&new_msg);
+				return false;
+			}
 			const RJson *type = r_json_get (block, "type");
 			const RJson *data = r_json_get (block, "data");
 			const RJson *thinking = r_json_get (block, "thinking");
@@ -275,6 +267,7 @@ R_API bool r2ai_msgs_from_json(R2AI_Messages *msgs, const RJson *json) {
 			dst->id = (id && id->type == R_JSON_STRING)? strdup (id->str_value): NULL;
 			dst->name = (name && name->type == R_JSON_STRING)? strdup (name->str_value): NULL;
 			dst->input = (input && input->type == R_JSON_STRING)? strdup (input->str_value): NULL;
+			r_list_append (cb->blocks, dst);
 		}
 		new_msg.content_blocks = cb;
 	}
@@ -310,20 +303,10 @@ R_API bool r2ai_msgs_from_json(R2AI_Messages *msgs, const RJson *json) {
 			tc.id = (id && id->type == R_JSON_STRING)? id->str_value: NULL;
 
 			if (!r2ai_msgs_add_tool_call (msgs, &tc)) {
-				break;
+				r2ai_message_free (&new_msg);
+				return false;
 			}
 		}
-
-		// Add the parsed message to the messages array
-		if (!r2ai_msgs_add (msgs, &new_msg)) {
-			r2ai_message_free (&new_msg);
-			return false;
-		}
-
-		// Free the temporary message struct (strings are duplicated in add)
-		r2ai_message_free (&new_msg);
-
-		return true;
 	}
 
 	return true;
@@ -349,8 +332,13 @@ R_API char *r2ai_msgs_to_json(const R2AI_Messages *msgs) {
 		// Add role
 		pj_ks (pj, "role", msg->role? msg->role: "user");
 
-		if (msg->content) {
+		// Content is required for OpenAI API
+		if (msg->content && *msg->content) {
 			pj_ks (pj, "content", msg->content);
+		} else if (msg->tool_calls && r_list_length (msg->tool_calls) > 0) {
+			pj_kn (pj, "content", 0); // null
+		} else {
+			pj_ks (pj, "content", msg->content? msg->content: "");
 		}
 
 		if (msg->reasoning_content) {
@@ -363,13 +351,13 @@ R_API char *r2ai_msgs_to_json(const R2AI_Messages *msgs) {
 		}
 
 		// Add tool_calls if present
-		if (msg->tool_calls && msg->n_tool_calls > 0) {
+		if (msg->tool_calls && r_list_length (msg->tool_calls) > 0) {
 			pj_k (pj, "tool_calls");
 			pj_a (pj); // Start tool_calls array
 
-			for (int j = 0; j < msg->n_tool_calls; j++) {
-				const R2AI_ToolCall *tc = &msg->tool_calls[j];
-
+			RListIter *iter;
+			R2AI_ToolCall *tc;
+			r_list_foreach (msg->tool_calls, iter, tc) {
 				pj_o (pj); // Start tool call object
 
 				// Add id if present
@@ -387,10 +375,8 @@ R_API char *r2ai_msgs_to_json(const R2AI_Messages *msgs) {
 				// Add name
 				pj_ks (pj, "name", tc->name? tc->name: "");
 
-				// Add arguments if present
-				if (tc->arguments) {
-					pj_ks (pj, "arguments", tc->arguments);
-				}
+				// Add arguments (required by OpenAI API)
+				pj_ks (pj, "arguments", tc->arguments? tc->arguments: "{}");
 
 				pj_end (pj); // End function object
 				pj_end (pj); // End tool call object
@@ -431,8 +417,9 @@ R_API char *r2ai_msgs_to_anthropic_json(const R2AI_Messages *msgs) {
 
 		if (msg->content_blocks) {
 			pj_ka (pj, "content"); // Start content array
-			for (int j = 0; j < msg->content_blocks->n_blocks; j++) {
-				const R2AI_ContentBlock *block = &msg->content_blocks->blocks[j];
+			RListIter *iter;
+			R2AI_ContentBlock *block;
+			r_list_foreach (msg->content_blocks->blocks, iter, block) {
 				pj_o (pj); // Start content block object
 				if (R_STR_ISNOTEMPTY (block->type)) {
 					pj_ks (pj, "type", block->type);
@@ -490,13 +477,11 @@ R_API char *r2ai_msgs_to_anthropic_json(const R2AI_Messages *msgs) {
 				pj_end (pj); // End content block object
 			}
 
-			if (msg->tool_calls && msg->n_tool_calls > 0) {
-				pj_k (pj, "tool_calls");
-				pj_a (pj); // Start tool_calls array
-
-				for (int j = 0; j < msg->n_tool_calls; j++) {
-					const R2AI_ToolCall *tc = &msg->tool_calls[j];
-					pj_o (pj); // Start tool_calls object
+			if (msg->tool_calls && r_list_length (msg->tool_calls) > 0) {
+				RListIter *iter;
+				R2AI_ToolCall *tc;
+				r_list_foreach (msg->tool_calls, iter, tc) {
+					pj_o (pj); // Start tool_use content block
 					pj_ks (pj, "type", "tool_use");
 					pj_ks (pj, "id", tc->id? tc->id: "");
 					pj_ks (pj, "name", tc->name? tc->name: "");
@@ -518,10 +503,8 @@ R_API char *r2ai_msgs_to_anthropic_json(const R2AI_Messages *msgs) {
 					free (arguments_copy);
 
 					pj_end (pj); // End input object
-					pj_end (pj); // End tool_calls object
+					pj_end (pj); // End tool_use content block
 				}
-
-				pj_end (pj); // End tool_calls array
 			}
 			pj_end (pj); // End content array
 		}
