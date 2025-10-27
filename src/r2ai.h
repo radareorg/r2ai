@@ -253,7 +253,7 @@ R_API void r2ai_delete_last_messages(RList *messages, int n);
  * Get the tools instance from state
  * Returns a pointer to the tools RList
  */
-R_API RList *r2ai_get_tools(R2AI_State *state);
+R_API RList *r2ai_get_tools(RCore *core, R2AI_State *state);
 
 /**
  * Parse OpenAI format tools JSON into internal tools RList

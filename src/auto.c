@@ -147,7 +147,7 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 		.messages = messages,
 		.error = &error,
 		.dorag = true,
-		.tools = r2ai_get_tools (cps->data), // Always send tools in auto mode
+		.tools = r2ai_get_tools (core, cps->data), // Always send tools in auto mode
 		.system_prompt = effective_prompt
 	};
 

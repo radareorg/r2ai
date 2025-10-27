@@ -161,7 +161,7 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 		R_LOG_DEBUG ("Raw tool call detected: %s with args: %s", tool_name, tool_args);
 
 		// Find the tool in our tools list
-		RList *tools = r2ai_get_tools (cps->data);
+		RList *tools = r2ai_get_tools (cps->core, cps->data);
 		bool tool_found = false;
 
 		if (tools) {
