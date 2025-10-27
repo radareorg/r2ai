@@ -119,8 +119,8 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 		return;
 	}
 
+	const char *effective_prompt = system_prompt? system_prompt: Gprompt_auto;
 	if (!system_prompt) {
-		system_prompt = Gprompt_auto;
 		const char *init_commands = r_config_get (core->config, "r2ai.auto.init_commands");
 		if (R_STR_ISNOTEMPTY (init_commands)) {
 			char *edited_command = NULL;
@@ -148,7 +148,7 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 		.error = &error,
 		.dorag = true,
 		.tools = r2ai_get_tools (cps->data), // Always send tools in auto mode
-		.system_prompt = system_prompt
+		.system_prompt = effective_prompt
 	};
 
 	R2AI_ChatResponse *response = r2ai_llmcall (cps, args);
@@ -312,7 +312,7 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 		// Check if we should continue with recursion
 		if (!interrupted && message->tool_calls && r_list_length (message->tool_calls) > 0) {
 			R_LOG_DEBUG ("Recursing to process_messages with n_run=%d", n_run + 1);
-			process_messages (cps, messages, system_prompt, n_run + 1);
+			process_messages (cps, messages, effective_prompt, n_run + 1);
 		} else {
 			R_LOG_DEBUG ("Auto mode loop ending - no more tool calls or interrupted");
 		}
@@ -349,7 +349,14 @@ R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query) {
 	};
 	r2ai_msgs_add (messages, &user_msg);
 
-	process_messages (cps, messages, NULL, 1);
+	const char *system_prompt = NULL;
+	if (!r_config_get_b (core->config, "r2ai.auto.think")) {
+		system_prompt = r_str_newf ("/no_think\nReasoning: Low\n%s", Gprompt_auto);
+	}
+	process_messages (cps, messages, system_prompt, 1);
+	if (system_prompt) {
+		free ((char *)system_prompt);
+	}
 }
 
 // Helper function to display content with length indication for long content
