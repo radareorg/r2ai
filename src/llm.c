@@ -39,7 +39,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	if (!provider) {
 		provider = "gemini";
 	}
-	if (rawtools_enabled && args.tools && args.tools->n_tools > 0) {
+	if (rawtools_enabled && args.tools && r_list_length (args.tools->tools) > 0) {
 		return r2ai_rawtools_llmcall (cps, args);
 	}
 	R2AI_State *state = cps->data;

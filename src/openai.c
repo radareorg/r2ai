@@ -174,7 +174,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 
 	// Convert tools to OpenAI format if available
 	char *openai_tools_json = NULL;
-	if (tools && tools->n_tools > 0) {
+	if (tools && tools->tools && r_list_length (tools->tools) > 0) {
 		openai_tools_json = r2ai_tools_to_openai_json (tools);
 	}
 

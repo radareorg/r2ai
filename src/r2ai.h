@@ -62,8 +62,7 @@ typedef struct {
 
 // Tools array management
 typedef struct {
-	R2AI_Tool *tools;
-	int n_tools;
+	RList *tools; // RList<R2AI_Tool *>
 } R2AI_Tools;
 
 typedef struct {
@@ -71,6 +70,11 @@ typedef struct {
 	const char *arguments;
 	const char *id;
 } R2AI_ToolCall;
+
+/**
+ * Free an R2AI_ToolCall instance
+ */
+R_API void r2ai_tool_call_free(R2AI_ToolCall *tc);
 
 typedef struct {
 	char *type;
@@ -84,9 +88,18 @@ typedef struct {
 } R2AI_ContentBlock;
 
 typedef struct {
-	R2AI_ContentBlock *blocks;
-	int n_blocks;
+	RList *blocks; // RList<R2AI_ContentBlock *>
 } R2AI_ContentBlocks;
+
+/**
+ * Create a new R2AI_ContentBlocks instance
+ */
+R_API R2AI_ContentBlocks *r2ai_content_blocks_new(void);
+
+/**
+ * Free an R2AI_ContentBlocks instance
+ */
+R_API void r2ai_content_blocks_free(R2AI_ContentBlocks *cb);
 
 typedef struct {
 	char *role;
@@ -94,8 +107,7 @@ typedef struct {
 	char *reasoning_content;
 	R2AI_ContentBlocks *content_blocks;
 	char *tool_call_id;
-	R2AI_ToolCall *tool_calls;
-	int n_tool_calls;
+	RList *tool_calls; // RList<R2AI_ToolCall *>
 } R2AI_Message;
 
 typedef struct {

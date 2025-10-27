@@ -61,7 +61,7 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) 
 
 	// Convert tools to Anthropic format if available
 	char *anthropic_tools_json = NULL;
-	if (tools && tools->n_tools > 0) {
+	if (tools && tools->tools && r_list_length (tools->tools) > 0) {
 		anthropic_tools_json = r2ai_tools_to_anthropic_json (tools);
 	}
 
@@ -137,13 +137,6 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) 
 
 	// Parse the response
 	R2AI_ChatResponse *result = R_NEW0 (R2AI_ChatResponse);
-	if (!result) {
-		free (res);
-		if (error) {
-			*error = strdup ("Failed to allocate memory for response");
-		}
-		return NULL;
-	}
 
 	R2AI_Message *message = NULL;
 	R2AI_Usage *usage = NULL;
@@ -195,9 +188,9 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) 
 					}
 				}
 
-				// Allocate tool_calls array if needed
+				// Allocate tool_calls list if needed
 				if (has_tool_use && n_tool_calls > 0) {
-					message->tool_calls = R_NEWS0 (R2AI_ToolCall, n_tool_calls);
+					message->tool_calls = r_list_new ();
 					if (!message->tool_calls) {
 						if (error) {
 							*error = strdup ("Failed to allocate memory for tool calls");
@@ -208,13 +201,13 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) 
 						free (res);
 						return NULL;
 					}
-					message->n_tool_calls = n_tool_calls;
+					message->tool_calls->free = (RListFree)r2ai_tool_call_free;
 				}
 
 				// Process each content item
 				int tool_idx = 0;
 				if (content_array && content_array->type == R_JSON_ARRAY) {
-					R2AI_ContentBlocks *cb = R_NEW0 (R2AI_ContentBlocks);
+					R2AI_ContentBlocks *cb = r2ai_content_blocks_new ();
 					if (!cb) {
 						r_json_free (jres);
 						free (response_copy);
@@ -222,22 +215,11 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) 
 						free (res);
 						return NULL;
 					}
-					cb->n_blocks = content_array->children.count;
-					cb->blocks = R_NEWS0 (R2AI_ContentBlock, cb->n_blocks);
-					if (!cb->blocks) {
-						free (cb);
-						r_json_free (jres);
-						free (response_copy);
-						r2ai_message_free (message);
-						free (res);
-						return NULL;
-					}
-					int block_idx = 0;
 					const RJson *content_item = content_array->children.first;
-					while (content_item && block_idx < cb->n_blocks) {
+					while (content_item) {
 						const RJson *type = r_json_get (content_item, "type");
 						if (type && type->type == R_JSON_STRING) {
-							R2AI_ContentBlock *block = &cb->blocks[block_idx];
+							R2AI_ContentBlock *block = R_NEW0 (R2AI_ContentBlock);
 							if (!strcmp (type->str_value, "text")) {
 								// Text content
 								const RJson *text = r_json_get (content_item, "text");
@@ -253,15 +235,14 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) 
 								const RJson *input = r_json_get (content_item, "input");
 
 								block->type = strdup ("tool_use");
+								R2AI_ToolCall *tc = R_NEW0 (R2AI_ToolCall);
 								if (name && name->type == R_JSON_STRING) {
 									block->name = strdup (name->str_value);
-									R2AI_ToolCall *tc = (R2AI_ToolCall *)&message->tool_calls[tool_idx];
 									tc->name = strdup (name->str_value);
 								}
 
 								if (id && id->type == R_JSON_STRING) {
 									block->id = strdup (id->str_value);
-									R2AI_ToolCall *tc = (R2AI_ToolCall *)&message->tool_calls[tool_idx];
 									tc->id = strdup (id->str_value);
 								}
 
@@ -271,15 +252,13 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) 
 									if (input_str) {
 										R_LOG_DEBUG ("Input string: %s", input_str);
 										block->input = strdup (input_str);
-										R2AI_ToolCall *tc = (R2AI_ToolCall *)&message->tool_calls[tool_idx];
 										tc->arguments = strdup (input_str);
 										free (input_str);
 									}
-#else
-									R_LOG_WARN ("xalado");
 #endif
 								}
 
+								r_list_append (message->tool_calls, tc);
 								tool_idx++;
 							} else if (!strcmp (type->str_value, "thinking")) {
 								const RJson *data = r_json_get (content_item, "data");
@@ -300,7 +279,7 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) 
 								r_strbuf_append (content_buf, block->thinking);
 								r_strbuf_append (content_buf, "\n</thinking>" Color_RESET "\n");
 							}
-							block_idx++;
+							r_list_append (cb->blocks, block);
 						}
 						content_item = content_item->next;
 					}
@@ -311,7 +290,7 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) 
 				message->content = r_strbuf_drain (content_buf);
 
 				// If there's no content and no tool calls, clean up
-				if (!message->content && !message->n_tool_calls) {
+				if (!message->content && (!message->tool_calls || r_list_length (message->tool_calls) == 0)) {
 					r2ai_message_free (message);
 					message = NULL;
 				}

@@ -164,70 +164,72 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 		const R2AI_Tools *tools = r2ai_get_tools ();
 		bool tool_found = false;
 
-		for (int i = 0; i < tools->n_tools; i++) {
-			if (tools->tools[i].name && !strcmp (tools->tools[i].name, tool_name)) {
-				tool_found = true;
-				break;
+		if (tools && tools->tools) {
+			RListIter *iter;
+			R2AI_Tool *tool;
+			r_list_foreach (tools->tools, iter, tool) {
+				if (tool->name && !strcmp (tool->name, tool_name)) {
+					tool_found = true;
+					break;
+				}
 			}
 		}
 
 		if (tool_found) {
 			// Modify the existing response to include tool call information
 			R2AI_Message *modified_message = R_NEW0 (R2AI_Message);
-			if (modified_message) {
-				modified_message->role = strdup ("assistant");
-				// Remove the TOOL line from content, or set to empty if that's all there is
-				char *content = strdup (response->message->content? response->message->content: "");
-				char *tool_line = strstr (content, "TOOL: ");
-				if (tool_line) {
-					// Find the end of the line
-					char *line_end = strchr (tool_line, '\n');
-					if (line_end) {
-						// Remove the TOOL line
-						memmove (tool_line, line_end + 1, strlen (line_end + 1) + 1);
-					} else {
-						// The TOOL line is the entire content
-						*tool_line = '\0';
-					}
+			modified_message->role = strdup ("assistant");
+			// Remove the TOOL line from content, or set to empty if that's all there is
+			char *content = strdup (response->message->content? response->message->content: "");
+			char *tool_line = strstr (content, "TOOL: ");
+			if (tool_line) {
+				// Find the end of the line
+				char *line_end = strchr (tool_line, '\n');
+				if (line_end) {
+					// Remove the TOOL line
+					memmove (tool_line, line_end + 1, strlen (line_end + 1) + 1);
+				} else {
+					// The TOOL line is the entire content
+					*tool_line = '\0';
 				}
-				modified_message->content = content;
-
-				// Set up proper tool call structure
-				modified_message->tool_calls = R_NEWS0 (R2AI_ToolCall, 1);
-				if (modified_message->tool_calls) {
-					modified_message->tool_calls[0].name = tool_name;
-					modified_message->tool_calls[0].arguments = tool_args;
-					char id_buf[32];
-					snprintf (id_buf, sizeof (id_buf), "rawtool_%d", (int)time (NULL));
-					modified_message->tool_calls[0].id = strdup (id_buf);
-					modified_message->n_tool_calls = 1;
-				}
-				tool_name = NULL;
-				tool_args = NULL;
-
-				// Replace the response message
-				if (response->message) {
-					r2ai_message_free ((R2AI_Message *)response->message);
-				}
-				*(R2AI_Message **)&response->message = modified_message;
 			}
+			modified_message->content = content;
+
+			// Set up proper tool call structure
+			modified_message->tool_calls = r_list_new ();
+			if (modified_message->tool_calls) {
+				modified_message->tool_calls->free = (RListFree)r2ai_tool_call_free;
+				R2AI_ToolCall *tc = R_NEW0 (R2AI_ToolCall);
+				tc->name = tool_name;
+				tc->arguments = tool_args;
+				char id_buf[32];
+				snprintf (id_buf, sizeof (id_buf), "rawtool_%d", (int)time (NULL));
+				tc->id = strdup (id_buf);
+				r_list_append (modified_message->tool_calls, tc);
+			}
+			tool_name = NULL;
+			tool_args = NULL;
+
+			// Replace the response message
+			if (response->message) {
+				r2ai_message_free ((R2AI_Message *)response->message);
+			}
+			*(R2AI_Message **)&response->message = modified_message;
 		} else {
 			// Unknown tool, modify content to indicate error
 			R2AI_Message *modified_message = R_NEW0 (R2AI_Message);
-			if (modified_message) {
-				modified_message->role = strdup ("assistant");
-				size_t result_len = strlen ("Unknown tool: ") + strlen (tool_name) + 1;
-				modified_message->content = malloc (result_len);
-				if (modified_message->content) {
-					snprintf (modified_message->content, result_len, "Unknown tool: %s", tool_name);
-				}
-
-				// Replace the response message
-				if (response->message) {
-					r2ai_message_free ((R2AI_Message *)response->message);
-				}
-				*(R2AI_Message **)&response->message = modified_message;
+			modified_message->role = strdup ("assistant");
+			size_t result_len = strlen ("Unknown tool: ") + strlen (tool_name) + 1;
+			modified_message->content = malloc (result_len);
+			if (modified_message->content) {
+				snprintf (modified_message->content, result_len, "Unknown tool: %s", tool_name);
 			}
+
+			// Replace the response message
+			if (response->message) {
+				r2ai_message_free ((R2AI_Message *)response->message);
+			}
+			*(R2AI_Message **)&response->message = modified_message;
 			free (tool_name);
 			free (tool_args);
 			tool_name = NULL;

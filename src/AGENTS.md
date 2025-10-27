@@ -5,8 +5,9 @@
 - All the source code of the plugin is in the current directory
 - Radare2 headers use to be in /usr/local/include/libr
 
-## Formatting Style
+## Coding Style
 
+- `R_NEW` and `R_NEW0` calls never return NULL, so there's no need to check after calling them
 - Use the radare2 coding style rules
   - Always add a whitespace before `(` in function calls
   - Indent the code with tabs
