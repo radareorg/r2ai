@@ -41,6 +41,7 @@ endif
 OBJS=r2ai.o
 OBJS+=llm.o
 OBJS+=auto.o
+OBJS+=json.o
 OBJS+=vdb.o
 OBJS+=tools.o
 OBJS+=messages.o

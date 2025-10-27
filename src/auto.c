@@ -62,7 +62,7 @@ static void r2ai_print_run_end(RCorePluginSession *cps, const R2AI_Usage *usage,
 	char *total_time_str = format_time_duration (total_time);
 
 	// Print detailed stats
-	r_cons_printf (core->cons, "\x1b[1;34m%s | total: %d in: %d out: %d | run: %d in: %d out: %d | %s / %s\x1b[0m\n",
+	r_cons_printf (core->cons, "\x1b[1" Color_BLUE "%s | total: %d in: %d out: %d | run: %d in: %d out: %d | %s / %s" Color_RESET "\n",
 		r_config_get (core->config, "r2ai.model"),
 		state->stats.total_tokens,
 		state->stats.total_prompt_tokens,
@@ -79,25 +79,27 @@ static void r2ai_print_run_end(RCorePluginSession *cps, const R2AI_Usage *usage,
 	free (total_time_str);
 }
 
-const char *Gprompt_auto = "You are a reverse engineer and you are using radare2 to analyze a binary.\n"
-			"The user will ask questions about the binary and you will respond with the answer to the best of your ability.\n"
-			"\n"
-			"# Guidelines\n"
-			"- Understand the Task: Grasp the main objective, goals, requirements, constraints, and expected output.\n"
-			"- Reasoning Before Conclusions**: Encourage reasoning steps before any conclusions are reached.\n"
-			"- Assume the user is always asking you about the binary, unless they're specifically asking you for radare2 help.\n"
-			"- The binary has already been loaded. You can interact with the binary using the r2cmd tool.\n"
-			"- `this` or `here` might refer to the current address in the binary or the binary itself.\n"
-			"- If you need more information, try to use the r2cmd tool to run commands before answering.\n"
-			"- You can use the r2cmd tool multiple times if you need or you can pass a command with pipes if you need to chain commands.\n"
-			"- If you're asked to decompile a function, make sure to return the code in the language you think it was originally written and rewrite it to be as easy as possible to be understood. Make sure you use descriptive variable and function names and add comments.\n"
-			"- Don't just regurgitate the same code, figure out what it's doing and rewrite it to be more understandable.\n"
-			"- If you need to run a command in r2 before answering, you can use the r2cmd tool\n"
-			"- Do not repeat commands if you already know the answer.\n"
-			"- Formulate a plan. Think step by step. Analyze the binary as much as possible before answering.\n"
-			"- You must keep going until you have a final answer.\n"
-			"- Double check that final answer. Make sure you didn't miss anything.\n"
-			"- Make sure you call tools and functions correctly.\n";
+const char *Gprompt_auto =
+	"You are a reverse engineer and you are using radare2 to analyze a binary.\n"
+	"The user will ask questions about the binary and you will respond with the answer to the best of your ability.\n"
+	"\n"
+	"# Guidelines\n"
+	"- Understand the Task: Grasp the main objective, goals, requirements, constraints, and expected output.\n"
+	"- Reasoning Before Conclusions**: Encourage reasoning steps before any conclusions are reached.\n"
+	"- Assume the user is always asking you about the binary, unless they're specifically asking you for radare2 help.\n"
+	"- The binary has already been loaded. You can interact with the binary using the r2cmd tool.\n"
+	"- `this` or `here` might refer to the current address in the binary or the binary itself.\n"
+	"- If you need more information, try to use the r2cmd tool to run commands before answering.\n"
+	"- You can use the r2cmd tool multiple times if you need or you can pass a command with pipes if you need to chain commands.\n"
+	"- If you're asked to decompile a function, make sure to return the code in the language you think it was originally written "
+	"and rewrite it to be as easy as possible to be understood. Make sure you use descriptive variable and function names and add comments.\n"
+	"- Don't just regurgitate the same code, figure out what it's doing and rewrite it to be more understandable.\n"
+	"- If you need to run a command in r2 before answering, you can use the r2cmd tool\n"
+	"- Do not repeat commands if you already know the answer.\n"
+	"- Formulate a plan. Think step by step. Analyze the binary as much as possible before answering.\n"
+	"- You must keep going until you have a final answer.\n"
+	"- Double check that final answer. Make sure you didn't miss anything.\n"
+	"- Make sure you call tools and functions correctly.\n";
 
 // Helper function to process messages and handle tool calls recursively
 R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, const char *system_prompt, int n_run) {
@@ -108,7 +110,7 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 	const int max_runs = r_config_get_i (core->config, "r2ai.auto.max_runs");
 
 	if (n_run > max_runs) {
-		r_cons_printf (core->cons, "\x1b[1;31m[r2ai] Max runs reached\x1b[0m\n");
+		R_LOG_WARN ("Max runs reached");
 		r_cons_flush (core->cons);
 		return;
 	}
@@ -133,7 +135,7 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 
 	r2ai_stats_init_run (state, n_run);
 
-	r_cons_printf (core->cons, "\x1b[35m[DEBUG] About to call r2ai_llmcall with n_run=%d\x1b[0m\n", n_run);
+	r_cons_printf (core->cons, Color_BLUE"About to call r2ai_llmcall with n_run=%d%s\n", n_run, Color_RESET);
 	r_cons_flush (core->cons);
 
 	// Set up args for r2ai_llmcall call with tools directly
@@ -161,26 +163,26 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 	}
 
 	// Debug logging for rawtools
-	R_LOG_DEBUG ("[DEBUG] Model response - Role: %s", message->role? message->role: "null");
+	R_LOG_DEBUG ("Model response - Role: %s", message->role? message->role: "null");
 	if (message->content) {
-		R_LOG_DEBUG ("[DEBUG] Content: %s", message->content);
+		R_LOG_DEBUG ("Content: %s", message->content);
 	}
 	if (message->reasoning_content) {
-		R_LOG_DEBUG ("[DEBUG] Reasoning: %s", message->reasoning_content);
+		R_LOG_DEBUG ("Reasoning: %s", message->reasoning_content);
 	}
 	if (message->tool_calls && message->n_tool_calls > 0) {
-		R_LOG_DEBUG ("[DEBUG] Tool calls: %d", message->n_tool_calls);
+		R_LOG_DEBUG ("Tool calls: %d", message->n_tool_calls);
 		for (int i = 0; i < message->n_tool_calls; i++) {
 			const R2AI_ToolCall *tc = &message->tool_calls[i];
-			R_LOG_DEBUG ("[DEBUG] Tool %d: %s - %s", i, tc->name? tc->name: "null", tc->arguments? tc->arguments: "null");
+			R_LOG_DEBUG ("Tool %d: %s - %s", i, tc->name? tc->name: "null", tc->arguments? tc->arguments: "null");
 		}
 	}
 
 	// Process the response - we need to add it to our messages array
 	if (message->content || message->reasoning_content) {
-		r_cons_printf (core->cons, "\x1b[31m[Assistant]\x1b[0m\n\n");
+		r_cons_printf (core->cons, Color_RED"[Assistant]"Color_RESET);
 		if (message->reasoning_content) {
-			r_cons_printf (core->cons, "\x1b[90m<thinking>\n%s\n</thinking>\x1b[0m\n", message->reasoning_content);
+			r_cons_printf (core->cons, Color_GRAY "<thinking>\n%s\n</thinking>" Color_RESET "\n", message->reasoning_content);
 			r_cons_newline (core->cons);
 			r_cons_flush (core->cons);
 		}
@@ -242,11 +244,16 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 											free ((char *)cmd_json->str_value);
 											cmd_json->str_value = strdup (edited_command);
 											// Serialize back to JSON
+#if 1
 											char *new_args = r_json_to_string (args_json);
 											if (new_args) {
 												free ((void *)tc->arguments);
 												tc->arguments = new_args;
 											}
+#else
+											free ((void *)tc->arguments);
+											tc->arguments = strdup (args_dup);
+#endif
 										}
 										r_json_free (args_json);
 									}
@@ -262,7 +269,7 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 			free (tool_name);
 			free (tool_args);
 			if (strcmp (cmd_output, "R2AI_SIGINT") == 0) {
-				r_cons_printf (core->cons, "\n\n\x1b[1;31m[r2ai] Processing interrupted after tool execution\x1b[0m\n\n");
+				r_cons_printf (core->cons, "\n\n\x1b[1" Color_RED "[r2ai] Processing interrupted after tool execution" Color_RESET "\n\n");
 				r_cons_flush (core->cons);
 				free (cmd_output);
 				cmd_output = strdup ("<user interrupted>");
@@ -278,8 +285,8 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 
 			// Add the tool response to our messages array
 			r2ai_msgs_add (messages, &tool_response);
-			R_LOG_DEBUG ("[DEBUG] Added tool response to messages: %s", cmd_output? cmd_output: "null");
-			r_cons_printf (core->cons, "\x1b[32m[DEBUG] Tool result: %s\x1b[0m\n", cmd_output? cmd_output: "no output");
+			R_LOG_DEBUG ("Added tool response to messages: %s", cmd_output? cmd_output: "null");
+			r_cons_printf (core->cons, Color_GREEN"Tool result: %s"Color_RESET, cmd_output? cmd_output: "no output");
 			free (cmd_output);
 		}
 
@@ -287,10 +294,10 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 
 		// Check if we should continue with recursion
 		if (!interrupted && message->tool_calls && message->n_tool_calls > 0) {
-			R_LOG_DEBUG ("[DEBUG] Recursing to process_messages with n_run=%d", n_run + 1);
+			R_LOG_DEBUG ("Recursing to process_messages with n_run=%d", n_run + 1);
 			process_messages (cps, messages, system_prompt, n_run + 1);
 		} else {
-			R_LOG_DEBUG ("[DEBUG] Auto mode loop ending - no more tool calls or interrupted");
+			R_LOG_DEBUG ("Auto mode loop ending - no more tool calls or interrupted");
 		}
 	} else {
 		r2ai_print_run_end (cps, usage, n_run, max_runs);
@@ -303,7 +310,7 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query) {
 	RCore *core = cps->core;
 	R2AI_State *state = cps->data;
-	r_cons_printf (core->cons, "\x1b[35m[DEBUG] cmd_r2ai_a called with query: %s\x1b[0m\n", user_query);
+	r_cons_printf (core->cons, Color_CYAN"cmd_r2ai_a called with query: %s"Color_RESET"\n", user_query);
 	r_cons_flush (core->cons);
 	// Get conversation
 	R2AI_Messages *messages = r2ai_conversation_get (state);
@@ -341,12 +348,12 @@ static void print_content_with_length(RCore *core, const char *content, const ch
 	if (content_len > max_display) {
 		// Truncate long content and show length
 		char *truncated = r_str_ndup (content, max_display);
-		r_cons_printf (core->cons, "%s... \x1b[1;37m(length: %zu chars)\x1b[0m\n",
+		r_cons_printf (core->cons, "%s... \x1b[1" Color_WHITE "(length: %zu chars)" Color_RESET "\n",
 			truncated, content_len);
 		free (truncated);
 	} else if (always_show_length) {
 		// Always show length for certain types (like tool responses)
-		r_cons_printf (core->cons, "%s \x1b[1;37m(length: %zu chars)\x1b[0m\n",
+		r_cons_printf (core->cons, "%s \x1b[1" Color_WHITE "(length: %zu chars)" Color_RESET "\n",
 			content, content_len);
 	} else {
 		r_cons_printf (core->cons, "%s\n", content);
@@ -408,10 +415,10 @@ R_IPI void cmd_r2ai_logs(RCorePluginSession *cps) {
 		return;
 	}
 
-	r_cons_printf (core->cons, "\x1b[1;34m[r2ai] Chat Logs (%d messages)\x1b[0m\n",
+	r_cons_printf (core->cons, "\x1b[1" Color_BLUE "[r2ai] Chat Logs (%d messages)" Color_RESET "\n",
 		r_list_length (messages->messages));
 
-	r_cons_printf (core->cons, "\x1b[1;33mNote: System prompt is applied automatically but not stored in history\x1b[0m\n\n");
+	r_cons_printf (core->cons, "\x1b[1" Color_YELLOW "Note: System prompt is applied automatically but not stored in history" Color_RESET "\n\n");
 
 	// Display each message in the conversation
 	for (int i = 0; i < r_list_length (messages->messages); i++) {
@@ -420,16 +427,16 @@ R_IPI void cmd_r2ai_logs(RCorePluginSession *cps) {
 
 		// Format based on role
 		if (!strcmp (role, "user")) {
-			r_cons_printf (core->cons, "\x1b[1;32m[user]:\x1b[0m ");
+			r_cons_printf (core->cons, "\x1b[1" Color_GREEN "[user]:" Color_RESET " ");
 			print_content_with_length (core, msg->content, "<no content>", false);
 		} else if (!strcmp (role, "assistant")) {
-			r_cons_printf (core->cons, "\x1b[1;36m[assistant]:\x1b[0m ");
+			r_cons_printf (core->cons, "\x1b[1" Color_CYAN "[assistant]:" Color_RESET " ");
 			print_content_with_length (core, msg->content, "<no content>", false);
 			// Show tool calls if present
 			if (msg->tool_calls && msg->n_tool_calls > 0) {
 				for (int j = 0; j < msg->n_tool_calls; j++) {
 					const R2AI_ToolCall *tc = &msg->tool_calls[j];
-					r_cons_printf (core->cons, "  \x1b[1;35m[tool call]:\x1b[0m %s\n",
+					r_cons_printf (core->cons, "  \x1b[1" Color_MAGENTA "[tool call]:" Color_RESET " %s\n",
 						tc->name? tc->name: "<unnamed>");
 
 					if (tc->arguments) {
@@ -438,13 +445,13 @@ R_IPI void cmd_r2ai_logs(RCorePluginSession *cps) {
 				}
 			}
 		} else if (!strcmp (role, "tool")) {
-			r_cons_printf (core->cons, "\x1b[1;35m[tool]:\x1b[0m ");
+			r_cons_printf (core->cons, "\x1b[1" Color_MAGENTA "[tool]:" Color_RESET " ");
 			print_content_with_length (core, msg->content, "<no result>", true);
 
 			// Don't show the tool call ID as requested
 		} else {
 			// Other roles (system, etc.)
-			r_cons_printf (core->cons, "\x1b[1;37m[%s]:\x1b[0m ", role);
+			r_cons_printf (core->cons, "\x1b[1" Color_WHITE "[%s]:" Color_RESET " ", role);
 			print_content_with_length (core, msg->content, "<no content>", false);
 		}
 

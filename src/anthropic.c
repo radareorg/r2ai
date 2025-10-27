@@ -266,6 +266,7 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) 
 								}
 
 								if (input && input->type == R_JSON_OBJECT) {
+#if 1
 									char *input_str = r_json_to_string (input);
 									if (input_str) {
 										R_LOG_DEBUG ("Input string: %s", input_str);
@@ -274,6 +275,9 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) 
 										tc->arguments = strdup (input_str);
 										free (input_str);
 									}
+#else
+									R_LOG_WARN ("xalado");
+#endif
 								}
 
 								tool_idx++;
@@ -292,9 +296,9 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) 
 								}
 								block->type = strdup ("thinking");
 
-								r_strbuf_append (content_buf, "\n\x1b[90m<thinking>\n");
+								r_strbuf_append (content_buf, "\n" Color_GRAY "<thinking>\n");
 								r_strbuf_append (content_buf, block->thinking);
-								r_strbuf_append (content_buf, "\n</thinking>\x1b[0m\n");
+								r_strbuf_append (content_buf, "\n</thinking>" Color_RESET "\n");
 							}
 							block_idx++;
 						}

@@ -2,14 +2,10 @@
 
 #include "r2ai.h"
 
-#define INITIAL_CAPACITY 8
-#define GROWTH_FACTOR 1.5
-
 R_API void r2ai_message_free(R2AI_Message *msg) {
 	if (!msg) {
 		return;
 	}
-
 	free (msg->role);
 	free ((void *)msg->content); // maybe double free
 	free (msg->reasoning_content);
@@ -40,6 +36,7 @@ R_API void r2ai_message_free(R2AI_Message *msg) {
 		free (msg->content_blocks->blocks);
 		free (msg->content_blocks);
 	}
+	free (msg);
 }
 
 // Conversation is now stored in R2AI_State
@@ -60,9 +57,6 @@ R_API R2AI_Messages *r2ai_conversation_get(R2AI_State *state) {
 // Create a new temporary messages container
 R_API R2AI_Messages *r2ai_msgs_new(void) {
 	R2AI_Messages *msgs = R_NEW0 (R2AI_Messages);
-	if (!msgs) {
-		return NULL;
-	}
 	msgs->messages = r_list_new ();
 	if (!msgs->messages) {
 		R_FREE (msgs);
@@ -73,16 +67,10 @@ R_API R2AI_Messages *r2ai_msgs_new(void) {
 }
 
 R_API void r2ai_msgs_free(R2AI_Messages *msgs) {
-	if (!msgs) {
-		return;
-	}
-
-	// Normal free for non-static instances
-	if (msgs->messages) {
+	if (msgs) {
 		r_list_free (msgs->messages);
+		R_FREE (msgs);
 	}
-
-	R_FREE (msgs);
 }
 
 // Free the conversation when plugin is unloaded
@@ -98,7 +86,6 @@ R_API void r2ai_msgs_clear(R2AI_Messages *msgs) {
 	if (!msgs) {
 		return;
 	}
-
 	r_list_purge (msgs->messages);
 }
 
@@ -108,10 +95,6 @@ R_API bool r2ai_msgs_add(R2AI_Messages *msgs, const R2AI_Message *msg) {
 	}
 
 	R2AI_Message *new_msg = R_NEW0 (R2AI_Message);
-	if (!new_msg) {
-		return false;
-	}
-
 	new_msg->role = msg->role? strdup (msg->role): NULL;
 	new_msg->content = msg->content? strdup (msg->content): NULL;
 	new_msg->reasoning_content = msg->reasoning_content? strdup (msg->reasoning_content): NULL;
@@ -214,14 +197,13 @@ R_API bool r2ai_msgs_from_response(R2AI_Messages *msgs, const char *json_str) {
 		return false;
 	}
 
-	// r_json_parse expects non-const char*, so we need to cast it
+	bool result = false;
+	// r_json_parse expects (and modifies) non-const char*, so we need to cast it
 	RJson *json = r_json_parse ((char *)json_str);
-	if (!json) {
-		return false;
+	if (json) {
+		result = r2ai_msgs_from_json (msgs, json);
+		r_json_free (json);
 	}
-
-	bool result = r2ai_msgs_from_json (msgs, json);
-	r_json_free (json);
 	return result;
 }
 
@@ -478,13 +460,11 @@ R_API char *r2ai_msgs_to_anthropic_json(const R2AI_Messages *msgs) {
 					char *input_str = strdup (block->input);
 					RJson *input_json = r_json_parse (input_str);
 					if (input_json) {
-						// If it's valid JSON, add it directly
 						pj_ko (pj, "input");
-						r_json_to_pj (input_json, pj);
+						pj_raw (pj, input_str);
 						pj_end (pj);
 						r_json_free (input_json);
 					} else {
-						// If not valid JSON, create a basic object with command
 						pj_ko (pj, "input");
 						pj_ks (pj, "command", block->input);
 						pj_end (pj);
@@ -575,153 +555,4 @@ R_API void r2ai_delete_last_messages(R2AI_Messages *messages, int n) {
 	for (int i = 0; i < n; i++) {
 		r_list_pop (messages->messages);
 	}
-}
-
-// Helper function to convert RJson to PJ without draining
-R_API PJ *r_json_to_pj(const RJson *json, PJ *existing_pj) {
-	if (!json) {
-		return existing_pj;
-	}
-
-	PJ *pj = existing_pj? existing_pj: pj_new ();
-	if (!pj) {
-		return NULL;
-	}
-
-	switch (json->type) {
-	case R_JSON_STRING:
-		pj_s (pj, json->str_value);
-		break;
-	case R_JSON_INTEGER:
-		pj_n (pj, json->num.u_value);
-		break;
-	case R_JSON_DOUBLE:
-		pj_d (pj, json->num.dbl_value);
-		break;
-	case R_JSON_BOOLEAN:
-		pj_b (pj, json->num.u_value);
-		break;
-	case R_JSON_NULL:
-		pj_null (pj);
-		break;
-	case R_JSON_OBJECT:
-		if (!existing_pj) {
-			pj_o (pj);
-		}
-		// Handle object's properties
-		const RJson *prop = json->children.first;
-		while (prop) {
-			if (prop->key) {
-				switch (prop->type) {
-				case R_JSON_STRING:
-					pj_ks (pj, prop->key, prop->str_value);
-					break;
-				case R_JSON_INTEGER:
-					pj_kn (pj, prop->key, prop->num.u_value);
-					break;
-				case R_JSON_DOUBLE:
-					pj_kd (pj, prop->key, prop->num.dbl_value);
-					break;
-				case R_JSON_BOOLEAN:
-					pj_kb (pj, prop->key, prop->num.u_value);
-					break;
-				case R_JSON_NULL:
-					pj_knull (pj, prop->key);
-					break;
-				case R_JSON_OBJECT:
-					pj_ko (pj, prop->key);
-					if (!r_json_to_pj (prop, pj)) {
-						if (!existing_pj) {
-							pj_free (pj);
-						}
-						return NULL;
-					}
-					pj_end (pj);
-					break;
-				case R_JSON_ARRAY:
-					pj_ka (pj, prop->key);
-					if (!r_json_to_pj (prop, pj)) {
-						if (!existing_pj) {
-							pj_free (pj);
-						}
-						return NULL;
-					}
-					pj_end (pj);
-					break;
-				default:
-					break;
-				}
-			}
-			prop = prop->next;
-		}
-		if (!existing_pj) {
-			pj_end (pj);
-		}
-		break;
-	case R_JSON_ARRAY:
-		if (!existing_pj) {
-			pj_a (pj);
-		}
-		// Handle array items
-		const RJson *item = json->children.first;
-		while (item) {
-			switch (item->type) {
-			case R_JSON_STRING:
-				pj_s (pj, item->str_value);
-				break;
-			case R_JSON_INTEGER:
-				pj_n (pj, item->num.u_value);
-				break;
-			case R_JSON_DOUBLE:
-				pj_d (pj, item->num.dbl_value);
-				break;
-			case R_JSON_BOOLEAN:
-				pj_b (pj, item->num.u_value);
-				break;
-			case R_JSON_NULL:
-				pj_null (pj);
-				break;
-			case R_JSON_OBJECT:
-				pj_o (pj);
-				if (!r_json_to_pj (item, pj)) {
-					if (!existing_pj) {
-						pj_free (pj);
-					}
-					return NULL;
-				}
-				pj_end (pj);
-				break;
-			case R_JSON_ARRAY:
-				pj_a (pj);
-				if (!r_json_to_pj (item, pj)) {
-					if (!existing_pj) {
-						pj_free (pj);
-					}
-					return NULL;
-				}
-				pj_end (pj);
-				break;
-			default:
-				break;
-			}
-			item = item->next;
-		}
-		if (!existing_pj) {
-			pj_end (pj);
-		}
-		break;
-	default:
-		if (!existing_pj) {
-			pj_free (pj);
-		}
-		return NULL;
-	}
-
-	return pj;
-}
-
-// Helper function to clone RJson to string
-R_API char *r_json_to_string(const RJson *json) {
-	PJ *pj = r_json_to_pj (json, NULL);
-	return pj? pj_drain (pj): NULL;
 }

@@ -28,20 +28,20 @@ R_API RMarkdownTheme r2ai_markdown_theme_default(void) {
 		.code_inline = "\x1b[48;5;236m", // Dark gray background for inline code
 		.code_block = "\x1b[48;5;235m", // Slightly darker gray for code blocks
 						// Heading colors
-		.heading1 = "\x1b[1;4;31m", // Bold, underlined, red
-		.heading2 = "\x1b[1;4;32m", // Bold, underlined, green
-		.heading3 = "\x1b[1;4;33m", // Bold, underlined, yellow
-		.heading4 = "\x1b[1;4;34m", // Bold, underlined, blue
-		.heading5 = "\x1b[1;4;35m", // Bold, underlined, magenta
-		.heading6 = "\x1b[1;4;36m", // Bold, underlined, cyan
+		.heading1 = "\x1b[1;4" Color_RED, // Bold, underlined, red
+		.heading2 = "\x1b[1;4" Color_GREEN, // Bold, underlined, green
+		.heading3 = "\x1b[1;4" Color_YELLOW, // Bold, underlined, yellow
+		.heading4 = "\x1b[1;4" Color_BLUE, // Bold, underlined, blue
+		.heading5 = "\x1b[1;4" Color_MAGENTA, // Bold, underlined, magenta
+		.heading6 = "\x1b[1;4" Color_CYAN, // Bold, underlined, cyan
 					// List items
 		.list_bullet = "• ", // Bullet character
-		.list_number = "\x1b[1m%s.\x1b[0m ", // Bold number
+		.list_number = "\x1b[1m%s." Color_RESET " ", // Bold number
 						// Checkbox states
-		.checkbox_checked = "\x1b[32m[✓]\x1b[0m ", // Green checkmark
-		.checkbox_unchecked = "\x1b[90m[ ]\x1b[0m ", // Gray empty box
+		.checkbox_checked = Color_GREEN "[✓]" Color_RESET " ", // Green checkmark
+		.checkbox_unchecked = Color_GRAY "[ ]" Color_RESET " ", // Gray empty box
 							// Reset code
-		.reset = "\x1b[0m"
+		.reset = Color_RESET
 	};
 	return theme;
 }
