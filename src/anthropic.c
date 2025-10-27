@@ -8,8 +8,8 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) 
 	RCore *core = cps->core;
 	const char *model = args.model;
 	char **error = args.error;
-	const R2AI_Tools *tools = args.tools;
-	R2AI_Messages *messages_input = args.messages;
+	RList *tools = args.tools;
+	RList *messages_input = args.messages;
 
 	if (error) {
 		*error = NULL;
@@ -41,7 +41,7 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) 
 	// Create messages JSON
 	char *messages_json = NULL;
 
-	if (messages_input && r_list_length (messages_input->messages) > 0) {
+	if (messages_input && !r_list_empty (messages_input)) {
 		// Convert directly to JSON without filtering
 		messages_json = r2ai_msgs_to_anthropic_json (messages_input);
 		if (!messages_json) {
@@ -61,7 +61,7 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) 
 
 	// Convert tools to Anthropic format if available
 	char *anthropic_tools_json = NULL;
-	if (tools && tools->tools && r_list_length (tools->tools) > 0) {
+	if (tools && !r_list_empty (tools)) {
 		anthropic_tools_json = r2ai_tools_to_anthropic_json (tools);
 	}
 
@@ -207,7 +207,7 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) 
 				// Process each content item
 				int tool_idx = 0;
 				if (content_array && content_array->type == R_JSON_ARRAY) {
-					R2AI_ContentBlocks *cb = r2ai_content_blocks_new ();
+					RList *cb = r2ai_content_blocks_new ();
 					if (!cb) {
 						r_json_free (jres);
 						free (response_copy);
@@ -279,7 +279,7 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) 
 								r_strbuf_append (content_buf, block->thinking);
 								r_strbuf_append (content_buf, "\n</thinking>" Color_RESET "\n");
 							}
-							r_list_append (cb->blocks, block);
+							r_list_append (cb, block);
 						}
 						content_item = content_item->next;
 					}
@@ -290,7 +290,7 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) 
 				message->content = r_strbuf_drain (content_buf);
 
 				// If there's no content and no tool calls, clean up
-				if (!message->content && (!message->tool_calls || r_list_length (message->tool_calls) == 0)) {
+				if (!message->content && (!message->tool_calls || r_list_empty (message->tool_calls))) {
 					r2ai_message_free (message);
 					message = NULL;
 				}

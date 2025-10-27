@@ -33,29 +33,29 @@ static R2AI_Tool qjs_tool = {
 };
 
 // Create a global tools structure with our tools
-static R2AI_Tools r2ai_tools_instance = {
-	.tools = NULL // Will initialize below
-};
 
-// Function to get the global tools instance
-R_API const R2AI_Tools *r2ai_get_tools(void) {
+// Function to get the tools instance from state
+R_API RList *r2ai_get_tools(R2AI_State *state) {
+	if (!state) {
+		return NULL;
+	}
 	// Initialize tools list if not done yet
-	if (!r2ai_tools_instance.tools) {
-		r2ai_tools_instance.tools = r_list_new ();
-		if (!r2ai_tools_instance.tools) {
+	if (!state->tools) {
+		state->tools = r_list_new ();
+		if (!state->tools) {
 			return NULL;
 		}
-		r2ai_tools_instance.tools->free = (RListFree)free; // Tools are static, just free pointers
+		state->tools->free = (RListFree)free; // Tools are static, just free pointers
 
 		// Add the static tools
-		r_list_append (r2ai_tools_instance.tools, (void *)&r2cmd_tool);
-		r_list_append (r2ai_tools_instance.tools, (void *)&qjs_tool);
+		r_list_append (state->tools, (void *)&r2cmd_tool);
+		r_list_append (state->tools, (void *)&qjs_tool);
 	}
-	return &r2ai_tools_instance;
+	return state->tools;
 }
 
 // Function to parse input tools_json (OpenAI format) into R2AI_Tool list
-R_API R2AI_Tools *r2ai_tools_parse(const char *tools_json) {
+R_API RList *r2ai_tools_parse(const char *tools_json) {
 	if (!tools_json) {
 		return NULL;
 	}
@@ -67,14 +67,12 @@ R_API R2AI_Tools *r2ai_tools_parse(const char *tools_json) {
 		return NULL;
 	}
 
-	R2AI_Tools *tools = R_NEW0 (R2AI_Tools);
-	tools->tools = r_list_new ();
-	if (!tools->tools) {
-		free (tools);
+	RList *tools = r_list_new ();
+	if (!tools) {
 		r_json_free (json);
 		return NULL;
 	}
-	tools->tools->free = (RListFree)free; // Tools are dynamically allocated
+	tools->free = (RListFree)free; // Tools are dynamically allocated
 
 	for (size_t i = 0; i < json->children.count; i++) {
 		const RJson *tool_json = r_json_item (json, i);
@@ -117,7 +115,7 @@ R_API R2AI_Tools *r2ai_tools_parse(const char *tools_json) {
 			}
 		}
 
-		r_list_append (tools->tools, tool);
+		r_list_append (tools, tool);
 	}
 
 	r_json_free (json);
@@ -125,8 +123,8 @@ R_API R2AI_Tools *r2ai_tools_parse(const char *tools_json) {
 }
 
 // Function to convert R2AI_Tools to OpenAI format JSON
-R_API char *r2ai_tools_to_openai_json(const R2AI_Tools *tools) {
-	if (!tools || !tools->tools || r_list_length (tools->tools) <= 0) {
+R_API char *r2ai_tools_to_openai_json(const RList *tools) {
+	if (!tools || r_list_length (tools) <= 0) {
 		return NULL;
 	}
 
@@ -139,7 +137,7 @@ R_API char *r2ai_tools_to_openai_json(const R2AI_Tools *tools) {
 
 	RListIter *iter;
 	R2AI_Tool *tool;
-	r_list_foreach (tools->tools, iter, tool) {
+	r_list_foreach (tools, iter, tool) {
 		if (!tool->name) {
 			continue;
 		}
@@ -173,8 +171,8 @@ R_API char *r2ai_tools_to_openai_json(const R2AI_Tools *tools) {
 }
 
 // Function to convert R2AI_Tools to Anthropic format JSON
-R_API char *r2ai_tools_to_anthropic_json(const R2AI_Tools *tools) {
-	if (!tools || !tools->tools || r_list_length (tools->tools) <= 0) {
+R_API char *r2ai_tools_to_anthropic_json(const RList *tools) {
+	if (!tools || r_list_length (tools) <= 0) {
 		return NULL;
 	}
 
@@ -187,7 +185,7 @@ R_API char *r2ai_tools_to_anthropic_json(const R2AI_Tools *tools) {
 
 	RListIter *iter;
 	R2AI_Tool *tool;
-	r_list_foreach (tools->tools, iter, tool) {
+	r_list_foreach (tools, iter, tool) {
 		if (!tool->name) {
 			continue;
 		}
@@ -215,16 +213,12 @@ R_API char *r2ai_tools_to_anthropic_json(const R2AI_Tools *tools) {
 }
 
 // Function to free a tools structure
-R_API void r2ai_tools_free(R2AI_Tools *tools) {
+R_API void r2ai_tools_free(RList *tools) {
 	if (!tools) {
 		return;
 	}
 
-	if (tools->tools) {
-		r_list_free (tools->tools);
-	}
-
-	R_FREE (tools);
+	r_list_free (tools);
 }
 
 static char *to_cmd(const char *command) {

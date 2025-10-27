@@ -105,8 +105,8 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 
 	// Check for initial command output in messages
 	char *init_output = NULL;
-	if (args.messages && args.messages->messages) {
-		RList *msgs = args.messages->messages;
+	if (args.messages) {
+		RList *msgs = args.messages;
 		int n_msgs = r_list_length (msgs);
 		for (int i = 0; i < n_msgs; i++) {
 			R2AI_Message *msg = r_list_get_n (msgs, i);
@@ -161,13 +161,13 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 		R_LOG_DEBUG ("Raw tool call detected: %s with args: %s", tool_name, tool_args);
 
 		// Find the tool in our tools list
-		const R2AI_Tools *tools = r2ai_get_tools ();
+		RList *tools = r2ai_get_tools (cps->data);
 		bool tool_found = false;
 
-		if (tools && tools->tools) {
+		if (tools) {
 			RListIter *iter;
 			R2AI_Tool *tool;
-			r_list_foreach (tools->tools, iter, tool) {
+			r_list_foreach (tools, iter, tool) {
 				if (tool->name && !strcmp (tool->name, tool_name)) {
 					tool_found = true;
 					break;
