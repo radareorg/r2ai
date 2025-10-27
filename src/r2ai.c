@@ -12,11 +12,12 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -d [query]", "Ask a question on the current function",
 	"r2ai", " -dr", "Decompile current function (+ 1 level of recursivity)",
 	"r2ai", " -a [query]", "Resolve question using auto mode",
+	"r2ai", " -b [url]", "set/show base URL for provider API",
 	"r2ai", " -e (k(=v))", "Same as '-e r2ai.'",
 	"r2ai", " -E", "Edit the r2ai rc file",
 	"r2ai", " -h", "Show this help message",
 	"r2ai", " -i [file] [query]", "read file and ask the llm with the given query",
-	"r2ai", " -m", "show selected model, list suggested ones, choose one",
+	"r2ai", " -m [model]", "show selected model, list suggested ones, choose one",
 	"r2ai", " -p [provider]", "set LLM provider (openai, anthropic, gemini, etc.)",
 	"r2ai", " -q", "list available query prompts",
 	"r2ai", " -q [name] (inst)", "run predefined prompt with optional instructions",
@@ -326,6 +327,13 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		}
 	} else if (r_str_startswith (input, "-a")) {
 		cmd_r2ai_a (cps, r_str_trim_head_ro (input + 2));
+	} else if (r_str_startswith (input, "-b")) {
+		const char *baseurl = r_str_trim_head_ro (input + 2);
+		if (R_STR_ISEMPTY (baseurl)) {
+			r_cons_printf (core->cons, "%s\n", r_config_get (core->config, "r2ai.baseurl"));
+		} else {
+			r_config_set (core->config, "r2ai.baseurl", baseurl);
+		}
 	} else if (r_str_startswith (input, "-L-")) {
 		const char *arg = r_str_trim_head_ro (input + 3);
 		const int N = atoi (arg);
