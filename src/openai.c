@@ -302,11 +302,9 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	tmpdir = r_file_tmpdir ();
 	char *res_path = r_str_newf ("%s" R_SYS_DIR "r2ai_openai_response.json", tmpdir);
 	r_file_dump (res_path, (const ut8 *)res, strlen (res), 0);
-	R_LOG_DEBUG ("OpenAI API response saved to %s", res_path);
+	eprintf ("OpenAI API response: %s\n", res);
 	free (res_path);
 	free (tmpdir);
-
-	R_LOG_DEBUG ("OpenAI API response: %s", res);
 
 	// Parse the response into our messages structure
 
@@ -375,6 +373,8 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 				const RJson *content = r_json_get (message_json, "content");
 				const RJson *reasoning_content = r_json_get (message_json, "reasoning_content");
 				const RJson *thinking = r_json_get (message_json, "thinking");
+				const RJson *tool_call_id = r_json_get (message_json, "tool_call_id");
+				const RJson *tool_calls = r_json_get (message_json, "tool_calls");
 
 				// Set the basic message properties
 				message->role = (role && role->type == R_JSON_STRING)? strdup (role->str_value): strdup ("assistant");
@@ -387,6 +387,63 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 					message->reasoning_content = strdup (reasoning_content->str_value);
 				} else if (thinking && thinking->type == R_JSON_STRING && R_STR_ISNOTEMPTY (thinking->str_value)) {
 					message->reasoning_content = strdup (thinking->str_value);
+				}
+
+				if (tool_call_id && tool_call_id->type == R_JSON_STRING && R_STR_ISNOTEMPTY (tool_call_id->str_value)) {
+					message->tool_call_id = strdup (tool_call_id->str_value);
+				}
+
+				if (tool_calls && tool_calls->type == R_JSON_ARRAY && tool_calls->children.count > 0) {
+					message->tool_calls = r_list_new ();
+					if (message->tool_calls) {
+						message->tool_calls->free = (RListFree)r2ai_tool_call_free;
+						for (size_t i = 0; i < tool_calls->children.count; i++) {
+							const RJson *tool_call = r_json_item (tool_calls, i);
+							if (!tool_call || tool_call->type != R_JSON_OBJECT) {
+								continue;
+							}
+							R2AI_ToolCall *tc = R_NEW0 (R2AI_ToolCall);
+							if (!tc) {
+								continue;
+							}
+							const RJson *tc_id = r_json_get (tool_call, "id");
+							if (tc_id && tc_id->type == R_JSON_STRING && R_STR_ISNOTEMPTY (tc_id->str_value)) {
+								tc->id = strdup (tc_id->str_value);
+							}
+							const RJson *function = r_json_get (tool_call, "function");
+							const RJson *name_json = NULL;
+							const RJson *arguments = NULL;
+							if (function && function->type == R_JSON_OBJECT) {
+								name_json = r_json_get (function, "name");
+								arguments = r_json_get (function, "arguments");
+							} else {
+								name_json = r_json_get (tool_call, "name");
+								arguments = r_json_get (tool_call, "arguments");
+							}
+							if (name_json && name_json->type == R_JSON_STRING && R_STR_ISNOTEMPTY (name_json->str_value)) {
+								tc->name = strdup (name_json->str_value);
+							}
+							if (arguments) {
+								if (arguments->type == R_JSON_STRING && R_STR_ISNOTEMPTY (arguments->str_value)) {
+									tc->arguments = strdup (arguments->str_value);
+								} else {
+									char *arguments_json = r_json_to_string (arguments);
+									if (arguments_json) {
+										tc->arguments = arguments_json;
+									}
+								}
+							}
+							if (!tc->name && !tc->arguments && !tc->id) {
+								r2ai_tool_call_free (tc);
+								continue;
+							}
+							r_list_append (message->tool_calls, tc);
+						}
+						if (r_list_empty (message->tool_calls)) {
+							r_list_free (message->tool_calls);
+							message->tool_calls = NULL;
+						}
+					}
 				}
 				// TODO: Handle tool calls if present?
 			}

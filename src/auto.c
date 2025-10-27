@@ -248,7 +248,7 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 										RJson *cmd_json = (RJson *)r_json_get (args_json, "command");
 										if (cmd_json && cmd_json->str_value) {
 											// Update the command field
-											free ((char *)cmd_json->str_value);
+											// XXX double gree free ((char *)cmd_json->str_value);
 											cmd_json->str_value = strdup (edited_command);
 											// Serialize back to JSON
 #if 1
