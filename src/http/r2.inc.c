@@ -1,7 +1,6 @@
 extern volatile sig_atomic_t r2ai_http_interrupted;
 extern void r2ai_http_sigint_handler(int sig);
 
-
 // Socket implementation with interrupt handling and retry logic
 static HttpResponse socket_http_post_with_interrupt(const HTTPRequest *request) {
 #if R2__WINDOWS__

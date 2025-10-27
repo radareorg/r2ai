@@ -291,6 +291,34 @@ static void load_embeddings(RCorePluginSession *cps) {
 	r_list_free (files);
 }
 
+static bool load_r2airc(RCorePluginSession *cps) {
+	char *rc_path = r_file_home (".config/r2ai/rc");
+	if (rc_path && r_file_exists (rc_path)) {
+		char *content = r_file_slurp (rc_path, NULL);
+		if (content) {
+			RList *lines = r_str_split_list (content, "\n", -1);
+			RListIter *iter;
+			char *line;
+			r_list_foreach (lines, iter, line) {
+				const char *trimmed = r_str_trim_head_ro (line);
+				if (R_STR_ISEMPTY (trimmed) || *trimmed == '#') {
+					continue;
+				}
+				if (r_str_startswith (trimmed, "r2ai -e ") || r_str_startswith (trimmed, "-e ")) {
+					const char *arg = trimmed + (r_str_startswith (trimmed, "r2ai -e ")? 7: 3);
+					cmd_r2ai (cps, r_str_newf ("-e%s", arg));
+				} else {
+					R_LOG_ERROR ("Invalid line in r2ai rc: %s", trimmed);
+				}
+			}
+			r_list_free (lines);
+			free (content);
+		}
+	}
+	free (rc_path);
+	return true;
+}
+
 static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 	RCore *core = cps->core;
 	R2AI_State *state = cps->data;
@@ -300,6 +328,7 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		char *rc_path = r_file_home (".config/r2ai/rc");
 		r_cons_editor (core->cons, rc_path, NULL);
 		free (rc_path);
+		load_r2airc (cps);
 	} else if (r_str_startswith (input, "-e")) {
 		const char *arg = r_str_trim_head_ro (input + 2);
 		if (r_str_startswith (arg, "r2ai")) {
@@ -490,12 +519,6 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	// Initialize conversation container
 	r2ai_conversation_init (state);
 
-	char *rc_path = r_file_home (".config/r2ai/rc");
-	if (rc_path && r_file_exists (rc_path)) {
-		r_core_cmdf (core, ". %s", rc_path);
-	}
-	free (rc_path);
-
 	r_config_lock (core->config, false);
 	r_config_set_cb (core->config, "r2ai.api", R2AI_DEFAULT_PROVIDER, &cb_r2ai_api);
 	{
@@ -571,7 +594,8 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_set_b (core->config, "r2ai.auto.raw", false);
 	r_config_desc (core->config, "r2ai.auto.raw", "Use prompt engineering for tool calling instead of native API support (true/false)");
 	r_config_lock (core->config, true);
-	return true;
+
+	return load_r2airc (cps);
 }
 
 R_API bool r2ai_fini(RCorePluginSession *cps) {
