@@ -42,7 +42,7 @@ R_API char *r2ai(RCorePluginSession *cps, R2AIArgs args) {
 		args.system_prompt = r_config_get (core->config, "r2ai.system");
 	}
 
-	R2AI_Messages *msgs = r2ai_msgs_new ();
+	RList *msgs = r2ai_msgs_new ();
 
 	if (args.input) {
 		R2AI_Message msg = { .role = "user", .content = (char *)args.input };
@@ -329,8 +329,8 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 	} else if (r_str_startswith (input, "-L-")) {
 		const char *arg = r_str_trim_head_ro (input + 3);
 		const int N = atoi (arg);
-		R2AI_Messages *messages = r2ai_conversation_get (state);
-		if (!messages || r_list_length (messages->messages) == 0) {
+		RList *messages = r2ai_conversation_get (state);
+		if (!messages || r_list_empty (messages)) {
 			r_cons_printf (core->cons, "No conversation history available\n");
 		} else {
 			r2ai_delete_last_messages (messages, N);
@@ -366,8 +366,8 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 	} else if (r_str_startswith (input, "-r")) {
 		cmd_r2ai_repl (cps);
 	} else if (r_str_startswith (input, "-R")) {
-		R2AI_Messages *messages = r2ai_conversation_get (state);
-		if (!messages || r_list_length (messages->messages) == 0) {
+		RList *messages = r2ai_conversation_get (state);
+		if (!messages || r_list_empty (messages)) {
 			r_cons_printf (core->cons, "No conversation history to reset\n");
 		} else {
 			r2ai_msgs_clear (messages);

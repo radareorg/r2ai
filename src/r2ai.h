@@ -60,10 +60,7 @@ typedef struct {
 	char *parameters; // JSON string of parameters/input_schema
 } R2AI_Tool;
 
-// Tools array management
-typedef struct {
-	RList *tools; // RList<R2AI_Tool *>
-} R2AI_Tools;
+// Tools array management (now just RList<R2AI_Tool *>)
 
 typedef struct {
 	const char *name;
@@ -87,25 +84,23 @@ typedef struct {
 	char *text;
 } R2AI_ContentBlock;
 
-typedef struct {
-	RList *blocks; // RList<R2AI_ContentBlock *>
-} R2AI_ContentBlocks;
+// Content blocks (now just RList<R2AI_ContentBlock *>)
 
 /**
- * Create a new R2AI_ContentBlocks instance
+ * Create a new content blocks RList
  */
-R_API R2AI_ContentBlocks *r2ai_content_blocks_new(void);
+R_API RList *r2ai_content_blocks_new(void);
 
 /**
- * Free an R2AI_ContentBlocks instance
+ * Free a content blocks RList
  */
-R_API void r2ai_content_blocks_free(R2AI_ContentBlocks *cb);
+R_API void r2ai_content_blocks_free(RList *cb);
 
 typedef struct {
 	char *role;
 	char *content;
 	char *reasoning_content;
-	R2AI_ContentBlocks *content_blocks;
+	RList *content_blocks; // RList<R2AI_ContentBlock *>
 	char *tool_call_id;
 	RList *tool_calls; // RList<R2AI_ToolCall *>
 } R2AI_Message;
@@ -134,17 +129,14 @@ typedef struct {
 	const R2AI_Usage *usage;
 } R2AI_ChatResponse;
 
-// Messages array management
-typedef struct {
-	RList *messages; // RList<R2AI_Message *>
-} R2AI_Messages;
+// Messages array management (now just RList<R2AI_Message *>)
 
 typedef struct {
 	const char *input;
 	const char *model;
 	const char *system_prompt; // System prompt to use
-	const R2AI_Tools *tools; // Tools structure (replacing tools_json)
-	R2AI_Messages *messages; // Array of message objects
+	RList *tools; // Tools RList (replacing tools_json)
+	RList *messages; // Array of message objects
 	const char *provider;
 	const char *api_key;
 	int max_tokens;
@@ -170,9 +162,9 @@ typedef struct {
 
 // Main state structure to hold all global state
 typedef struct r2ai_state_t {
-	R2AI_Messages *conversation; // Global conversation messages (from messages.c)
+	RList *conversation; // Global conversation messages (from messages.c)
 	R2AIStats stats; // Global stats (from auto.c)
-	R2AI_Tools *tools; // Global tools instance (from tools.c)
+	RList *tools; // Global tools instance (from tools.c)
 	RMarkdownTheme current_theme; // Global theme (from markdown.c)
 	bool theme_initialized; // Global theme flag (from markdown.c)
 	void *help_msg; // Global help message (from r2ai.c)
@@ -183,7 +175,7 @@ typedef struct r2ai_state_t {
 /**
  * Initialize a new empty messages array
  */
-R_API R2AI_Messages *r2ai_msgs_new(void);
+R_API RList *r2ai_msgs_new(void);
 
 /**
  * Initialize the conversation container (call during plugin init)
@@ -193,53 +185,53 @@ R_API void r2ai_conversation_init(R2AI_State *state);
 /**
  * Get the conversation instance (returns NULL if not initialized)
  */
-R_API R2AI_Messages *r2ai_conversation_get(R2AI_State *state);
+R_API RList *r2ai_conversation_get(R2AI_State *state);
 
 /**
  * Clear all messages in a container without freeing the container
  */
-R_API void r2ai_msgs_clear(R2AI_Messages *msgs);
+R_API void r2ai_msgs_clear(RList *msgs);
 
 /**
  * Add a message to the array
  * All strings are duplicated, so caller can free their copies
  */
-R_API bool r2ai_msgs_add(R2AI_Messages *msgs, const R2AI_Message *msg);
+R_API bool r2ai_msgs_add(RList *msgs, const R2AI_Message *msg);
 
 /**
  * Add a tool call to the last message in the array
  * All strings are duplicated, so caller can free their copies
  */
-R_API bool r2ai_msgs_add_tool_call(R2AI_Messages *msgs, const R2AI_ToolCall *tc);
+R_API bool r2ai_msgs_add_tool_call(RList *msgs, const R2AI_ToolCall *tc);
 
 /**
  * Parse a JSON response string and add the messages to the array
  * Returns true on success, false on failure
  */
-R_API bool r2ai_msgs_from_response(R2AI_Messages *msgs, const char *json_str);
+R_API bool r2ai_msgs_from_response(RList *msgs, const char *json_str);
 
 /**
  * Parse a RJson object directly and add the messages to the array
  * Returns true on success, false on failure
  */
-R_API bool r2ai_msgs_from_json(R2AI_Messages *msgs, const RJson *json);
+R_API bool r2ai_msgs_from_json(RList *msgs, const RJson *json);
 
 /**
  * Convert messages array to JSON string
  * Caller must free the returned string
  */
-R_API char *r2ai_msgs_to_json(const R2AI_Messages *msgs);
+R_API char *r2ai_msgs_to_json(const RList *msgs);
 
 /**
  * Convert messages array to Anthropic format JSON string
  * Caller must free the returned string
  */
-R_API char *r2ai_msgs_to_anthropic_json(const R2AI_Messages *msgs);
+R_API char *r2ai_msgs_to_anthropic_json(const RList *msgs);
 
 /**
  * Free a messages array and all associated data
  */
-R_API void r2ai_msgs_free(R2AI_Messages *msgs);
+R_API void r2ai_msgs_free(RList *msgs);
 
 /**
  * Free the conversation (call during plugin unload)
@@ -252,44 +244,39 @@ R_API void r2ai_conversation_free(R2AI_State *state);
 R_API void r2ai_message_free(R2AI_Message *msg);
 
 /**
- * Free a R2AIPrompt structure
- */
-R_API void r2aiprompt_free(R2AIPrompt *prompt);
-
-/**
  * Delete the last N messages from the message array
  * If n <= 0, defaults to deleting just the last message
  */
-R_API void r2ai_delete_last_messages(R2AI_Messages *messages, int n);
+R_API void r2ai_delete_last_messages(RList *messages, int n);
 
 /**
- * Get the global tools instance
- * Returns a pointer to the global tools structure
+ * Get the tools instance from state
+ * Returns a pointer to the tools RList
  */
-R_API const R2AI_Tools *r2ai_get_tools(void);
+R_API RList *r2ai_get_tools(R2AI_State *state);
 
 /**
- * Parse OpenAI format tools JSON into internal tools structure
+ * Parse OpenAI format tools JSON into internal tools RList
  * Caller must free the result with r2ai_tools_free
  */
-R_API R2AI_Tools *r2ai_tools_parse(const char *tools_json);
+R_API RList *r2ai_tools_parse(const char *tools_json);
 
 /**
- * Convert tools structure to OpenAI format JSON
+ * Convert tools RList to OpenAI format JSON
  * Caller must free the returned string
  */
-R_API char *r2ai_tools_to_openai_json(const R2AI_Tools *tools);
+R_API char *r2ai_tools_to_openai_json(const RList *tools);
 
 /**
- * Convert tools structure to Anthropic format JSON
+ * Convert tools RList to Anthropic format JSON
  * Caller must free the returned string
  */
-R_API char *r2ai_tools_to_anthropic_json(const R2AI_Tools *tools);
+R_API char *r2ai_tools_to_anthropic_json(const RList *tools);
 
 /**
- * Free a tools structure and all associated data
+ * Free a tools RList and all associated data
  */
-R_API void r2ai_tools_free(R2AI_Tools *tools);
+R_API void r2ai_tools_free(RList *tools);
 
 /**
  * Execute a tool and return the output 
@@ -357,7 +344,7 @@ R_IPI void cmd_r2ai_logs(RCorePluginSession *cps);
 /**
  * Process messages through LLM and handle tool calls recursively
  */
-R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, const char *system_prompt, int n_run);
+R_API void process_messages(RCorePluginSession *cps, RList *messages, const char *system_prompt, int n_run);
 
 /**
  * Helper function to convert RJson to string

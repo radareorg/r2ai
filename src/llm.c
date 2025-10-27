@@ -39,7 +39,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	if (!provider) {
 		provider = "gemini";
 	}
-	if (rawtools_enabled && args.tools && r_list_length (args.tools->tools) > 0) {
+	if (rawtools_enabled && args.tools && r_list_length (args.tools) > 0) {
 		return r2ai_rawtools_llmcall (cps, args);
 	}
 	R2AI_State *state = cps->data;
@@ -115,7 +115,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 		}
 		char *m = r_strbuf_drain (sb);
 		R2AI_Message msg = { .role = "user", .content = m };
-		context_pullback = r_list_length (args.messages->messages);
+		context_pullback = r_list_length (args.messages);
 		r2ai_msgs_add (args.messages, &msg);
 		free (m);
 		// TODO: we can save the msg without context
@@ -137,7 +137,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 		res = r2ai_openai (cps, args);
 	}
 	if (context_pullback != -1) {
-		R2AI_Message *msg = r_list_get_n (args.messages->messages, context_pullback);
+		R2AI_Message *msg = r_list_get_n (args.messages, context_pullback);
 		free ((char *)msg->content);
 		msg->content = strdup (args.input);
 	}

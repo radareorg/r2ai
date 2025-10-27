@@ -102,7 +102,7 @@ const char *Gprompt_auto =
 	"- Make sure you call tools and functions correctly.\n";
 
 // Helper function to process messages and handle tool calls recursively
-R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, const char *system_prompt, int n_run) {
+R_API void process_messages(RCorePluginSession *cps, RList *messages, const char *system_prompt, int n_run) {
 	RCore *core = cps->core;
 	R2AI_State *state = cps->data;
 	char *error = NULL;
@@ -135,7 +135,7 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 
 	r2ai_stats_init_run (state, n_run);
 
-	r_cons_printf (core->cons, Color_BLUE"About to call r2ai_llmcall with n_run=%d%s\n", n_run, Color_RESET);
+	r_cons_printf (core->cons, Color_BLUE "About to call r2ai_llmcall with n_run=%d%s\n", n_run, Color_RESET);
 	r_cons_flush (core->cons);
 
 	// Set up args for r2ai_llmcall call with tools directly
@@ -183,7 +183,7 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 
 	// Process the response - we need to add it to our messages array
 	if (message->content || message->reasoning_content) {
-		r_cons_printf (core->cons, Color_RED"[Assistant]"Color_RESET);
+		r_cons_printf (core->cons, Color_RED "[Assistant]" Color_RESET);
 		if (message->reasoning_content) {
 			r_cons_printf (core->cons, Color_GRAY "<thinking>\n%s\n</thinking>" Color_RESET "\n", message->reasoning_content);
 			r_cons_newline (core->cons);
@@ -234,7 +234,7 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 				cmd_output = execute_tool (core, tool_name, tool_args, &edited_command);
 				if (edited_command) {
 					// Update the last message's tool call arguments with the edited command
-					R2AI_Message *last_msg = r_list_get_n (messages->messages, r_list_length (messages->messages) - 1);
+					R2AI_Message *last_msg = r_list_get_n (messages, r_list_length (messages) - 1);
 					if (last_msg && last_msg->tool_calls && r_list_length (last_msg->tool_calls) > 0) {
 						RListIter *iter;
 						R2AI_ToolCall *tc;
@@ -293,7 +293,7 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 			// Add the tool response to our messages array
 			r2ai_msgs_add (messages, &tool_response);
 			R_LOG_DEBUG ("Added tool response to messages: %s", cmd_output? cmd_output: "null");
-			r_cons_printf (core->cons, Color_GREEN"Tool result: %s"Color_RESET, cmd_output? cmd_output: "no output");
+			r_cons_printf (core->cons, Color_GREEN "Tool result: %s" Color_RESET, cmd_output? cmd_output: "no output");
 			free (cmd_output);
 			i++;
 		}
@@ -318,10 +318,10 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query) {
 	RCore *core = cps->core;
 	R2AI_State *state = cps->data;
-	r_cons_printf (core->cons, Color_CYAN"cmd_r2ai_a called with query: %s"Color_RESET"\n", user_query);
+	r_cons_printf (core->cons, Color_CYAN "cmd_r2ai_a called with query: %s" Color_RESET "\n", user_query);
 	r_cons_flush (core->cons);
 	// Get conversation
-	R2AI_Messages *messages = r2ai_conversation_get (state);
+	RList *messages = r2ai_conversation_get (state);
 	if (!messages) {
 		R_LOG_ERROR ("Conversation not initialized");
 		return;
@@ -329,7 +329,7 @@ R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query) {
 
 	// Add user query to the conversation (no system prompt)
 	// If this is the first message in a new conversation, clear previous history
-	if (r_list_length (messages->messages) == 0 || r_config_get_b (core->config, "r2ai.auto.reset_on_query")) {
+	if (r_list_empty (messages) || r_config_get_b (core->config, "r2ai.auto.reset_on_query")) {
 		r2ai_msgs_clear (messages);
 	}
 
@@ -373,8 +373,8 @@ R_IPI void cmd_r2ai_logs(RCorePluginSession *cps) {
 	RCore *core = cps->core;
 	R2AI_State *state = cps->data;
 	// Get conversation
-	R2AI_Messages *messages = r2ai_conversation_get (state);
-	if (!messages || r_list_length (messages->messages) == 0) {
+	RList *messages = r2ai_conversation_get (state);
+	if (!messages || r_list_empty (messages)) {
 		r_cons_printf (core->cons, "No conversation history available\n");
 		return;
 	}
@@ -391,8 +391,9 @@ R_IPI void cmd_r2ai_logs(RCorePluginSession *cps) {
 
 		pj_a (pj);
 
-		for (int i = 0; i < r_list_length (messages->messages); i++) {
-			const R2AI_Message *msg = r_list_get_n (messages->messages, i);
+		RListIter *iter;
+		const R2AI_Message *msg;
+		r_list_foreach (messages, iter, msg) {
 			pj_o (pj);
 			pj_ks (pj, "role", msg->role? msg->role: "unknown");
 			pj_ks (pj, "content", msg->content? msg->content: "");
@@ -425,13 +426,14 @@ R_IPI void cmd_r2ai_logs(RCorePluginSession *cps) {
 	}
 
 	r_cons_printf (core->cons, "\x1b[1" Color_BLUE "[r2ai] Chat Logs (%d messages)" Color_RESET "\n",
-		r_list_length (messages->messages));
+		r_list_length (messages));
 
 	r_cons_printf (core->cons, "\x1b[1" Color_YELLOW "Note: System prompt is applied automatically but not stored in history" Color_RESET "\n\n");
 
 	// Display each message in the conversation
-	for (int i = 0; i < r_list_length (messages->messages); i++) {
-		const R2AI_Message *msg = r_list_get_n (messages->messages, i);
+	RListIter *iter;
+	const R2AI_Message *msg;
+	r_list_foreach (messages, iter, msg) {
 		const char *role = msg->role;
 
 		// Format based on role

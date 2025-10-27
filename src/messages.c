@@ -12,23 +12,20 @@ R_API void r2ai_tool_call_free(R2AI_ToolCall *tc) {
 	free (tc);
 }
 
-R_API R2AI_ContentBlocks *r2ai_content_blocks_new(void) {
-	R2AI_ContentBlocks *cb = R_NEW0 (R2AI_ContentBlocks);
-	cb->blocks = r_list_new ();
-	if (!cb->blocks) {
-		free (cb);
+R_API RList *r2ai_content_blocks_new(void) {
+	RList *cb = r_list_new ();
+	if (!cb) {
 		return NULL;
 	}
-	cb->blocks->free = (RListFree)free; // ContentBlocks contain pointers to structs, not structs themselves
+	cb->free = (RListFree)free; // ContentBlocks contain pointers to structs, not structs themselves
 	return cb;
 }
 
-R_API void r2ai_content_blocks_free(R2AI_ContentBlocks *cb) {
+R_API void r2ai_content_blocks_free(RList *cb) {
 	if (!cb) {
 		return;
 	}
-	r_list_free (cb->blocks);
-	free (cb);
+	r_list_free (cb);
 }
 
 R_API void r2ai_message_free(R2AI_Message *msg) {
@@ -62,26 +59,23 @@ R_API void r2ai_conversation_init(R2AI_State *state) {
 	state->conversation = r2ai_msgs_new ();
 }
 
-R_API R2AI_Messages *r2ai_conversation_get(R2AI_State *state) {
+R_API RList *r2ai_conversation_get(R2AI_State *state) {
 	return state? state->conversation: NULL;
 }
 
 // Create a new temporary messages container
-R_API R2AI_Messages *r2ai_msgs_new(void) {
-	R2AI_Messages *msgs = R_NEW0 (R2AI_Messages);
-	msgs->messages = r_list_new ();
-	if (!msgs->messages) {
-		R_FREE (msgs);
+R_API RList *r2ai_msgs_new(void) {
+	RList *msgs = r_list_new ();
+	if (!msgs) {
 		return NULL;
 	}
-	msgs->messages->free = (RListFree)r2ai_message_free;
+	msgs->free = (RListFree)r2ai_message_free;
 	return msgs;
 }
 
-R_API void r2ai_msgs_free(R2AI_Messages *msgs) {
+R_API void r2ai_msgs_free(RList *msgs) {
 	if (msgs) {
-		r_list_free (msgs->messages);
-		R_FREE (msgs);
+		r_list_free (msgs);
 	}
 }
 
@@ -94,14 +88,14 @@ R_API void r2ai_conversation_free(R2AI_State *state) {
 }
 
 // Clear messages in a container without freeing the container itself
-R_API void r2ai_msgs_clear(R2AI_Messages *msgs) {
+R_API void r2ai_msgs_clear(RList *msgs) {
 	if (!msgs) {
 		return;
 	}
-	r_list_purge (msgs->messages);
+	r_list_purge (msgs);
 }
 
-R_API bool r2ai_msgs_add(R2AI_Messages *msgs, const R2AI_Message *msg) {
+R_API bool r2ai_msgs_add(RList *msgs, const R2AI_Message *msg) {
 	if (!msgs || !msg) {
 		return false;
 	}
@@ -112,7 +106,7 @@ R_API bool r2ai_msgs_add(R2AI_Messages *msgs, const R2AI_Message *msg) {
 	new_msg->reasoning_content = msg->reasoning_content? strdup (msg->reasoning_content): NULL;
 
 	if (msg->content_blocks) {
-		R2AI_ContentBlocks *cb = r2ai_content_blocks_new ();
+		RList *cb = r2ai_content_blocks_new ();
 		if (!cb) {
 			r2ai_message_free (new_msg);
 			free (new_msg);
@@ -120,7 +114,7 @@ R_API bool r2ai_msgs_add(R2AI_Messages *msgs, const R2AI_Message *msg) {
 		}
 		RListIter *iter;
 		R2AI_ContentBlock *src;
-		r_list_foreach (msg->content_blocks->blocks, iter, src) {
+		r_list_foreach (msg->content_blocks, iter, src) {
 			R2AI_ContentBlock *dst = R_NEW0 (R2AI_ContentBlock);
 			dst->type = src->type? strdup (src->type): NULL;
 			dst->data = src->data? strdup (src->data): NULL;
@@ -130,7 +124,7 @@ R_API bool r2ai_msgs_add(R2AI_Messages *msgs, const R2AI_Message *msg) {
 			dst->id = src->id? strdup (src->id): NULL;
 			dst->name = src->name? strdup (src->name): NULL;
 			dst->input = src->input? strdup (src->input): NULL;
-			r_list_append (cb->blocks, dst);
+			r_list_append (cb, dst);
 		}
 		new_msg->content_blocks = cb;
 	}
@@ -157,16 +151,16 @@ R_API bool r2ai_msgs_add(R2AI_Messages *msgs, const R2AI_Message *msg) {
 		}
 	}
 
-	r_list_append (msgs->messages, new_msg);
+	r_list_append (msgs, new_msg);
 	return true;
 }
 
-R_API bool r2ai_msgs_add_tool_call(R2AI_Messages *msgs, const R2AI_ToolCall *tc) {
-	if (!msgs || !tc || r_list_length (msgs->messages) == 0) {
+R_API bool r2ai_msgs_add_tool_call(RList *msgs, const R2AI_ToolCall *tc) {
+	if (!msgs || !tc || r_list_empty (msgs)) {
 		return false;
 	}
 
-	R2AI_Message *msg = r_list_get_n (msgs->messages, r_list_length (msgs->messages) - 1);
+	R2AI_Message *msg = r_list_get_n (msgs, r_list_length (msgs) - 1);
 
 	// Ensure tool_calls list exists
 	if (!msg->tool_calls) {
@@ -187,7 +181,7 @@ R_API bool r2ai_msgs_add_tool_call(R2AI_Messages *msgs, const R2AI_ToolCall *tc)
 	return true;
 }
 
-R_API bool r2ai_msgs_from_response(R2AI_Messages *msgs, const char *json_str) {
+R_API bool r2ai_msgs_from_response(RList *msgs, const char *json_str) {
 	if (!msgs || !json_str) {
 		return false;
 	}
@@ -202,7 +196,7 @@ R_API bool r2ai_msgs_from_response(R2AI_Messages *msgs, const char *json_str) {
 	return result;
 }
 
-R_API bool r2ai_msgs_from_json(R2AI_Messages *msgs, const RJson *json) {
+R_API bool r2ai_msgs_from_json(RList *msgs, const RJson *json) {
 	if (!msgs || !json) {
 		return false;
 	}
@@ -234,7 +228,7 @@ R_API bool r2ai_msgs_from_json(R2AI_Messages *msgs, const RJson *json) {
 	new_msg.tool_calls = NULL;
 
 	if (content_blocks && content_blocks->type == R_JSON_ARRAY && content_blocks->children.count > 0) {
-		R2AI_ContentBlocks *cb = r2ai_content_blocks_new ();
+		RList *cb = r2ai_content_blocks_new ();
 		if (!cb) {
 			r2ai_message_free (&new_msg);
 			return false;
@@ -267,7 +261,7 @@ R_API bool r2ai_msgs_from_json(R2AI_Messages *msgs, const RJson *json) {
 			dst->id = (id && id->type == R_JSON_STRING)? strdup (id->str_value): NULL;
 			dst->name = (name && name->type == R_JSON_STRING)? strdup (name->str_value): NULL;
 			dst->input = (input && input->type == R_JSON_STRING)? strdup (input->str_value): NULL;
-			r_list_append (cb->blocks, dst);
+			r_list_append (cb, dst);
 		}
 		new_msg.content_blocks = cb;
 	}
@@ -312,8 +306,8 @@ R_API bool r2ai_msgs_from_json(R2AI_Messages *msgs, const RJson *json) {
 	return true;
 }
 
-R_API char *r2ai_msgs_to_json(const R2AI_Messages *msgs) {
-	if (!msgs || r_list_length (msgs->messages) == 0) {
+R_API char *r2ai_msgs_to_json(const RList *msgs) {
+	if (!msgs || r_list_empty (msgs)) {
 		return NULL;
 	}
 
@@ -324,8 +318,9 @@ R_API char *r2ai_msgs_to_json(const R2AI_Messages *msgs) {
 
 	pj_a (pj); // Start array
 
-	for (int i = 0; i < r_list_length (msgs->messages); i++) {
-		const R2AI_Message *msg = r_list_get_n (msgs->messages, i);
+	RListIter *iter;
+	const R2AI_Message *msg;
+	r_list_foreach (msgs, iter, msg) {
 
 		pj_o (pj); // Start message object
 
@@ -394,8 +389,8 @@ R_API char *r2ai_msgs_to_json(const R2AI_Messages *msgs) {
 	return result;
 }
 
-R_API char *r2ai_msgs_to_anthropic_json(const R2AI_Messages *msgs) {
-	if (!msgs || r_list_length (msgs->messages) == 0) {
+R_API char *r2ai_msgs_to_anthropic_json(const RList *msgs) {
+	if (!msgs || r_list_empty (msgs)) {
 		return NULL;
 	}
 
@@ -406,9 +401,9 @@ R_API char *r2ai_msgs_to_anthropic_json(const R2AI_Messages *msgs) {
 
 	pj_a (pj); // Start array
 
-	for (int i = 0; i < r_list_length (msgs->messages); i++) {
-		const R2AI_Message *msg = r_list_get_n (msgs->messages, i);
-
+	RListIter *iter;
+	const R2AI_Message *msg;
+	r_list_foreach (msgs, iter, msg) {
 		pj_o (pj); // Start message object
 
 		// Add role
@@ -419,7 +414,7 @@ R_API char *r2ai_msgs_to_anthropic_json(const R2AI_Messages *msgs) {
 			pj_ka (pj, "content"); // Start content array
 			RListIter *iter;
 			R2AI_ContentBlock *block;
-			r_list_foreach (msg->content_blocks->blocks, iter, block) {
+			r_list_foreach (msg->content_blocks, iter, block) {
 				pj_o (pj); // Start content block object
 				if (R_STR_ISNOTEMPTY (block->type)) {
 					pj_ks (pj, "type", block->type);
@@ -518,8 +513,8 @@ R_API char *r2ai_msgs_to_anthropic_json(const R2AI_Messages *msgs) {
 }
 
 // Function to delete the last N messages from conversation history
-R_API void r2ai_delete_last_messages(R2AI_Messages *messages, int n) {
-	if (!messages || r_list_length (messages->messages) == 0) {
+R_API void r2ai_delete_last_messages(RList *messages, int n) {
+	if (!messages || r_list_length (messages) == 0) {
 		return;
 	}
 
@@ -529,13 +524,13 @@ R_API void r2ai_delete_last_messages(R2AI_Messages *messages, int n) {
 	}
 
 	// Make sure we don't try to delete more messages than exist
-	int len = r_list_length (messages->messages);
+	int len = r_list_length (messages);
 	if (n > len) {
 		n = len;
 	}
 
 	// Pop the last n messages
 	for (int i = 0; i < n; i++) {
-		r_list_pop (messages->messages);
+		r_list_pop (messages);
 	}
 }

@@ -82,9 +82,9 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	// TODO: default model name should depend on api
 	const char *model_name = args.model? args.model: "gpt-4o-mini";
 	char **error = args.error;
-	const R2AI_Tools *tools = args.tools;
+	RList *tools = args.tools;
 	// create a temp conversation to include the system prompt and the rest of the messages
-	R2AI_Messages *temp_msgs = r2ai_msgs_new ();
+	RList *temp_msgs = r2ai_msgs_new ();
 	if (!temp_msgs) {
 		if (error) {
 			*error = strdup ("Failed to create temporary messages array");
@@ -122,15 +122,17 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 		}
 	}
 	if (args.messages) {
-		for (int i = 0; i < r_list_length (args.messages->messages); i++) {
-			r2ai_msgs_add (temp_msgs, r_list_get_n (args.messages->messages, i));
+		RListIter *iter;
+		R2AI_Message *msg;
+		r_list_foreach (args.messages, iter, msg) {
+			r2ai_msgs_add (temp_msgs, msg);
 		}
 	} else {
 		R_LOG_WARN ("No messages");
 	}
 	// Safely print debug info about first message
-	if (temp_msgs && r_list_length (temp_msgs->messages) > 0 && ((R2AI_Message *)r_list_get_n (temp_msgs->messages, 0))->role) {
-		R_LOG_DEBUG ("First message role: %s", ((R2AI_Message *)r_list_get_n (temp_msgs->messages, 0))->role);
+	if (temp_msgs && !r_list_empty (temp_msgs) && ((R2AI_Message *)r_list_get_n (temp_msgs, 0))->role) {
+		R_LOG_DEBUG ("First message role: %s", ((R2AI_Message *)r_list_get_n (temp_msgs, 0))->role);
 	}
 	if (error) {
 		*error = NULL;
@@ -154,8 +156,8 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	// Create a messages JSON object, either from input messages or from content
 	char *messages_json = NULL;
 
-	if (temp_msgs && r_list_length (temp_msgs->messages) > 0) {
-		R_LOG_DEBUG ("Using input messages: %d messages", r_list_length (temp_msgs->messages));
+	if (temp_msgs && !r_list_empty (temp_msgs)) {
+		R_LOG_DEBUG ("Using input messages: %d messages", r_list_length (temp_msgs));
 		messages_json = r2ai_msgs_to_json (temp_msgs);
 		if (!messages_json) {
 			if (error) {
@@ -174,7 +176,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 
 	// Convert tools to OpenAI format if available
 	char *openai_tools_json = NULL;
-	if (tools && tools->tools && r_list_length (tools->tools) > 0) {
+	if (tools && !r_list_empty (tools)) {
 		openai_tools_json = r2ai_tools_to_openai_json (tools);
 	}
 

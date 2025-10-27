@@ -34,13 +34,13 @@ R_API RMarkdownTheme r2ai_markdown_theme_default(void) {
 		.heading4 = "\x1b[1;4" Color_BLUE, // Bold, underlined, blue
 		.heading5 = "\x1b[1;4" Color_MAGENTA, // Bold, underlined, magenta
 		.heading6 = "\x1b[1;4" Color_CYAN, // Bold, underlined, cyan
-					// List items
+						// List items
 		.list_bullet = "• ", // Bullet character
 		.list_number = "\x1b[1m%s." Color_RESET " ", // Bold number
-						// Checkbox states
+							// Checkbox states
 		.checkbox_checked = Color_GREEN "[✓]" Color_RESET " ", // Green checkmark
 		.checkbox_unchecked = Color_GRAY "[ ]" Color_RESET " ", // Gray empty box
-							// Reset code
+									// Reset code
 		.reset = Color_RESET
 	};
 	return theme;
