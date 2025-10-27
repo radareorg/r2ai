@@ -186,7 +186,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	pj_ks (pj, "model", model_name);
 	pj_kb (pj, "stream", false);
 
-	if (strcmp (args.provider, "ollama") == 0) {
+	if (!strcmp (args.provider, "ollama")) {
 		// Ollama uses "options" object for parameters
 		pj_ko (pj, "options");
 		if (args.max_tokens) {
@@ -217,17 +217,6 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 
 	// Get the JSON for model settings
 	char *model_json = pj_drain (pj);
-	if (!model_json) {
-		if (error) {
-			*error = strdup ("Failed to create model settings JSON");
-		}
-		free (auth_header);
-		free (messages_json);
-		if (openai_tools_json) {
-			free (openai_tools_json);
-		}
-		return NULL;
-	}
 
 	// Manually create the final JSON by combining parts
 	// Remove the closing brace from model_json
