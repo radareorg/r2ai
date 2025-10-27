@@ -51,29 +51,15 @@ R_API char *r2ai(RCorePluginSession *cps, R2AIArgs args) {
 
 	args.messages = msgs;
 
-	R2AI_ChatResponse *res = r2ai_llmcall (cps, args);
-	if (!res) {
-		return NULL;
-	}
-
-	// Extract content from the response
 	char *content = NULL;
-
-	// If content is present in the result message, use it
-	if (res->message) {
-		if (res->message->content) {
+	R2AI_ChatResponse *res = r2ai_llmcall (cps, args);
+	if (res) {
+		if (res->message && res->message->content) {
 			content = strdup (res->message->content);
 		}
-	}
-
-	// Free the message properly using r2ai_message_free
-	if (res->message) {
 		r2ai_message_free ((R2AI_Message *)res->message);
+		free (res);
 	}
-
-	// Free the response struct itself
-	free (res);
-
 	return content;
 }
 
@@ -290,6 +276,8 @@ static void load_embeddings(RCorePluginSession *cps) {
 	}
 	r_list_free (files);
 }
+
+static void cmd_r2ai(RCorePluginSession *cps, const char *input);
 
 static bool load_r2airc(RCorePluginSession *cps) {
 	char *rc_path = r_file_home (".config/r2ai/rc");

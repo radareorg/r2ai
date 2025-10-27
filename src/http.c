@@ -73,9 +73,7 @@ static HttpResponse r2ai_http_request_with_retry(HttpRequestFunc func, const HTT
 		// Check if we were interrupted
 		if (r2ai_http_interrupted) {
 			R_LOG_DEBUG ("HTTP request was interrupted by user");
-			if (result.body) {
-				free (result.body);
-			}
+			free (result.body);
 			result.body = NULL;
 			result.code = -1;
 			break; // Exit the retry loop
@@ -102,9 +100,7 @@ static HttpResponse r2ai_http_request_with_retry(HttpRequestFunc func, const HTT
 
 		// Check for other failures
 		if (result.code <= 0 || !result.body) {
-			if (result.body) {
-				free (result.body);
-			}
+			free (result.body);
 			result.body = NULL;
 			result.code = -1;
 			if (retry_count < request->config.max_retries) {
@@ -133,11 +129,11 @@ static HttpResponse r2ai_http_request_with_retry(HttpRequestFunc func, const HTT
 
 static HttpRequestFunc select_backend(const char *backend, bool is_post) {
 	HttpRequestFunc func = NULL;
-	// Select the appropriate backend function
 	if (!strcmp (backend, "auto")) {
-		// Auto-select the best available backend
 #if R2__WINDOWS__
-		backend = "pwsh";
+		// TODO: we should use pwsh or r2 by default, but for not it seems the only backend that works on Windows is r2curl+system
+		r_sys_setenv ("R2_CURL", "1");
+		backend = "system";
 #elif USE_LIBCURL && HAVE_LIBCURL
 		backend = "libcurl";
 #else
@@ -194,9 +190,7 @@ static HttpResponse r2ai_http_request(const char *method, RCore *core, const cha
 R_API char *r2ai_http_post(RCore *core, const char *url, const char *headers[], const char *data, int *code, int *rlen) {
 	HttpResponse response = r2ai_http_request ("POST", core, url, headers, data);
 	if (response.code <= 0) {
-		if (response.body) {
-			free (response.body);
-		}
+		free (response.body);
 		if (code) {
 			*code = response.code;
 		}

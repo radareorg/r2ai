@@ -230,9 +230,9 @@ R_API void process_messages(RCorePluginSession *cps, R2AI_Messages *messages, co
 					if (last_msg && last_msg->tool_calls && last_msg->n_tool_calls > 0) {
 						for (int j = 0; j < last_msg->n_tool_calls; j++) {
 							R2AI_ToolCall *tc = (R2AI_ToolCall *)&last_msg->tool_calls[j];
-							if (tc->id && strcmp (tc->id, tool_call->id) == 0) {
+							if (tc->id && !strcmp (tc->id, tool_call->id)) {
 								// For r2cmd, update the command in arguments
-								if (strcmp (tool_name, "r2cmd") == 0) {
+								if (!strcmp (tool_name, "r2cmd")) {
 									char *args_dup = strdup (tc->arguments);
 									RJson *args_json = r_json_parse (args_dup);
 									if (args_json) {
