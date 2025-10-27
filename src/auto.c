@@ -265,6 +265,7 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 										r_json_free (args_json);
 									}
 								}
+
 								break;
 							}
 						}
@@ -469,5 +470,69 @@ R_IPI void cmd_r2ai_logs(RCorePluginSession *cps) {
 
 		r_cons_newline (core->cons);
 		r_cons_flush (core->cons);
+	}
+}
+
+R_IPI void cmd_r2ai_lr(RCorePluginSession *cps) {
+	RCore *core = cps->core;
+	R2AI_State *state = cps->data;
+	// Get conversation
+	RList *messages = r2ai_conversation_get (state);
+	if (!messages || r_list_empty (messages)) {
+		r_cons_printf (core->cons, "No conversation history available\n");
+		return;
+	}
+
+	// Format conversation as string
+	RStrBuf *sb = r_strbuf_new ("");
+	r_strbuf_append (sb, "Conversation Log:\n");
+
+	RListIter *iter;
+	const R2AI_Message *msg;
+	r_list_foreach (messages, iter, msg) {
+		const char *role = msg->role;
+
+		if (!strcmp (role, "user")) {
+			r_strbuf_appendf (sb, "[user]: %s\n", msg->content? msg->content: "<no content>");
+		} else if (!strcmp (role, "assistant")) {
+			r_strbuf_appendf (sb, "[assistant]: %s\n", msg->content? msg->content: "<no content>");
+			// Include tool calls if present
+			if (msg->tool_calls && r_list_length (msg->tool_calls) > 0) {
+				RListIter *iter_tc;
+				R2AI_ToolCall *tc;
+				r_list_foreach (msg->tool_calls, iter_tc, tc) {
+					r_strbuf_appendf (sb, "  [tool call]: %s\n", tc->name? tc->name: "<unnamed>");
+					if (tc->arguments) {
+						r_strbuf_appendf (sb, "    %s\n", tc->arguments);
+					}
+				}
+			}
+		} else if (!strcmp (role, "tool")) {
+			r_strbuf_appendf (sb, "[tool]: %s\n", msg->content? msg->content: "<no result>");
+		} else {
+			r_strbuf_appendf (sb, "[%s]: %s\n", role, msg->content? msg->content: "<no content>");
+		}
+	}
+
+	char *log_str = r_strbuf_drain (sb);
+
+	// Create the prompt
+	const char *prompt = "mai create a summary of all the information retrieved from the binary that is relevant for future work";
+
+	// Combine log and prompt
+	char *full_input = r_str_newf ("%s\n\n%s", log_str, prompt);
+
+	char *error = NULL;
+	char *res = r2ai (cps, (R2AIArgs){ .input = full_input, .error = &error, .dorag = false });
+
+	free (log_str);
+	free (full_input);
+
+	if (error) {
+		R_LOG_ERROR ("%s", error);
+		free (error);
+	} else if (res) {
+		r_cons_printf (core->cons, "%s\n", res);
+		free (res);
 	}
 }
