@@ -133,7 +133,7 @@ static void cmd_r2ai_repl(RCorePluginSession *cps) {
 	RCore *core = cps->core;
 	RStrBuf *sb = r_strbuf_new ("");
 	while (true) {
-		r_line_set_prompt (core->cons->line, ">>> ");
+		r_line_set_prompt (core->cons->line, "[r2ai]> ");
 		const char *ptr = r_line_readline (core->cons);
 		if (R_STR_ISEMPTY (ptr)) {
 			break;

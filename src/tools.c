@@ -261,6 +261,7 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 			// Get user input with command pre-filled
 			r_cons_readpush (core->cons, command, strlen (command));
 			r_cons_readpush (core->cons, "\x05", 1); // Ctrl+E - move to end
+			r_line_set_prompt (core->cons->line, "[r2ai]> ");
 			const char *readline_result = r_line_readline (core->cons);
 			// Check if interrupted or ESC pressed (readline_result is NULL or empty)
 			if (r_cons_is_breaked (core->cons) || R_STR_ISEMPTY (readline_result)) {
@@ -339,6 +340,7 @@ R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output) {
 
 			r_cons_readpush (core->cons, script, strlen (script));
 			r_cons_readpush (core->cons, "\x05", 1); // Ctrl+E - move to end
+			r_line_set_prompt (core->cons->line, "[r2ai]> ");
 			const char *readline_result = r_line_readline (core->cons);
 
 			// Check if interrupted or ESC pressed (readline_result is NULL or empty)
