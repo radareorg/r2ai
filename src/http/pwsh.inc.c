@@ -56,11 +56,6 @@ static void append_headers_to_cmd(RStrBuf *cmd, const char *const *headers) {
 	}
 	r_strbuf_appendf (cmd, "};");
 }
-free(header);
-}
-}
-r_strbuf_appendf(cmd, "};");
-}
 
 // Helper to parse PowerShell response
 static HttpResponse parse_powershell_response(char *full_response) {
