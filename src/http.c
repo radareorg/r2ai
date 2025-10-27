@@ -25,7 +25,7 @@ static R2AI_HttpConfig get_http_config(RCore *core) {
 	return config;
 }
 
-#ifndef _WIN32
+#if !R2__WINDOWS__
 // Signal handler for timeout (SIGALRM)
 static void r2ai_http_sigint_handler(int sig) {
 	if (sig == SIGALRM) {
@@ -136,7 +136,7 @@ static HttpRequestFunc select_backend(const char *backend, bool is_post) {
 	// Select the appropriate backend function
 	if (!strcmp (backend, "auto")) {
 		// Auto-select the best available backend
-#if defined(_WIN32)
+#if R2__WINDOWS__
 		backend = "pwsh";
 #elif USE_LIBCURL && HAVE_LIBCURL
 		backend = "libcurl";
@@ -157,7 +157,7 @@ static HttpRequestFunc select_backend(const char *backend, bool is_post) {
 	} else if (!strcmp (backend, "socket")) {
 		func = is_post? socket_http_post_with_interrupt: socket_http_get_with_interrupt;
 	} else if (!strcmp (backend, "pwsh") || !strcmp (backend, "powershell")) {
-#if defined(_WIN32)
+#if R2__WINDOWS__
 		func = is_post? windows_http_post: windows_http_get;
 #else
 		R_LOG_WARN ("powershell is only available on Windows");

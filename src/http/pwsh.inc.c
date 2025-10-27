@@ -1,4 +1,4 @@
-#ifdef _WIN32
+#if R2__WINDOWS__
 
 // Helper to escape single quotes for PowerShell single-quoted strings
 static char *escape_single_quotes(const char *str) {
