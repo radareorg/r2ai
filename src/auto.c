@@ -5,15 +5,15 @@
 // Helper function to format time duration
 static char *format_time_duration(time_t seconds) {
 	if (seconds < 60) {
-		return r_str_newf ("%" PFMT64d "s", (long long)seconds);
+		return r_str_newf ("%" PFMT64d "s", (ut64)seconds);
 	}
 	if (seconds < 3600) {
-		return r_str_newf ("%" PFMT64d "m%" PFMT64d "s", (long long) (seconds / 60), (long long) (seconds % 60));
+		return r_str_newf ("%" PFMT64d "m%" PFMT64d "s", (ut64) (seconds / 60), (ut64) (seconds % 60));
 	}
 	return r_str_newf ("%" PFMT64d "h%" PFMT64d "m%" PFMT64d "s",
-		(long long) (seconds / 3600),
-		(long long) ((seconds % 3600) / 60),
-		(long long) (seconds % 60));
+		(ut64) (seconds / 3600),
+		(ut64) ((seconds % 3600) / 60),
+		(ut64) (seconds % 60));
 }
 
 // Initialize timing and cost tracking for a run
