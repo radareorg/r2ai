@@ -1,6 +1,10 @@
-#include "r2ai.h"
+/* Copyright r2ai - 2023-2025 - pancake */
+
+#define _GNU_SOURCE
+#define _POSIX_C_SOURCE 200809L
 #include <signal.h>
-#include <time.h>
+#include <string.h>
+#include "r2ai.h"
 
 // Global flag for tracking interrupt status
 static volatile sig_atomic_t r2ai_http_interrupted = 0;

@@ -1,7 +1,6 @@
 /* r2ai - MIT - Copyright 2024-2025 pancake */
 
-#include <r_util.h>
-#include "r_vdb.h"
+#include "r2ai.h"
 
 static Vector vector_new(int dim) {
 	Vector v;

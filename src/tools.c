@@ -1,4 +1,5 @@
-#include <string.h>
+/* Copyright r2ai - 2023-2025 - pancake */
+
 #include "r2ai.h"
 
 R_API char *strip_command_comment(const char *input, char **comment_out) {
@@ -548,9 +549,7 @@ R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, c
 	// Validate that the tool_result looks like valid JSON before parsing
 	if (!r_str_startswith (tool_result, "{") || !strchr (tool_result, '}')) {
 		// Not a JSON object, return as plain text
-		result = strdup (tool_result);
-		free (tool_result);
-		return result;
+		return tool_result;
 	}
 
 	// Try to parse the JSON safely
@@ -559,9 +558,7 @@ R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, c
 	if (!json) {
 		// JSON parsing failed, return original content
 		R_LOG_WARN ("Failed to parse JSON response from tool execution");
-		result = strdup (tool_result);
-		free (tool_result);
-		return result;
+		return tool_result;
 	}
 
 	if (json) {

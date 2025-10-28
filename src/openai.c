@@ -1,7 +1,5 @@
 /* r2ai - Copyright 2023-2025 pancake, dnakov */
 
-#include <r_core.h>
-#include <r_util/r_json.h>
 #include "r2ai.h"
 
 // Bit flags for different types of model errors/incompatibilities

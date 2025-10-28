@@ -185,19 +185,19 @@ elif cc.get_id() == 'msvc'
 endif
 
 srcs = files(
-  'r2ai.c',
-  'auto.c',
-  'vdb.c',
-  'llm.c',
-  'json.c',
-  'tools.c',
-  'query.c',
-  'rawtools.c',
-  'messages.c',
   'anthropic.c',
+  'auto.c',
   'http.c',
-  'openai.c',
+  'json.c',
+  'llm.c',
   'markdown.c',
+  'messages.c',
+  'openai.c',
+  'query.c',
+  'r2ai.c',
+  'rawtools.c',
+  'tools.c',
+  'vdb.c',
 )
 
 # Shared library (plugin)

@@ -30,8 +30,6 @@ static char *escape_cmd_double_quotes(const char *str) {
 	return escaped;
 }
 
-#include <string.h>
-
 static HttpResponse build_and_execute_curl(const char *cmd_start, const HTTPRequest *request, const char *input_data) {
 	HttpResponse error = { .code = -1 };
 	int timeout = request->config.timeout;

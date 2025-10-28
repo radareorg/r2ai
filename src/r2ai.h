@@ -1,6 +1,9 @@
 #ifndef R2AI_H
 #define R2AI_H
 
+#define _GNU_SOURCE
+#define _POSIX_C_SOURCE 200809L
+
 #include <time.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -8,6 +11,7 @@
 #include <stdlib.h>
 #include <r_core.h>
 #include <r_util/r_json.h>
+#include <r_types_base.h>
 #include "r_vdb.h"
 #include "markdown.h"
 

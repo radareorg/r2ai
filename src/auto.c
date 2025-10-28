@@ -1,3 +1,5 @@
+/* Copyright r2ai - 2023-2025 - pancake */
+
 #include "r2ai.h"
 
 // Stats are now stored in R2AI_State->stats, no longer need global variable
