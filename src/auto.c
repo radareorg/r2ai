@@ -79,6 +79,18 @@ static void r2ai_print_run_end(RCorePluginSession *cps, const R2AI_Usage *usage,
 	free (total_time_str);
 }
 
+#if 0
+static const char *Gprompt_auto =
+	"You are a reverse engineer using radare2.\n"
+	"Answer questions about the loaded binary using r2cmd tool calls.\n"
+	"\n"
+	"Rules:\n"
+	"- Use r2cmd tool to run radare2 commands when you need information\n"
+	"- Make tool calls immediately when you need data\n"
+	"- Provide final answer only after gathering needed information\n"
+	"- Keep responses short and direct\n"
+	;
+#else
 const char *Gprompt_auto =
 	"You are a reverse engineer and you are using radare2 to analyze a binary.\n"
 	"The user will ask questions about the binary and you will respond with the answer to the best of your ability.\n"
@@ -104,6 +116,7 @@ const char *Gprompt_auto =
 	"- Make sure you call tools and functions correctly.\n"
 	"- When calling tools, use the exact format: {\"tool_calls\": [{\"id\": \"call_123\", \"type\": \"function\", \"function\": {\"name\": \"r2cmd\", \"arguments\": \"{\\\"command\\\":\\\"aa\\\"}\"}}]}\n"
 	"- Arguments must be a JSON string, not an object.\n";
+#endif
 
 // Helper function to process messages and handle tool calls recursively
 R_API void process_messages(RCorePluginSession *cps, RList *messages, const char *system_prompt, int n_run) {
