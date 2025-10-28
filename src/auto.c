@@ -299,6 +299,40 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 				free (cmd_output);
 				cmd_output = strdup ("<user interrupted>");
 				interrupted = true;
+
+				// Prompt user for final response attempt
+				if (r_cons_yesno ("Try to produce response without more tool calling with collected information?")) {
+					// Call LLM again without tools to generate final response
+					R2AIArgs args_final = {
+						.messages = messages,
+						.error = &error,
+						.dorag = true,
+						.tools = NULL, // No tools for final response
+						.system_prompt = effective_prompt
+					};
+
+					R2AI_ChatResponse *final_response = r2ai_llmcall (cps, args_final);
+					if (final_response && final_response->message) {
+						const R2AI_Message *final_msg = final_response->message;
+						r_cons_printf (core->cons, Color_RED "[Assistant]" Color_RESET);
+						if (final_msg->reasoning_content) {
+							r_cons_printf (core->cons, Color_GRAY "<thinking>\n%s\n</thinking>" Color_RESET "\n", final_msg->reasoning_content);
+							r_cons_newline (core->cons);
+							r_cons_flush (core->cons);
+						}
+						if (final_msg->content) {
+							r_cons_printf (core->cons, "%s", final_msg->content);
+							r_cons_newline (core->cons);
+							r_cons_flush (core->cons);
+						}
+						// Add final response to messages for completeness
+						r2ai_msgs_add (messages, final_msg);
+						free (final_response);
+					}
+				} else {
+					r_cons_printf (core->cons, "Auto mode interrupted without final response.\n");
+					r_cons_flush (core->cons);
+				}
 			}
 
 			// Create a tool call response message
