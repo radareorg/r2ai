@@ -238,9 +238,31 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 		return strdup ("{ \"res\":\"No command in tool call arguments\" }");
 	}
 
-	const char *command = command_json->str_value;
+	const char *full_command = command_json->str_value;
+
+	// Parse command and comment: split on first '#' that's not escaped
+	char *command = NULL;
+	char *comment = NULL;
+	const char *hash_pos = strchr (full_command, '#');
+	if (hash_pos) {
+		// Check if '#' is preceded by backslash (escaped)
+		if (hash_pos > full_command && *(hash_pos - 1) == '\\') {
+			// Escaped '#', treat as part of command
+			command = strdup (full_command);
+		} else {
+			// Split command and comment
+			size_t cmd_len = hash_pos - full_command;
+			command = r_str_ndup (full_command, cmd_len);
+			r_str_trim (command); // Remove trailing whitespace from command
+			comment = strdup (hash_pos); // Include the '#'
+		}
+	} else {
+		command = strdup (full_command);
+	}
 
 	if (r_str_startswith (command, "r2 ")) {
+		free (command);
+		free (comment);
 		return strdup ("{ \"res\":\"You are already in r2!\" }");
 	}
 
@@ -253,38 +275,72 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 
 		if (is_multiline) {
 			// Use editor for multi-line commands
-			*edited_command = strdup (command);
+			*edited_command = comment ? r_str_newf ("%s %s", command, comment) : strdup (command);
 			r_cons_editor (core->cons, NULL, *edited_command);
-			command = *edited_command;
+			// Re-parse the edited command for comment
+			const char *edited_hash_pos = strchr (*edited_command, '#');
+			if (edited_hash_pos && (edited_hash_pos == *edited_command || *(edited_hash_pos - 1) != '\\')) {
+				size_t edited_cmd_len = edited_hash_pos - *edited_command;
+				char *new_command = r_str_ndup (*edited_command, edited_cmd_len);
+				r_str_trim (new_command);
+				free (command);
+				command = new_command;
+				free (comment);
+				comment = strdup (edited_hash_pos);
+			} else {
+				free (command);
+				command = strdup (*edited_command);
+				free (comment);
+				comment = NULL;
+			}
 		} else {
 			// For single-line commands, push the command to input buffer
 			r_cons_newline (core->cons);
 			// Push the command to the input buffer
 
-			// Get user input with command pre-filled
-			r_cons_readpush (core->cons, command, strlen (command));
+			// Get user input with command pre-filled (include comment for editing)
+			char *input_command = comment ? r_str_newf ("%s %s", command, comment) : strdup (command);
+			r_cons_readpush (core->cons, input_command, strlen (input_command));
 			r_cons_readpush (core->cons, "\x05", 1); // Ctrl+E - move to end
 			r_line_set_prompt (core->cons->line, "[r2ai]> ");
 			const char *readline_result = r_line_readline (core->cons);
 			// Check if interrupted or ESC pressed (readline_result is NULL or empty)
 			if (r_cons_is_breaked (core->cons) || R_STR_ISEMPTY (readline_result)) {
 				R_LOG_INFO ("Command execution cancelled %s", readline_result);
+				free (input_command);
+				free (command);
+				free (comment);
 				return strdup ("R2AI_SIGINT");
 			}
 
 			// Process the result
 			if (R_STR_ISNOTEMPTY (readline_result)) {
 				*edited_command = strdup (readline_result);
-				command = *edited_command;
+				// Re-parse the edited command for comment
+				const char *edited_hash_pos = strchr (*edited_command, '#');
+				if (edited_hash_pos && (edited_hash_pos == *edited_command || *(edited_hash_pos - 1) != '\\')) {
+					size_t edited_cmd_len = edited_hash_pos - *edited_command;
+					char *new_command = r_str_ndup (*edited_command, edited_cmd_len);
+					r_str_trim (new_command);
+					free (command);
+					command = new_command;
+					free (comment);
+					comment = strdup (edited_hash_pos);
+				} else {
+					free (command);
+					command = strdup (*edited_command);
+					free (comment);
+					comment = NULL;
+				}
 			} else {
-				// If user just pressed enter, keep the original command
-				*edited_command = strdup (command);
-				command = *edited_command;
+				// If user just pressed enter, keep the original command with comment
+				*edited_command = comment ? r_str_newf ("%s %s", command, comment) : strdup (command);
 			}
+			free (input_command);
 		}
 		R_LOG_DEBUG ("Edited command: %s", *edited_command);
 	} else {
-		*edited_command = strdup (command);
+		*edited_command = comment ? r_str_newf ("%s %s", command, comment) : strdup (command);
 	}
 
 	if (!hide_tool_output) {
@@ -294,14 +350,18 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 		free (red_command);
 	}
 
-	char *json_cmd = to_cmd (*edited_command);
+	char *json_cmd = to_cmd (command); // Execute only the command part, not the comment
 	if (!json_cmd) {
+		free (command);
+		free (comment);
 		// caller should free edited_command
 		return strdup ("{ \"res\":\"Failed to create JSON command\" }");
 	}
 
 	char *cmd_output = r_core_cmd_str (core, json_cmd);
 	free (json_cmd);
+	free (command);
+	free (comment);
 
 	if (!cmd_output) {
 		return strdup ("{ \"res\":\"Command returned no output or failed\" }");
