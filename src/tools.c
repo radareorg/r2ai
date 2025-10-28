@@ -275,7 +275,7 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 
 		if (is_multiline) {
 			// Use editor for multi-line commands
-			*edited_command = comment ? r_str_newf ("%s %s", command, comment) : strdup (command);
+			*edited_command = comment? r_str_newf ("%s %s", command, comment): strdup (command);
 			r_cons_editor (core->cons, NULL, *edited_command);
 			// Re-parse the edited command for comment
 			const char *edited_hash_pos = strchr (*edited_command, '#');
@@ -299,7 +299,7 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 			// Push the command to the input buffer
 
 			// Get user input with command pre-filled (include comment for editing)
-			char *input_command = comment ? r_str_newf ("%s %s", command, comment) : strdup (command);
+			char *input_command = comment? r_str_newf ("%s %s", command, comment): strdup (command);
 			r_cons_readpush (core->cons, input_command, strlen (input_command));
 			r_cons_readpush (core->cons, "\x05", 1); // Ctrl+E - move to end
 			r_line_set_prompt (core->cons->line, "[r2ai]> ");
@@ -334,13 +334,13 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 				}
 			} else {
 				// If user just pressed enter, keep the original command with comment
-				*edited_command = comment ? r_str_newf ("%s %s", command, comment) : strdup (command);
+				*edited_command = comment? r_str_newf ("%s %s", command, comment): strdup (command);
 			}
 			free (input_command);
 		}
 		R_LOG_DEBUG ("Edited command: %s", *edited_command);
 	} else {
-		*edited_command = comment ? r_str_newf ("%s %s", command, comment) : strdup (command);
+		*edited_command = comment? r_str_newf ("%s %s", command, comment): strdup (command);
 	}
 
 	if (!hide_tool_output) {

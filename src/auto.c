@@ -301,7 +301,7 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 				interrupted = true;
 
 				// Prompt user for final response attempt
-				if (r_cons_yesno ("Try to produce response without more tool calling with collected information?")) {
+				if (r_cons_yesno (core->cons, 1, "Try to produce response without more tool calling with collected information?")) {
 					// Call LLM again without tools to generate final response
 					R2AIArgs args_final = {
 						.messages = messages,
