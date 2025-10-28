@@ -454,7 +454,7 @@ R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query) {
 }
 
 // Helper function to display content with length indication for long content
-static void print_content_with_length(RCore *core, const char *content, const char *empty_msg, bool always_show_length) {
+static void print_content_with_length(RCore *core, const char *content, const char *empty_msg) {
 	if (R_STR_ISEMPTY (content)) {
 		r_cons_println (core->cons, empty_msg? empty_msg: "<no content>");
 	} else {
@@ -533,10 +533,10 @@ R_IPI void cmd_r2ai_logs(RCorePluginSession *cps) {
 		// Format based on role
 		if (!strcmp (role, "user")) {
 			r_cons_printf (core->cons, "\x1b[1" Color_GREEN "[user]:" Color_RESET " ");
-			print_content_with_length (core, msg->content, "<no content>", false);
+			print_content_with_length (core, msg->content, "<no content>");
 		} else if (!strcmp (role, "assistant")) {
 			r_cons_printf (core->cons, "\x1b[1" Color_CYAN "[assistant]:" Color_RESET " ");
-			print_content_with_length (core, msg->content, "<no content>", false);
+			print_content_with_length (core, msg->content, "<no content>");
 			// Show tool calls if present
 			if (msg->tool_calls && r_list_length (msg->tool_calls) > 0) {
 				RListIter *iter;
@@ -552,13 +552,13 @@ R_IPI void cmd_r2ai_logs(RCorePluginSession *cps) {
 			}
 		} else if (!strcmp (role, "tool")) {
 			r_cons_printf (core->cons, "\x1b[1" Color_MAGENTA "[tool]:" Color_RESET " ");
-			print_content_with_length (core, msg->content, "<no result>", true);
+			print_content_with_length (core, msg->content, "<no result>");
 
 			// Don't show the tool call ID as requested
 		} else {
 			// Other roles (system, etc.)
 			r_cons_printf (core->cons, "\x1b[1" Color_WHITE "[%s]:" Color_RESET " ", role);
-			print_content_with_length (core, msg->content, "<no content>", false);
+			print_content_with_length (core, msg->content, "<no content>");
 		}
 
 		r_cons_newline (core->cons);
