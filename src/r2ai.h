@@ -15,7 +15,7 @@
 #include "r_vdb.h"
 #include "markdown.h"
 
-#define R2AI_VERSION "1.2.4"
+#define R2AI_VERSION "1.2.6"
 
 #if 0
 #define R2AI_DEFAULT_MODEL "gpt-5-mini"
