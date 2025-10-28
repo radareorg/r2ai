@@ -599,6 +599,8 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_desc (core->config, "r2ai.auto.raw", "Use prompt engineering for tool calling instead of native API support (true/false)");
 	r_config_set_b (core->config, "r2ai.auto.usejs", true);
 	r_config_desc (core->config, "r2ai.auto.usejs", "Enable/disable the execute_js tool for auto mode (true/false)");
+	r_config_set_b (core->config, "r2ai.debug", false);
+	r_config_desc (core->config, "r2ai.debug", "Enable debug output including API request/response details and curl commands");
 	r_config_lock (core->config, true);
 
 	return load_r2airc (cps);
@@ -622,6 +624,7 @@ R_API bool r2ai_fini(RCorePluginSession *cps) {
 	r_config_rm (core->config, "r2ai.http.max_backoff");
 	r_config_rm (core->config, "r2ai.http.backend");
 	r_config_rm (core->config, "r2ai.http.use_files");
+	r_config_rm (core->config, "r2ai.debug");
 	r_config_lock (core->config, true);
 
 	R2AI_State *state = cps->data;

@@ -259,6 +259,17 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 
 	R_LOG_DEBUG ("OpenAI API request data: %s", complete_json);
 
+	if (r_config_get_b (core->config, "r2ai.debug")) {
+		// Generate curl command for debugging
+		RStrBuf *curl_cmd = r_strbuf_new ("curl -X POST");
+		for (int i = 0; headers[i]; i++) {
+			r_strbuf_appendf (curl_cmd, " -H \"%s\"", headers[i]);
+		}
+		r_strbuf_appendf (curl_cmd, " -d '%s' \"%s\"", complete_json, openai_url);
+		eprintf ("Curl command: %s\n", r_strbuf_get (curl_cmd));
+		r_strbuf_free (curl_cmd);
+	}
+
 	// Make the API call
 	char *res = NULL;
 	int code = 0;
@@ -302,7 +313,9 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	tmpdir = r_file_tmpdir ();
 	char *res_path = r_str_newf ("%s" R_SYS_DIR "r2ai_openai_response.json", tmpdir);
 	r_file_dump (res_path, (const ut8 *)res, strlen (res), 0);
-	eprintf ("OpenAI API response: %s\n", res);
+	if (r_config_get_b (core->config, "r2ai.debug")) {
+		eprintf ("OpenAI API response: %s\n", res);
+	}
 	free (res_path);
 	free (tmpdir);
 

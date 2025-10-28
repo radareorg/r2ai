@@ -108,6 +108,17 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) 
 
 	R_LOG_DEBUG ("Anthropic API request data: %s", data);
 
+	if (r_config_get_b (core->config, "r2ai.debug")) {
+		// Generate curl command for debugging
+		RStrBuf *curl_cmd = r_strbuf_new ("curl -X POST");
+		for (int i = 0; headers[i]; i++) {
+			r_strbuf_appendf (curl_cmd, " -H \"%s\"", headers[i]);
+		}
+		r_strbuf_appendf (curl_cmd, " -d '%s' \"%s\"", data, anthropic_url);
+		eprintf ("Curl command: %s\n", r_strbuf_get (curl_cmd));
+		r_strbuf_free (curl_cmd);
+	}
+
 	// Make the API call
 	int code = 0;
 	char *res = r2ai_http_post (core, anthropic_url, headers, data, &code, NULL);
@@ -133,7 +144,9 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) 
 	free (res_path);
 	free (tmpdir);
 
-	R_LOG_DEBUG ("Anthropic API response: %s", res);
+	if (r_config_get_b (core->config, "r2ai.debug")) {
+		R_LOG_DEBUG ("Anthropic API response: %s", res);
+	}
 
 	// Parse the response
 	R2AI_ChatResponse *result = R_NEW0 (R2AI_ChatResponse);
