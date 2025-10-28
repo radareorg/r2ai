@@ -390,9 +390,13 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 }
 
 // qjs function implementation
-R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output) {
+R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output, char **edited_script_out) {
 	if (!args) {
 		return strdup ("{ \"res\":\"Script is NULL\" }");
+	}
+
+	if (edited_script_out) {
+		*edited_script_out = NULL;
 	}
 
 	const RJson *script_json = r_json_get (args, "script");
@@ -440,6 +444,13 @@ R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output) {
 				edited_script = strdup (script);
 				script = edited_script;
 			}
+		}
+	}
+
+	if (edited_script_out) {
+		char *dup_script = strdup (script);
+		if (dup_script) {
+			*edited_script_out = dup_script;
 		}
 	}
 
@@ -513,7 +524,7 @@ R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, c
 			*comment_out = NULL;
 		}
 		if (strcmp (tool_name, "execute_js") == 0) {
-			tool_result = r2ai_qjs (core, args_json, hide_tool_output);
+			tool_result = r2ai_qjs (core, args_json, hide_tool_output, edited_command);
 		} else {
 			tool_result = strdup ("{ \"res\":\"Unknown tool\" }");
 		}

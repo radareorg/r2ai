@@ -308,7 +308,7 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 						R2AI_ToolCall *tc;
 						r_list_foreach (last_msg->tool_calls, iter, tc) {
 							if (tc->id && !strcmp (tc->id, tool_call->id)) {
-								// For r2cmd, update the command in arguments
+								// Update stored arguments after user editing
 								if (!strcmp (tool_name, "r2cmd")) {
 									char *args_dup = strdup (tc->arguments);
 									RJson *args_json = r_json_parse (args_dup);
@@ -318,6 +318,28 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 											// Update the command field
 											// XXX double gree free ((char *)cmd_json->str_value);
 											cmd_json->str_value = edited_command;
+											// Serialize back to JSON
+#if 1
+											char *new_args = r_json_to_string (args_json);
+											if (new_args) {
+												free ((void *)tc->arguments);
+												tc->arguments = new_args;
+											}
+#else
+											free ((void *)tc->arguments);
+											tc->arguments = strdup (args_dup);
+#endif
+										}
+										r_json_free (args_json);
+									}
+								} else if (!strcmp (tool_name, "execute_js")) {
+									char *args_dup = strdup (tc->arguments);
+									RJson *args_json = r_json_parse (args_dup);
+									if (args_json) {
+										RJson *script_json = (RJson *)r_json_get (args_json, "script");
+										if (script_json && script_json->str_value) {
+											// Update the script field
+											script_json->str_value = edited_command;
 											// Serialize back to JSON
 #if 1
 											char *new_args = r_json_to_string (args_json);
