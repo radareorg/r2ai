@@ -587,9 +587,9 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_set_b (core->config, "r2ai.chat.show_cost", true);
 	r_config_desc (core->config, "r2ai.chat.show_cost", "Display estimated API cost for chat interactions");
 
-	r_config_set_i (core->config, "r2ai.http.timeout", 120);
+	r_config_set_i (core->config, "r2ai.http.timeout", 240);
 	r_config_desc (core->config, "r2ai.http.timeout", "HTTP client timeout (seconds) for provider API calls");
-	r_config_set_i (core->config, "r2ai.http.max_retries", 10);
+	r_config_set_i (core->config, "r2ai.http.max_retries", 5);
 	r_config_desc (core->config, "r2ai.http.max_retries", "Maximum number of HTTP retries for failed requests");
 	r_config_set_i (core->config, "r2ai.http.max_backoff", 30);
 	r_config_desc (core->config, "r2ai.http.max_backoff", "Maximum backoff time (seconds) between HTTP retries");
