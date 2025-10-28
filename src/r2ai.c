@@ -23,6 +23,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -q [name] (inst)", "run predefined prompt with optional instructions",
 	"r2ai", " -r", "enter the chat repl",
 	"r2ai", " -L", "show chat logs (See -Lj for json). Only for auto mode.",
+	"r2ai", " -C", "compact conversation history",
 	"r2ai", " -LR", "create a log report",
 	"r2ai", " -L-[N]", "delete the last (or N last messages from the chat history)",
 	"r2ai", " -R", "reset the chat conversation context",
@@ -346,6 +347,8 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 			r_cons_printf (core->cons, "Deleted %d message%s from chat history\n", N > 0? N: 1,
 				(N > 0 && N != 1)? "s": "");
 		}
+	} else if (r_str_startswith (input, "-C")) {
+		cmd_r2ai_c (cps);
 	} else if (r_str_startswith (input, "-LR")) {
 		cmd_r2ai_lr (cps);
 	} else if (r_str_startswith (input, "-L")) {

@@ -19,7 +19,7 @@ R_API void r2aiprompt_free(R2AIPrompt *prompt) {
 	free (prompt);
 }
 
-static R2AIPrompt *parse_prompt_file(const char *filepath) {
+R_API R2AIPrompt *parse_prompt_file(const char *filepath) {
 	R2AIPrompt *prompt = R_NEW0 (R2AIPrompt);
 	char *content = r_file_slurp (filepath, NULL);
 	if (!content) {
@@ -145,6 +145,29 @@ static char *replace_vars(RCore *core, const char *text) {
 	return r_strbuf_drain (sb);
 }
 
+// Helper function to find prompt file in search directories
+R_API char *find_prompt_file(RList *search_dirs, const char *name) {
+	char *filepath = NULL;
+	RListIter *dir_iter;
+	char *dir;
+	r_list_foreach (search_dirs, dir_iter, dir) {
+		char *filepath_txt = r_str_newf ("%s/%s.r2ai.txt", dir, name);
+		char *filepath_md = r_str_newf ("%s/%s.r2ai.md", dir, name);
+		if (r_file_exists (filepath_txt)) {
+			filepath = filepath_txt;
+			free (filepath_md);
+			break;
+		} else if (r_file_exists (filepath_md)) {
+			filepath = filepath_md;
+			free (filepath_txt);
+			break;
+		}
+		free (filepath_txt);
+		free (filepath_md);
+	}
+	return filepath;
+}
+
 R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input) {
 	RCore *core = cps->core;
 	const char *promptdir = r_config_get (core->config, "r2ai.promptdir");
@@ -216,24 +239,7 @@ R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input) {
 			r_str_trim (extra);
 		}
 		r_str_trim (name);
-		char *filepath = NULL;
-		RListIter *dir_iter;
-		char *dir;
-		r_list_foreach (search_dirs, dir_iter, dir) {
-			char *filepath_txt = r_str_newf ("%s/%s.r2ai.txt", dir, name);
-			char *filepath_md = r_str_newf ("%s/%s.r2ai.md", dir, name);
-			if (r_file_exists (filepath_txt)) {
-				filepath = filepath_txt;
-				free (filepath_md);
-				break;
-			} else if (r_file_exists (filepath_md)) {
-				filepath = filepath_md;
-				free (filepath_txt);
-				break;
-			}
-			free (filepath_txt);
-			free (filepath_md);
-		}
+		char *filepath = find_prompt_file (search_dirs, name);
 		if (!filepath) {
 			R_LOG_ERROR ("Cannot find prompt file: %s.r2ai.txt or %s.r2ai.md", name, name);
 			r_list_free (search_dirs);
@@ -305,4 +311,40 @@ R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input) {
 		free (name);
 	}
 	r_list_free (search_dirs);
+}
+
+R_API char *r2ai_load_prompt_text(RCore *core, const char *name) {
+	const char *promptdir = r_config_get (core->config, "r2ai.promptdir");
+	if (!promptdir || !*promptdir) {
+		promptdir = "~/.config/r2ai/prompts";
+	}
+	char *expanded_dir = r_file_abspath (promptdir);
+	char *local_prompts = r_file_abspath ("../prompts");
+	RList *search_dirs = r_list_newf (free);
+	if (r_file_is_directory (expanded_dir)) {
+		r_list_append (search_dirs, expanded_dir);
+	} else {
+		free (expanded_dir);
+		expanded_dir = NULL;
+	}
+	if (r_file_is_directory (local_prompts)) {
+		r_list_append (search_dirs, local_prompts);
+	} else {
+		free (local_prompts);
+		local_prompts = NULL;
+	}
+
+	char *filepath = find_prompt_file (search_dirs, name);
+	char *prompt_text = NULL;
+	if (filepath) {
+		R2AIPrompt *prompt = parse_prompt_file (filepath);
+		if (prompt && prompt->prompt) {
+			prompt_text = strdup (prompt->prompt);
+		}
+		r2aiprompt_free (prompt);
+		free (filepath);
+	}
+
+	r_list_free (search_dirs);
+	return prompt_text;
 }

@@ -488,17 +488,8 @@ R_IPI void cmd_r2ai_logs(RCorePluginSession *cps) {
 	}
 }
 
-R_IPI void cmd_r2ai_lr(RCorePluginSession *cps) {
-	RCore *core = cps->core;
-	R2AI_State *state = cps->data;
-	// Get conversation
-	RList *messages = r2ai_conversation_get (state);
-	if (!messages || r_list_empty (messages)) {
-		r_cons_printf (core->cons, "No conversation history available\n");
-		return;
-	}
-
-	// Format conversation as string
+// Helper function to format conversation log as string
+static char *format_conversation_log(RList *messages) {
 	RStrBuf *sb = r_strbuf_new ("");
 	r_strbuf_append (sb, "Conversation Log:\n");
 
@@ -529,25 +520,71 @@ R_IPI void cmd_r2ai_lr(RCorePluginSession *cps) {
 		}
 	}
 
-	char *log_str = r_strbuf_drain (sb);
+	return r_strbuf_drain (sb);
+}
 
-	// Create the prompt
-	const char *prompt = "mai create a summary of all the information retrieved from the binary that is relevant for future work";
+// Helper function to process conversation with LLM and handle result
+static void process_conversation_with_llm(RCorePluginSession *cps, bool compact) {
+	RCore *core = cps->core;
+	R2AI_State *state = cps->data;
+	// Get conversation
+	RList *messages = r2ai_conversation_get (state);
+	if (!messages || r_list_empty (messages)) {
+		r_cons_printf (core->cons, "No conversation history available\n");
+		return;
+	}
+
+	// Format conversation as string
+	char *log_str = format_conversation_log (messages);
+
+	// Load the compact prompt from file
+	char *prompt_text = r2ai_load_prompt_text (core, "compact");
+	if (!prompt_text) {
+		// Fallback to hardcoded prompt
+		prompt_text = strdup (compact
+				? "Create a compact summary of this conversation that preserves all key information, insights, and context for future reference."
+				"Focus on essential details about the binary analysis, tools used, findings, and any important conclusions."
+				: "mai create a summary of all the information retrieved from the binary that is relevant for future work");
+	}
 
 	// Combine log and prompt
-	char *full_input = r_str_newf ("%s\n\n%s", log_str, prompt);
+	char *full_input = r_str_newf ("%s\n\n%s", log_str, prompt_text);
 
 	char *error = NULL;
 	char *res = r2ai (cps, (R2AIArgs){ .input = full_input, .error = &error, .dorag = false });
 
 	free (log_str);
 	free (full_input);
+	free (prompt_text);
 
 	if (error) {
 		R_LOG_ERROR ("%s", error);
 		free (error);
-	} else if (res) {
-		r_cons_printf (core->cons, "%s\n", res);
+		return;
+	}
+
+	if (res) {
+		if (compact) {
+			// Clear the conversation and add summary as system message
+			r2ai_msgs_clear (messages);
+			R2AI_Message summary_msg = {
+				.role = "system",
+				.content = res
+			};
+			r2ai_msgs_add (messages, &summary_msg);
+			r_cons_printf (core->cons, "Conversation compacted. Summary added to history.\n");
+		} else {
+			// Just print the result
+			r_cons_printf (core->cons, "%s\n", res);
+		}
 		free (res);
 	}
+}
+
+R_IPI void cmd_r2ai_c(RCorePluginSession *cps) {
+	process_conversation_with_llm (cps, true);
+}
+
+R_IPI void cmd_r2ai_lr(RCorePluginSession *cps) {
+	process_conversation_with_llm (cps, false);
 }
