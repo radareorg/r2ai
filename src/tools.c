@@ -1,6 +1,33 @@
 #include <string.h>
 #include "r2ai.h"
 
+R_API char *strip_command_comment(const char *input, char **comment_out) {
+	const char *hash_pos = strchr (input, '#');
+	char *stripped;
+	if (hash_pos && (hash_pos == input || *(hash_pos - 1) != '\\')) {
+		size_t cmd_len = hash_pos - input;
+		stripped = r_str_ndup (input, cmd_len);
+		r_str_trim (stripped);
+		if (comment_out) {
+			char *comment = strdup (hash_pos + 1); // skip #
+			if (comment) {
+				r_str_trim (comment);
+				if (!*comment) {
+					free (comment);
+					comment = NULL;
+				}
+			}
+			*comment_out = comment;
+		}
+	} else {
+		stripped = strdup (input);
+		if (comment_out) {
+			*comment_out = NULL;
+		}
+	}
+	return stripped;
+}
+
 // Define the radare2 command tool
 static R2AI_Tool r2cmd_tool = {
 	.name = "r2cmd",
@@ -228,7 +255,17 @@ static char *to_cmd(const char *command) {
 	return pj_drain (pj);
 }
 
-R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **edited_command) {
+static char *compose_command_with_comment(const char *command, const char *comment) {
+	if (!command) {
+		return NULL;
+	}
+	if (!comment || !*comment) {
+		return strdup (command);
+	}
+	return r_str_newf ("%s # %s", command, comment);
+}
+
+R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **edited_command, char **comment_out) {
 	if (!args) {
 		return strdup ("{ \"res\":\"Command is NULL\" }");
 	}
@@ -238,133 +275,115 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 		return strdup ("{ \"res\":\"No command in tool call arguments\" }");
 	}
 
-	const char *full_command = command_json->str_value;
+	if (edited_command) {
+		*edited_command = NULL;
+	}
 
-	// Parse command and comment: split on first '#' that's not escaped
-	char *command = NULL;
 	char *comment = NULL;
-	const char *hash_pos = strchr (full_command, '#');
-	if (hash_pos) {
-		// Check if '#' is preceded by backslash (escaped)
-		if (hash_pos > full_command && *(hash_pos - 1) == '\\') {
-			// Escaped '#', treat as part of command
-			command = strdup (full_command);
-		} else {
-			// Split command and comment
-			size_t cmd_len = hash_pos - full_command;
-			command = r_str_ndup (full_command, cmd_len);
-			r_str_trim (command); // Remove trailing whitespace from command
-			comment = strdup (hash_pos); // Include the '#'
-		}
-	} else {
-		command = strdup (full_command);
+	char *command = strip_command_comment (command_json->str_value, &comment);
+	if (!command) {
+		free (comment);
+		return strdup ("{ \"res\":\"Command is NULL\" }");
 	}
 
 	if (r_str_startswith (command, "r2 ")) {
 		free (command);
 		free (comment);
+		if (comment_out) {
+			*comment_out = NULL;
+		}
 		return strdup ("{ \"res\":\"You are already in r2!\" }");
 	}
 
 	bool ask_to_execute = r_config_get_b (core->config, "r2ai.auto.yolo") != true;
-	*edited_command = NULL; // keeps track of the command that was really executed in case user modifies it
-
 	if (ask_to_execute) {
-		// Check if command contains newlines to determine if it's multi-line
 		bool is_multiline = strchr (command, '\n') != NULL;
+		char *input_command = compose_command_with_comment (command, comment);
+		if (!input_command) {
+			free (command);
+			free (comment);
+			return strdup ("{ \"res\":\"Failed to prepare command\" }");
+		}
 
 		if (is_multiline) {
-			// Use editor for multi-line commands
-			*edited_command = comment? r_str_newf ("%s %s", command, comment): strdup (command);
-			r_cons_editor (core->cons, NULL, *edited_command);
-			// Re-parse the edited command for comment
-			const char *edited_hash_pos = strchr (*edited_command, '#');
-			if (edited_hash_pos && (edited_hash_pos == *edited_command || *(edited_hash_pos - 1) != '\\')) {
-				size_t edited_cmd_len = edited_hash_pos - *edited_command;
-				char *new_command = r_str_ndup (*edited_command, edited_cmd_len);
-				r_str_trim (new_command);
-				free (command);
-				command = new_command;
-				free (comment);
-				comment = strdup (edited_hash_pos);
-			} else {
-				free (command);
-				command = strdup (*edited_command);
-				free (comment);
-				comment = NULL;
-			}
+			r_cons_editor (core->cons, NULL, input_command);
 		} else {
-			// For single-line commands, push the command to input buffer
 			r_cons_newline (core->cons);
-			// Push the command to the input buffer
-
-			// Get user input with command pre-filled (include comment for editing)
-			char *input_command = comment? r_str_newf ("%s %s", command, comment): strdup (command);
 			r_cons_readpush (core->cons, input_command, strlen (input_command));
-			r_cons_readpush (core->cons, "\x05", 1); // Ctrl+E - move to end
+			r_cons_readpush (core->cons, "\x05", 1);
 			r_line_set_prompt (core->cons->line, "[r2ai]> ");
 			const char *readline_result = r_line_readline (core->cons);
-			// Check if interrupted or ESC pressed (readline_result is NULL or empty)
 			if (r_cons_is_breaked (core->cons) || R_STR_ISEMPTY (readline_result)) {
 				R_LOG_INFO ("Command execution cancelled %s", readline_result);
 				free (input_command);
 				free (command);
 				free (comment);
+				if (comment_out) {
+					*comment_out = NULL;
+				}
 				return strdup ("R2AI_SIGINT");
 			}
-
-			// Process the result
 			if (R_STR_ISNOTEMPTY (readline_result)) {
-				*edited_command = strdup (readline_result);
-				// Re-parse the edited command for comment
-				const char *edited_hash_pos = strchr (*edited_command, '#');
-				if (edited_hash_pos && (edited_hash_pos == *edited_command || *(edited_hash_pos - 1) != '\\')) {
-					size_t edited_cmd_len = edited_hash_pos - *edited_command;
-					char *new_command = r_str_ndup (*edited_command, edited_cmd_len);
-					r_str_trim (new_command);
-					free (command);
-					command = new_command;
-					free (comment);
-					comment = strdup (edited_hash_pos);
-				} else {
-					free (command);
-					command = strdup (*edited_command);
-					free (comment);
-					comment = NULL;
-				}
-			} else {
-				// If user just pressed enter, keep the original command with comment
-				*edited_command = comment? r_str_newf ("%s %s", command, comment): strdup (command);
+				free (input_command);
+				input_command = strdup (readline_result);
 			}
-			free (input_command);
 		}
-		R_LOG_DEBUG ("Edited command: %s", *edited_command);
-	} else {
-		*edited_command = comment? r_str_newf ("%s %s", command, comment): strdup (command);
+
+		char *new_comment = NULL;
+		char *new_command = strip_command_comment (input_command, &new_comment);
+		if (new_command) {
+			free (command);
+			command = new_command;
+			free (comment);
+			comment = new_comment;
+		} else {
+			free (new_comment);
+		}
+		free (input_command);
 	}
+
+	if (edited_command) {
+		*edited_command = strdup (command);
+	}
+	R_LOG_DEBUG ("Edited command: %s", command);
 
 	if (!hide_tool_output) {
-		char *red_command = r_str_newf (Color_RED "%s" Color_RESET "\n", *edited_command);
-		r_cons_printf (core->cons, "%s", red_command);
-		r_cons_flush (core->cons);
-		free (red_command);
+		char *display_command = compose_command_with_comment (command, comment);
+		if (display_command) {
+			char *red_command = r_str_newf (Color_RED "%s" Color_RESET "\n", display_command);
+			r_cons_printf (core->cons, "%s", red_command);
+			r_cons_flush (core->cons);
+			free (red_command);
+			free (display_command);
+		}
 	}
 
-	char *json_cmd = to_cmd (command); // Execute only the command part, not the comment
+	char *json_cmd = to_cmd (command);
 	if (!json_cmd) {
 		free (command);
 		free (comment);
-		// caller should free edited_command
+		if (comment_out) {
+			*comment_out = NULL;
+		}
 		return strdup ("{ \"res\":\"Failed to create JSON command\" }");
 	}
 
 	char *cmd_output = r_core_cmd_str (core, json_cmd);
 	free (json_cmd);
 	free (command);
-	free (comment);
 
 	if (!cmd_output) {
+		free (comment);
+		if (comment_out) {
+			*comment_out = NULL;
+		}
 		return strdup ("{ \"res\":\"Command returned no output or failed\" }");
+	}
+
+	if (comment_out) {
+		*comment_out = comment;
+	} else {
+		free (comment);
 	}
 
 	return cmd_output;
@@ -467,7 +486,7 @@ R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output) {
 	return cmd_output;
 }
 
-R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, char **edited_command) {
+R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, char **edited_command, char **comment_out) {
 	if (!tool_name || !args) {
 		return strdup ("{ \"res\":\"Tool name or arguments are NULL\" }");
 	}
@@ -488,11 +507,16 @@ R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, c
 	char *tool_result = NULL;
 
 	if (strcmp (tool_name, "r2cmd") == 0) {
-		tool_result = r2ai_r2cmd (core, args_json, hide_tool_output, edited_command);
-	} else if (strcmp (tool_name, "execute_js") == 0) {
-		tool_result = r2ai_qjs (core, args_json, hide_tool_output);
+		tool_result = r2ai_r2cmd (core, args_json, hide_tool_output, edited_command, comment_out);
 	} else {
-		tool_result = strdup ("{ \"res\":\"Unknown tool\" }");
+		if (comment_out) {
+			*comment_out = NULL;
+		}
+		if (strcmp (tool_name, "execute_js") == 0) {
+			tool_result = r2ai_qjs (core, args_json, hide_tool_output);
+		} else {
+			tool_result = strdup ("{ \"res\":\"Unknown tool\" }");
+		}
 	}
 
 	// Check for interruption after executing the tool

@@ -285,7 +285,7 @@ R_API void r2ai_tools_free(RList *tools);
  * command which was run
  * Caller must free edited_command
  */
-R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, char **edited_command);
+R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, char **edited_command, char **comment_out);
 
 /**
  * Send an HTTP POST request
@@ -362,5 +362,6 @@ R_API char *find_prompt_file(RList *search_dirs, const char *name);
 R_API R2AIPrompt *parse_prompt_file(const char *filepath);
 R_API void r2aiprompt_free(R2AIPrompt *prompt);
 R_API char *r2ai_load_prompt_text(RCore *core, const char *name);
+R_API char *strip_command_comment(const char *input, char **comment_out);
 
 #endif

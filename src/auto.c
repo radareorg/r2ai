@@ -175,16 +175,26 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 		const char *init_commands = r_config_get (core->config, "r2ai.auto.init_commands");
 		if (R_STR_ISNOTEMPTY (init_commands)) {
 			char *edited_command = NULL;
-			char *cmd_output = execute_tool (core, "r2cmd", r_str_newf ("{\"command\":\"%s\"}", init_commands), &edited_command);
+			char *comment = NULL;
+			char *cmd_output = execute_tool (core, "r2cmd", r_str_newf ("{\"command\":\"%s\"}", init_commands), &edited_command, &comment);
 			if (R_STR_ISNOTEMPTY (cmd_output)) {
+				char *display_command = strip_command_comment (init_commands, NULL);
+				char *content = r_str_newf ("Here is some information about the binary to get you started:\n>%s\n%s", display_command, cmd_output);
+				if (comment && *comment) {
+					char *new_content = r_str_newf ("%s\nHINT: %s", content, comment);
+					free (content);
+					content = new_content;
+				}
 				R2AI_Message init_msg = {
 					.role = "system",
-					.content = r_str_newf ("Here is some information about the binary to get you started:\n>%s\n%s", edited_command, cmd_output)
+					.content = content
 				};
 				r2ai_msgs_add (messages, &init_msg);
+				free (display_command);
 				free (cmd_output);
 			}
 			free (edited_command);
+			free (comment);
 		}
 	}
 
@@ -284,11 +294,12 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 			}
 
 			char *cmd_output = NULL;
+			char *comment = NULL;
 			if (interrupted) {
 				cmd_output = strdup ("<user interrupted>");
 			} else {
 				char *edited_command = NULL;
-				cmd_output = execute_tool (core, tool_name, tool_args, &edited_command);
+				cmd_output = execute_tool (core, tool_name, tool_args, &edited_command, &comment);
 				if (edited_command) {
 					// Update the last message's tool call arguments with the edited command
 					R2AI_Message *last_msg = r_list_get_n (messages, r_list_length (messages) - 1);
@@ -306,7 +317,7 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 										if (cmd_json && cmd_json->str_value) {
 											// Update the command field
 											// XXX double gree free ((char *)cmd_json->str_value);
-											cmd_json->str_value = strdup (edited_command);
+											cmd_json->str_value = edited_command;
 											// Serialize back to JSON
 #if 1
 											char *new_args = r_json_to_string (args_json);
@@ -342,6 +353,12 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 
 				handle_final_response_attempt (cps, messages, effective_prompt, &error);
 			}
+			if (comment) {
+				char *msg = r_str_newf ("HINT: %s\n%s", comment, cmd_output);
+				free (cmd_output);
+				cmd_output = msg;
+			}
+			free (comment);
 
 			// Create a tool call response message
 			R2AI_Message tool_response = {
@@ -416,26 +433,10 @@ R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query) {
 
 // Helper function to display content with length indication for long content
 static void print_content_with_length(RCore *core, const char *content, const char *empty_msg, bool always_show_length) {
-	if (!content || *content == '\0') {
-		r_cons_printf (core->cons, "%s\n", empty_msg? empty_msg: "<no content>");
-		return;
-	}
-
-	size_t content_len = strlen (content);
-	const size_t max_display = 200;
-
-	if (content_len > max_display) {
-		// Truncate long content and show length
-		char *truncated = r_str_ndup (content, max_display);
-		r_cons_printf (core->cons, "%s... \x1b[1" Color_WHITE "(length: %zu chars)" Color_RESET "\n",
-			truncated, content_len);
-		free (truncated);
-	} else if (always_show_length) {
-		// Always show length for certain types (like tool responses)
-		r_cons_printf (core->cons, "%s \x1b[1" Color_WHITE "(length: %zu chars)" Color_RESET "\n",
-			content, content_len);
+	if (R_STR_ISEMPTY (content)) {
+		r_cons_println (core->cons, empty_msg? empty_msg: "<no content>");
 	} else {
-		r_cons_printf (core->cons, "%s\n", content);
+		r_cons_println (core->cons, content);
 	}
 }
 
