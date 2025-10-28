@@ -69,6 +69,11 @@ int main(int argc, const char **argv) {
 			return 1;
 		}
 	}
+	if (opt.ind >= argc) {
+		show_help ();
+		r_list_free (queries);
+		return 1;
+	}
 
 	RCore *core = r_core_new ();
 	RCorePluginSession cps = {
