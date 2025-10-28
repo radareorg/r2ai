@@ -79,6 +79,44 @@ static void r2ai_print_run_end(RCorePluginSession *cps, const R2AI_Usage *usage,
 	free (total_time_str);
 }
 
+// Helper function to handle final response attempt without tools
+static void handle_final_response_attempt(RCorePluginSession *cps, RList *messages, const char *effective_prompt, char **error) {
+	RCore *core = cps->core;
+	if (r_cons_yesno (core->cons, 1, "Try to produce response without tool calling with collected information? (Y/n)")) {
+		char *final_system_prompt = r_str_newf ("%s\n\nIMPORTANT: Do not use any tools. Provide a direct answer based on the collected information.", effective_prompt);
+		R2AIArgs args_final = {
+			.messages = messages,
+			.error = error,
+			.dorag = true,
+			.tools = NULL, // No tools for final response
+			.system_prompt = final_system_prompt
+		};
+
+		R2AI_ChatResponse *final_response = r2ai_llmcall (cps, args_final);
+		if (final_response && final_response->message) {
+			const R2AI_Message *final_msg = final_response->message;
+			r_cons_printf (core->cons, Color_RED "[Assistant]" Color_RESET);
+			if (final_msg->reasoning_content) {
+				r_cons_printf (core->cons, Color_GRAY "<thinking>\n%s\n</thinking>" Color_RESET "\n", final_msg->reasoning_content);
+				r_cons_newline (core->cons);
+				r_cons_flush (core->cons);
+			}
+			if (final_msg->content) {
+				r_cons_printf (core->cons, "%s", final_msg->content);
+				r_cons_newline (core->cons);
+				r_cons_flush (core->cons);
+			}
+			// Add final response to messages for completeness
+			r2ai_msgs_add (messages, final_msg);
+			free (final_response);
+		}
+		free (final_system_prompt);
+	} else {
+		r_cons_printf (core->cons, "Auto mode interrupted without final response.\n");
+		r_cons_flush (core->cons);
+	}
+}
+
 #if 0
 static const char *Gprompt_auto =
 	"You are a reverse engineer using radare2.\n"
@@ -167,6 +205,7 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 	R2AI_ChatResponse *response = r2ai_llmcall (cps, args);
 	if (!response) {
 		R_LOG_ERROR ("No response from llmcall");
+		handle_final_response_attempt (cps, messages, effective_prompt, &error);
 		return;
 	}
 
@@ -176,6 +215,7 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 	if (!message) {
 		R_LOG_ERROR ("No message in response");
 		free (response);
+		handle_final_response_attempt (cps, messages, effective_prompt, &error);
 		return;
 	}
 
@@ -300,39 +340,7 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 				cmd_output = strdup ("<user interrupted>");
 				interrupted = true;
 
-				// Prompt user for final response attempt
-				if (r_cons_yesno (core->cons, 1, "Try to produce response without more tool calling with collected information?")) {
-					// Call LLM again without tools to generate final response
-					R2AIArgs args_final = {
-						.messages = messages,
-						.error = &error,
-						.dorag = true,
-						.tools = NULL, // No tools for final response
-						.system_prompt = effective_prompt
-					};
-
-					R2AI_ChatResponse *final_response = r2ai_llmcall (cps, args_final);
-					if (final_response && final_response->message) {
-						const R2AI_Message *final_msg = final_response->message;
-						r_cons_printf (core->cons, Color_RED "[Assistant]" Color_RESET);
-						if (final_msg->reasoning_content) {
-							r_cons_printf (core->cons, Color_GRAY "<thinking>\n%s\n</thinking>" Color_RESET "\n", final_msg->reasoning_content);
-							r_cons_newline (core->cons);
-							r_cons_flush (core->cons);
-						}
-						if (final_msg->content) {
-							r_cons_printf (core->cons, "%s", final_msg->content);
-							r_cons_newline (core->cons);
-							r_cons_flush (core->cons);
-						}
-						// Add final response to messages for completeness
-						r2ai_msgs_add (messages, final_msg);
-						free (final_response);
-					}
-				} else {
-					r_cons_printf (core->cons, "Auto mode interrupted without final response.\n");
-					r_cons_flush (core->cons);
-				}
+				handle_final_response_attempt (cps, messages, effective_prompt, &error);
 			}
 
 			// Create a tool call response message
