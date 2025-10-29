@@ -290,6 +290,12 @@ R_API void r2ai_tools_free(RList *tools);
 R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, char **edited_command, char **comment_out);
 
 /**
+ * Execute r_core_cmd_str with slim mode if enabled
+ * Temporarily sets asm.lines.fcn=false and scr.utf8=false if r2ai.auto.slim is true
+ */
+R_API char *r2ai_cmdstr(RCore *core, const char *cmd);
+
+/**
  * Send an HTTP POST request
  *
  * @param core The RCore instance

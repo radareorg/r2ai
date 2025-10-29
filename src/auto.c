@@ -51,8 +51,6 @@ static void r2ai_print_run_end(RCorePluginSession *cps, const R2AI_Usage *usage,
 		state->stats.total_completion_tokens += usage->completion_tokens;
 	}
 
-
-
 	// Format times for display
 	char *run_time_str = format_time_duration (run_time);
 	char *total_time_str = format_time_duration (total_time);

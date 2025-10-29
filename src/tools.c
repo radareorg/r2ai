@@ -369,7 +369,7 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool verbose, char **edited_com
 		return strdup ("{ \"res\":\"Failed to create JSON command\" }");
 	}
 
-	char *cmd_output = r_core_cmd_str (core, json_cmd);
+	char *cmd_output = r2ai_cmdstr (core, json_cmd);
 	free (json_cmd);
 	free (command);
 
@@ -388,6 +388,31 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool verbose, char **edited_com
 	}
 
 	return cmd_output;
+}
+
+/**
+ * Execute r_core_cmd_str with slim mode if enabled
+ * Temporarily sets slim r2 commands output
+ */
+R_API char *r2ai_cmdstr(RCore *core, const char *cmd) {
+	if (!r_config_get_b (core->config, "r2ai.auto.slim")) {
+		return r_core_cmd_str (core, cmd);
+	}
+
+	RConfigHold *hold = r_config_hold_new (core->config);
+	r_config_hold (hold, "asm.lines", "asm.lines.fcn", "scr.utf8", "asm.bytes", "emu.str", NULL);
+	r_config_set_b (core->config, "asm.lines", false);
+	r_config_set_b (core->config, "asm.lines.fcn", false);
+	r_config_set_b (core->config, "scr.utf8", false);
+	r_config_set_b (core->config, "asm.bytes", false);
+	r_config_set_b (core->config, "emu.str", true);
+
+	char *result = r_core_cmd_str (core, cmd);
+
+	r_config_hold_restore (hold);
+	r_config_hold_free (hold);
+
+	return result;
 }
 
 // qjs function implementation

@@ -585,7 +585,6 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_set_b (core->config, "r2ai.auto.think", true);
 	r_config_desc (core->config, "r2ai.auto.think", "Enable thinking/reasoning in auto mode prompts (true/false)");
 
-
 	r_config_set_i (core->config, "r2ai.http.timeout", 240);
 	r_config_desc (core->config, "r2ai.http.timeout", "HTTP client timeout (seconds) for provider API calls");
 	r_config_set_i (core->config, "r2ai.http.max_retries", 5);
@@ -598,6 +597,8 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_desc (core->config, "r2ai.auto.raw", "Use prompt engineering for tool calling instead of native API support (true/false)");
 	r_config_set_b (core->config, "r2ai.auto.usejs", true);
 	r_config_desc (core->config, "r2ai.auto.usejs", "Enable/disable the execute_js tool for auto mode (true/false)");
+	r_config_set_b (core->config, "r2ai.auto.slim", true);
+	r_config_desc (core->config, "r2ai.auto.slim", "Use slim mode for auto commands (temporarily disable asm.lines.fcn and scr.utf8)");
 	r_config_set_b (core->config, "r2ai.debug", false);
 	r_config_desc (core->config, "r2ai.debug", "Enable debug output including API request/response details and curl commands");
 	r_config_lock (core->config, true);
@@ -623,6 +624,7 @@ R_API bool r2ai_fini(RCorePluginSession *cps) {
 	r_config_rm (core->config, "r2ai.http.max_backoff");
 	r_config_rm (core->config, "r2ai.http.backend");
 	r_config_rm (core->config, "r2ai.http.use_files");
+	r_config_rm (core->config, "r2ai.auto.slim");
 	r_config_rm (core->config, "r2ai.debug");
 	r_config_lock (core->config, true);
 
