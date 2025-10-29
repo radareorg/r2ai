@@ -18,13 +18,11 @@ static char *format_time_duration(time_t seconds) {
 		(ut64) (seconds % 60));
 }
 
-// Initialize timing and cost tracking for a run
+// Initialize timing tracking for a run
 static void r2ai_stats_init_run(R2AI_State *state, int n_run) {
 	time_t run_start = time (NULL);
 	if (n_run == 1) {
 		// First run, initialize total timing
-		state->stats.total_cost = 0.0;
-		state->stats.run_cost = 0.0;
 		state->stats.total_start_time = run_start;
 		state->stats.total_tokens = 0;
 		state->stats.run_tokens = 0;
@@ -53,11 +51,7 @@ static void r2ai_print_run_end(RCorePluginSession *cps, const R2AI_Usage *usage,
 		state->stats.total_completion_tokens += usage->completion_tokens;
 	}
 
-	if (r_config_get_b (core->config, "r2ai.chat.show_cost") == true) {
-		// TODO: calculate cost
-		state->stats.run_cost = 0.0 * run_time;
-		state->stats.total_cost += state->stats.run_cost;
-	}
+
 
 	// Format times for display
 	char *run_time_str = format_time_duration (run_time);

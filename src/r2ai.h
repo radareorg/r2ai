@@ -152,8 +152,6 @@ typedef struct {
 
 // Stats structure from auto.c
 typedef struct {
-	double total_cost;
-	double run_cost;
 	int total_tokens;
 	int run_tokens;
 	int total_prompt_tokens;

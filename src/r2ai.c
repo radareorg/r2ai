@@ -584,8 +584,7 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_desc (core->config, "r2ai.auto.reset_on_query", "Reset auto-mode conversation state on new user queries");
 	r_config_set_b (core->config, "r2ai.auto.think", true);
 	r_config_desc (core->config, "r2ai.auto.think", "Enable thinking/reasoning in auto mode prompts (true/false)");
-	r_config_set_b (core->config, "r2ai.chat.show_cost", true);
-	r_config_desc (core->config, "r2ai.chat.show_cost", "Display estimated API cost for chat interactions");
+
 
 	r_config_set_i (core->config, "r2ai.http.timeout", 240);
 	r_config_desc (core->config, "r2ai.http.timeout", "HTTP client timeout (seconds) for provider API calls");
