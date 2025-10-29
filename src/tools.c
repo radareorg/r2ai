@@ -266,7 +266,7 @@ static char *compose_command_with_comment(const char *command, const char *comme
 	return r_str_newf ("%s # %s", command, comment);
 }
 
-R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **edited_command, char **comment_out) {
+R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool verbose, char **edited_command, char **comment_out) {
 	if (!args) {
 		return strdup ("{ \"res\":\"Command is NULL\" }");
 	}
@@ -348,7 +348,7 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 	}
 	R_LOG_DEBUG ("Edited command: %s", command);
 
-	if (!hide_tool_output) {
+	if (verbose) {
 		char *display_command = compose_command_with_comment (command, comment);
 		if (display_command) {
 			char *red_command = r_str_newf (Color_RED "%s" Color_RESET "\n", display_command);
@@ -391,7 +391,7 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool hide_tool_output, char **e
 }
 
 // qjs function implementation
-R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output, char **edited_script_out) {
+R_API char *r2ai_qjs(RCore *core, RJson *args, bool verbose, char **edited_script_out) {
 	if (!args) {
 		return strdup ("{ \"res\":\"Script is NULL\" }");
 	}
@@ -455,7 +455,7 @@ R_API char *r2ai_qjs(RCore *core, RJson *args, bool hide_tool_output, char **edi
 		}
 	}
 
-	if (!hide_tool_output) {
+	if (verbose) {
 		char *print_script = r_str_newf ("\n```js\n%s\n```", script);
 		char *print_script_rendered = r2ai_markdown (print_script);
 		r_cons_printf (core->cons, "%s\n", print_script_rendered);
@@ -515,17 +515,17 @@ R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, c
 		return r_str_newf ("Failed to parse arguments: %s", args);
 	}
 
-	bool hide_tool_output = r_config_get_b (core->config, "r2ai.auto.hide_tool_output");
+	bool verbose = r_config_get_b (core->config, "r2ai.auto.verbose");
 	char *tool_result = NULL;
 
 	if (strcmp (tool_name, "r2cmd") == 0) {
-		tool_result = r2ai_r2cmd (core, args_json, hide_tool_output, edited_command, comment_out);
+		tool_result = r2ai_r2cmd (core, args_json, verbose, edited_command, comment_out);
 	} else {
 		if (comment_out) {
 			*comment_out = NULL;
 		}
 		if (strcmp (tool_name, "execute_js") == 0) {
-			tool_result = r2ai_qjs (core, args_json, hide_tool_output, edited_command);
+			tool_result = r2ai_qjs (core, args_json, verbose, edited_command);
 		} else {
 			tool_result = strdup ("{ \"res\":\"Unknown tool\" }");
 		}
@@ -656,7 +656,7 @@ R_API char *execute_tool(RCore *core, const char *tool_name, const char *args, c
 	if (!result) {
 		return r_str_newf ("Error running tool: Unknown error\nCommand: %s", args);
 	}
-	if (!hide_tool_output) {
+	if (verbose) {
 		r_cons_newline (core->cons);
 		r_cons_printf (core->cons, "%s\n", result);
 		r_cons_newline (core->cons);

@@ -574,8 +574,8 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_desc (core->config, "r2ai.stream", "Enable streaming responses from the LLM (true/false)");
 	r_config_set_i (core->config, "r2ai.auto.max_runs", 50);
 	r_config_desc (core->config, "r2ai.auto.max_runs", "Maximum number of automated steps/runs in auto mode");
-	r_config_set_b (core->config, "r2ai.auto.hide_tool_output", false);
-	r_config_desc (core->config, "r2ai.auto.hide_tool_output", "Hide tool output when running automated actions");
+	r_config_set_b (core->config, "r2ai.auto.verbose", true);
+	r_config_desc (core->config, "r2ai.auto.verbose", "Show tool output when running automated actions");
 	r_config_set (core->config, "r2ai.auto.init_commands", "i"); // "aaa;iI;afl~[3]"
 	r_config_desc (core->config, "r2ai.auto.init_commands", "Initial commands executed when auto mode starts (semicolon separated)");
 	r_config_set_b (core->config, "r2ai.auto.yolo", false);
