@@ -15,6 +15,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -b [url]", "set/show base URL for provider API",
 	"r2ai", " -e (k(=v))", "Same as '-e r2ai.'",
 	"r2ai", " -E", "Edit the r2ai rc file",
+	"r2ai", " -K", "Edit the API keys file",
 	"r2ai", " -h", "Show this help message",
 	"r2ai", " -i [file] [query]", "read file and ask the llm with the given query",
 	"r2ai", " -m [model]", "show selected model, list suggested ones, choose one",
@@ -315,6 +316,10 @@ static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 	R2AI_State *state = cps->data;
 	if (*input == '?' || r_str_startswith (input, "-h")) {
 		r_core_cmd_help (core, help_msg_r2ai);
+	} else if (r_str_startswith (input, "-K")) {
+		char *keys_path = r_file_home (".config/r2ai/apikeys.txt");
+		r_cons_editor (core->cons, keys_path, NULL);
+		free (keys_path);
 	} else if (r_str_startswith (input, "-E")) {
 		char *rc_path = r_file_home (".config/r2ai/rc");
 		r_cons_editor (core->cons, rc_path, NULL);
@@ -630,7 +635,6 @@ R_API bool r2ai_fini(RCorePluginSession *cps) {
 
 	R2AI_State *state = cps->data;
 	r2ai_conversation_free (state);
-	r2ai_openai_fini (state);
 
 	if (state) {
 		r_vdb_free (state->db);

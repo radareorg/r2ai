@@ -162,25 +162,25 @@ static char *r2ai_get_api_key_from_config(const char *provider) {
 		return NULL;
 	}
 	RList *lines = r_str_split_list (content, "\n", 0);
-	free (content);
-	if (!lines) {
-		return NULL;
-	}
-	char *prefix = r_str_newf ("%s=", provider);
+	char *prefix = NULL;
 	char *key = NULL;
-	RListIter *iter;
-	char *line;
-	r_list_foreach (lines, iter, line) {
-		if (r_str_startswith (line, prefix)) {
-			char *eq = strchr (line, '=');
-			if (eq) {
-				key = strdup (eq + 1);
-				r_str_trim (key);
+	if (lines) {
+		prefix = r_str_newf ("%s=", provider);
+		RListIter *iter;
+		char *line;
+		r_list_foreach (lines, iter, line) {
+			if (r_str_startswith (line, prefix)) {
+				char *eq = strchr (line, '=');
+				if (eq) {
+					key = strdup (eq + 1);
+					r_str_trim (key);
+				}
+				break;
 			}
-			break;
 		}
+		r_list_free (lines);
 	}
-	r_list_free (lines);
+	free (content);
 	free (prefix);
 	return key;
 }
@@ -203,6 +203,7 @@ R_IPI char *r2ai_get_api_key(RCore *core, const char *provider) {
 			char *api_key_filename = r_str_newf ("~/.r2ai.%s-key", provider);
 			char *absolute_apikey = r_file_abspath (api_key_filename);
 			if (r_file_exists (absolute_apikey)) {
+				R_LOG_WARN ("Loading keys from ~/.r2ai.%s-key will be deprecated soon. 'r2ai -EK' instead");
 				api_key = r_file_slurp (absolute_apikey, NULL);
 				if (api_key) {
 					r_str_trim (api_key);

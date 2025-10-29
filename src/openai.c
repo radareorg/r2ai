@@ -2,77 +2,16 @@
 
 #include "r2ai.h"
 
-// Bit flags for different types of model errors/incompatibilities
-typedef enum {
-	MODEL_ERROR_NONE = 0,
-	MODEL_ERROR_TEMPERATURE = 1 << 0,
-	// Can add more error types here as needed
-	// MODEL_ERROR_TOP_P = 1 << 1,
-	// MODEL_ERROR_MAX_TOKENS = 1 << 2,
-	// etc.
-} ModelErrorFlags;
 
-// Structure to store model compatibility info
-typedef struct {
-	char *model_id; // Provider:model string
-	int error_flags; // Bitfield of ModelErrorFlags
-} ModelCompat;
 
-// Function to add an error flag to a model
-static void model_add_error(R2AI_State *state, const char *provider, const char *model, ModelErrorFlags flag) {
-	if (!state) {
-		return;
-	}
 
-	if (!state->model_compat_db) {
-		state->model_compat_db = ht_pp_new0 ();
-	}
 
-	char *key = r_str_newf ("%s:%s", provider, model? model: "default");
-	bool found_flag = false;
-	ModelCompat *compat = ht_pp_find (state->model_compat_db, key, &found_flag);
 
-	if (found_flag && compat) {
-		// Update existing entry
-		compat->error_flags |= flag;
-	} else {
-		// Create new entry
-		compat = R_NEW0 (ModelCompat);
-		compat->model_id = strdup (key);
-		compat->error_flags = flag;
-		ht_pp_insert (state->model_compat_db, key, compat);
-	}
-	free (key);
-}
 
-// Free a ModelCompat item (for hash table)
-static bool model_compat_free_cb(void *user, const void *k, const void *v) {
-	(void)user;
-	(void)k;
-	ModelCompat *compat = (ModelCompat *)v;
-	if (compat) {
-		free (compat->model_id);
-		free (compat);
-	}
-	return true;
-}
 
-// Function to free the model_compat_db hash table
-R_IPI void r2ai_openai_fini(R2AI_State *state) {
-	if (state && state->model_compat_db) {
-		ht_pp_foreach (state->model_compat_db, model_compat_free_cb, NULL);
-		ht_pp_free (state->model_compat_db);
-		state->model_compat_db = NULL;
-	}
-}
 
 R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
-	R2AI_State *state = cps->data;
-	// Initialize compatibility database if needed
-	if (!state->model_compat_db) {
-		state->model_compat_db = ht_pp_new0 ();
-	}
 	args.provider = r_config_get (core->config, "r2ai.api");
 	args.model = r_config_get (core->config, "r2ai.model");
 
@@ -279,28 +218,6 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 		R_LOG_ERROR ("OpenAI API error %d", code);
 		if (res) {
 			R_LOG_ERROR ("OpenAI API error response: %s", res);
-			// Check for specific error types in the response
-			ModelErrorFlags error_flag = MODEL_ERROR_NONE;
-
-			// Check for temperature errors
-			if (strstr (res, "temperature")) {
-				R_LOG_DEBUG ("Detected temperature error for %s model %s", args.provider, args.model);
-				error_flag |= MODEL_ERROR_TEMPERATURE;
-			}
-
-			if (error_flag != MODEL_ERROR_NONE) {
-				// Record the error flags for this provider/model
-				model_add_error (state, args.provider, args.model, error_flag);
-
-				// Clean up
-				free (auth_header);
-				free (res);
-
-				// Retry the call (it will skip problematic parameters this time)
-				R_LOG_INFO ("Retrying request with adjusted parameters for %s/%s", args.provider, args.model);
-				RCorePluginSession retry_cps = { .core = core, .data = state };
-				return r2ai_openai (&retry_cps, args);
-			}
 		}
 		free (auth_header);
 		free (res);
