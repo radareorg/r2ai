@@ -3,14 +3,15 @@
 #include "r2ai_priv.h"
 
 static void show_help() {
-	printf ("Usage: r2ai [-vhp:m:q:Eb:] <prompt>\n"
+	printf ("Usage: r2ai [-vhp:m:q:Eb:K] <prompt>\n"
 	"  -v           Show version information\n"
 	"  -h           Show this help message\n"
 	"  -p <provider> Select LLM provider\n"
 	"  -m <model>   Select LLM model\n"
 	"  -q <query>   Execute predefined prompt query (can be used multiple times)\n"
 	"  -b <url>     Set base URL for provider API\n"
-	"  -E           Edit the r2ai rc file\n");
+	"  -E           Edit the r2ai rc file\n"
+	"  -K           Edit the API keys file\n");
 }
 
 static void show_version() {
@@ -25,7 +26,7 @@ int main(int argc, const char **argv) {
 	RList *queries = r_list_newf (free);
 
 	RGetopt opt;
-	r_getopt_init (&opt, argc, argv, "vhp:m:q:Eb:");
+	r_getopt_init (&opt, argc, argv, "vhp:m:q:Eb:K");
 	while ((c = r_getopt_next (&opt)) != -1) {
 		switch (c) {
 		case 'v':
@@ -58,6 +59,21 @@ int main(int argc, const char **argv) {
 				char *rc_path = r_file_home (".config/r2ai/rc");
 				r_cons_editor (core->cons, rc_path, NULL);
 				free (rc_path);
+				r_list_free (queries);
+				r2ai_fini (&cps);
+				r_core_free (core);
+				return 0;
+			}
+		case 'K':
+			{
+				RCore *core = r_core_new ();
+				RCorePluginSession cps = {
+					.core = core
+				};
+				r2ai_init (&cps);
+				char *keys_path = r_file_home (".config/r2ai/apikeys.txt");
+				r_cons_editor (core->cons, keys_path, NULL);
+				free (keys_path);
 				r_list_free (queries);
 				r2ai_fini (&cps);
 				r_core_free (core);

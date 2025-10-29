@@ -171,7 +171,6 @@ typedef struct r2ai_state_t {
 	bool theme_initialized; // Global theme flag (from markdown.c)
 	void *help_msg; // Global help message (from r2ai.c)
 	RVdb *db; // Vector database for embeddings
-	HtPP *model_compat_db; // Model compatibility database (from openai.c)
 } R2AI_State;
 
 /**
@@ -334,7 +333,6 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args);
 
 // openai
 R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args);
-R_IPI void r2ai_openai_fini(R2AI_State *state);
 
 // auto mode
 R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query);
