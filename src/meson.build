@@ -187,6 +187,7 @@ endif
 srcs = files(
   'anthropic.c',
   'auto.c',
+  'gemini.c',
   'http.c',
   'json.c',
   'llm.c',

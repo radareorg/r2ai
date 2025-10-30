@@ -6,7 +6,7 @@
 
 static const R2AIProvider r2ai_providers[] = {
 	{ "openai", "https://api.openai.com/v1", true, false, false, false },
-	{ "gemini", "https://generativelanguage.googleapis.com/v1beta/openai", true, false, false, false },
+	{ "gemini", "https://generativelanguage.googleapis.com/v1beta", true, false, false, false },
 	{ "anthropic", "https://api.anthropic.com/v1", true, true, false, false },
 	{ "ollama", "http://localhost:11434/api", false, false, true, true },
 	{ "openapi", "http://127.0.0.1:11434", false, false, false, false },
@@ -133,6 +133,8 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	const R2AIProvider *p = r2ai_get_provider (provider);
 	if (p && p->uses_anthropic_header) {
 		res = r2ai_anthropic (cps, args);
+	} else if (!strcmp (provider, "gemini")) {
+		res = r2ai_gemini (cps, args);
 	} else {
 		res = r2ai_openai (cps, args);
 	}
@@ -247,11 +249,6 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 		return NULL;
 	}
 
-	// Create models endpoint URL
-	const R2AIProvider *prov = r2ai_get_provider (provider);
-	const bool usetags = (prov && prov->uses_tags_endpoint);
-	char *models_url = r_str_newf ("%s/%s", purl, usetags? "tags": "models");
-
 	// Get API key for authentication (except for providers that don't require it)
 	char *api_key = NULL;
 	const R2AIProvider *p = r2ai_get_provider (provider);
@@ -260,39 +257,57 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 		api_key = r2ai_get_api_key (core, provider);
 	}
 
+	char *models_url = NULL;
 	int code = 0;
 	char *response = NULL;
-	if (api_key) {
-		const char *headers[4] = { "Content-Type: application/json", NULL, NULL, NULL };
-		char *auth_header = NULL;
-		char *version_header = NULL;
 
-		const R2AIProvider *prov = r2ai_get_provider (provider);
-		if (prov && prov->uses_anthropic_header) {
-			// Anthropic uses different header format
-			auth_header = r_str_newf ("x-api-key: %s", api_key);
-			version_header = strdup ("anthropic-version: 2023-06-01");
-			headers[1] = auth_header;
-			headers[2] = version_header;
-		} else {
-			// Standard OpenAI-compatible format
-			auth_header = r_str_newf ("Authorization: Bearer %s", api_key);
-			headers[1] = auth_header;
+	// Special handling for Gemini
+	if (!strcmp (provider, "gemini")) {
+		if (!api_key) {
+			return NULL;
 		}
-
-		// Make HTTP GET request
-		R_LOG_DEBUG ("GET %s Headers: %s", models_url, headers);
-		response = r2ai_http_get (core, models_url, headers, &code, NULL);
-		free (auth_header);
-		free (version_header);
-		free (api_key);
-	} else {
-		// We have no headers
+		models_url = r_str_newf ("%s/models?key=%s", purl, api_key);
+		const char *headers[2] = { "Content-Type: application/json", NULL };
 		R_LOG_DEBUG ("GET %s", models_url);
-		response = r2ai_http_get (core, models_url, NULL, &code, NULL);
+		response = r2ai_http_get (core, models_url, headers, &code, NULL);
+	} else {
+		// Create models endpoint URL
+		const R2AIProvider *prov = r2ai_get_provider (provider);
+		const bool usetags = (prov && prov->uses_tags_endpoint);
+		models_url = r_str_newf ("%s/%s", purl, usetags? "tags": "models");
+
+		if (api_key) {
+			const char *headers[4] = { "Content-Type: application/json", NULL, NULL, NULL };
+			char *auth_header = NULL;
+			char *version_header = NULL;
+
+			const R2AIProvider *prov = r2ai_get_provider (provider);
+			if (prov && prov->uses_anthropic_header) {
+				// Anthropic uses different header format
+				auth_header = r_str_newf ("x-api-key: %s", api_key);
+				version_header = strdup ("anthropic-version: 2023-06-01");
+				headers[1] = auth_header;
+				headers[2] = version_header;
+			} else {
+				// Standard OpenAI-compatible format
+				auth_header = r_str_newf ("Authorization: Bearer %s", api_key);
+				headers[1] = auth_header;
+			}
+
+			// Make HTTP GET request
+			R_LOG_DEBUG ("GET %s Headers: %s", models_url, headers);
+			response = r2ai_http_get (core, models_url, headers, &code, NULL);
+			free (auth_header);
+			free (version_header);
+		} else {
+			// We have no headers
+			R_LOG_DEBUG ("GET %s", models_url);
+			response = r2ai_http_get (core, models_url, NULL, &code, NULL);
+		}
 	}
 
 	free (models_url);
+	free (api_key);
 
 	if (!response || code != 200) {
 		R_LOG_DEBUG ("Failed to fetch models from %s (code: %d)", provider, code);
@@ -309,22 +324,55 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 
 	RJson *json = r_json_parse (response);
 	if (json) {
-		const R2AIProvider *prov = r2ai_get_provider (provider);
-		const bool usetags = (prov && prov->uses_tags_endpoint);
-		const RJson *data = r_json_get (json, usetags? "models": "data");
+		const RJson *data = NULL;
+
+		if (!strcmp (provider, "gemini")) {
+			// Gemini has "models" array directly
+			data = r_json_get (json, "models");
+		} else {
+			const R2AIProvider *prov = r2ai_get_provider (provider);
+			const bool usetags = (prov && prov->uses_tags_endpoint);
+			data = r_json_get (json, usetags? "models": "data");
+		}
 
 		if (data && data->type == R_JSON_ARRAY) {
 			const RJson *model_item = data->children.first;
 			while (model_item) {
-				const RJson *id;
-				if (prov && prov->uses_tags_endpoint) {
-					id = r_json_get (model_item, "model");
+				const RJson *id = NULL;
+				char *model_id = NULL;
+
+				if (!strcmp (provider, "gemini")) {
+					// Gemini: extract model ID from "name" field (e.g., "models/gemini-1.5-flash" -> "gemini-1.5-flash")
+					const RJson *name = r_json_get (model_item, "name");
+					if (name && name->type == R_JSON_STRING && R_STR_ISNOTEMPTY (name->str_value)) {
+						RList *parts = r_str_split_list (name->str_value, "/", 0);
+						if (parts && r_list_length (parts) > 1) {
+							model_id = strdup ((char *)r_list_get_n (parts, r_list_length (parts) - 1));
+						} else {
+							model_id = strdup (name->str_value);
+						}
+						r_list_free (parts);
+						// Only include Gemini models
+						if (!strstr (model_id, "gemini")) {
+							free (model_id);
+							model_id = NULL;
+						}
+					}
 				} else {
-					id = r_json_get (model_item, "id");
+					const R2AIProvider *prov = r2ai_get_provider (provider);
+					if (prov && prov->uses_tags_endpoint) {
+						id = r_json_get (model_item, "model");
+					} else {
+						id = r_json_get (model_item, "id");
+					}
+					if (id && id->type == R_JSON_STRING && R_STR_ISNOTEMPTY (id->str_value)) {
+						model_id = strdup (id->str_value);
+					}
 				}
-				if (id && id->type == R_JSON_STRING && R_STR_ISNOTEMPTY (id->str_value)) {
-					R_LOG_DEBUG ("Model: %s", id->str_value);
-					r_list_append (models, strdup (id->str_value));
+
+				if (model_id) {
+					R_LOG_DEBUG ("Model: %s", model_id);
+					r_list_append (models, model_id);
 				}
 				model_item = model_item->next;
 			}
