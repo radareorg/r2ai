@@ -85,11 +85,6 @@ int main(int argc, const char **argv) {
 			return 1;
 		}
 	}
-	if (opt.ind >= argc) {
-		show_help ();
-		r_list_free (queries);
-		return 1;
-	}
 
 	RCore *core = r_core_new ();
 	RCorePluginSession cps = {
@@ -109,31 +104,41 @@ int main(int argc, const char **argv) {
 		}
 	} else {
 		if (opt.ind >= argc) {
-			// List available prompts
-			r2ai_cmd_q (&cps, "");
-			r_list_free (queries);
-			r2ai_fini (&cps);
-			r_core_free (core);
-			return 0;
-		}
+			// Enter r2clippy REPL
+			r_line_set_prompt (core->cons->line, "[r2clippy]> ");
+			while (true) {
+				const char *input = r_line_readline (core->cons);
+				if (r_cons_is_breaked (core->cons) || R_STR_ISEMPTY (input)) {
+					break;
+				}
+				char *cmd = r_str_newf ("?E %s", input);
+				char *res = r_core_cmd_str (core, cmd);
+				if (res) {
+					r_cons_println (core->cons, res);
+					free (res);
+				}
+				free (cmd);
+				r_cons_flush (core->cons);
+			}
+		} else {
+			const char *prompt = argv[opt.ind];
 
-		const char *prompt = argv[opt.ind];
-
-		char *err = NULL;
-		R2AIArgs args = {
-			.input = prompt,
-			.provider = provider,
-			.model = model,
-			.error = &err,
-			.dorag = false,
-		};
-		char *res = r2ai (&cps, args);
-		if (res) {
-			r_cons_println (core->cons, res);
-			free (res);
+			char *err = NULL;
+			R2AIArgs args = {
+				.input = prompt,
+				.provider = provider,
+				.model = model,
+				.error = &err,
+				.dorag = false,
+			};
+			char *res = r2ai (&cps, args);
+			if (res) {
+				r_cons_println (core->cons, res);
+				free (res);
+			}
+			free (err);
+			r_cons_flush (core->cons);
 		}
-		free (err);
-		r_cons_flush (core->cons);
 	}
 
 	r_list_free (queries);
