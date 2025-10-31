@@ -281,8 +281,6 @@ static void load_embeddings(RCorePluginSession *cps) {
 	r_list_free (files);
 }
 
-static void cmd_r2ai(RCorePluginSession *cps, const char *input);
-
 static bool load_r2airc(RCorePluginSession *cps) {
 	char *rc_path = r_file_home (".config/r2ai/rc");
 	if (rc_path && r_file_exists (rc_path)) {
@@ -311,7 +309,7 @@ static bool load_r2airc(RCorePluginSession *cps) {
 	return true;
 }
 
-static void cmd_r2ai(RCorePluginSession *cps, const char *input) {
+R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 	RCore *core = cps->core;
 	R2AI_State *state = cps->data;
 	if (*input == '?' || r_str_startswith (input, "-h")) {
@@ -578,6 +576,8 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 		"strings from comments like 'string:'");
 	r_config_set (core->config, "r2ai.promptdir", "~/.config/r2ai/prompts");
 	r_config_desc (core->config, "r2ai.promptdir", "Directory containing .r2ai prompt files");
+	r_config_set_b (core->config, "r2ai.clippy", false);
+	r_config_desc (core->config, "r2ai.clippy", "Responses from the llm will be displayed by clippy");
 	r_config_set_b (core->config, "r2ai.stream", false);
 	r_config_desc (core->config, "r2ai.stream", "Enable streaming responses from the LLM (true/false)");
 	r_config_set_i (core->config, "r2ai.auto.max_runs", 50);
