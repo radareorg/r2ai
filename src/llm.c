@@ -191,6 +191,9 @@ static char *r2ai_get_api_key_from_config(const char *provider) {
  * Caller is responsible for freeing the returned string (or NULL if not found). */
 R_IPI char *r2ai_get_api_key(RCore *core, const char *provider) {
 	(void)core;
+	if (!provider) {
+		return NULL;
+	}
 	char *api_key = NULL;
 	char *api_key_env = r_str_newf ("%s_API_KEY", provider);
 	r_str_case (api_key_env, true);
@@ -205,7 +208,7 @@ R_IPI char *r2ai_get_api_key(RCore *core, const char *provider) {
 			char *api_key_filename = r_str_newf ("~/.r2ai.%s-key", provider);
 			char *absolute_apikey = r_file_abspath (api_key_filename);
 			if (r_file_exists (absolute_apikey)) {
-				R_LOG_WARN ("Loading keys from ~/.r2ai.%s-key will be deprecated soon. 'r2ai -EK' instead");
+				R_LOG_WARN ("Loading keys from ~/.r2ai.%s-key will be deprecated soon. 'r2ai -EK' instead", provider);
 				api_key = r_file_slurp (absolute_apikey, NULL);
 				if (api_key) {
 					r_str_trim (api_key);
@@ -244,6 +247,9 @@ R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider) {
 	return p->url;
 }
 R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
+	if (!provider) {
+		return NULL;
+	}
 	const char *purl = r2ai_get_provider_url (core, provider);
 	if (!purl) {
 		return NULL;
@@ -345,7 +351,8 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 					// Gemini: extract model ID from "name" field (e.g., "models/gemini-1.5-flash" -> "gemini-1.5-flash")
 					const RJson *name = r_json_get (model_item, "name");
 					if (name && name->type == R_JSON_STRING && R_STR_ISNOTEMPTY (name->str_value)) {
-						RList *parts = r_str_split_list (name->str_value, "/", 0);
+						char *s = strdup (name->str_value);
+						RList *parts = r_str_split_list (s, "/", 0);
 						if (parts && r_list_length (parts) > 1) {
 							model_id = strdup ((char *)r_list_get_n (parts, r_list_length (parts) - 1));
 						} else {
@@ -357,6 +364,7 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 							free (model_id);
 							model_id = NULL;
 						}
+						free (s);
 					}
 				} else {
 					const R2AIProvider *prov = r2ai_get_provider (provider);

@@ -442,6 +442,9 @@ static bool cb_r2ai_model(void *user, void *data) {
 	RConfigNode *node = (RConfigNode *)data;
 	RCore *core = (RCore *)user;
 	const char *api = r_config_get (core->config, "r2ai.api");
+	if (R_STR_ISEMPTY (api)) {
+		api = R2AI_DEFAULT_PROVIDER;
+	}
 	if (*node->value == '?') {
 		// Try to fetch models dynamically first
 		RList *models = r2ai_fetch_available_models (core, api);
