@@ -2,14 +2,6 @@
 
 #include "r2ai.h"
 
-
-
-
-
-
-
-
-
 R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
 	args.provider = r_config_get (core->config, "r2ai.api");

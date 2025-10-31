@@ -9,7 +9,7 @@ R_IPI R2AI_ChatResponse *r2ai_gemini(RCorePluginSession *cps, R2AIArgs args) {
 	args.model = r_config_get (core->config, "r2ai.model");
 
 	const char *base_url = r2ai_get_provider_url (core, args.provider);
-	const char *model_name = args.model && strstr(args.model, "gemini") ? args.model : "gemini-2.0-flash-exp";
+	const char *model_name = args.model && strstr (args.model, "gemini")? args.model: "gemini-2.0-flash-exp";
 	char **error = args.error;
 
 	// Create a temp conversation to include the system prompt and the rest of the messages
@@ -89,9 +89,9 @@ R_IPI R2AI_ChatResponse *r2ai_gemini(RCorePluginSession *cps, R2AIArgs args) {
 		// Prepend system prompt to first user message
 		char *content = NULL;
 		if (system_prompt && strcmp (msg->role, "user") == 0 && msg_index == 0) {
-			content = r_str_newf ("System: %s\n\n%s", system_prompt, msg->content ? msg->content : "");
+			content = r_str_newf ("System: %s\n\n%s", system_prompt, msg->content? msg->content: "");
 		} else {
-			content = msg->content ? strdup (msg->content) : strdup ("");
+			content = msg->content? strdup (msg->content): strdup ("");
 		}
 		pj_ks (pj, "text", content);
 		free (content);

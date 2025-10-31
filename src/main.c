@@ -2,16 +2,22 @@
 
 #include "r2ai_priv.h"
 
+#define CLIPPY "?E"
+// #define CLIPPY "?EC" // pico le croco
+
 static void show_help() {
-	printf ("Usage: r2ai [-vhp:m:q:Eb:K] <prompt>\n"
-			"  -v           Show version information\n"
-			"  -h           Show this help message\n"
-			"  -p <provider> Select LLM provider\n"
-			"  -m <model>   Select LLM model\n"
-			"  -q <query>   Execute predefined prompt query (can be used multiple times)\n"
-			"  -b <url>     Set base URL for provider API\n"
-			"  -E           Edit the r2ai rc file\n"
-			"  -K           Edit the API keys file\n");
+	printf (
+		"Usage: r2ai [-vhp:m:q:Eb:Kc:f] <prompt>\n"
+		"  -v           Show version information\n"
+		"  -h           Show this help message\n"
+		"  -p <provider> Select LLM provider\n"
+		"  -m <model>   Select LLM model\n"
+		"  -q <query>   Execute predefined prompt query (can be used multiple times)\n"
+		"  -b <url>     Set base URL for provider API\n"
+		"  -c <command> Execute command after loading file (can be used multiple times)\n"
+		"  -f <file>    Load file with r2 API\n"
+		"  -E           Edit the r2ai rc file\n"
+		"  -K           Edit the API keys file\n");
 }
 
 static void show_version() {
@@ -19,23 +25,17 @@ static void show_version() {
 }
 
 static char *build_conversation(RList *conversation) {
-	char *result = NULL;
 	RListIter *iter;
 	char *msg;
+	RStrBuf *sb = r_strbuf_new ("");
 	r_list_foreach (conversation, iter, msg) {
-		if (result) {
-			result = r_str_appendf (result, "\n%s", msg);
-		} else {
-			result = strdup (msg);
-		}
+		r_strbuf_appendf (sb, "%s\n", msg);
 	}
-	return result;
+	return r_strbuf_drain (sb);
 }
 
-static void r2ai_repl(RCorePluginSession *cps, const char *provider, const char *model) {
+static void r2ai_repl(RCorePluginSession *cps, const char *provider, const char *model, RList *conversation) {
 	RCore *core = cps->core;
-	RList *conversation = r_list_newf (free);
-	// Enter r2clippy REPL
 	r_line_set_prompt (core->cons->line, "[r2clippy]> ");
 	while (true) {
 		const char *input = r_line_readline (core->cons);
@@ -73,7 +73,7 @@ static void r2ai_repl(RCorePluginSession *cps, const char *provider, const char 
 			char *res = r2ai (cps, args);
 			if (res) {
 				if (r_config_get_b (core->config, "r2ai.clippy")) {
-					char *cmd = r_str_newf ("?E %s", res);
+					char *cmd = r_str_newf (CLIPPY " %s", res);
 					r_core_cmd_call (core, cmd);
 					free (cmd);
 				} else {
@@ -90,7 +90,6 @@ static void r2ai_repl(RCorePluginSession *cps, const char *provider, const char 
 		}
 		r_cons_flush (core->cons);
 	}
-	r_list_free (conversation);
 }
 
 int main(int argc, const char **argv) {
@@ -98,79 +97,97 @@ int main(int argc, const char **argv) {
 	const char *provider = NULL;
 	const char *model = NULL;
 	const char *baseurl = NULL;
+	const char *filename = NULL;
+	RList *conversation = r_list_newf (free);
 	RList *queries = r_list_newf (free);
-
-	RGetopt opt;
-	r_getopt_init (&opt, argc, argv, "vhp:m:q:Eb:K");
-	while ((c = r_getopt_next (&opt)) != -1) {
-		switch (c) {
-			case 'v':
-				show_version ();
-				r_list_free (queries);
-				return 0;
-			case 'h':
-				show_help ();
-				r_list_free (queries);
-				return 0;
-			case 'p':
-				provider = opt.arg;
-				break;
-			case 'm':
-				model = opt.arg;
-				break;
-			case 'q':
-				r_list_append (queries, strdup (opt.arg));
-				break;
-			case 'b':
-				baseurl = opt.arg;
-				break;
-			case 'E':
-				{
-					RCore *core = r_core_new ();
-					RCorePluginSession cps = {
-						.core = core
-					};
-					r2ai_init (&cps);
-					char *rc_path = r_file_home (".config/r2ai/rc");
-					r_cons_editor (core->cons, rc_path, NULL);
-					free (rc_path);
-					r_list_free (queries);
-					r2ai_fini (&cps);
-					r_core_free (core);
-					return 0;
-				}
-			case 'K':
-				{
-					RCore *core = r_core_new ();
-					RCorePluginSession cps = {
-						.core = core
-					};
-					r2ai_init (&cps);
-					char *keys_path = r_file_home (".config/r2ai/apikeys.txt");
-					r_cons_editor (core->cons, keys_path, NULL);
-					free (keys_path);
-					r_list_free (queries);
-					r2ai_fini (&cps);
-					r_core_free (core);
-					return 0;
-				}
-			default:
-				show_help ();
-				r_list_free (queries);
-				return 1;
-		}
-	}
-
+	RList *commands = r_list_newf (free);
 	RCore *core = r_core_new ();
 	RCorePluginSession cps = {
 		.core = core
 	};
 	r2ai_init (&cps);
+
+	RGetopt opt;
+	r_getopt_init (&opt, argc, argv, "vhp:m:q:Eb:Kc:f");
+	while ((c = r_getopt_next (&opt)) != -1) {
+		switch (c) {
+		case 'p':
+			provider = opt.arg;
+			break;
+		case 'm':
+			model = opt.arg;
+			break;
+		case 'q':
+			r_list_append (queries, strdup (opt.arg));
+			break;
+		case 'b':
+			baseurl = opt.arg;
+			break;
+		case 'c':
+			r_list_append (commands, strdup (opt.arg));
+			break;
+		case 'f':
+			filename = opt.arg;
+			break;
+		case 'E':
+			{
+				char *rc_path = r_file_home (".config/r2ai/rc");
+				r_cons_editor (core->cons, rc_path, NULL);
+				free (rc_path);
+				goto beach;
+			}
+			break;
+		case 'K':
+			{
+				char *keys_path = r_file_home (".config/r2ai/apikeys.txt");
+				r_cons_editor (core->cons, keys_path, NULL);
+				free (keys_path);
+				goto beach;
+			}
+			break;
+		case 'v':
+			show_version ();
+			goto beach;
+		case 'h':
+			show_help ();
+			goto beach;
+		default:
+			show_help ();
+			goto beach;
+		}
+	}
+
 	if (baseurl) {
 		r_config_set (core->config, "r2ai.baseurl", baseurl);
 	}
-	RList *conversation = r_list_newf (free);
+	if (filename) {
+		char *cmd = r_str_newf ("o %s", filename);
+		r_core_cmd_call (core, cmd);
+		free (cmd);
+		// TODO: use the C api instead of the 'o' command and check for error if file exists etc
+	} else {
+		r_core_cmd0 (core, CLIPPY " Interesting, no files to analyse. Use -f or :o");
+		r_cons_flush (core->cons);
+	}
+	if (!r_list_empty (commands)) {
+		RListIter *iter;
+		char *cmd;
+		r_list_foreach (commands, iter, cmd) {
+			char *res = r_core_cmd_str (core, cmd);
+			if (res) {
+				r_cons_println (core->cons, res);
+				free (res);
+			}
+		}
+	}
+	r_config_set_b (core->config, "r2ai.utf8", false);
 	r_config_set_b (core->config, "r2ai.clippy", true);
+	if (provider) {
+		r_config_set (core->config, "r2ai.api", provider);
+	}
+	if (model) {
+		r_config_set (core->config, "r2ai.model", model);
+	}
 
 	// Process queries if any
 	if (!r_list_empty (queries)) {
@@ -181,7 +198,7 @@ int main(int argc, const char **argv) {
 		}
 	} else {
 		if (opt.ind >= argc) {
-			r2ai_repl (&cps, provider, model);
+			r2ai_repl (&cps, provider, model, conversation);
 		} else {
 			const char *prompt = argv[opt.ind];
 
@@ -203,8 +220,10 @@ int main(int argc, const char **argv) {
 		}
 	}
 
+beach:
 	r_list_free (conversation);
 	r_list_free (queries);
+	r_list_free (commands);
 	r2ai_fini (&cps);
 	r_core_free (core);
 	return 0;
