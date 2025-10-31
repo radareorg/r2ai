@@ -7,7 +7,7 @@
 
 static void show_help() {
 	printf (
-		"Usage: r2ai [-vhp:m:q:Eb:Kc:f] <prompt>\n"
+		"Usage: r2ai [-vhp:m:q:Eb:Kc:f:i] <prompt>\n"
 		"  -v           Show version information\n"
 		"  -h           Show this help message\n"
 		"  -p <provider> Select LLM provider\n"
@@ -16,6 +16,7 @@ static void show_help() {
 		"  -b <url>     Set base URL for provider API\n"
 		"  -c <command> Execute command after loading file (can be used multiple times)\n"
 		"  -f <file>    Load file with r2 API\n"
+		"  -i <script>  Load and interpret script file before executing commands\n"
 		"  -E           Edit the r2ai rc file\n"
 		"  -K           Edit the API keys file\n");
 }
@@ -98,6 +99,7 @@ int main(int argc, const char **argv) {
 	const char *model = NULL;
 	const char *baseurl = NULL;
 	const char *filename = NULL;
+	const char *scriptfile = NULL;
 	RList *conversation = r_list_newf (free);
 	RList *queries = r_list_newf (free);
 	RList *commands = r_list_newf (free);
@@ -108,7 +110,7 @@ int main(int argc, const char **argv) {
 	r2ai_init (&cps);
 
 	RGetopt opt;
-	r_getopt_init (&opt, argc, argv, "vhp:m:q:Eb:Kc:f");
+	r_getopt_init (&opt, argc, argv, "vhp:m:q:Eb:Kc:f:i");
 	while ((c = r_getopt_next (&opt)) != -1) {
 		switch (c) {
 		case 'p':
@@ -128,6 +130,9 @@ int main(int argc, const char **argv) {
 			break;
 		case 'f':
 			filename = opt.arg;
+			break;
+		case 'i':
+			scriptfile = opt.arg;
 			break;
 		case 'E':
 			{
@@ -168,6 +173,11 @@ int main(int argc, const char **argv) {
 	} else {
 		r_core_cmd0 (core, CLIPPY " Interesting, no files to analyse. Use -f or :o");
 		r_cons_flush (core->cons);
+	}
+	if (scriptfile) {
+		char *cmd = r_str_newf (". %s", scriptfile);
+		r_core_cmd_call (core, cmd);
+		free (cmd);
 	}
 	if (!r_list_empty (commands)) {
 		RListIter *iter;
