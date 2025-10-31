@@ -12,6 +12,7 @@ typedef struct {
 	bool uses_system_ls;
 } R2AIProvider;
 
+R_API void cmd_r2ai(RCorePluginSession *cps, const char *input);
 R_IPI char *r2ai_get_api_key(RCore *core, const char *provider);
 R_IPI const R2AIProvider *r2ai_get_provider(const char *name);
 R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider);

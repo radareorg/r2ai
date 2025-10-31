@@ -4,18 +4,93 @@
 
 static void show_help() {
 	printf ("Usage: r2ai [-vhp:m:q:Eb:K] <prompt>\n"
-	"  -v           Show version information\n"
-	"  -h           Show this help message\n"
-	"  -p <provider> Select LLM provider\n"
-	"  -m <model>   Select LLM model\n"
-	"  -q <query>   Execute predefined prompt query (can be used multiple times)\n"
-	"  -b <url>     Set base URL for provider API\n"
-	"  -E           Edit the r2ai rc file\n"
-	"  -K           Edit the API keys file\n");
+			"  -v           Show version information\n"
+			"  -h           Show this help message\n"
+			"  -p <provider> Select LLM provider\n"
+			"  -m <model>   Select LLM model\n"
+			"  -q <query>   Execute predefined prompt query (can be used multiple times)\n"
+			"  -b <url>     Set base URL for provider API\n"
+			"  -E           Edit the r2ai rc file\n"
+			"  -K           Edit the API keys file\n");
 }
 
 static void show_version() {
 	printf ("r2ai " R2AI_VERSION "\n");
+}
+
+static char *build_conversation(RList *conversation) {
+	char *result = NULL;
+	RListIter *iter;
+	char *msg;
+	r_list_foreach (conversation, iter, msg) {
+		if (result) {
+			result = r_str_appendf (result, "\n%s", msg);
+		} else {
+			result = strdup (msg);
+		}
+	}
+	return result;
+}
+
+static void r2ai_repl(RCorePluginSession *cps, const char *provider, const char *model) {
+	RCore *core = cps->core;
+	RList *conversation = r_list_newf (free);
+	// Enter r2clippy REPL
+	r_line_set_prompt (core->cons->line, "[r2clippy]> ");
+	while (true) {
+		const char *input = r_line_readline (core->cons);
+		if (r_cons_is_breaked (core->cons) || R_STR_ISEMPTY (input)) {
+			break;
+		}
+		if (input[0] == '!') {
+			// Execute shell command
+			system (input + 1);
+		} else if (input[0] == ':') {
+			// Run radare2 command
+			char *res = r_core_cmd_str (core, input + 1);
+			if (res) {
+				r_cons_println (core->cons, res);
+				free (res);
+			}
+		} else if (input[0] == 'q') {
+			if (r_cons_yesno (core->cons, 'y', "Do you want to quit? (Y/n)")) {
+				break;
+			}
+		} else if (input[0] == '-') {
+			cmd_r2ai (cps, input);
+		} else {
+			// Send message to LLM as part of conversation
+			r_list_append (conversation, r_str_newf ("User: %s", input));
+			char *full_prompt = build_conversation (conversation);
+			char *err = NULL;
+			R2AIArgs args = {
+				.input = full_prompt,
+				.provider = provider,
+				.model = model,
+				.error = &err,
+				.dorag = false,
+			};
+			char *res = r2ai (cps, args);
+			if (res) {
+				if (r_config_get_b (core->config, "r2ai.clippy")) {
+					char *cmd = r_str_newf ("?E %s", res);
+					r_core_cmd_call (core, cmd);
+					free (cmd);
+				} else {
+					r_cons_println (core->cons, res);
+					r_list_append (conversation, r_str_newf ("Assistant: %s", res));
+				}
+				free (res);
+			}
+			if (err) {
+				r_cons_println (core->cons, err);
+				free (err);
+			}
+			free (full_prompt);
+		}
+		r_cons_flush (core->cons);
+	}
+	r_list_free (conversation);
 }
 
 int main(int argc, const char **argv) {
@@ -29,66 +104,61 @@ int main(int argc, const char **argv) {
 	r_getopt_init (&opt, argc, argv, "vhp:m:q:Eb:K");
 	while ((c = r_getopt_next (&opt)) != -1) {
 		switch (c) {
-		case 'v':
-			show_version ();
-			r_list_free (queries);
-			return 0;
-		case 'h':
-			show_help ();
-			r_list_free (queries);
-			return 0;
-		case 'p':
-			provider = opt.arg;
-			break;
-		case 'm':
-			model = opt.arg;
-			break;
-		case 'q':
-			r_list_append (queries, strdup (opt.arg));
-			break;
-		case 'b':
-			baseurl = opt.arg;
-			break;
-		case 'E':
-			{
-				RCore *core = r_core_new ();
-				RCorePluginSession cps = {
-					.core = core
-				};
-				r2ai_init (&cps);
-				char *rc_path = r_file_home (".config/r2ai/rc");
-				r_cons_editor (core->cons, rc_path, NULL);
-				free (rc_path);
+			case 'v':
+				show_version ();
 				r_list_free (queries);
-				r2ai_fini (&cps);
-				r_core_free (core);
 				return 0;
-			}
-		case 'K':
-			{
-				RCore *core = r_core_new ();
-				RCorePluginSession cps = {
-					.core = core
-				};
-				r2ai_init (&cps);
-				char *keys_path = r_file_home (".config/r2ai/apikeys.txt");
-				r_cons_editor (core->cons, keys_path, NULL);
-				free (keys_path);
+			case 'h':
+				show_help ();
 				r_list_free (queries);
-				r2ai_fini (&cps);
-				r_core_free (core);
 				return 0;
-			}
-		default:
-			show_help ();
-			r_list_free (queries);
-			return 1;
+			case 'p':
+				provider = opt.arg;
+				break;
+			case 'm':
+				model = opt.arg;
+				break;
+			case 'q':
+				r_list_append (queries, strdup (opt.arg));
+				break;
+			case 'b':
+				baseurl = opt.arg;
+				break;
+			case 'E':
+				{
+					RCore *core = r_core_new ();
+					RCorePluginSession cps = {
+						.core = core
+					};
+					r2ai_init (&cps);
+					char *rc_path = r_file_home (".config/r2ai/rc");
+					r_cons_editor (core->cons, rc_path, NULL);
+					free (rc_path);
+					r_list_free (queries);
+					r2ai_fini (&cps);
+					r_core_free (core);
+					return 0;
+				}
+			case 'K':
+				{
+					RCore *core = r_core_new ();
+					RCorePluginSession cps = {
+						.core = core
+					};
+					r2ai_init (&cps);
+					char *keys_path = r_file_home (".config/r2ai/apikeys.txt");
+					r_cons_editor (core->cons, keys_path, NULL);
+					free (keys_path);
+					r_list_free (queries);
+					r2ai_fini (&cps);
+					r_core_free (core);
+					return 0;
+				}
+			default:
+				show_help ();
+				r_list_free (queries);
+				return 1;
 		}
-	}
-	if (opt.ind >= argc) {
-		show_help ();
-		r_list_free (queries);
-		return 1;
 	}
 
 	RCore *core = r_core_new ();
@@ -99,6 +169,8 @@ int main(int argc, const char **argv) {
 	if (baseurl) {
 		r_config_set (core->config, "r2ai.baseurl", baseurl);
 	}
+	RList *conversation = r_list_newf (free);
+	r_config_set_b (core->config, "r2ai.clippy", true);
 
 	// Process queries if any
 	if (!r_list_empty (queries)) {
@@ -109,33 +181,29 @@ int main(int argc, const char **argv) {
 		}
 	} else {
 		if (opt.ind >= argc) {
-			// List available prompts
-			r2ai_cmd_q (&cps, "");
-			r_list_free (queries);
-			r2ai_fini (&cps);
-			r_core_free (core);
-			return 0;
-		}
+			r2ai_repl (&cps, provider, model);
+		} else {
+			const char *prompt = argv[opt.ind];
 
-		const char *prompt = argv[opt.ind];
-
-		char *err = NULL;
-		R2AIArgs args = {
-			.input = prompt,
-			.provider = provider,
-			.model = model,
-			.error = &err,
-			.dorag = false,
-		};
-		char *res = r2ai (&cps, args);
-		if (res) {
-			r_cons_println (core->cons, res);
-			free (res);
+			char *err = NULL;
+			R2AIArgs args = {
+				.input = prompt,
+				.provider = provider,
+				.model = model,
+				.error = &err,
+				.dorag = false,
+			};
+			char *res = r2ai (&cps, args);
+			if (res) {
+				r_cons_println (core->cons, res);
+				free (res);
+			}
+			free (err);
+			r_cons_flush (core->cons);
 		}
-		free (err);
-		r_cons_flush (core->cons);
 	}
 
+	r_list_free (conversation);
 	r_list_free (queries);
 	r2ai_fini (&cps);
 	r_core_free (core);
