@@ -7,7 +7,7 @@
 
 static void show_help() {
 	printf (
-		"Usage: r2ai [-vhp:m:q:Eb:Kc:f:i] <prompt>\n"
+		"Usage: r2ai [-vhp:m:q:Eb:Kc:f:ie] <prompt>\n"
 		"  -v           Show version information\n"
 		"  -h           Show this help message\n"
 		"  -p <provider> Select LLM provider\n"
@@ -17,6 +17,7 @@ static void show_help() {
 		"  -c <command> Execute command after loading file (can be used multiple times)\n"
 		"  -f <file>    Load file with r2 API\n"
 		"  -i <script>  Load and interpret script file before executing commands\n"
+		"  -e <var=value> Set configuration variable\n"
 		"  -E           Edit the r2ai rc file\n"
 		"  -K           Edit the API keys file\n");
 }
@@ -37,7 +38,7 @@ static char *build_conversation(RList *conversation) {
 
 static void r2ai_repl(RCorePluginSession *cps, const char *provider, const char *model, RList *conversation) {
 	RCore *core = cps->core;
-	r_line_set_prompt (core->cons->line, "[r2clippy]> ");
+	r_line_set_prompt (core->cons->line, "[r2ai]> ");
 	while (true) {
 		const char *input = r_line_readline (core->cons);
 		if (r_cons_is_breaked (core->cons) || R_STR_ISEMPTY (input)) {
@@ -110,7 +111,7 @@ int main(int argc, const char **argv) {
 	r2ai_init (&cps);
 
 	RGetopt opt;
-	r_getopt_init (&opt, argc, argv, "vhp:m:q:Eb:Kc:f:i");
+	r_getopt_init (&opt, argc, argv, "vhp:m:q:Eb:Kc:f:ie:");
 	while ((c = r_getopt_next (&opt)) != -1) {
 		switch (c) {
 		case 'p':
@@ -133,6 +134,21 @@ int main(int argc, const char **argv) {
 			break;
 		case 'i':
 			scriptfile = opt.arg;
+			break;
+		case 'e':
+			{
+				char *var_value = strdup (opt.arg);
+				char *equals = strchr (var_value, '=');
+				if (equals) {
+					*equals = '\0';
+					const char *var = var_value;
+					const char *value = equals + 1;
+					r_config_set (core->config, var, value);
+				} else {
+					r_cons_println (core->cons, "Invalid format for -e. Use var=value.");
+				}
+				free (var_value);
+			}
 			break;
 		case 'E':
 			{
