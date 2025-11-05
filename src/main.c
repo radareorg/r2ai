@@ -160,9 +160,7 @@ int main(int argc, const char **argv) {
 			break;
 		case 'K':
 			{
-				char *keys_path = r_file_home (".config/r2ai/apikeys.txt");
-				r_cons_editor (core->cons, keys_path, NULL);
-				free (keys_path);
+				r2ai_apikeys_edit (&cps);
 				goto beach;
 			}
 			break;

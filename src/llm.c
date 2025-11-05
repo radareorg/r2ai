@@ -152,41 +152,6 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	return res;
 }
 
-static char *r2ai_get_api_key_from_config(const char *provider) {
-	char *config_file = r_file_abspath ("~/.config/r2ai/apikeys.txt");
-	if (!r_file_exists (config_file)) {
-		free (config_file);
-		return NULL;
-	}
-	char *content = r_file_slurp (config_file, NULL);
-	free (config_file);
-	if (!content) {
-		return NULL;
-	}
-	RList *lines = r_str_split_list (content, "\n", 0);
-	char *prefix = NULL;
-	char *key = NULL;
-	if (lines) {
-		prefix = r_str_newf ("%s=", provider);
-		RListIter *iter;
-		char *line;
-		r_list_foreach (lines, iter, line) {
-			if (r_str_startswith (line, prefix)) {
-				char *eq = strchr (line, '=');
-				if (eq) {
-					key = strdup (eq + 1);
-					r_str_trim (key);
-				}
-				break;
-			}
-		}
-		r_list_free (lines);
-	}
-	free (content);
-	free (prefix);
-	return key;
-}
-
 /* Return a malloc'd API key read from the env, ~/.config/r2ai/apikeys.txt, or ~/.r2ai.<provider>-key
  * Caller is responsible for freeing the returned string (or NULL if not found). */
 R_IPI char *r2ai_get_api_key(RCore *core, const char *provider) {
@@ -203,7 +168,7 @@ R_IPI char *r2ai_get_api_key(RCore *core, const char *provider) {
 		api_key = s;
 	} else {
 		free (s);
-		api_key = r2ai_get_api_key_from_config (provider);
+		api_key = r2ai_apikeys_get (provider);
 		if (!api_key) {
 			char *api_key_filename = r_str_newf ("~/.r2ai.%s-key", provider);
 			char *absolute_apikey = r_file_abspath (api_key_filename);

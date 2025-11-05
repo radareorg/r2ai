@@ -315,9 +315,7 @@ R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 	if (*input == '?' || r_str_startswith (input, "-h")) {
 		r_core_cmd_help (core, help_msg_r2ai);
 	} else if (r_str_startswith (input, "-K")) {
-		char *keys_path = r_file_home (".config/r2ai/apikeys.txt");
-		r_cons_editor (core->cons, keys_path, NULL);
-		free (keys_path);
+		r2ai_apikeys_edit (cps);
 	} else if (r_str_startswith (input, "-E")) {
 		char *rc_path = r_file_home (".config/r2ai/rc");
 		r_cons_editor (core->cons, rc_path, NULL);

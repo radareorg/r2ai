@@ -39,6 +39,7 @@ ifeq ($(USE_LIBCURL),1)
 endif
 
 OBJS=r2ai.o
+OBJS+=apikeys.o
 OBJS+=llm.o
 OBJS+=auto.o
 OBJS+=json.o
