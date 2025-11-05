@@ -67,28 +67,32 @@ $ r2pm -Uci decai
 - Adds the **r2ai** command to the radare2 shell: `r2 -qc r2ai`
 - You can also run the wrapper in $PATH: `r2pm -r r2ai`
 
-Drop your API keys in environment variables or files in your home:
+Drop your API keys in environment variables or use the configuration file:
 
 ```console
-$ cat ~/.r2ai.anthropic-key 
-sk-ant-api03-CENSORED
+$ export ANTHROPIC_API_KEY=sk-ant-api03-CENSORED
 $ export OPENAI_API_KEY=sk-proj-6rlSPS-zN1v...
 ```
 
-| AI        | API key                    |
-| --------- | -------------------------- |
-| OpenAI    | `$HOME/.r2ai.openai-key` |
-| Gemini    | `$HOME/.r2ai.gemini-key` |
-| Anthropic | `$HOME/.r2ai.anthropic-key` |
-| Mistral   | `$HOME/.r2ai.mistral-key` |
+Or edit the api keys file `~/.config/r2ai/apikeys.txt` run:
 
+```console
+$ r2ai -K
+```
 
 ## Saving settings
 
 You may customize and save your configuration settings using your OS's default settings file (e.g `~/.radare2rc` on Linux).
 For example, the following configuration sets Claude 3.7 by default, with max output tokens to 64000.
 
+
+```console
+$ r2ai -E
 ```
+
+then you can type the commands you want to run when the r2ai plugin is loaded:
+
+```console
 r2ai -e api=anthropic
 r2ai -e model=claude-3-7-sonnet-20250219
 r2ai -e max_tokens=64000
