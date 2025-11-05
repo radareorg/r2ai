@@ -6,7 +6,7 @@
 #include "r2ai_priv.h"
 
 /* Return the path to the apikeys.txt file */
-R_IPI char *r2ai_apikeys_path(bool *exists) {
+R_API char *r2ai_apikeys_path(bool *exists) {
 	char *path = r_file_home (".config/r2ai/apikeys.txt");
 	if (exists) {
 		*exists = r_file_exists (path);
@@ -15,7 +15,7 @@ R_IPI char *r2ai_apikeys_path(bool *exists) {
 }
 
 /* Edit the API keys file */
-R_IPI void r2ai_apikeys_edit(RCorePluginSession *cps) {
+R_API void r2ai_apikeys_edit(RCorePluginSession *cps) {
 	RCore *core = cps->core;
 	bool exists = false;
 	char *keys_path = r2ai_apikeys_path (&exists);
@@ -33,7 +33,7 @@ R_IPI void r2ai_apikeys_edit(RCorePluginSession *cps) {
 
 /* Return a malloc'd API key read from ~/.config/r2ai/apikeys.txt
  * Provider matching is case-insensitive */
-R_IPI char *r2ai_apikeys_get(const char *provider) {
+R_API char *r2ai_apikeys_get(const char *provider) {
 	if (!provider) {
 		return NULL;
 	}
