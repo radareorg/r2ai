@@ -1,6 +1,6 @@
 (function () {
   // Constants and configuration
-  const VERSION = "1.2.4";
+  const VERSION = "1.2.6";
   const COMMAND = "decai";
   const DEFAULT_PROMPT =
     "Transform this pseudocode and respond ONLY with plain code (NO explanations, comments or markdown), Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and strings from comments like 'string:', Reduce lines of code and fit everything in a single function, Remove all dead code";
@@ -198,12 +198,38 @@ Use radare2 to resolve user requests.
     },
   };
 
+  function parseEnvLikeString(input) {
+    const result = {};
+    for (const line of input.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) {
+        continue;
+      }
+      const [key, ...rest] = trimmed.split("=");
+      if (!key || rest.length === 0) {
+        continue;
+      }
+      const value = rest.join("=").trim();
+      result[key.toLowerCase()] = value;
+    }
+    return result;
+  }
+
   // API key management
   const apiKeys = {
     get: (provider, envvar) => {
       const keyEnv = r2.cmd("'%" + envvar).trim();
       if (keyEnv.indexOf("=") === -1 && keyEnv !== "") {
         return [keyEnv.trim(), null, "env"];
+      }
+      provider = provider.toLowerCase();
+      const keysPath = "~/.config/r2ai/apikeys.txt";
+      if (utils.fileExists(keysPath)) {
+        const keyFile = r2.cmd("'cat " + keysPath);
+        const kv = parseEnvLikeString(keyFile);
+        if (Object.keys(kv).indexOf(provider) !== -1) {
+          return [kv[provider], null, "txt"];
+        }
       }
 
       const keyPath = "~/.r2ai." + provider + "-key";
