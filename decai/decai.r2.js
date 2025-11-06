@@ -382,29 +382,8 @@ Use radare2 to resolve user requests.
             console.log(models.listOllamaCloud());
             break;
           default:
-            // For providers without dynamic listing, show hardcoded models
-            const hardcodedModels = {
-              gemini: [
-                "gemini-2.0-flash",
-                "gemini-2.0-flash-lite",
-                "gemini-1.5-pro",
-                "gemini-1.5-flash",
-              ],
-              google: [
-                "gemini-2.0-flash",
-                "gemini-2.0-flash-lite",
-                "gemini-1.5-pro",
-                "gemini-1.5-flash",
-              ],
-              xai: ["grok-2", "grok-beta"],
-              lmstudio: ["local-model"],
-            };
-            const hardcoded = hardcodedModels[api];
-            if (hardcoded) {
-              hardcoded.forEach((model) => console.log(model));
-            } else {
-              console.log(providerConfig.defaultModel);
-            }
+            console.log(providerConfig.hardcodedModels.join("\n"));
+            break;
         }
       } catch (e) {
         console.error(`Error listing models for ${api}:`, e.message);
@@ -466,7 +445,7 @@ Use radare2 to resolve user requests.
       dynamicModels: true,
     },
     gemini: {
-      defaultModel: "gemini-1.5-flash",
+      defaultModel: "gemini-2.5-flash",
       defaultBaseurl: "https://generativelanguage.googleapis.com",
       requiresAuth: true,
       authKey: "GEMINI_API_KEY",
@@ -474,21 +453,9 @@ Use radare2 to resolve user requests.
       hardcodedModels: [
         "gemini-2.0-flash",
         "gemini-2.0-flash-lite",
-        "gemini-1.5-pro",
-        "gemini-1.5-flash",
-      ],
-    },
-    google: {
-      defaultModel: "gemini-1.5-flash",
-      defaultBaseurl: "https://generativelanguage.googleapis.com",
-      requiresAuth: true,
-      authKey: "GEMINI_API_KEY",
-      apiStyle: "gemini",
-      hardcodedModels: [
-        "gemini-2.0-flash",
-        "gemini-2.0-flash-lite",
-        "gemini-1.5-pro",
-        "gemini-1.5-flash",
+        "gemini-2.5-pro",
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
       ],
     },
     mistral: {
@@ -820,6 +787,7 @@ Use radare2 to resolve user requests.
         res = http.post(url, [], JSON.stringify(payload));
         return utils.filterResponse(res.candidates[0].content.parts[0].text);
       } catch (e) {
+        console.log(JSON.stringify(res));
         return "ERROR: " + (res.error || e.message);
       }
     },
