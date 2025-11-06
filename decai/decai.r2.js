@@ -878,6 +878,7 @@ Use radare2 to resolve user requests.
       helpmsg += "Usage: " + COMMAND + " (-h) ...\n";
       helpmsg += "Version: " + VERSION + "\n";
       msg("-a [query]    - solve query with auto mode");
+      msg("-b [url]      - set base URL (alias for decai -e baseurl)");
       msg("-d [f1 ..]    - decompile given functions");
       msg("-dd [..]      - same as above, but ignoring cache");
       msg("-dD [query]   - decompile current function with given extra query");
@@ -1303,6 +1304,17 @@ Use radare2 to resolve user requests.
         break;
       case "k":
         apiKeys.list();
+        break;
+
+      case "b":
+        {
+          const baseUrlArg = args.slice(2).trim();
+          if (baseUrlArg) {
+            config.eval("baseurl=" + baseUrlArg);
+          } else {
+            console.log(config.handlers.baseurl.get());
+          }
+        }
         break;
 
       case "e":
