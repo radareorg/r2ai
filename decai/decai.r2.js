@@ -815,8 +815,9 @@ Use radare2 to resolve user requests.
           key[0]
         }`;
 
+      let res = {};
       try {
-        const res = http.post(url, [], JSON.stringify(payload));
+        res = http.post(url, [], JSON.stringify(payload));
         return utils.filterResponse(res.candidates[0].content.parts[0].text);
       } catch (e) {
         return "ERROR: " + (res.error || e.message);
