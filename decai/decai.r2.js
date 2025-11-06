@@ -880,26 +880,27 @@ Use radare2 to resolve user requests.
       const msg = (m) => helpmsg += " " + COMMAND + " " + m + "\n";
       helpmsg += "Usage: " + COMMAND + " (-h) ...\n";
       helpmsg += "Version: " + VERSION + "\n";
-      msg("-a [query] - solve query with auto mode");
-      msg("-d [f1 ..] - decompile given functions");
-      msg("-dd [..]   - same as above, but ignoring cache");
-      msg("-dD [query]- decompile current function with given extra query");
-      msg("-dr        - decompile function and its called ones (recursive)");
-      msg("-e         - display and change eval config vars");
-      msg("-h         - show this help");
-      msg("-H         - help setting up r2ai");
-      msg("-i [f] [q] - include given file and query");
-      msg("-k         - list API key status");
-      msg("-m [model] - use -m? or -e model=? to list the available models");
-      msg("-n         - suggest better function name");
-      msg("-q [text]  - query language model with given text");
-      msg("-Q [text]  - query on top of the last output");
-      msg("-r [prompt]- change role prompt (same as: decai -e prompt)");
-      msg("-R         - reset role prompt to default prompt");
-      msg("-s         - function signature");
-      msg("-v         - show local variables");
-      msg("-V         - find vulnerabilities");
-      msg("-x[*]      - eXplain current function (-x* for r2 script)");
+      msg("-a [query]    - solve query with auto mode");
+      msg("-d [f1 ..]    - decompile given functions");
+      msg("-dd [..]      - same as above, but ignoring cache");
+      msg("-dD [query]   - decompile current function with given extra query");
+      msg("-dr           - decompile function and its called ones (recursive)");
+      msg("-e            - display and change eval config vars");
+      msg("-h            - show this help");
+      msg("-H            - help setting up r2ai");
+      msg("-i [f] [q]    - include given file and query");
+      msg("-k            - list API key status");
+      msg("-m [model]    - use -m? or -e model=? to list the available models");
+      msg("-n            - suggest better function name");
+      msg("-p [provider] - same as decai -e api (will be provider)");
+      msg("-q [text]     - query language model with given text");
+      msg("-Q [text]     - query on top of the last output");
+      msg("-r [prompt]   - change role prompt (same as: decai -e prompt)");
+      msg("-R            - reset role prompt to default prompt");
+      msg("-s            - function signature");
+      msg("-v            - show local variables");
+      msg("-V            - find vulnerabilities");
+      msg("-x[*]         - eXplain current function (-x* for r2 script)");
       r2.log(helpmsg.trim());
     },
 
@@ -1264,6 +1265,17 @@ Use radare2 to resolve user requests.
         }
         break;
 
+      case "p":
+        {
+          const evalArg = args.slice(2).trim();
+          if (evalArg) {
+            config.eval("api=" + evalArg);
+          } else {
+            apiKeys.list();
+          }
+        }
+        break;
+
       case "r":
         const prompt = args.slice(2).trim();
         if (prompt) {
@@ -1293,11 +1305,13 @@ Use radare2 to resolve user requests.
         break;
 
       case "e":
-        const evalArg = args.slice(2).trim();
-        if (evalArg) {
-          config.eval(evalArg);
-        } else {
-          config.listAll();
+        {
+          const evalArg = args.slice(2).trim();
+          if (evalArg) {
+            config.eval(evalArg);
+          } else {
+            config.listAll();
+          }
         }
         break;
 
