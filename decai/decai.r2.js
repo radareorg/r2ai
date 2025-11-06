@@ -242,6 +242,9 @@ Use radare2 to resolve user requests.
       return [null, "Not available", "nope"];
     },
 
+    edit: () => {
+      r2.cmd("'ed ~/.config/r2ai/apikeys.txt");
+    },
     list: () => {
       const providers = {
         "mistral": "MISTRAL_API_KEY",
@@ -884,6 +887,7 @@ Use radare2 to resolve user requests.
       msg("-H            - help setting up r2ai");
       msg("-i [f] [q]    - include given file and query");
       msg("-k            - list API key status");
+      msg("-K            - edit apikeys.txt");
       msg("-m [model]    - use -m? or -e model=? to list the available models");
       msg("-n            - suggest better function name");
       msg("-p [provider] - same as decai -e api (will be provider)");
@@ -1294,6 +1298,9 @@ Use radare2 to resolve user requests.
         );
         break;
 
+      case "K":
+        apiKeys.edit();
+        break;
       case "k":
         apiKeys.list();
         break;
