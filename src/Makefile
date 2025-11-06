@@ -6,6 +6,9 @@ R2SYSPLUGDIR=$(shell r2 -NNH R2_LIBR_PLUGINS)
 R2USRPLUGDIR=$(shell r2 -NNH R2_USER_PLUGINS)
 R2BINDIR=$(shell r2pm -H R2PM_BINDIR)
 R2MANDIR=$(shell r2pm -H R2PM_MANDIR)
+ifeq ($(R2MANDIR),)
+R2MANDIR=$(shell r2 -NNH R2_PREFIX)/share/man
+endif
 
 R2_CFLAGS=$(shell pkg-config --cflags r_core)
 R2_LDFLAGS=$(shell pkg-config --libs r_core)
