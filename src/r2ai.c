@@ -8,6 +8,7 @@
 static RCoreHelpMessage help_msg_r2ai = {
 	"Usage:",
 	"r2ai", " [-args] [...]",
+	"r2ai", " -w", "Launch the interactive setup wizard",
 	"r2ai", " -d", "Decompile current function",
 	"r2ai", " -d [query]", "Ask a question on the current function",
 	"r2ai", " -dr", "Decompile current function (+ 1 level of recursivity)",
@@ -314,6 +315,8 @@ R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 	R2AI_State *state = cps->data;
 	if (*input == '?' || r_str_startswith (input, "-h")) {
 		r_core_cmd_help (core, help_msg_r2ai);
+	} else if (r_str_startswith (input, "-w")) {
+		r2ai_wizard (core);
 	} else if (r_str_startswith (input, "-K")) {
 		r2ai_apikeys_edit (cps);
 	} else if (r_str_startswith (input, "-E")) {
