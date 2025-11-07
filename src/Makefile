@@ -56,6 +56,7 @@ OBJS+=openai.o
 OBJS+=markdown.o
 OBJS+=query.o
 OBJS+=rawtools.o
+OBJS+=wizard.o
 
 all: $(OBJS) r2check
 	$(CC) -fPIC -shared -o r2ai$(DOTLIB) $(OBJS) $(CFLAGS) $(LDFLAGS)

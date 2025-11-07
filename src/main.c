@@ -7,7 +7,7 @@
 
 static void show_help() {
 	printf (
-		"Usage: r2ai [-vhp:m:q:Eb:Kc:f:ie] <prompt>\n"
+		"Usage: r2ai [-vhp:m:q:Eb:Kc:f:iew] <prompt>\n"
 		"  -v           Show version information\n"
 		"  -h           Show this help message\n"
 		"  -p <provider> Select LLM provider\n"
@@ -19,7 +19,8 @@ static void show_help() {
 		"  -i <script>  Load and interpret script file before executing commands\n"
 		"  -e <var=value> Set configuration variable\n"
 		"  -E           Edit the r2ai rc file\n"
-		"  -K           Edit the API keys file\n");
+		"  -K           Edit the API keys file\n"
+		"  -w           Launch interactive setup wizard\n");
 }
 
 static void show_version() {
@@ -111,7 +112,7 @@ int main(int argc, const char **argv) {
 	r2ai_init (&cps);
 
 	RGetopt opt;
-	r_getopt_init (&opt, argc, argv, "vhp:m:q:Eb:Kc:f:ie:");
+	r_getopt_init (&opt, argc, argv, "vhp:m:q:Eb:Kc:f:ie:w");
 	while ((c = r_getopt_next (&opt)) != -1) {
 		switch (c) {
 		case 'p':
@@ -161,6 +162,12 @@ int main(int argc, const char **argv) {
 		case 'K':
 			{
 				r2ai_apikeys_edit (&cps);
+				goto beach;
+			}
+			break;
+		case 'w':
+			{
+				r2ai_wizard (core);
 				goto beach;
 			}
 			break;

@@ -372,5 +372,7 @@ R_API R2AIPrompt *parse_prompt_file(const char *filepath);
 R_API void r2aiprompt_free(R2AIPrompt *prompt);
 R_API char *r2ai_load_prompt_text(RCore *core, const char *name);
 R_API char *strip_command_comment(const char *input, char **comment_out);
+R_API bool r2ai_wizard(RCore *core);
+R_API bool r2ai_wizard_isfirsttime(void);
 
 #endif
