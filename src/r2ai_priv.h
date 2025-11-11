@@ -3,13 +3,19 @@
 
 #include "r2ai.h"
 
+typedef enum {
+	R2AI_API_OPENAI_COMPATIBLE,
+	R2AI_API_ANTHROPIC,
+	R2AI_API_GEMINI,
+	R2AI_API_OLLAMA
+} R2AI_API_Type;
+
 typedef struct {
 	const char *name;
 	const char *url;
+	R2AI_API_Type api_type;
 	bool requires_api_key;
-	bool uses_anthropic_header;
-	bool uses_tags_endpoint;
-	bool uses_system_ls;
+	bool supports_custom_baseurl;
 } R2AIProvider;
 
 R_API void cmd_r2ai(RCorePluginSession *cps, const char *input);

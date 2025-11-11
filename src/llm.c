@@ -5,17 +5,17 @@
 #include <string.h>
 
 static const R2AIProvider r2ai_providers[] = {
-	{ "openai", "https://api.openai.com/v1", true, false, false, false },
-	{ "gemini", "https://generativelanguage.googleapis.com/v1beta", true, false, false, false },
-	{ "anthropic", "https://api.anthropic.com/v1", true, true, false, false },
-	{ "ollama", "http://localhost:11434/api", false, false, true, true },
-	{ "openapi", "http://127.0.0.1:11434", false, false, false, false },
-	{ "xai", "https://api.x.ai/v1", true, false, false, false },
-	{ "openrouter", "https://openrouter.ai/api/v1", true, false, false, false },
-	{ "groq", "https://api.groq.com/openai/v1", true, false, false, false },
-	{ "mistral", "https://api.mistral.ai/v1", true, false, false, false },
-	{ "deepseek", "https://api.deepseek.com/v1", true, false, false, false },
-	{ NULL, NULL, false, false, false, false } // sentinel
+	{ "openai", "https://api.openai.com/v1", R2AI_API_OPENAI_COMPATIBLE, true, true },
+	{ "gemini", "https://generativelanguage.googleapis.com/v1beta", R2AI_API_GEMINI, true, false },
+	{ "anthropic", "https://api.anthropic.com/v1", R2AI_API_ANTHROPIC, true, false },
+	{ "ollama", "http://localhost:11434/api", R2AI_API_OLLAMA, false, true },
+	{ "openapi", "http://127.0.0.1:11434", R2AI_API_OPENAI_COMPATIBLE, false, false },
+	{ "xai", "https://api.x.ai/v1", R2AI_API_OPENAI_COMPATIBLE, true, true },
+	{ "openrouter", "https://openrouter.ai/api/v1", R2AI_API_OPENAI_COMPATIBLE, true, true },
+	{ "groq", "https://api.groq.com/openai/v1", R2AI_API_OPENAI_COMPATIBLE, true, true },
+	{ "mistral", "https://api.mistral.ai/v1", R2AI_API_OPENAI_COMPATIBLE, true, true },
+	{ "deepseek", "https://api.deepseek.com/v1", R2AI_API_OPENAI_COMPATIBLE, true, true },
+	{ NULL, NULL, R2AI_API_OPENAI_COMPATIBLE, false, false } // sentinel
 };
 
 R_IPI const R2AIProvider *r2ai_get_provider(const char *name) {
@@ -132,12 +132,22 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	args.thinking_tokens = r_config_get_i (core->config, "r2ai.thinking_tokens");
 
 	const R2AIProvider *p = r2ai_get_provider (provider);
-	if (p && p->uses_anthropic_header) {
+	if (!p) {
+		return NULL;
+	}
+
+	switch (p->api_type) {
+	case R2AI_API_ANTHROPIC:
 		res = r2ai_anthropic (cps, args);
-	} else if (!strcmp (provider, "gemini")) {
+		break;
+	case R2AI_API_GEMINI:
 		res = r2ai_gemini (cps, args);
-	} else {
+		break;
+	case R2AI_API_OPENAI_COMPATIBLE:
+	case R2AI_API_OLLAMA:
+	default:
 		res = r2ai_openai (cps, args);
+		break;
 	}
 	if (context_pullback != -1) {
 		R2AI_Message *msg = r_list_get_n (args.messages, context_pullback);
@@ -194,16 +204,16 @@ R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider) {
 	}
 
 	// Handle providers that support custom baseurl
-	if (!strcmp (provider, "openai") || !strcmp (provider, "ollama") || !strcmp (provider, "deepseek")) {
+	if (p->supports_custom_baseurl) {
 		const char *host = r_config_get (core->config, "r2ai.baseurl");
 		if (R_STR_ISNOTEMPTY (host)) {
 			if (r_str_startswith (host, "http")) {
-				if (!strcmp (provider, "openai") || !strcmp (provider, "deepseek")) {
+				if (p->api_type == R2AI_API_OPENAI_COMPATIBLE) {
 					return r_str_newf ("%s/v1", host);
 				}
 				return r_str_newf ("%s/api", host);
 			}
-			if (!strcmp (provider, "openai") || !strcmp (provider, "deepseek")) {
+			if (p->api_type == R2AI_API_OPENAI_COMPATIBLE) {
 				return r_str_newf ("http://%s/v1", host);
 			}
 			return r_str_newf ("http://%s/api", host);
@@ -245,7 +255,7 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 	} else {
 		// Create models endpoint URL
 		const R2AIProvider *prov = r2ai_get_provider (provider);
-		const bool usetags = (prov && prov->uses_tags_endpoint);
+		const bool usetags = (prov && prov->api_type == R2AI_API_OLLAMA);
 		models_url = r_str_newf ("%s/%s", purl, usetags? "tags": "models");
 
 		if (api_key) {
@@ -254,7 +264,7 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 			char *version_header = NULL;
 
 			const R2AIProvider *prov = r2ai_get_provider (provider);
-			if (prov && prov->uses_anthropic_header) {
+			if (prov && prov->api_type == R2AI_API_ANTHROPIC) {
 				// Anthropic uses different header format
 				auth_header = r_str_newf ("x-api-key: %s", api_key);
 				version_header = strdup ("anthropic-version: 2023-06-01");
@@ -303,7 +313,7 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 			data = r_json_get (json, "models");
 		} else {
 			const R2AIProvider *prov = r2ai_get_provider (provider);
-			const bool usetags = (prov && prov->uses_tags_endpoint);
+			const bool usetags = (prov && prov->api_type == R2AI_API_OLLAMA);
 			data = r_json_get (json, usetags? "models": "data");
 		}
 
@@ -334,7 +344,7 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 					}
 				} else {
 					const R2AIProvider *prov = r2ai_get_provider (provider);
-					if (prov && prov->uses_tags_endpoint) {
+					if (prov && prov->api_type == R2AI_API_OLLAMA) {
 						id = r_json_get (model_item, "model");
 					} else {
 						id = r_json_get (model_item, "id");

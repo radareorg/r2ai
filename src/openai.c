@@ -1,12 +1,14 @@
 /* r2ai - Copyright 2023-2025 pancake, dnakov */
 
 #include "r2ai.h"
+#include "r2ai_priv.h"
 
 R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
 	args.provider = r_config_get (core->config, "r2ai.api");
 	args.model = r_config_get (core->config, "r2ai.model");
 
+	const R2AIProvider *provider_info = r2ai_get_provider (args.provider);
 	const char *base_url = r2ai_get_provider_url (core, args.provider);
 	// TODO: default model name should depend on api
 	const char *model_name = args.model? args.model: "gpt-4o-mini";
@@ -77,9 +79,9 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 		headers[0] = "Content-Type: application/json";
 		headers[1] = auth_header;
 	}
-	const char *urlfmt = strcmp (args.provider, "ollama")
-		? "%s/chat/completions"
-		: "%s/chat";
+	const char *urlfmt = (provider_info && provider_info->api_type == R2AI_API_OLLAMA)
+		? "%s/chat"
+		: "%s/chat/completions";
 	char *openai_url = r_str_newf (urlfmt, base_url);
 
 	// Create a messages JSON object, either from input messages or from content
@@ -115,7 +117,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	pj_ks (pj, "model", model_name);
 	pj_kb (pj, "stream", false);
 
-	if (!strcmp (args.provider, "ollama")) {
+	if (provider_info && provider_info->api_type == R2AI_API_OLLAMA) {
 		// Ollama uses "options" object for parameters
 		pj_ko (pj, "options");
 		if (args.max_tokens) {
@@ -237,7 +239,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 		if (message) {
 			// Process the response using our r2ai_msgs_from_json logic
 			const RJson *usage_json = NULL;
-			if (strcmp (args.provider, "ollama") == 0) {
+			if (provider_info && provider_info->api_type == R2AI_API_OLLAMA) {
 				// Ollama has usage info at top level
 				usage_json = jres;
 			} else {
@@ -245,7 +247,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 			}
 
 			if (usage_json && usage_json->type == R_JSON_OBJECT) {
-				if (strcmp (args.provider, "ollama") == 0) {
+				if (provider_info && provider_info->api_type == R2AI_API_OLLAMA) {
 					// Ollama field names
 					const RJson *prompt_tokens = r_json_get (usage_json, "prompt_eval_count");
 					const RJson *completion_tokens = r_json_get (usage_json, "eval_count");
@@ -274,7 +276,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 				}
 			}
 			const RJson *message_json = NULL;
-			if (strcmp (args.provider, "ollama") == 0) {
+			if (provider_info && provider_info->api_type == R2AI_API_OLLAMA) {
 				// Ollama returns message directly
 				message_json = r_json_get (jres, "message");
 			} else {

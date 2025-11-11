@@ -139,7 +139,7 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 
 	R2AI_ChatResponse *response = NULL;
 	const R2AIProvider *p = r2ai_get_provider (provider);
-	if (p && p->uses_anthropic_header) {
+	if (p && p->api_type == R2AI_API_ANTHROPIC) {
 		response = r2ai_anthropic (cps, rawtools_args);
 	} else {
 		response = r2ai_openai (cps, rawtools_args);
@@ -267,7 +267,7 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 
 		R2AI_ChatResponse *fallback_response = NULL;
 		const R2AIProvider *p = r2ai_get_provider (provider);
-		if (p && p->uses_anthropic_header) {
+		if (p && p->api_type == R2AI_API_ANTHROPIC) {
 			fallback_response = r2ai_anthropic (cps, fallback_args);
 		} else {
 			fallback_response = r2ai_openai (cps, fallback_args);

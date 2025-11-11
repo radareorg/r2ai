@@ -455,7 +455,7 @@ static bool cb_r2ai_model(void *user, void *data) {
 			// Fallback to static lists if dynamic fetching fails
 			const R2AIProvider *p = r2ai_get_provider (api);
 			if (p) {
-				if (p->uses_system_ls) {
+				if (p->api_type == R2AI_API_OLLAMA) {
 					char *s = r_sys_cmd_str ("ollama ls", NULL, NULL);
 					if (s) {
 						RList *items = r_str_split_list (s, "\n", 0);
