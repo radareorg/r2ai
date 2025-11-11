@@ -14,6 +14,7 @@ static const R2AIProvider r2ai_providers[] = {
 	{ "openrouter", "https://openrouter.ai/api/v1", true, false, false, false },
 	{ "groq", "https://api.groq.com/openai/v1", true, false, false, false },
 	{ "mistral", "https://api.mistral.ai/v1", true, false, false, false },
+	{ "deepseek", "https://api.deepseek.com/v1", true, false, false, false },
 	{ NULL, NULL, false, false, false, false } // sentinel
 };
 
@@ -193,16 +194,16 @@ R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider) {
 	}
 
 	// Handle providers that support custom baseurl
-	if (!strcmp (provider, "openai") || !strcmp (provider, "ollama")) {
+	if (!strcmp (provider, "openai") || !strcmp (provider, "ollama") || !strcmp (provider, "deepseek")) {
 		const char *host = r_config_get (core->config, "r2ai.baseurl");
 		if (R_STR_ISNOTEMPTY (host)) {
 			if (r_str_startswith (host, "http")) {
-				if (!strcmp (provider, "openai")) {
+				if (!strcmp (provider, "openai") || !strcmp (provider, "deepseek")) {
 					return r_str_newf ("%s/v1", host);
 				}
 				return r_str_newf ("%s/api", host);
 			}
-			if (!strcmp (provider, "openai")) {
+			if (!strcmp (provider, "openai") || !strcmp (provider, "deepseek")) {
 				return r_str_newf ("http://%s/v1", host);
 			}
 			return r_str_newf ("http://%s/api", host);
