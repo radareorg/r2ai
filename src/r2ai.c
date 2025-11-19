@@ -71,64 +71,111 @@ static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool re
 	RCore *core = cps->core;
 	const char *prompt = r_config_get (core->config, "r2ai.prompt");
 	const char *lang = r_config_get (core->config, "r2ai.lang");
-	char *full_prompt;
-	if (!R_STR_ISEMPTY (input)) {
-		R_LOG_DEBUG ("User question: %s", input);
-		full_prompt = strdup (input);
-	} else {
-		if (!R_STR_ISEMPTY (lang)) {
-			full_prompt = r_str_newf ("%s. Translate the code into %s programming language.", prompt, lang);
-		} else {
-			full_prompt = strdup (prompt);
-		}
+
+	RStrBuf *sb = r_strbuf_new ("");
+
+	char *types = r_core_cmd_str (core, "t*");
+	if (R_STR_ISNOTEMPTY (types)) {
+		r_strbuf_appendf (sb, "Global Type Definitions:\n```c\n%s\n```\n", types);
 	}
-	char *cmds = strdup (r_config_get (core->config, "r2ai.cmds"));
-	RStrBuf *sb = r_strbuf_new (full_prompt);
-	RList *cmdslist = r_str_split_list (cmds, ",", -1);
-	RListIter *iter;
-	const char *cmd;
-	RList *refslist = NULL;
+	free (types);
+
+	char *func_info = r_core_cmd_str (core, "afi"); // Function signature and metadata
+	char *func_vars = r_core_cmd_str (core, "afv*"); // Stack variables
+	char *data_refs = r_core_cmd_str (core, "axF"); // String and data references
+	char *func_disasm = r_core_cmd_str (core, "pdf"); // Disassembly (source of truth)
+	char *func_pseudo = r_core_cmd_str (core, "pdc"); // Pseudo-code (logic hint)
+
+	r_strbuf_appendf (sb, "Target Function Analysis:\n");
+	if (R_STR_ISNOTEMPTY (func_info)) {
+		r_strbuf_appendf (sb, "[Function Info]\n%s\n", func_info);
+	}
+	if (R_STR_ISNOTEMPTY (func_vars)) {
+		r_strbuf_appendf (sb, "[Stack Variables]\n%s\n", func_vars);
+	}
+	if (R_STR_ISNOTEMPTY (data_refs)) {
+		r_strbuf_appendf (sb, "[Data References]\n%s\n", data_refs);
+	}
+
+	if (R_STR_ISNOTEMPTY (func_disasm)) {
+		r_strbuf_appendf (sb, "[Disassembly]\n%s\n", func_disasm);
+	}
+	if (R_STR_ISNOTEMPTY (func_pseudo)) {
+		r_strbuf_appendf (sb, "[Pseudo-Code Hint]\n%s\n", func_pseudo);
+	}
+
+	free (func_info);
+	free (func_vars);
+	free (data_refs);
+	free (func_disasm);
+	free (func_pseudo);
+
 	if (recursive) {
-		char *refs = r_core_cmd_str (core, "axff~^C[2]~$$");
-		refslist = r_str_split_list (refs, ",", 0);
-		free (refs);
-	}
-	r_list_foreach (cmdslist, iter, cmd) {
-		char *dec = r_core_cmd_str (core, cmd);
-		r_strbuf_append (sb, "\n[BEGIN]\n");
-		r_strbuf_append (sb, dec);
-		r_strbuf_append (sb, "[END]\n");
-		free (dec);
-		if (recursive) {
-			RListIter *iter2;
+		char *refs = r_core_cmd_str (core, "axff~call[2]");
+		if (refs) {
+			RList *refslist = r_str_split_list (refs, "\n", 0);
+			RListIter *iter;
 			char *at;
-			r_list_foreach (refslist, iter2, at) {
-				ut64 n = r_num_get (core->num, at);
+			r_list_foreach (refslist, iter, at) {
+				// Check if this address is an import
+				ut64 addr = r_num_math (core->num, at);
 				if (core->num->nc.errors) {
 					continue;
 				}
-				char *dec = r_core_cmd_str_at (core, n, cmd);
-				r_strbuf_append (sb, "\n[BEGIN]\n");
-				r_strbuf_append (sb, dec);
-				r_strbuf_append (sb, "[END]\n");
-				free (dec);
+				RFlagItem *f = r_flag_get_at (core->flags, addr, false);
+				bool is_import = (f && (r_str_startswith (f->name, "sym.imp") ||
+				                         r_str_startswith (f->name, "loc.imp")));
+
+				if (!is_import) {
+					// For recursion, pdc is usually enough context to save tokens while providing logic
+					char *sub_code = r_core_cmd_str_at (core, addr, "pdc");
+					if (sub_code && R_STR_ISNOTEMPTY (sub_code)) {
+						r_strbuf_appendf (sb, "\n[Called Function Context - %s]\n%s\n", at, sub_code);
+						free (sub_code);
+					}
+				}
 			}
+			r_list_free (refslist);
+		}
+		free (refs);
+	}
+
+	// 5. Specific User Query or Default Translation Prompt
+	char *final_query;
+	if (!R_STR_ISEMPTY (input)) {
+		final_query = r_str_newf ("Context provided above. Task: %s", input);
+	} else {
+		if (!R_STR_ISEMPTY (lang)) {
+			final_query = r_str_newf ("Context provided above. %s Output language: %s.", prompt, lang);
+		} else {
+			final_query = r_str_newf ("Context provided above. %s", prompt);
 		}
 	}
-	r_list_free (refslist);
-	char *s = r_strbuf_drain (sb);
+
+	char *context_blob = r_strbuf_drain (sb);
+	char *full_input = r_str_newf ("%s\n\n%s", context_blob, final_query);
+
+	R_LOG_DEBUG ("Sending %d bytes of context to LLM", (int)strlen (full_input));
+
 	char *error = NULL;
-	R2AIArgs d_args = { .input = s, .error = &error, .dorag = true };
+	R2AIArgs d_args = { .input = full_input, .error = &error, .dorag = true };
+
 	char *res = r2ai (cps, d_args);
-	free (s);
+
 	if (error) {
-		R_LOG_ERROR (error);
+		R_LOG_ERROR ("%s", error);
 		free (error);
-	} else {
-		r_cons_printf (core->cons, "%s\n", res);
 	}
-	free (res);
-	r_list_free (cmdslist);
+	if (res) {
+		r_cons_printf (core->cons, "%s\n", res);
+		free (res);
+	} else {
+		R_LOG_ERROR ("No response from LLM. Check model name, API key, and network connectivity.");
+	}
+
+	free (context_blob);
+	free (full_input);
+	free (final_query);
 }
 
 static void cmd_r2ai_repl(RCorePluginSession *cps) {
@@ -416,6 +463,7 @@ R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 			free (res);
 		}
 	}
+	r_cons_flush (core->cons);
 }
 
 static bool cb_r2ai_api(void *user, void *data) {
@@ -563,15 +611,28 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_desc (core->config, "r2ai.hlang", "Human language for prompts/messages (e.g. english)");
 	r_config_set (
 		core->config, "r2ai.system",
-		"You are a reverse engineer. The user is reversing a binary, using "
-		"radare2. The user will ask questions about the binary and you will "
-		"respond with the answer to the best of your ability.");
+		"You are an advanced decompiler engine. Your goal is to accept raw disassembly, "
+		"pseudo-code, and stack layouts, and reconstruct the original source code. "
+		"Rules: "
+		"1. Rename variables based on their usage (e.g., if 'var_4h' is used in a loop counter, name it 'i'). "
+		"2. Infer types strictly. If a function accepts 0 and 1, use bool or enum. "
+		"3. Resolve string references. Do not leave '0x402010', replace it with the actual string literal provided in context. "
+		"4. Remove compiler artifacts (stack cookies, canary checks) unless explicitly asked. "
+		"5. Output ONLY the code block. No conversational filler.");
 	r_config_set (
 		core->config, "r2ai.prompt",
-		"Rewrite this function and respond ONLY with code, replace goto/labels "
-		"with if/else/for, use NO explanations, NO markdown, Simplify as much as "
-		"possible, use better variable names, take function arguments and "
-		"strings from comments like 'string:'");
+		"Reconstruct this function. "
+		"Use the provided [Stack Variables] to define local variables correctly. "
+		"Use [Called Function Context] to understand what subroutines do. "
+		"Match the logic in [Disassembly] but express it in high-level native syntax. "
+		"Heuristically detect the language (C/C++/Rust/Go) based on mangled names or patterns. "
+		"Apply these principles: "
+		"1) Infer EXACT types: size_t for lengths, const/ownership qualifiers, language-specific types (Arc<T>, unique_ptr, Option<T>) "
+		"2) Extract semantic names from string literals, syscalls, APIs, format strings "
+		"3) Detect patterns: loops, error handling (Result/Optional/exceptions), null checks, RAII, memory management idioms "
+		"4) Use native control flow: match/switch, for-each, early returns, ? operator "
+		"5) Preserve semantics: ownership, lifetimes, smart pointers, language conventions "
+		"6) NO markdown, NO explanations - just clean, idiomatic, compile-ready code in the detected language.");
 	r_config_set (core->config, "r2ai.promptdir", "~/.config/r2ai/prompts");
 	r_config_desc (core->config, "r2ai.promptdir", "Directory containing .r2ai prompt files");
 	r_config_set_b (core->config, "r2ai.clippy", false);
