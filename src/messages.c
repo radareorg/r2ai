@@ -3,13 +3,12 @@
 #include "r2ai.h"
 
 R_API void r2ai_tool_call_free(R2AI_ToolCall *tc) {
-	if (!tc) {
-		return;
+	if (tc) {
+		free ((void *)tc->id);
+		free ((void *)tc->name);
+		free ((void *)tc->arguments);
+		free (tc);
 	}
-	free ((void *)tc->id);
-	free ((void *)tc->name);
-	free ((void *)tc->arguments);
-	free (tc);
 }
 
 R_API RList *r2ai_content_blocks_new(void) {
@@ -406,8 +405,12 @@ R_API char *r2ai_msgs_to_anthropic_json(const RList *msgs) {
 	r_list_foreach (msgs, iter, msg) {
 		pj_o (pj); // Start message object
 
-		// Add role
+		// Circumvent Anthropic's allergy to system role messages
 		const char *role = msg->role? msg->role: "user";
+		bool is_system_message = !strcmp (role, "system");
+		if (is_system_message) {
+			role = "user";
+		}
 		pj_ks (pj, "role", strcmp (role, "tool") == 0? "user": role);
 
 		if (msg->content_blocks) {
@@ -467,7 +470,13 @@ R_API char *r2ai_msgs_to_anthropic_json(const RList *msgs) {
 					pj_ks (pj, "content", msg->content);
 				} else {
 					pj_ks (pj, "type", "text");
-					pj_ks (pj, "text", msg->content);
+					if (is_system_message) {
+						char *prefixed = r_str_newf ("SYSTEM INSTRUCTIONS: %s", msg->content);
+						pj_ks (pj, "text", prefixed);
+						free (prefixed);
+					} else {
+						pj_ks (pj, "text", msg->content);
+					}
 				}
 				pj_end (pj); // End content block object
 			}
