@@ -441,20 +441,8 @@ R_API char *r2ai_msgs_to_anthropic_json(const RList *msgs) {
 					pj_ks (pj, "name", block->name);
 				}
 				if (R_STR_ISNOTEMPTY (block->input)) {
-					// Try to parse the input as JSON first
-					char *input_str = strdup (block->input);
-					RJson *input_json = r_json_parse (input_str);
-					if (input_json) {
-						pj_ko (pj, "input");
-						pj_raw (pj, input_str);
-						pj_end (pj);
-						r_json_free (input_json);
-					} else {
-						pj_ko (pj, "input");
-						pj_ks (pj, "command", block->input);
-						pj_end (pj);
-					}
-					free (input_str);
+					pj_k (pj, "input");
+					pj_raw (pj, block->input);
 				}
 				pj_end (pj); // End content block object
 			}
@@ -490,23 +478,13 @@ R_API char *r2ai_msgs_to_anthropic_json(const RList *msgs) {
 					pj_ks (pj, "id", tc->id? tc->id: "");
 					pj_ks (pj, "name", tc->name? tc->name: "");
 
-					// Create a non-const copy for r_json_parse
-					char *arguments_copy = tc->arguments? strdup (tc->arguments): NULL;
-					RJson *arguments = arguments_copy? r_json_parse (arguments_copy): NULL;
-
-					pj_ko (pj, "input"); // Start input object
-					if (arguments) {
-						for (size_t k = 0; k < arguments->children.count; k++) {
-							const RJson *arg = r_json_item (arguments, k);
-							if (arg && arg->type == R_JSON_STRING) {
-								pj_ks (pj, arg->key, arg->str_value);
-							}
-						}
-						r_json_free (arguments);
+					// Insert the arguments directly as the input object
+					pj_k (pj, "input");
+					if (tc->arguments) {
+						pj_raw (pj, tc->arguments);
+					} else {
+						pj_raw (pj, "{}");
 					}
-					free (arguments_copy);
-
-					pj_end (pj); // End input object
 					pj_end (pj); // End tool_use content block
 				}
 			}
