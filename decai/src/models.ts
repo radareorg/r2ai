@@ -4,17 +4,20 @@ import { getApiKey } from "./apiKeys";
 import { httpGet } from "./http";
 import { providerRegistry, getProvider } from "./providers";
 
+function listModelsFromApi(url: string, headers: string[], parser: (data: any[]) => string): string {
+  const response = httpGet(url, headers) as any;
+  if (response.data) {
+    return parser(response.data);
+  }
+  return "";
+}
+
 export function listClaudeModels(): string {
   const key = getApiKey("anthropic", "ANTHROPIC_API_KEY");
   if (key[1]) throw new Error(key[1]);
 
   const headers = ["x-api-key: " + key[0], "anthropic-version: 2023-06-01"];
-  const response = httpGet("https://api.anthropic.com/v1/models", headers);
-
-  if (response.data) {
-    return response.data.map((model) => model.id).join("\n");
-  }
-  return "";
+  return listModelsFromApi("https://api.anthropic.com/v1/models", headers, (data) => data.map((model) => model.id).join("\n"));
 }
 
 export function listMistralModels(): string {
@@ -22,24 +25,22 @@ export function listMistralModels(): string {
   if (key[1]) throw new Error(key[1]);
 
   const headers = ["Authorization: Bearer " + key[0]];
-  const response = httpGet("https://api.mistral.ai/v1/models", headers);
-
-  if (!response.data) return "";
-
-  const uniqByName = (arr: typeof response.data) =>
-    arr.filter(
-      (obj, i, self) => self.findIndex((o) => o.name === obj.name) === i
-    );
-
-  return uniqByName(response.data)
-    .map((model) =>
-      [
-        padRight(model.name || model.id, 30),
-        padRight("" + (model.max_context_length || ""), 10),
-        model.description || "",
-      ].join(" ")
-    )
-    .join("\n");
+  return listModelsFromApi("https://api.mistral.ai/v1/models", headers, (data) => {
+    if (!data) return "";
+    const uniqByName = (arr: typeof data) =>
+      arr.filter(
+        (obj, i, self) => self.findIndex((o) => o.name === obj.name) === i
+      );
+    return uniqByName(data)
+      .map((model) =>
+        [
+          padRight(model.name || model.id, 30),
+          padRight("" + (model.max_context_length || ""), 10),
+          model.description || "",
+        ].join(" ")
+      )
+      .join("\n");
+  });
 }
 
 export function listOpenaiModels(): string {
@@ -47,12 +48,7 @@ export function listOpenaiModels(): string {
   if (key[1]) throw new Error(key[1]);
 
   const headers = ["Authorization: Bearer " + key[0]];
-  const response = httpGet("https://api.openai.com/v1/models", headers);
-
-  if (response.data) {
-    return response.data.map((model) => model.id).join("\n");
-  }
-  return "";
+  return listModelsFromApi("https://api.openai.com/v1/models", headers, (data) => data.map((model) => model.id).join("\n"));
 }
 
 export function listOllamaModels(): string {
@@ -78,12 +74,7 @@ export function listOllamaCloudModels(): string {
   if (key[1]) throw new Error(key[1]);
 
   const headers = ["Authorization: Bearer " + key[0]];
-  const response = httpGet("https://ollama.com/v1/models", headers);
-
-  if (response.data) {
-    return response.data.map((model) => model.id).join("\n");
-  }
-  return "";
+  return listModelsFromApi("https://ollama.com/v1/models", headers, (data) => data.map((model) => model.id).join("\n"));
 }
 
 export function listModelsFor(api: string): void {
@@ -113,7 +104,7 @@ export function listModelsFor(api: string): void {
         break;
       case "mistral":
         console.log(listMistralModels());
-        console.log("codestral-latest");
+        console.log("ministral-8b-latest");
         break;
       case "ollamacloud":
         console.log(listOllamaCloudModels());

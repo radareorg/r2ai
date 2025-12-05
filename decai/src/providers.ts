@@ -1,4 +1,4 @@
-import { ProviderConfig, ProviderRegistry } from "./types";
+import { ProviderConfig, ProviderRegistry, PayloadBuilder, ResponseParser, UrlBuilder, HeadersBuilder, ApiKeyResult } from "./types";
 import { state } from "./state";
 import { filterResponse } from "./utils";
 import { getApiKey } from "./apiKeys";
@@ -134,33 +134,48 @@ function languagePrompt(): string {
   return "\n.Translate the code into " + state.language + " programming language\n";
 }
 
-export function handleOpenAI(provider: ProviderConfig, msg: string, hideprompt: boolean): string {
+function handleProvider(
+  provider: ProviderConfig,
+  msg: string,
+  hideprompt: boolean,
+  payloadBuilder: PayloadBuilder,
+  responseParser: ResponseParser,
+  urlBuilder: UrlBuilder,
+  headersBuilder: HeadersBuilder
+): string {
   const model = state.model || provider.defaultModel;
   const query = buildQuery(msg, hideprompt);
 
-  const payload = {
-    stream: false,
-    model: model,
-    messages: [{ role: "user", content: query }],
-  };
-
-  const base = state.baseurl || provider.defaultBaseurl;
-  const url = base + "/v1/chat/completions";
-
-  let headers: string[] = [];
+  let key: ApiKeyResult | undefined;
   if (provider.requiresAuth && provider.authKey) {
-    const key = getApiKey(
-      provider.authKey.split("_")[0].toLowerCase(),
-      provider.authKey
-    );
+    key = getApiKey(provider.authKey.split("_")[0].toLowerCase(), provider.authKey);
     if (key[1]) {
       return `Cannot read ~/.r2ai.${provider.authKey.split("_")[0].toLowerCase()}-key`;
     }
-    headers = ["Authorization: Bearer " + key[0]];
   }
+
+  const payload = payloadBuilder(model, query, provider);
+  const base = state.baseurl || provider.defaultBaseurl;
+  const url = urlBuilder(base, model, key && key[0] ? key[0] : undefined);
+  const headers = headersBuilder(key ? key[0] : null, provider);
 
   try {
     const res = httpPost(url, headers, JSON.stringify(payload));
+    return responseParser(res);
+  } catch (e) {
+    const err = e as Error;
+    return "ERROR: " + err.message;
+  }
+}
+
+export function handleOpenAI(provider: ProviderConfig, msg: string, hideprompt: boolean): string {
+  const payloadBuilder: PayloadBuilder = (model, query) => ({
+    stream: false,
+    model,
+    messages: [{ role: "user", content: query }],
+  });
+
+  const responseParser: ResponseParser = (res) => {
     if (res.error && typeof res.error === "object" && res.error.message) {
       throw new Error(res.error.message);
     }
@@ -168,10 +183,13 @@ export function handleOpenAI(provider: ProviderConfig, msg: string, hideprompt: 
       return filterResponse(res.choices[0].message.content);
     }
     throw new Error("Invalid response format");
-  } catch (e) {
-    const err = e as Error;
-    return "ERROR: " + err.message;
-  }
+  };
+
+  const urlBuilder: UrlBuilder = (base, model) => base + "/v1/chat/completions";
+
+  const headersBuilder: HeadersBuilder = (key) => key ? ["Authorization: Bearer " + key] : [];
+
+  return handleProvider(provider, msg, hideprompt, payloadBuilder, responseParser, urlBuilder, headersBuilder);
 }
 
 export function handleAnthropic(provider: ProviderConfig, msg: string, hideprompt: boolean): string {
@@ -179,38 +197,19 @@ export function handleAnthropic(provider: ProviderConfig, msg: string, hidepromp
     return "ERROR: No auth key configured";
   }
 
-  const key = getApiKey(
-    provider.authKey.split("_")[0].toLowerCase(),
-    provider.authKey
-  );
-  if (key[1]) {
-    return `Cannot read ~/.r2ai.${provider.authKey.split("_")[0].toLowerCase()}-key`;
-  }
-
-  const model = state.model || provider.defaultModel;
-  const query = buildQuery(msg, hideprompt);
-
-  const payload: Record<string, unknown> = {
-    model: model,
-    max_tokens: 5128,
-    messages: [{ role: "user", content: query }],
+  const payloadBuilder: PayloadBuilder = (model, query) => {
+    const payload: Record<string, unknown> = {
+      model,
+      max_tokens: 5128,
+      messages: [{ role: "user", content: query }],
+    };
+    if (state.deterministic) {
+      Object.assign(payload, { temperature: 0, top_p: 0, top_k: 1 });
+    }
+    return payload;
   };
 
-  if (state.deterministic) {
-    Object.assign(payload, { temperature: 0, top_p: 0, top_k: 1 });
-  }
-
-  const headers = [
-    "anthropic-version: 2023-06-01",
-    "x-api-key: " + key[0],
-  ];
-
-  try {
-    const res = httpPost(
-      provider.defaultBaseurl + "/v1/messages",
-      headers,
-      JSON.stringify(payload)
-    );
+  const responseParser: ResponseParser = (res) => {
     if (res.content && res.content[0]?.text) {
       return filterResponse(res.content[0].text);
     }
@@ -219,38 +218,33 @@ export function handleAnthropic(provider: ProviderConfig, msg: string, hidepromp
       throw new Error(errMsg || "Unknown error");
     }
     throw new Error("Invalid response format");
-  } catch (e) {
-    const err = e as Error;
-    return "ERROR: " + err.message;
-  }
+  };
+  const urlBuilder: UrlBuilder = (base, model) => base + "/v1/messages";
+  const headersBuilder: HeadersBuilder = (key) => ["anthropic-version: 2023-06-01", "x-api-key: " + key];
+  return handleProvider(provider, msg, hideprompt, payloadBuilder, responseParser, urlBuilder, headersBuilder);
 }
 
 export function handleOllama(provider: ProviderConfig, msg: string, hideprompt: boolean): string {
-  const model = state.model || provider.defaultModel;
-  const query = buildQuery(msg, hideprompt);
-
-  const payload: Record<string, unknown> = {
-    stream: false,
-    model: model,
-    messages: [{ role: "user", content: query }],
+  const payloadBuilder: PayloadBuilder = (model, query) => {
+    const payload: Record<string, unknown> = {
+      stream: false,
+      model,
+      messages: [{ role: "user", content: query }],
+    };
+    if (state.deterministic) {
+      payload.options = {
+        repeat_last_n: 0,
+        top_p: 0.0,
+        top_k: 1.0,
+        temperature: 0.0,
+        repeat_penalty: 1.0,
+        seed: 123,
+      };
+    }
+    return payload;
   };
 
-  if (state.deterministic) {
-    payload.options = {
-      repeat_last_n: 0,
-      top_p: 0.0,
-      top_k: 1.0,
-      temperature: 0.0,
-      repeat_penalty: 1.0,
-      seed: 123,
-    };
-  }
-
-  const base = state.baseurl || provider.defaultBaseurl;
-  const url = base + "/api/chat";
-
-  try {
-    const res = httpPost(url, [], JSON.stringify(payload));
+  const responseParser: ResponseParser = (res) => {
     if (res && res.error) {
       const errMsg = typeof res.error === "string" ? res.error : JSON.stringify(res.error);
       throw new Error(errMsg);
@@ -259,11 +253,10 @@ export function handleOllama(provider: ProviderConfig, msg: string, hideprompt: 
       return filterResponse(res.message.content);
     }
     throw new Error(JSON.stringify(res));
-  } catch (e) {
-    const err = e as Error;
-    console.error(err.stack);
-    return "ERROR: " + err.message;
-  }
+  };
+  const urlBuilder: UrlBuilder = (base, model) => base + "/api/chat";
+  const headersBuilder: HeadersBuilder = () => [];
+  return handleProvider(provider, msg, hideprompt, payloadBuilder, responseParser, urlBuilder, headersBuilder);
 }
 
 export function handleGemini(provider: ProviderConfig, msg: string, hideprompt: boolean): string {
@@ -271,45 +264,34 @@ export function handleGemini(provider: ProviderConfig, msg: string, hideprompt: 
     return "ERROR: No auth key configured";
   }
 
-  const key = getApiKey(
-    provider.authKey.split("_")[0].toLowerCase(),
-    provider.authKey
-  );
-  if (key[1]) {
-    return `Cannot read ~/.r2ai.${provider.authKey.split("_")[0].toLowerCase()}-key`;
-  }
-
-  const model = state.model || provider.defaultModel;
-  const query = buildQuery(msg, hideprompt);
-
-  const payload: Record<string, unknown> = {
-    contents: [{ parts: [{ text: query }] }],
+  const payloadBuilder: PayloadBuilder = (model, query) => {
+    const payload: Record<string, unknown> = {
+      contents: [{ parts: [{ text: query }] }],
+    };
+    if (state.deterministic) {
+      payload.generationConfig = {
+        temperature: 0.0,
+        topP: 1.0,
+        topK: 1,
+      };
+    }
+    return payload;
   };
 
-  if (state.deterministic) {
-    payload.generationConfig = {
-      temperature: 0.0,
-      topP: 1.0,
-      topK: 1,
-    };
-  }
-
-  const url = `${provider.defaultBaseurl}/v1beta/models/${model}:generateContent?key=${key[0]}`;
-
-  try {
-    const res = httpPost(url, [], JSON.stringify(payload));
-    if (res.candidates && res.candidates[0]?.content?.parts?.[0]?.text) {
-      return filterResponse(res.candidates[0].content.parts[0].text);
+  const responseParser: ResponseParser = (res) => {
+    const r = res as any;
+    if (r.candidates && r.candidates[0]?.content?.parts?.[0]?.text) {
+      return filterResponse(r.candidates[0].content.parts[0].text);
     }
-    if (res.error) {
-      throw new Error(typeof res.error === "string" ? res.error : JSON.stringify(res.error));
+    if (r.error) {
+      throw new Error(typeof r.error === "string" ? r.error : JSON.stringify(r.error));
     }
-    console.log(JSON.stringify(res));
+    console.log(JSON.stringify(r));
     throw new Error("Invalid response format");
-  } catch (e) {
-    const err = e as Error;
-    return "ERROR: " + err.message;
-  }
+  };
+  const urlBuilder: UrlBuilder = (base, model, key) => `${base}/v1beta/models/${model}:generateContent?key=${key}`;
+  const headersBuilder: HeadersBuilder = () => [];
+  return handleProvider(provider, msg, hideprompt, payloadBuilder, responseParser, urlBuilder, headersBuilder);
 }
 
 export function callProvider(msg: string, hideprompt: boolean): string {
