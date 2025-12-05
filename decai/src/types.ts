@@ -13,8 +13,8 @@ export interface ProviderConfig {
   requiresAuth: boolean;
   authKey?: string;
   apiStyle: ApiStyle;
-  dynamicModels?: boolean;
   hardcodedModels?: string[];
+  listModelsCallback?: (provider: ProviderConfig) => string;
 }
 
 export interface ProviderRegistry {
@@ -66,17 +66,31 @@ export interface HttpResponse {
   error?: { message?: string } | string;
   choices?: Array<{ message: { content: string } }>;
   content?: Array<{ text: string }>;
-  message?: { content: string }>;
+  message?: { content: string };
   candidates?: Array<{ content: { parts: Array<{ text: string }> } }>;
-  data?: Array<{ id: string; name?: string; max_context_length?: number; description?: string }>;
+  data?: Array<
+    {
+      id: string;
+      name?: string;
+      max_context_length?: number;
+      description?: string;
+    }
+  >;
   models?: Array<{ name: string }>;
   [key: string]: unknown;
 }
 
-export type PayloadBuilder = (model: string, query: string, provider: ProviderConfig) => Record<string, unknown>;
+export type PayloadBuilder = (
+  model: string,
+  query: string,
+  provider: ProviderConfig,
+) => Record<string, unknown>;
 export type ResponseParser = (res: HttpResponse) => string;
 export type UrlBuilder = (base: string, model: string, key?: string) => string;
-export type HeadersBuilder = (key: string | null, provider: ProviderConfig) => string[];
+export type HeadersBuilder = (
+  key: string | null,
+  provider: ProviderConfig,
+) => string[];
 
 export interface AutoReply {
   action: string;

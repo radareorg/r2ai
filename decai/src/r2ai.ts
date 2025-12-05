@@ -1,8 +1,12 @@
 import { state } from "./state";
-import { tmpdir, fileDump, debugLog } from "./utils";
+import { debugLog, fileDump, tmpdir } from "./utils";
 import { callProvider } from "./providers";
 
-export function r2ai(queryText: string, fileData: string | null, hideprompt: boolean = false): string {
+export function r2ai(
+  queryText: string,
+  fileData: string | null,
+  hideprompt: boolean = false,
+): string {
   const cleanFileData = (fileData || "").replace(/`/g, "");
   const cleanQuery = queryText.replace(/'/g, "");
 
@@ -20,8 +24,7 @@ export function r2ai(queryText: string, fileData: string | null, hideprompt: boo
       : state.host + ":" + state.port + "/cmd";
 
     const ss = q.replace(/ /g, "%20").replace(/'/g, "\\'");
-    const cmd =
-      'curl -s "' +
+    const cmd = 'curl -s "' +
       host +
       "/" +
       ss +

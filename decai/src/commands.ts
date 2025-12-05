@@ -1,8 +1,15 @@
 import { AutoReply } from "./types";
 import { state } from "./state";
-import { VERSION, COMMAND, DEFAULT_PROMPT, HELP_TEXT } from "./constants";
-import { b64, trimAnsi, trimDown, trimJson, filterResponse, debugLog } from "./utils";
-import { listApiKeys, editApiKeys } from "./apiKeys";
+import { COMMAND, DEFAULT_PROMPT, HELP_TEXT, VERSION } from "./constants";
+import {
+  b64,
+  debugLog,
+  filterResponse,
+  trimAnsi,
+  trimDown,
+  trimJson,
+} from "./utils";
+import { editApiKeys, listApiKeys } from "./apiKeys";
 import { evalConfig, listAllConfig } from "./config";
 import { r2ai } from "./r2ai";
 
@@ -43,7 +50,7 @@ export function decompile(
   args: string,
   extraQuery: boolean,
   useCache: boolean,
-  recursiveCalls: boolean
+  recursiveCalls: boolean,
 ): string | undefined {
   if (useCache) {
     const cachedAnnotation = r2.cmd("anos").trim();
@@ -75,8 +82,7 @@ export function decompile(
       state.contextFile !== "" &&
       r2.cmd2("test -f " + state.contextFile).value === 0
     ) {
-      text +=
-        "## Context:\n[START]\n" +
+      text += "## Context:\n[START]\n" +
         r2.cmd("cat " + state.contextFile) +
         "\n[END]\n";
     }
@@ -87,10 +93,9 @@ export function decompile(
     for (const c of state.commands.split(",")) {
       if (c.trim() === "") continue;
 
-      const oneliner =
-        extraQuery || parsedArgs.trim().length === 0
-          ? c
-          : c + "@@= " + parsedArgs;
+      const oneliner = extraQuery || parsedArgs.trim().length === 0
+        ? c
+        : c + "@@= " + parsedArgs;
       const output = r2.cmd(oneliner);
 
       if (output.length > 5) {
@@ -154,15 +159,15 @@ export function decompile(
 export function explainFunction(): string {
   const origColor = r2.cmd("e scr.color");
   r2.cmd("e scr.color=0");
-  const hints =
-    "[START]" + state.commands.split(",").map((c) => r2.cmd(c)).join("\n") + "[END]";
+  const hints = "[START]" +
+    state.commands.split(",").map((c) => r2.cmd(c)).join("\n") + "[END]";
   r2.cmd("e scr.color=" + origColor);
 
   const res = r2ai(
     "Analyze function calls, references, comments and strings, loops and ignore registers and memory accesses. Explain the purpose of this function in a single short sentence. /no_think Do not introduce or argue the response, translation of the explanation in " +
       state.humanLanguage,
     hints,
-    true
+    true,
   );
 
   const lines = res.trim().split(/\n/g);
@@ -174,12 +179,11 @@ export function suggestSignature(): string {
   const code = r2.cmd("afv;pdc");
   state.language = "C";
 
-  let out =
-    "'afs " +
+  let out = "'afs " +
     r2ai(
       "analyze the uses of the arguments and return value to infer the signature, identify which is the correct type for the return. Do NOT print the function body, ONLY output the function signature, like if it was going to be used in a C header",
       code,
-      false
+      false,
     );
 
   const brace = out.indexOf("{");
@@ -191,7 +195,10 @@ export function suggestSignature(): string {
   return out;
 }
 
-export function autoMode(queryText: string, mainHandler: (args: string) => boolean): void {
+export function autoMode(
+  queryText: string,
+  mainHandler: (args: string) => boolean,
+): void {
   const replies: string[] = [];
 
   while (true) {
@@ -220,7 +227,7 @@ export function autoMode(queryText: string, mainHandler: (args: string) => boole
 
     try {
       const o: AutoReply = JSON.parse(
-        trimJson(trimDown(filterResponse(out)))
+        trimJson(trimDown(filterResponse(out))),
       );
 
       if (
@@ -235,7 +242,7 @@ export function autoMode(queryText: string, mainHandler: (args: string) => boole
           if (state.tts) {
             r2.syscmd("pkill say");
             r2.syscmd(
-              "say -v Alex -r 250 '" + o.reason.replace(/'/g, "") + "' &"
+              "say -v Alex -r 250 '" + o.reason.replace(/'/g, "") + "' &",
             );
           }
         }
@@ -251,7 +258,9 @@ export function autoMode(queryText: string, mainHandler: (args: string) => boole
         console.log("[r2cmd] Running: " + cmd);
         const obj = r2.cmd2(cmd);
         const logs = obj.logs
-          ? obj.logs.map((x: { type: string; message: string }) => x.type + ": " + x.message).join("\n")
+          ? obj.logs.map((x: { type: string; message: string }) =>
+            x.type + ": " + x.message
+          ).join("\n")
           : "";
         const res = (obj.res + logs).trim();
 
@@ -268,7 +277,7 @@ export function autoMode(queryText: string, mainHandler: (args: string) => boole
             command: cmd,
             description: o.description,
             response: cleanRes,
-          })
+          }),
         );
       } else if (o.action === "reply") {
         console.log("Done\n", o.response);
@@ -293,7 +302,10 @@ export function autoMode(queryText: string, mainHandler: (args: string) => boole
   }
 }
 
-function autoRepl(ocmd: string, mainHandler: (args: string) => boolean): string {
+function autoRepl(
+  ocmd: string,
+  mainHandler: (args: string) => boolean,
+): string {
   while (true) {
     const cmd = r2.cmd("'?ie Tweak command? ('?' for help)").trim();
 
@@ -341,7 +353,10 @@ function autoHelp(): void {
   console.log(" '-e'    set decai configuration variables");
 }
 
-export function handleCommand(args: string, mainHandler: (args: string) => boolean): string | undefined {
+export function handleCommand(
+  args: string,
+  mainHandler: (args: string) => boolean,
+): string | undefined {
   if (args === "" || !args.startsWith("-")) {
     showHelp();
     return;
@@ -385,7 +400,7 @@ export function handleCommand(args: string, mainHandler: (args: string) => boole
         "give me a better name for this function. the output must be: 'afn NEWNAME'. do not include the function code, only the afn line. consider: " +
           considerations,
         output,
-        false
+        false,
       ).trim();
       output += " @ " + r2.cmd("?v $FB").trim();
       break;
@@ -396,7 +411,7 @@ export function handleCommand(args: string, mainHandler: (args: string) => boole
       output = r2ai(
         "guess a better name and type for each local variable and function argument taking using. output an r2 script using afvn and afvt commands",
         output,
-        false
+        false,
       );
       break;
 
@@ -445,7 +460,7 @@ export function handleCommand(args: string, mainHandler: (args: string) => boole
       output = r2ai(
         "find vulnerabilities, dont show the code, only show the response, provide a sample exploit",
         state.lastOutput,
-        false
+        false,
       );
       break;
 

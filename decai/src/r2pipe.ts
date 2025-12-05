@@ -1,56 +1,55 @@
-
 export class R2PipeSyncFromSync {
-    r2p: R2Pipe;
-    constructor(r2p: R2Pipe) {
-        this.r2p = r2p;
-    }
-    /**
-     * Run a command in the associated instance of radare2 and return the output as a string
-     *
-     * @param {string} command to be executed inside radare2.
-     * @returns {string} The output of the command execution
-     */
-    cmd(command: string): string {
-        return this.r2p.cmd(command);
-    }
-    cmd2(command: string): any {
-        return this.r2p.cmd(command);
-    }
-    cmdAt(
-        command: string,
-        address: number | string | any
-    ): string {
-        return this.r2p.cmdAt(command, address);
-    }
-    cmdj(cmd: string): any {
-        return this.r2p.cmdj(cmd);
-    }
-    call(command: string): string {
-        return this.r2p.call(command);
-    }
-    callj(cmd: string): any {
-        return this.r2p.cmdj(cmd);
-    }
-    callAt(
-        command: string,
-        address: number | string | any
-    ): string {
-        return this.r2p.cmdAt(command, address);
-    }
-    log(msg: string) {
-        return this.r2p.log(msg);
-    }
-    plugin(type: string, maker: any): boolean {
-        return this.r2p.plugin(type, maker);
-    }
-    unload(type: string, name: string): boolean {
-        return this.r2p.unload(type, name);
-    }
+  r2p: R2Pipe;
+  constructor(r2p: R2Pipe) {
+    this.r2p = r2p;
+  }
+  /**
+   * Run a command in the associated instance of radare2 and return the output as a string
+   *
+   * @param {string} command to be executed inside radare2.
+   * @returns {string} The output of the command execution
+   */
+  cmd(command: string): string {
+    return this.r2p.cmd(command);
+  }
+  cmd2(command: string): any {
+    return this.r2p.cmd(command);
+  }
+  cmdAt(
+    command: string,
+    address: number | string | any,
+  ): string {
+    return this.r2p.cmdAt(command, address);
+  }
+  cmdj(cmd: string): any {
+    return this.r2p.cmdj(cmd);
+  }
+  call(command: string): string {
+    return this.r2p.call(command);
+  }
+  callj(cmd: string): any {
+    return this.r2p.cmdj(cmd);
+  }
+  callAt(
+    command: string,
+    address: number | string | any,
+  ): string {
+    return this.r2p.cmdAt(command, address);
+  }
+  log(msg: string) {
+    return this.r2p.log(msg);
+  }
+  plugin(type: string, maker: any): boolean {
+    return this.r2p.plugin(type, maker);
+  }
+  unload(type: string, name: string): boolean {
+    return this.r2p.unload(type, name);
+  }
 }
 
 export function newAsyncR2PipeFromSync(r2p: R2Pipe): R2PipeSync {
-    const asyncR2Pipe = new R2PipeSyncFromSync(r2p);
-    return asyncR2Pipe as R2PipeSync;
+  const asyncR2Pipe = new R2PipeSyncFromSync(r2p);
+  return asyncR2Pipe as R2PipeSync;
 }
 
 /**
@@ -60,83 +59,83 @@ export function newAsyncR2PipeFromSync(r2p: R2Pipe): R2PipeSync {
  * @typedef R2Pipe
  */
 export interface R2Pipe {
-    /**
-     * Run a command in the associated instance of radare2 and return the output as a string
-     *
-     * @param {string} command to be executed inside radare2.
-     * @returns {string} The output of the command execution
-     */
-    cmd(cmd: string): string;
+  /**
+   * Run a command in the associated instance of radare2 and return the output as a string
+   *
+   * @param {string} command to be executed inside radare2.
+   * @returns {string} The output of the command execution
+   */
+  cmd(cmd: string): string;
 
-    /**
-     * Run a radare2 command in a different address. Same as `.cmd(x + '@ ' + a)`
-     *
-     * @param {string} command to be executed inside radare2.
-     * @param {number|string|NativePointer} command to be executed inside radare2.
-     * @returns {string} The output of the command execution
-     */
-    cmdAt(cmd: string, address: number | string | any): string;
+  /**
+   * Run a radare2 command in a different address. Same as `.cmd(x + '@ ' + a)`
+   *
+   * @param {string} command to be executed inside radare2.
+   * @param {number|string|NativePointer} command to be executed inside radare2.
+   * @returns {string} The output of the command execution
+   */
+  cmdAt(cmd: string, address: number | string | any): string;
 
-    /**
-     * Run a radare2 command expecting the output to be JSON
-     *
-     * @param {string} command to be executed inside radare2. The given command should end with `j`
-     * @returns {object} the JSON decoded object from the output of the command
-     */
-    cmdj(cmd: string): any;
+  /**
+   * Run a radare2 command expecting the output to be JSON
+   *
+   * @param {string} command to be executed inside radare2. The given command should end with `j`
+   * @returns {object} the JSON decoded object from the output of the command
+   */
+  cmdj(cmd: string): any;
 
-    /**
-     * Call a radare2 command. This is similar to `R2Pipe.cmd`, but skips all the command parsing rules,
-     * which is safer and faster but you cannot use any special modifier like `@`, `~`, ...
-     *
-     * See R2Pipe.callAt() to call a command on a different address
-     *
-     * @param {string} command to be executed inside radare2. The given command should end with `j`
-     * @returns {object} the JSON decoded object from the output of the command
-     */
-    call(cmd: string): string;
+  /**
+   * Call a radare2 command. This is similar to `R2Pipe.cmd`, but skips all the command parsing rules,
+   * which is safer and faster but you cannot use any special modifier like `@`, `~`, ...
+   *
+   * See R2Pipe.callAt() to call a command on a different address
+   *
+   * @param {string} command to be executed inside radare2. The given command should end with `j`
+   * @returns {object} the JSON decoded object from the output of the command
+   */
+  call(cmd: string): string;
 
-    /**
-     * Call a radare2 command in a different address
-     *
-     * @param {string} command to be executed inside radare2. The given command should end with `j`
-     * @param {NativePointer|string|number} where to seek to execute this command (previous offset is restored after executing it)
-     * @returns {string} the string containing the output of the command
-     */
-    callAt(cmd: string, address: string | number | any): string;
+  /**
+   * Call a radare2 command in a different address
+   *
+   * @param {string} command to be executed inside radare2. The given command should end with `j`
+   * @param {NativePointer|string|number} where to seek to execute this command (previous offset is restored after executing it)
+   * @returns {string} the string containing the output of the command
+   */
+  callAt(cmd: string, address: string | number | any): string;
 
-    /**
-     * Same as cmdj but using .call which avoids command injection problems
-     *
-     * @param {string} command to be executed inside radare2. The given command should end with `j`
-     * @returns {object} the JSON decoded object from the command output
-     */
-    callj(cmd: string): any;
+  /**
+   * Same as cmdj but using .call which avoids command injection problems
+   *
+   * @param {string} command to be executed inside radare2. The given command should end with `j`
+   * @returns {object} the JSON decoded object from the command output
+   */
+  callj(cmd: string): any;
 
-    /**
-     * Log a string to the associated console. This is used internally by `console.log` in some implementations.
-     *
-     * @param {string} text to be displayed
-     */
-    log(msg: string): void;
+  /**
+   * Log a string to the associated console. This is used internally by `console.log` in some implementations.
+   *
+   * @param {string} text to be displayed
+   */
+  log(msg: string): void;
 
-    /**
-     * Instantiate a new radare2 plugin with the given type and constructor method.
-     *
-     * @param {string} type of plugin ("core", "io", "arch", ...)
-     * @param {string} function that returns the plugin definition
-     * @returns {boolean} true if successful
-     */
-    plugin(type: string, maker: any): boolean;
+  /**
+   * Instantiate a new radare2 plugin with the given type and constructor method.
+   *
+   * @param {string} type of plugin ("core", "io", "arch", ...)
+   * @param {string} function that returns the plugin definition
+   * @returns {boolean} true if successful
+   */
+  plugin(type: string, maker: any): boolean;
 
-    /**
-     * Unload the plugin associated with a `type` and a `name`.
-     *
-     * @param {string} type of plugin ("core", "io", "arch", ...)
-     * @param {string} name of the plugin
-     * @returns {boolean} true if successful
-     */
-    unload(type: string, name: string): boolean;
+  /**
+   * Unload the plugin associated with a `type` and a `name`.
+   *
+   * @param {string} type of plugin ("core", "io", "arch", ...)
+   * @param {string} name of the plugin
+   * @returns {boolean} true if successful
+   */
+  unload(type: string, name: string): boolean;
 }
 
 /**
@@ -146,83 +145,83 @@ export interface R2Pipe {
  * @typedef R2PipeSync
  */
 export interface R2PipeSync {
-    /**
-     * Run a command in the associated instance of radare2
-     *
-     * @param {string} command to be executed inside radare2.
-     * @returns {string} The output of the command execution
-     */
-    cmd(cmd: string): string;
+  /**
+   * Run a command in the associated instance of radare2
+   *
+   * @param {string} command to be executed inside radare2.
+   * @returns {string} The output of the command execution
+   */
+  cmd(cmd: string): string;
 
-    /**
-     * Run a radare2 command in a different address. Same as `.cmd(x + '@ ' + a)`
-     *
-     * @param {string} command to be executed inside radare2.
-     * @param {number|string|NativePointer} command to be executed inside radare2.
-     * @returns {string} The output of the command execution
-     */
-    cmdAt(cmd: string, address: number | string | any): string;
+  /**
+   * Run a radare2 command in a different address. Same as `.cmd(x + '@ ' + a)`
+   *
+   * @param {string} command to be executed inside radare2.
+   * @param {number|string|NativePointer} command to be executed inside radare2.
+   * @returns {string} The output of the command execution
+   */
+  cmdAt(cmd: string, address: number | string | any): string;
 
-    /**
-     * Run a radare2 command expecting the output to be JSON
-     *
-     * @param {string} command to be executed inside radare2. The given command should end with `j`
-     * @returns {object} the JSON decoded object from the output of the command
-     */
-    cmdj(cmd: string): any;
+  /**
+   * Run a radare2 command expecting the output to be JSON
+   *
+   * @param {string} command to be executed inside radare2. The given command should end with `j`
+   * @returns {object} the JSON decoded object from the output of the command
+   */
+  cmdj(cmd: string): any;
 
-    /**
-     * Call a radare2 command. This is similar to `R2Pipe.cmd`, but skips all the command parsing rules,
-     * which is safer and faster but you cannot use any special modifier like `@`, `~`, ...
-     *
-     * See R2Pipe.callAt() to call a command on a different address
-     *
-     * @param {string} command to be executed inside radare2. The given command should end with `j`
-     * @returns {object} the JSON decoded object from the output of the command
-     */
-    call(cmd: string): string;
+  /**
+   * Call a radare2 command. This is similar to `R2Pipe.cmd`, but skips all the command parsing rules,
+   * which is safer and faster but you cannot use any special modifier like `@`, `~`, ...
+   *
+   * See R2Pipe.callAt() to call a command on a different address
+   *
+   * @param {string} command to be executed inside radare2. The given command should end with `j`
+   * @returns {object} the JSON decoded object from the output of the command
+   */
+  call(cmd: string): string;
 
-    /**
-     * Call a radare2 command in a different address
-     *
-     * @param {string} command to be executed inside radare2. The given command should end with `j`
-     * @param {NativePointer|string|number} where to seek to execute this command (previous offset is restored after executing it)
-     * @returns {string} the string containing the output of the command
-     */
-    callAt(cmd: string, address: string | number | any): string;
+  /**
+   * Call a radare2 command in a different address
+   *
+   * @param {string} command to be executed inside radare2. The given command should end with `j`
+   * @param {NativePointer|string|number} where to seek to execute this command (previous offset is restored after executing it)
+   * @returns {string} the string containing the output of the command
+   */
+  callAt(cmd: string, address: string | number | any): string;
 
-    /**
-     * Same as cmdj but using .call which avoids command injection problems
-     *
-     * @param {string} command to be executed inside radare2. The given command should end with `j`
-     * @returns {object} the JSON decoded object from the command output
-     */
-    callj(cmd: string): any;
+  /**
+   * Same as cmdj but using .call which avoids command injection problems
+   *
+   * @param {string} command to be executed inside radare2. The given command should end with `j`
+   * @returns {object} the JSON decoded object from the command output
+   */
+  callj(cmd: string): any;
 
-    /**
-     * Log a string to the associated console. This is used internally by `console.log` in some implementations.
-     *
-     * @param {string} text to be displayed
-     */
-    log(msg: string): void;
+  /**
+   * Log a string to the associated console. This is used internally by `console.log` in some implementations.
+   *
+   * @param {string} text to be displayed
+   */
+  log(msg: string): void;
 
-    /**
-     * Instantiate a new radare2 plugin with the given type and constructor method.
-     *
-     * @param {string} type of plugin ("core", "io", "arch", ...)
-     * @param {string} function that returns the plugin definition
-     * @returns {boolean} true if successful
-     */
-    plugin(type: string, maker: any): boolean;
+  /**
+   * Instantiate a new radare2 plugin with the given type and constructor method.
+   *
+   * @param {string} type of plugin ("core", "io", "arch", ...)
+   * @param {string} function that returns the plugin definition
+   * @returns {boolean} true if successful
+   */
+  plugin(type: string, maker: any): boolean;
 
-    /**
-     * Unload the plugin associated with a `type` and a `name`.
-     *
-     * @param {string} type of plugin ("core", "io", "arch", ...)
-     * @param {string} name of the plugin
-     * @returns {boolean} true if successful
-     */
-    unload(type: string, name: string): boolean;
+  /**
+   * Unload the plugin associated with a `type` and a `name`.
+   *
+   * @param {string} type of plugin ("core", "io", "arch", ...)
+   * @param {string} name of the plugin
+   * @returns {boolean} true if successful
+   */
+  unload(type: string, name: string): boolean;
 }
 
 /**

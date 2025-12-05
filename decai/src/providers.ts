@@ -1,8 +1,92 @@
-import { ProviderConfig, ProviderRegistry, PayloadBuilder, ResponseParser, UrlBuilder, HeadersBuilder, ApiKeyResult } from "./types";
+import {
+  ApiKeyResult,
+  HeadersBuilder,
+  PayloadBuilder,
+  ProviderConfig,
+  ProviderRegistry,
+  ResponseParser,
+  UrlBuilder,
+} from "./types";
 import { state } from "./state";
-import { filterResponse } from "./utils";
+import { filterResponse, padRight } from "./utils";
 import { getApiKey } from "./apiKeys";
-import { httpPost } from "./http";
+import { httpGet, httpPost } from "./http";
+
+const listOllamaModels = (provider: ProviderConfig): string => {
+  const base = state.baseurl || state.host + ":" + state.port;
+  const cmd = `curl -s ${base}/api/tags`;
+  const res = r2.syscmds(cmd);
+  try {
+    const parsed = JSON.parse(res);
+    if (parsed.models) {
+      return parsed.models.map((model: { name: string }) => model.name).join(
+        "\n",
+      );
+    }
+  } catch (e) {
+    console.error(e);
+    console.log(res);
+    return "error invalid response";
+  }
+  return "";
+};
+
+const listOpenAIModels = (provider: ProviderConfig): string => {
+  let key: ApiKeyResult | undefined;
+  if (provider.requiresAuth && provider.authKey) {
+    key = getApiKey(
+      provider.authKey.split("_")[0].toLowerCase(),
+      provider.authKey,
+    );
+    if (key && key[1]) throw new Error(key[1]);
+  }
+  const base = state.baseurl || provider.defaultBaseurl;
+  const url = base + "/v1/models";
+  const headers = key ? ["Authorization: Bearer " + key[0]] : [];
+  const response = httpGet(url, headers) as any;
+  if (response.data) {
+    return response.data.map((model: any) => model.id).join("\n");
+  }
+  return "";
+};
+
+const listAnthropicModels = (provider: ProviderConfig): string => {
+  const key = getApiKey("anthropic", "ANTHROPIC_API_KEY");
+  if (key && key[1]) throw new Error(key[1]);
+  const base = state.baseurl || provider.defaultBaseurl;
+  const url = base + "/v1/models";
+  const headers = ["x-api-key: " + key[0], "anthropic-version: 2023-06-01"];
+  const response = httpGet(url, headers) as any;
+  if (response.data) {
+    return response.data.map((model: any) => model.id).join("\n");
+  }
+  return "";
+};
+
+const listMistralModels = (provider: ProviderConfig): string => {
+  const key = getApiKey("mistral", "MISTRAL_API_KEY");
+  if (key && key[1]) throw new Error(key[1]);
+  const base = state.baseurl || provider.defaultBaseurl;
+  const url = base + "/v1/models";
+  const headers = ["Authorization: Bearer " + key[0]];
+  const response = httpGet(url, headers) as any;
+  if (response.data) {
+    const uniqByName = (arr: any[]) =>
+      arr.filter((obj, i, self) =>
+        self.findIndex((o) => o.name === obj.name) === i
+      );
+    return uniqByName(response.data)
+      .map((model: any) =>
+        [
+          padRight(model.name || model.id, 30),
+          padRight("" + (model.max_context_length || ""), 10),
+          model.description || "",
+        ].join(" ")
+      )
+      .join("\n");
+  }
+  return "";
+};
 
 export const providerRegistry: ProviderRegistry = {
   anthropic: {
@@ -17,6 +101,7 @@ export const providerRegistry: ProviderRegistry = {
       "claude-opus-4-20250514",
       "claude-sonnet-4-20250514",
     ],
+    listModelsCallback: listAnthropicModels,
   },
   claude: {
     defaultModel: "claude-3-7-sonnet-20250219",
@@ -30,6 +115,7 @@ export const providerRegistry: ProviderRegistry = {
       "claude-opus-4-20250514",
       "claude-sonnet-4-20250514",
     ],
+    listModelsCallback: listAnthropicModels,
   },
   openai: {
     defaultModel: "gpt-4o-mini",
@@ -37,14 +123,14 @@ export const providerRegistry: ProviderRegistry = {
     requiresAuth: true,
     authKey: "OPENAI_API_KEY",
     apiStyle: "openai",
-    dynamicModels: true,
+    listModelsCallback: listOpenAIModels,
   },
   ollama: {
     defaultModel: "qwen2.5-coder:latest",
     defaultBaseurl: "http://localhost:11434",
     requiresAuth: false,
     apiStyle: "ollama",
-    dynamicModels: true,
+    listModelsCallback: listOllamaModels,
   },
   ollamacloud: {
     defaultModel: "gpt-oss:120b",
@@ -52,7 +138,7 @@ export const providerRegistry: ProviderRegistry = {
     requiresAuth: true,
     authKey: "OLLAMA_API_KEY",
     apiStyle: "openai",
-    dynamicModels: true,
+    listModelsCallback: listOpenAIModels,
   },
   gemini: {
     defaultModel: "gemini-2.5-flash",
@@ -74,8 +160,8 @@ export const providerRegistry: ProviderRegistry = {
     requiresAuth: true,
     authKey: "MISTRAL_API_KEY",
     apiStyle: "openai",
-    dynamicModels: true,
     hardcodedModels: ["codestral-latest"],
+    listModelsCallback: listMistralModels,
   },
   xai: {
     defaultModel: "grok-beta",
@@ -91,6 +177,7 @@ export const providerRegistry: ProviderRegistry = {
     requiresAuth: false,
     apiStyle: "openai",
     hardcodedModels: ["local-model"],
+    listModelsCallback: listOpenAIModels,
   },
   deepseek: {
     defaultModel: "deepseek-coder",
@@ -125,13 +212,12 @@ function buildQuery(msg: string, hideprompt: boolean): string {
     }
   }
 
-  return hideprompt
-    ? query
-    : state.prompt + languagePrompt() + query;
+  return hideprompt ? query : state.prompt + languagePrompt() + query;
 }
 
 function languagePrompt(): string {
-  return "\n.Translate the code into " + state.language + " programming language\n";
+  return "\n.Translate the code into " + state.language +
+    " programming language\n";
 }
 
 function handleProvider(
@@ -141,16 +227,21 @@ function handleProvider(
   payloadBuilder: PayloadBuilder,
   responseParser: ResponseParser,
   urlBuilder: UrlBuilder,
-  headersBuilder: HeadersBuilder
+  headersBuilder: HeadersBuilder,
 ): string {
   const model = state.model || provider.defaultModel;
   const query = buildQuery(msg, hideprompt);
 
   let key: ApiKeyResult | undefined;
   if (provider.requiresAuth && provider.authKey) {
-    key = getApiKey(provider.authKey.split("_")[0].toLowerCase(), provider.authKey);
+    key = getApiKey(
+      provider.authKey.split("_")[0].toLowerCase(),
+      provider.authKey,
+    );
     if (key[1]) {
-      return `Cannot read ~/.r2ai.${provider.authKey.split("_")[0].toLowerCase()}-key`;
+      return `Cannot read ~/.r2ai.${
+        provider.authKey.split("_")[0].toLowerCase()
+      }-key`;
     }
   }
 
@@ -168,7 +259,11 @@ function handleProvider(
   }
 }
 
-export function handleOpenAI(provider: ProviderConfig, msg: string, hideprompt: boolean): string {
+export function handleOpenAI(
+  provider: ProviderConfig,
+  msg: string,
+  hideprompt: boolean,
+): string {
   const payloadBuilder: PayloadBuilder = (model, query) => ({
     stream: false,
     model,
@@ -187,12 +282,25 @@ export function handleOpenAI(provider: ProviderConfig, msg: string, hideprompt: 
 
   const urlBuilder: UrlBuilder = (base, model) => base + "/v1/chat/completions";
 
-  const headersBuilder: HeadersBuilder = (key) => key ? ["Authorization: Bearer " + key] : [];
+  const headersBuilder: HeadersBuilder = (key) =>
+    key ? ["Authorization: Bearer " + key] : [];
 
-  return handleProvider(provider, msg, hideprompt, payloadBuilder, responseParser, urlBuilder, headersBuilder);
+  return handleProvider(
+    provider,
+    msg,
+    hideprompt,
+    payloadBuilder,
+    responseParser,
+    urlBuilder,
+    headersBuilder,
+  );
 }
 
-export function handleAnthropic(provider: ProviderConfig, msg: string, hideprompt: boolean): string {
+export function handleAnthropic(
+  provider: ProviderConfig,
+  msg: string,
+  hideprompt: boolean,
+): string {
   if (!provider.authKey) {
     return "ERROR: No auth key configured";
   }
@@ -214,17 +322,33 @@ export function handleAnthropic(provider: ProviderConfig, msg: string, hidepromp
       return filterResponse(res.content[0].text);
     }
     if (res.error) {
-      const errMsg = typeof res.error === "object" ? res.error.message : res.error;
+      const errMsg = typeof res.error === "object"
+        ? res.error.message
+        : res.error;
       throw new Error(errMsg || "Unknown error");
     }
     throw new Error("Invalid response format");
   };
   const urlBuilder: UrlBuilder = (base, model) => base + "/v1/messages";
-  const headersBuilder: HeadersBuilder = (key) => ["anthropic-version: 2023-06-01", "x-api-key: " + key];
-  return handleProvider(provider, msg, hideprompt, payloadBuilder, responseParser, urlBuilder, headersBuilder);
+  const headersBuilder: HeadersBuilder = (
+    key,
+  ) => ["anthropic-version: 2023-06-01", "x-api-key: " + key];
+  return handleProvider(
+    provider,
+    msg,
+    hideprompt,
+    payloadBuilder,
+    responseParser,
+    urlBuilder,
+    headersBuilder,
+  );
 }
 
-export function handleOllama(provider: ProviderConfig, msg: string, hideprompt: boolean): string {
+export function handleOllama(
+  provider: ProviderConfig,
+  msg: string,
+  hideprompt: boolean,
+): string {
   const payloadBuilder: PayloadBuilder = (model, query) => {
     const payload: Record<string, unknown> = {
       stream: false,
@@ -246,7 +370,9 @@ export function handleOllama(provider: ProviderConfig, msg: string, hideprompt: 
 
   const responseParser: ResponseParser = (res) => {
     if (res && res.error) {
-      const errMsg = typeof res.error === "string" ? res.error : JSON.stringify(res.error);
+      const errMsg = typeof res.error === "string"
+        ? res.error
+        : JSON.stringify(res.error);
       throw new Error(errMsg);
     }
     if (res.message && res.message.content) {
@@ -256,10 +382,22 @@ export function handleOllama(provider: ProviderConfig, msg: string, hideprompt: 
   };
   const urlBuilder: UrlBuilder = (base, model) => base + "/api/chat";
   const headersBuilder: HeadersBuilder = () => [];
-  return handleProvider(provider, msg, hideprompt, payloadBuilder, responseParser, urlBuilder, headersBuilder);
+  return handleProvider(
+    provider,
+    msg,
+    hideprompt,
+    payloadBuilder,
+    responseParser,
+    urlBuilder,
+    headersBuilder,
+  );
 }
 
-export function handleGemini(provider: ProviderConfig, msg: string, hideprompt: boolean): string {
+export function handleGemini(
+  provider: ProviderConfig,
+  msg: string,
+  hideprompt: boolean,
+): string {
   if (!provider.authKey) {
     return "ERROR: No auth key configured";
   }
@@ -284,14 +422,25 @@ export function handleGemini(provider: ProviderConfig, msg: string, hideprompt: 
       return filterResponse(r.candidates[0].content.parts[0].text);
     }
     if (r.error) {
-      throw new Error(typeof r.error === "string" ? r.error : JSON.stringify(r.error));
+      throw new Error(
+        typeof r.error === "string" ? r.error : JSON.stringify(r.error),
+      );
     }
     console.log(JSON.stringify(r));
     throw new Error("Invalid response format");
   };
-  const urlBuilder: UrlBuilder = (base, model, key) => `${base}/v1beta/models/${model}:generateContent?key=${key}`;
+  const urlBuilder: UrlBuilder = (base, model, key) =>
+    `${base}/v1beta/models/${model}:generateContent?key=${key}`;
   const headersBuilder: HeadersBuilder = () => [];
-  return handleProvider(provider, msg, hideprompt, payloadBuilder, responseParser, urlBuilder, headersBuilder);
+  return handleProvider(
+    provider,
+    msg,
+    hideprompt,
+    payloadBuilder,
+    responseParser,
+    urlBuilder,
+    headersBuilder,
+  );
 }
 
 export function callProvider(msg: string, hideprompt: boolean): string {

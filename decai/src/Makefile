@@ -7,7 +7,10 @@ build:
 	r2pm -r r2frida-compile $(R2F_C_FLAGS) -o ../$(PLUGIN_NAME).r2.js main.ts
 
 test: build
-	r2 -i ../$(PLUGIN_NAME).r2.js /bin/ls
+	r2 -i ../$(PLUGIN_NAME).r2.js -q -c 'af;decai -d' /bin/ls
+
+fmt:
+	deno fmt
 
 clean:
 	rm -rf out node_modules ../$(PLUGIN_NAME).r2.js

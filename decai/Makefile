@@ -4,14 +4,14 @@ SPD=$(shell r2 -H R2_LIBR_PLUGINS)
 BF=a.out
 
 all:
-	@echo "Run: make user-install"
+	@echo "Run: 'make user-install' to install it in your home"
+	@echo "Run: 'make -C src' to recompile the r2.js"
 
 test:
-	@echo 'You can now use 'decai' command'
 	r2 -i decai.r2.js -c 'decai -e deterministic=true' -caf $(BF)
 
 fmt indent:
-	deno fmt
+	$(MAKE) -C src fmt
 
 user-install:
 	mkdir -p "$(PD)"
@@ -27,4 +27,4 @@ uninstall:
 	make user-uninstall PD=$(SPD)
 
 vs open:
-	open -a "Visual Studio Code" .
+	open -a "Visual Studio Code" src

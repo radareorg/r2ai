@@ -8,19 +8,25 @@ export function httpGet(url: string, headers: string[]): HttpResponse {
   return JSON.parse(r2.syscmds(cmd));
 }
 
-export function httpPost(url: string, headers: string[], payload: string): HttpResponse {
+export function httpPost(
+  url: string,
+  headers: string[],
+  payload: string,
+): HttpResponse {
   const heads = headers.map((x) => `-H "${x}"`).join(" ");
 
   const curlArgs = (url: string, heads: string, payload: string): string => {
     const escapedPayload = payload.replace(/'/g, "'\\''");
-    const cmd = `curl -s '${url}' ${heads} -d '${escapedPayload}' -H "Content-Type: application/json"`;
+    const cmd =
+      `curl -s '${url}' ${heads} -d '${escapedPayload}' -H "Content-Type: application/json"`;
     debugLog(cmd);
     return r2.syscmds(cmd);
   };
 
   const curlFile = (url: string, heads: string, payload: string): string => {
     const tmpfile = r2.fdump(payload);
-    const cmd = `curl -s '${url}' ${heads} -d '@${tmpfile}' -H "Content-Type: application/json"`;
+    const cmd =
+      `curl -s '${url}' ${heads} -d '@${tmpfile}' -H "Content-Type: application/json"`;
     debugLog(cmd);
     const output = r2.syscmd(cmd);
     r2.syscmd("rm " + tmpfile);
