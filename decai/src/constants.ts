@@ -12,7 +12,7 @@ Decai is the radare2 plugin for decompiling functions with the help of language 
 By default uses a local ollama server, but can you can pick any other service by using 'decai -e api=?'.
 
 [0x00000000]> decai -e api=?
-r2ai claude deepseek gemini hf mistral ollama openapi openai vllm xai
+r2ai deepseek anthropic gemini hf mistral ollama openapi openai vllm xai
 
 ## Using Ollama
 
