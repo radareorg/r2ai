@@ -1,7 +1,6 @@
 PD=$(shell r2 -H R2_USER_PLUGINS)
 SPD=$(shell r2 -H R2_LIBR_PLUGINS)
-#BF=/bin/dd
-BF=a.out
+BF=/bin/dd
 
 all:
 	@echo "Run: 'make user-install' to install it in your home"

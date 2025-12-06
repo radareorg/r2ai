@@ -1,6 +1,7 @@
 import { state } from "./state";
 import { debugLog, fileDump, tmpdir } from "./utils";
 import { callProvider } from "./providers";
+import { httpGet } from "./http";
 
 export function r2ai(
   queryText: string,
@@ -23,15 +24,13 @@ export function r2ai(
       ? state.baseurl + "/cmd"
       : state.host + ":" + state.port + "/cmd";
 
-    const ss = q.replace(/ /g, "%20").replace(/'/g, "\\'");
-    const cmd = 'curl -s "' +
-      host +
-      "/" +
-      ss +
-      '" || echo "Cannot curl, use r2ai-server or r2ai -w"';
-
-    debugLog(cmd);
-    return r2.syscmds(cmd);
+    const url = host + "/" + q.replace(/ /g, "%20").replace(/'/g, "\\'");
+    const response = httpGet(url, []);
+    if (response.error) {
+      return `Error: ${response.error}`;
+    }
+    return (response as any).result || JSON.stringify(response) ||
+      "Cannot curl, use r2ai-server or r2ai -w";
   }
 
   if (cleanQuery.startsWith("-")) return "";

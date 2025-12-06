@@ -12,23 +12,26 @@ import { filterResponse, padRight } from "./utils";
 import { getApiKey } from "./apiKeys";
 import { httpGet, httpPost } from "./http";
 
-const listOllamaModels = (provider: ProviderConfig): string => {
-  const base = state.baseurl || state.host + ":" + state.port;
-  const cmd = `curl -s ${base}/api/tags`;
-  const res = r2.syscmds(cmd);
-  try {
-    const parsed = JSON.parse(res);
-    if (parsed.models) {
-      return parsed.models.map((model: { name: string }) => model.name).join(
-        "\n",
-      );
-    }
-  } catch (e) {
-    console.error(e);
-    console.log(res);
+function listModels(
+  url: string,
+  headers: string[],
+  mapper: (model: any) => string,
+): string {
+  const response = httpGet(url, headers);
+  if (response.error) {
+    console.error(response.error);
     return "error invalid response";
   }
-  return "";
+  return (response as any).data?.map(mapper).join("\n") || "";
+}
+
+const listOllamaModels = (provider: ProviderConfig): string => {
+  const base = state.baseurl || state.host + ":" + state.port;
+  return listModels(
+    `${base}/api/tags`,
+    [],
+    (model: { name: string }) => model.name,
+  );
 };
 
 const listOpenAIModels = (provider: ProviderConfig): string => {
@@ -43,11 +46,7 @@ const listOpenAIModels = (provider: ProviderConfig): string => {
   const base = state.baseurl || provider.defaultBaseurl;
   const url = base + "/v1/models";
   const headers = key ? ["Authorization: Bearer " + key[0]] : [];
-  const response = httpGet(url, headers) as any;
-  if (response.data) {
-    return response.data.map((model: any) => model.id).join("\n");
-  }
-  return "";
+  return listModels(url, headers, (model: any) => model.id);
 };
 
 const listAnthropicModels = (provider: ProviderConfig): string => {
@@ -56,11 +55,7 @@ const listAnthropicModels = (provider: ProviderConfig): string => {
   const base = state.baseurl || provider.defaultBaseurl;
   const url = base + "/v1/models";
   const headers = ["x-api-key: " + key[0], "anthropic-version: 2023-06-01"];
-  const response = httpGet(url, headers) as any;
-  if (response.data) {
-    return response.data.map((model: any) => model.id).join("\n");
-  }
-  return "";
+  return listModels(url, headers, (model: any) => model.id);
 };
 
 const listMistralModels = (provider: ProviderConfig): string => {
@@ -89,23 +84,23 @@ const listMistralModels = (provider: ProviderConfig): string => {
 };
 
 export const providerRegistry: ProviderRegistry = {
-   anthropic: {
-     defaultModel: "claude-3-7-sonnet-20250219",
-     defaultBaseurl: "https://api.anthropic.com",
-     requiresAuth: true,
-     authKey: "ANTHROPIC_API_KEY",
-     apiStyle: "anthropic",
-     listModelsCallback: listAnthropicModels,
-   },
-   claude: {
-     defaultModel: "claude-3-7-sonnet-20250219",
-     defaultBaseurl: "https://api.anthropic.com",
-     requiresAuth: true,
-     authKey: "ANTHROPIC_API_KEY",
-     apiStyle: "anthropic",
-     listModelsCallback: listAnthropicModels,
-   },
-   openai: {
+  anthropic: {
+    defaultModel: "claude-3-7-sonnet-20250219",
+    defaultBaseurl: "https://api.anthropic.com",
+    requiresAuth: true,
+    authKey: "ANTHROPIC_API_KEY",
+    apiStyle: "anthropic",
+    listModelsCallback: listAnthropicModels,
+  },
+  claude: {
+    defaultModel: "claude-3-7-sonnet-20250219",
+    defaultBaseurl: "https://api.anthropic.com",
+    requiresAuth: true,
+    authKey: "ANTHROPIC_API_KEY",
+    apiStyle: "anthropic",
+    listModelsCallback: listAnthropicModels,
+  },
+  openai: {
     defaultModel: "gpt-4o-mini",
     defaultBaseurl: "https://api.openai.com",
     requiresAuth: true,
@@ -142,14 +137,14 @@ export const providerRegistry: ProviderRegistry = {
       "gemini-2.5-flash-lite",
     ],
   },
-   mistral: {
-     defaultModel: "codestral-latest",
-     defaultBaseurl: "https://api.mistral.ai",
-     requiresAuth: true,
-     authKey: "MISTRAL_API_KEY",
-     apiStyle: "openai",
-     listModelsCallback: listMistralModels,
-   },
+  mistral: {
+    defaultModel: "codestral-latest",
+    defaultBaseurl: "https://api.mistral.ai",
+    requiresAuth: true,
+    authKey: "MISTRAL_API_KEY",
+    apiStyle: "openai",
+    listModelsCallback: listMistralModels,
+  },
   xai: {
     defaultModel: "grok-beta",
     defaultBaseurl: "https://api.x.ai",
@@ -158,13 +153,13 @@ export const providerRegistry: ProviderRegistry = {
     apiStyle: "openai",
     hardcodedModels: ["grok-2", "grok-beta"],
   },
-   lmstudio: {
-     defaultModel: "local-model",
-     defaultBaseurl: "http://127.0.0.1:1234",
-     requiresAuth: false,
-     apiStyle: "openai",
-     listModelsCallback: listOpenAIModels,
-   },
+  lmstudio: {
+    defaultModel: "local-model",
+    defaultBaseurl: "http://127.0.0.1:1234",
+    requiresAuth: false,
+    apiStyle: "openai",
+    listModelsCallback: listOpenAIModels,
+  },
   deepseek: {
     defaultModel: "deepseek-coder",
     defaultBaseurl: "https://api.deepseek.com",
