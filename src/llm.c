@@ -69,7 +69,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 
 	char *api_key = NULL;
 	if (prov->requires_api_key) {
-		api_key = r2ai_get_api_key (core, provider);
+		api_key = r2ai_apikeys_get (provider);
 		if (api_key) {
 			args.api_key = api_key;
 		}
@@ -79,9 +79,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 		if (R_STR_ISEMPTY (args.api_key)) {
 			char *Provider = strdup (provider);
 			r_str_case (Provider, true);
-			R_LOG_ERROR ("No API key found for %s provider. Edit ~/.config/r2ai/apikeys.txt or set the environment with: "
-				"export %s_API_KEY=YOUR_KEY",
-				provider, Provider);
+			R_LOG_ERROR ("No API key found for the %s provider. Use r2ai -K", provider);
 			free (Provider);
 			return NULL;
 		}
@@ -163,40 +161,6 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	return res;
 }
 
-/* Return a malloc'd API key read from the env, ~/.config/r2ai/apikeys.txt, or ~/.r2ai.<provider>-key
- * Caller is responsible for freeing the returned string (or NULL if not found). */
-R_IPI char *r2ai_get_api_key(RCore *core, const char *provider) {
-	(void)core;
-	if (!provider) {
-		return NULL;
-	}
-	char *api_key = NULL;
-	char *api_key_env = r_str_newf ("%s_API_KEY", provider);
-	r_str_case (api_key_env, true);
-	char *s = r_sys_getenv (api_key_env);
-	free (api_key_env);
-	if (R_STR_ISNOTEMPTY (s)) {
-		api_key = s;
-	} else {
-		free (s);
-		api_key = r2ai_apikeys_get (provider);
-		if (!api_key) {
-			char *api_key_filename = r_str_newf ("~/.r2ai.%s-key", provider);
-			char *absolute_apikey = r_file_abspath (api_key_filename);
-			if (r_file_exists (absolute_apikey)) {
-				R_LOG_WARN ("Loading keys from ~/.r2ai.%s-key will be deprecated soon. 'r2ai -EK' instead", provider);
-				api_key = r_file_slurp (absolute_apikey, NULL);
-				if (api_key) {
-					r_str_trim (api_key);
-				}
-			}
-			free (api_key_filename);
-			free (absolute_apikey);
-		}
-	}
-	return api_key;
-}
-
 R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider) {
 	const R2AIProvider *p = r2ai_get_provider (provider);
 	if (!p) {
@@ -236,7 +200,7 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 	const R2AIProvider *p = r2ai_get_provider (provider);
 	if (p && p->requires_api_key) {
 		// Consolidated helper to fetch the API key from env or file
-		api_key = r2ai_get_api_key (core, provider);
+		api_key = r2ai_apikeys_get (provider);
 	}
 
 	char *models_url = NULL;

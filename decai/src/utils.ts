@@ -72,7 +72,9 @@ export function parseEnvLikeString(input: string): Record<string, string> {
       continue;
     }
     const value = rest.join("=").trim();
-    result[key.toLowerCase()] = value;
+    // Normalize key: strip trailing _API_KEY (case-insensitive)
+    const normKey = key.toLowerCase().replace(/_api_key$/i, "");
+    result[normKey] = value;
   }
   return result;
 }

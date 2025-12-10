@@ -60,15 +60,20 @@ R_API char *r2ai_apikeys_get(const char *provider) {
 			}
 			char *eq = strchr (trimmed, '=');
 			if (eq) {
-				size_t provider_len = eq - trimmed;
-				char *line_provider = r_str_ndup (trimmed, provider_len);
-				if (r_str_casecmp (line_provider, provider) == 0) {
+				*eq = 0;
+				char *lower = strdup (trimmed);
+				r_str_case (lower, false); /* lowercase */
+				char *tail = strstr (lower, "_api_key");
+				if (tail) {
+					*tail = 0;
+				}
+				if (r_str_casecmp (lower, provider) == 0) {
 					key = strdup (eq + 1);
 					r_str_trim (key);
-					free (line_provider);
+					free (lower);
 					break;
 				}
-				free (line_provider);
+				free (lower);
 			}
 		}
 		r_list_free (lines);
