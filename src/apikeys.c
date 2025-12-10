@@ -74,6 +74,8 @@ R_API char *r2ai_apikeys_get(const char *provider) {
 					break;
 				}
 				free (lower);
+			} else if (*trimmed) {
+				R_LOG_WARN ("Invalid syntax in apikeys.txt: %s", line);
 			}
 		}
 		r_list_free (lines);
