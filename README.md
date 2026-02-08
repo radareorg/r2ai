@@ -27,6 +27,9 @@ If you are looking to use radare2 with other agents via MCP:
 * **r2mcp** - the [official radare2 mcp](https://github.com/radare2/radare2-mcp)
 * **r2copilot** - the mcp with focus on CTF [r2copilot](https://github.com/darallium/r2-copilot)
 
+If you are looking for a radare2 focused autonomous agent:
+* **r2agent** - automate radare2 workflows through autonomous agents. [r2agent](https://github.com/nitanmarcel/r2agent)
+
 ## Features
 
 * Configure different roles and customize prompts
