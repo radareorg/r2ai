@@ -72,21 +72,6 @@ static bool parse_raw_tool_call(const char *response, char **tool_name, char **t
 		line_start += strlen (tool_prefix);
 	}
 
-	// If no TOOL: format found, try to parse JSON response
-	// Look for JSON that looks like tool arguments
-	const char *json_start = strstr (response, "{\"command\"");
-	if (json_start) {
-		*tool_name = strdup ("r2cmd");
-		*tool_args = strdup (json_start);
-		// Trim trailing whitespace and newlines
-		char *end = *tool_args + strlen (*tool_args) - 1;
-		while (end > *tool_args && (*end == ' ' || *end == '\t' || *end == '\n' || *end == '\r')) {
-			*end = '\0';
-			end--;
-		}
-		return true;
-	}
-
 	return false;
 }
 
