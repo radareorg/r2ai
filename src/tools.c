@@ -298,13 +298,13 @@ R_API char *r2ai_r2cmd(RCore *core, RJson *args, bool verbose, char **edited_com
 
 	bool ask_to_execute = r_config_get_b (core->config, "r2ai.auto.yolo") != true;
 	if (ask_to_execute) {
-		bool is_multiline = strchr (command, '\n') != NULL;
 		char *input_command = compose_command_with_comment (command, comment);
 		if (!input_command) {
 			free (command);
 			free (comment);
 			return strdup ("{ \"res\":\"Failed to prepare command\" }");
 		}
+		bool is_multiline = strchr (input_command, '\n') != NULL;
 
 		if (is_multiline) {
 			r_cons_editor (core->cons, NULL, input_command);
