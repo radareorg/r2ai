@@ -9,17 +9,21 @@ interface HttpRequestOptions {
   payload?: string;
 }
 
+function shellEscape(arg: string): string {
+  return `'${arg.replace(/'/g, `'"'"'`)}'`;
+}
+
 function executeCurl(options: HttpRequestOptions): string {
   const { method, url, headers, payload } = options;
-  const cmdParts = ["curl", "-s", url];
-  headers.forEach((h) => cmdParts.push("-H", `"${h}"`));
-  cmdParts.push("-H", '"Content-Type: application/json"');
+  const cmdParts = ["curl", "-s", shellEscape(url)];
+  headers.forEach((h) => cmdParts.push("-H", shellEscape(h)));
+  cmdParts.push("-H", shellEscape("Content-Type: application/json"));
 
   if (method === "POST") {
     if (!payload) throw new Error("Payload required for POST requests");
     const tmpfile = r2.fdump(payload);
-    cmdParts.push("-d", `'@${tmpfile}'`);
-    const cmd = cmdParts.join(" ") + " && rm " + tmpfile;
+    cmdParts.push("-d", shellEscape(`@${tmpfile}`));
+    const cmd = cmdParts.join(" ") + " && rm " + shellEscape(tmpfile);
     debugLog(cmd);
     return r2.syscmds(cmd);
   } else {
