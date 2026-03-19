@@ -1,4 +1,4 @@
-export const VERSION = "1.2.6";
+export const VERSION = "1.3.2";
 export const COMMAND = "decai";
 
 export const DEFAULT_PROMPT =
