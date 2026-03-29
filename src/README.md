@@ -20,6 +20,7 @@ make user-install
 * Auto mode and function calling with any model
 * Fix and improve function signatures
 * Assistant mode with a REPL chat
+* `r2clippy` interactive assistant mode for radare2-focused help
 
 ## Experimental
 
@@ -43,6 +44,7 @@ Usage: r2ai   [-args] [...]
 | r2ai -q                 list available query prompts
 | r2ai -q [name] (inst)   run predefined prompt with optional instructions
 | r2ai -r                 enter the chat repl
+| r2ai -r2                enter the interactive r2clippy assistant
 | r2ai -L                 show chat logs (See -Lj for json). Only for auto mode.
 | r2ai -L-[N]             delete the last (or N last messages from the chat history)
 | r2ai -R                 reset the chat conversation context

@@ -19,7 +19,8 @@ static void show_help() {
 		"  -i <script>  Load and interpret script file before executing commands\n"
 		"  -e <var=value> Set configuration variable\n"
 		"  -E           Edit the r2ai rc file\n"
-		"  -K           Edit the API keys file\n");
+		"  -K           Edit the API keys file\n"
+		"               With no prompt, enter the interactive r2clippy assistant\n");
 }
 
 static void show_version() {
@@ -38,7 +39,9 @@ static char *build_conversation(RList *conversation) {
 
 static void r2ai_repl(RCorePluginSession *cps, const char *provider, const char *model, RList *conversation) {
 	RCore *core = cps->core;
-	r_line_set_prompt (core->cons->line, "[r2ai]> ");
+	r_line_set_prompt (core->cons->line, r_config_get_b (core->config, "r2ai.clippy")
+		? "[r2clippy]> "
+		: "[r2ai]> ");
 	while (true) {
 		const char *input = r_line_readline (core->cons);
 		if (r_cons_is_breaked (core->cons) || R_STR_ISEMPTY (input)) {
@@ -80,8 +83,8 @@ static void r2ai_repl(RCorePluginSession *cps, const char *provider, const char 
 					free (cmd);
 				} else {
 					r_cons_println (core->cons, res);
-					r_list_append (conversation, r_str_newf ("Assistant: %s", res));
 				}
+				r_list_append (conversation, r_str_newf ("Assistant: %s", res));
 				free (res);
 			}
 			if (err) {
@@ -91,6 +94,13 @@ static void r2ai_repl(RCorePluginSession *cps, const char *provider, const char 
 			free (full_prompt);
 		}
 		r_cons_flush (core->cons);
+	}
+}
+
+static void use_default_clippy_role(RCore *core) {
+	const char *system_prompt = r_config_get (core->config, "r2ai.system");
+	if (system_prompt && !strcmp (system_prompt, R2AI_DEFAULT_SYSTEM_PROMPT)) {
+		r2ai_load_role (core, "r2clippy");
 	}
 }
 
@@ -222,6 +232,7 @@ int main(int argc, const char **argv) {
 		}
 	} else {
 		if (opt.ind >= argc) {
+			use_default_clippy_role (core);
 			r2ai_repl (&cps, provider, model, conversation);
 		} else {
 			const char *prompt = argv[opt.ind];

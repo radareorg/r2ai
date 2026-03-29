@@ -28,6 +28,10 @@
 #endif
 
 #define R2AI_DEFAULT_VECTORS 16
+#define R2AI_DEFAULT_SYSTEM_PROMPT \
+	"You are a reverse engineer. The user is reversing a binary, using " \
+	"radare2. The user will ask questions about the binary and you will " \
+	"respond with the answer to the best of your ability."
 
 // HTTP configuration structure
 typedef struct {

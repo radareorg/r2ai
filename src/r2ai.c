@@ -23,6 +23,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -q", "list available query prompts",
 	"r2ai", " -q [name] (inst)", "run predefined prompt with optional instructions",
 	"r2ai", " -r", "enter the chat repl",
+	"r2ai", " -r2", "enter the r2clippy interactive assistant",
 	"r2ai", " -L", "show chat logs (See -Lj for json). Only for auto mode.",
 	"r2ai", " -C", "compact conversation history",
 	"r2ai", " -LR", "create a log report",
@@ -135,7 +136,9 @@ static void cmd_r2ai_repl(RCorePluginSession *cps) {
 	RCore *core = cps->core;
 	RStrBuf *sb = r_strbuf_new ("");
 	while (true) {
-		r_line_set_prompt (core->cons->line, "[r2ai]> ");
+		r_line_set_prompt (core->cons->line, r_config_get_b (core->config, "r2ai.clippy")
+			? "[r2clippy]> "
+			: "[r2ai]> ");
 		const char *ptr = r_line_readline (core->cons);
 		if (R_STR_ISEMPTY (ptr)) {
 			break;
@@ -163,7 +166,13 @@ static void cmd_r2ai_repl(RCorePluginSession *cps) {
 			free (error);
 		} else if (res) {
 			r_strbuf_appendf (sb, "Assistant: %s\n", res);
-			r_cons_printf (core->cons, "%s\n", res);
+			if (r_config_get_b (core->config, "r2ai.clippy")) {
+				char *cmd = r_str_newf ("?E %s", res);
+				r_core_cmd_call (core, cmd);
+				free (cmd);
+			} else {
+				r_cons_printf (core->cons, "%s\n", res);
+			}
 			r_cons_flush (core->cons);
 		}
 		free (res);
@@ -312,6 +321,58 @@ static bool load_r2airc(RCorePluginSession *cps) {
 	return true;
 }
 
+static char *resolve_role_path(const char *name) {
+	if (R_STR_ISEMPTY (name)) {
+		return NULL;
+	}
+	if (r_file_exists (name)) {
+		return r_file_abspath (name);
+	}
+	if (strchr (name, '/') || strchr (name, '\\')) {
+		return NULL;
+	}
+	const bool has_ext = r_str_endswith (name, ".txt");
+	const char *suffix = has_ext? "": ".txt";
+	const char *candidates[] = {
+		"~/.config/r2ai/roles/%s%s",
+		"~/.config/r2ai/role/%s%s",
+		"doc/role/%s%s",
+		"../doc/role/%s%s",
+		NULL
+	};
+	int i;
+	for (i = 0; candidates[i]; i++) {
+		char *candidate = r_str_newf (candidates[i], name, suffix);
+		char *path = r_file_abspath (candidate);
+		free (candidate);
+		if (path && r_file_exists (path)) {
+			return path;
+		}
+		free (path);
+	}
+	return NULL;
+}
+
+R_API bool r2ai_load_role(RCore *core, const char *name) {
+	R_RETURN_VAL_IF_FAIL (core && name, false);
+	char *path = resolve_role_path (name);
+	if (!path) {
+		R_LOG_ERROR ("Cannot find role '%s'", name);
+		return false;
+	}
+	char *content = r_file_slurp (path, NULL);
+	if (!content) {
+		R_LOG_ERROR ("Cannot read role file '%s'", path);
+		free (path);
+		return false;
+	}
+	r_str_trim (content);
+	r_config_set (core->config, "r2ai.system", content);
+	free (content);
+	free (path);
+	return true;
+}
+
 R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 	RCore *core = cps->core;
 	R2AI_State *state = cps->data;
@@ -381,6 +442,10 @@ R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		}
 	} else if (r_str_startswith (input, "-i")) {
 		cmd_r2ai_i (cps, r_str_trim_head_ro (input + 2));
+	} else if (r_str_startswith (input, "-r2")) {
+		r_config_set_b (core->config, "r2ai.clippy", true);
+		r2ai_load_role (core, "r2clippy");
+		cmd_r2ai_repl (cps);
 	} else if (r_str_startswith (input, "-r")) {
 		cmd_r2ai_repl (cps);
 	} else if (r_str_startswith (input, "-R")) {
@@ -566,9 +631,7 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_desc (core->config, "r2ai.hlang", "Human language for prompts/messages (e.g. english)");
 	r_config_set (
 		core->config, "r2ai.system",
-		"You are a reverse engineer. The user is reversing a binary, using "
-		"radare2. The user will ask questions about the binary and you will "
-		"respond with the answer to the best of your ability.");
+		R2AI_DEFAULT_SYSTEM_PROMPT);
 	r_config_set (
 		core->config, "r2ai.prompt",
 		"Rewrite this function and respond ONLY with code, replace goto/labels "

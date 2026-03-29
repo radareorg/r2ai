@@ -27,5 +27,6 @@ R_IPI void r2ai_refresh_embeddings(RCorePluginSession *cps);
 R_API char *r2ai_apikeys_path(bool *exists);
 R_API void r2ai_apikeys_edit(RCorePluginSession *cps);
 R_API char *r2ai_apikeys_get(const char *provider);
+R_API bool r2ai_load_role(RCore *core, const char *name);
 
 #endif
