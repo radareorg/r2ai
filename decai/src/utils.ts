@@ -6,7 +6,8 @@ export function tmpdir(path: string): string {
 }
 
 export function fileExists(path: string): boolean {
-  if (r2.cmd2("test -h").logs[0].message.indexOf("-fdx") !== -1) {
+  const helpMessage = r2.cmd2("test -h").logs?.[0]?.message ?? "";
+  if (helpMessage.includes("-fdx")) {
     return true; // r2 is old
   }
   return r2.cmd("'test -vf " + path).startsWith("found");
@@ -29,7 +30,7 @@ export function trimJson(out: string): string {
   let result = out;
   const bob = result.indexOf("{");
   if (bob !== -1) result = result.slice(bob);
-  const eob = result.indexOf("}");
+  const eob = result.lastIndexOf("}");
   if (eob !== -1) result = result.slice(0, eob + 1);
   return result;
 }

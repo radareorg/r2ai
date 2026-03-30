@@ -1,3 +1,26 @@
+export type R2Address = number | string | unknown;
+
+export interface R2LogEntry {
+  type: string;
+  message: string;
+}
+
+export interface R2CommandResult {
+  res?: string;
+  value?: number;
+  logs?: R2LogEntry[];
+  [key: string]: unknown;
+}
+
+export interface R2Plugin {
+  name: string;
+  license: string;
+  desc: string;
+  call: (command: string) => boolean;
+}
+
+export type R2PluginFactory = () => R2Plugin;
+
 export class R2PipeSyncFromSync {
   r2p: R2Pipe;
   constructor(r2p: R2Pipe) {
@@ -12,34 +35,44 @@ export class R2PipeSyncFromSync {
   cmd(command: string): string {
     return this.r2p.cmd(command);
   }
-  cmd2(command: string): any {
-    return this.r2p.cmd(command);
+  cmd2(command: string): R2CommandResult {
+    const output = this.r2p.cmd(command);
+    return typeof output === "string" ? { res: output } : output;
   }
   cmdAt(
     command: string,
-    address: number | string | any,
+    address: R2Address,
   ): string {
     return this.r2p.cmdAt(command, address);
   }
-  cmdj(cmd: string): any {
+  cmdj(cmd: string): unknown {
     return this.r2p.cmdj(cmd);
   }
   call(command: string): string {
     return this.r2p.call(command);
   }
-  callj(cmd: string): any {
+  callj(cmd: string): unknown {
     return this.r2p.cmdj(cmd);
   }
   callAt(
     command: string,
-    address: number | string | any,
+    address: R2Address,
   ): string {
     return this.r2p.cmdAt(command, address);
   }
-  log(msg: string) {
+  syscmd(command: string): string {
+    return this.r2p.syscmd(command);
+  }
+  syscmds(command: string): string {
+    return this.r2p.syscmds(command);
+  }
+  fdump(data: string): string {
+    return this.r2p.fdump(data);
+  }
+  log(msg: string): void {
     return this.r2p.log(msg);
   }
-  plugin(type: string, maker: any): boolean {
+  plugin(type: string, maker: R2PluginFactory): boolean {
     return this.r2p.plugin(type, maker);
   }
   unload(type: string, name: string): boolean {
@@ -74,7 +107,8 @@ export interface R2Pipe {
    * @param {number|string|NativePointer} command to be executed inside radare2.
    * @returns {string} The output of the command execution
    */
-  cmdAt(cmd: string, address: number | string | any): string;
+  cmd2(cmd: string): R2CommandResult;
+  cmdAt(cmd: string, address: R2Address): string;
 
   /**
    * Run a radare2 command expecting the output to be JSON
@@ -82,7 +116,7 @@ export interface R2Pipe {
    * @param {string} command to be executed inside radare2. The given command should end with `j`
    * @returns {object} the JSON decoded object from the output of the command
    */
-  cmdj(cmd: string): any;
+  cmdj(cmd: string): unknown;
 
   /**
    * Call a radare2 command. This is similar to `R2Pipe.cmd`, but skips all the command parsing rules,
@@ -102,7 +136,11 @@ export interface R2Pipe {
    * @param {NativePointer|string|number} where to seek to execute this command (previous offset is restored after executing it)
    * @returns {string} the string containing the output of the command
    */
-  callAt(cmd: string, address: string | number | any): string;
+  callAt(cmd: string, address: R2Address): string;
+
+  syscmd(cmd: string): string;
+  syscmds(cmd: string): string;
+  fdump(data: string): string;
 
   /**
    * Same as cmdj but using .call which avoids command injection problems
@@ -110,7 +148,7 @@ export interface R2Pipe {
    * @param {string} command to be executed inside radare2. The given command should end with `j`
    * @returns {object} the JSON decoded object from the command output
    */
-  callj(cmd: string): any;
+  callj(cmd: string): unknown;
 
   /**
    * Log a string to the associated console. This is used internally by `console.log` in some implementations.
@@ -126,7 +164,7 @@ export interface R2Pipe {
    * @param {string} function that returns the plugin definition
    * @returns {boolean} true if successful
    */
-  plugin(type: string, maker: any): boolean;
+  plugin(type: string, maker: R2PluginFactory): boolean;
 
   /**
    * Unload the plugin associated with a `type` and a `name`.
@@ -160,7 +198,8 @@ export interface R2PipeSync {
    * @param {number|string|NativePointer} command to be executed inside radare2.
    * @returns {string} The output of the command execution
    */
-  cmdAt(cmd: string, address: number | string | any): string;
+  cmd2(cmd: string): R2CommandResult;
+  cmdAt(cmd: string, address: R2Address): string;
 
   /**
    * Run a radare2 command expecting the output to be JSON
@@ -168,7 +207,7 @@ export interface R2PipeSync {
    * @param {string} command to be executed inside radare2. The given command should end with `j`
    * @returns {object} the JSON decoded object from the output of the command
    */
-  cmdj(cmd: string): any;
+  cmdj(cmd: string): unknown;
 
   /**
    * Call a radare2 command. This is similar to `R2Pipe.cmd`, but skips all the command parsing rules,
@@ -188,7 +227,11 @@ export interface R2PipeSync {
    * @param {NativePointer|string|number} where to seek to execute this command (previous offset is restored after executing it)
    * @returns {string} the string containing the output of the command
    */
-  callAt(cmd: string, address: string | number | any): string;
+  callAt(cmd: string, address: R2Address): string;
+
+  syscmd(cmd: string): string;
+  syscmds(cmd: string): string;
+  fdump(data: string): string;
 
   /**
    * Same as cmdj but using .call which avoids command injection problems
@@ -196,7 +239,7 @@ export interface R2PipeSync {
    * @param {string} command to be executed inside radare2. The given command should end with `j`
    * @returns {object} the JSON decoded object from the command output
    */
-  callj(cmd: string): any;
+  callj(cmd: string): unknown;
 
   /**
    * Log a string to the associated console. This is used internally by `console.log` in some implementations.
@@ -212,7 +255,7 @@ export interface R2PipeSync {
    * @param {string} function that returns the plugin definition
    * @returns {boolean} true if successful
    */
-  plugin(type: string, maker: any): boolean;
+  plugin(type: string, maker: R2PluginFactory): boolean;
 
   /**
    * Unload the plugin associated with a `type` and a `name`.

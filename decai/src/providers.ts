@@ -1,6 +1,9 @@
 import {
   ApiKeyResult,
   HeadersBuilder,
+  HttpResponse,
+  ModelDataEntry,
+  OllamaModelEntry,
   PayloadBuilder,
   ProviderConfig,
   ProviderRegistry,
@@ -12,41 +15,72 @@ import { filterResponse, padRight } from "./utils";
 import { getApiKey } from "./apiKeys";
 import { httpGet, httpPost } from "./http";
 
-function listModels(
+function getApiKeyName(authKey: string): string {
+  return authKey.split("_")[0].toLowerCase();
+}
+
+function readProviderKey(provider: ProviderConfig): ApiKeyResult | undefined {
+  if (!provider.requiresAuth || !provider.authKey) {
+    return undefined;
+  }
+  return getApiKey(getApiKeyName(provider.authKey), provider.authKey);
+}
+
+function getErrorMessage(error: HttpResponse["error"]): string | undefined {
+  if (!error) {
+    return undefined;
+  }
+  return typeof error === "string" ? error : error.message;
+}
+
+function listDataModels(
   url: string,
   headers: string[],
-  mapper: (model: any) => string,
+  mapper: (model: ModelDataEntry) => string,
 ): string {
   const response = httpGet(url, headers);
-  if (response.error) {
-    console.error(response.error);
+  const error = getErrorMessage(response.error);
+  if (error) {
+    console.error(error);
     return "error invalid response";
   }
-  return (response as any).data?.map(mapper).join("\n") || "";
+  return response.data?.map(mapper).join("\n") || "";
+}
+
+function uniqueBy<T>(items: T[], getKey: (item: T) => string): T[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = getKey(item);
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
 }
 
 const listOllamaModels = (provider: ProviderConfig): string => {
   const base = state.baseurl || state.host + ":" + state.port;
-  return listModels(
-    `${base}/api/tags`,
-    [],
-    (model: { name: string }) => model.name,
-  );
+  const response = httpGet(`${base}/api/tags`, []);
+  const error = getErrorMessage(response.error);
+  if (error) {
+    console.error(error);
+    return "error invalid response";
+  }
+  return response.models?.map((model: OllamaModelEntry) => model.name).join(
+    "\n",
+  ) || "";
 };
 
 const listOpenAIModels = (provider: ProviderConfig): string => {
-  let key: ApiKeyResult | undefined;
-  if (provider.requiresAuth && provider.authKey) {
-    key = getApiKey(
-      provider.authKey.split("_")[0].toLowerCase(),
-      provider.authKey,
-    );
-    if (key && key[1]) throw new Error(key[1]);
+  const key = readProviderKey(provider);
+  if (key?.[1]) {
+    throw new Error(key[1]);
   }
   const base = state.baseurl || provider.defaultBaseurl;
   const url = base + "/v1/models";
   const headers = key ? ["Authorization: Bearer " + key[0]] : [];
-  return listModels(url, headers, (model: any) => model.id);
+  return listDataModels(url, headers, (model) => model.id);
 };
 
 const listAnthropicModels = (provider: ProviderConfig): string => {
@@ -55,7 +89,7 @@ const listAnthropicModels = (provider: ProviderConfig): string => {
   const base = state.baseurl || provider.defaultBaseurl;
   const url = base + "/v1/models";
   const headers = ["x-api-key: " + key[0], "anthropic-version: 2023-06-01"];
-  return listModels(url, headers, (model: any) => model.id);
+  return listDataModels(url, headers, (model) => model.id);
 };
 
 const listMistralModels = (provider: ProviderConfig): string => {
@@ -64,14 +98,10 @@ const listMistralModels = (provider: ProviderConfig): string => {
   const base = state.baseurl || provider.defaultBaseurl;
   const url = base + "/v1/models";
   const headers = ["Authorization: Bearer " + key[0]];
-  const response = httpGet(url, headers) as any;
+  const response = httpGet(url, headers);
   if (response.data) {
-    const uniqByName = (arr: any[]) =>
-      arr.filter((obj, i, self) =>
-        self.findIndex((o) => o.name === obj.name) === i
-      );
-    return uniqByName(response.data)
-      .map((model: any) =>
+    return uniqueBy(response.data, (model) => model.name || model.id)
+      .map((model) =>
         [
           padRight(model.name || model.id, 30),
           padRight("" + (model.max_context_length || ""), 10),
@@ -212,24 +242,16 @@ function handleProvider(
 ): string {
   const model = state.model || provider.defaultModel;
   const query = buildQuery(msg, hideprompt);
+  const key = readProviderKey(provider);
 
-  let key: ApiKeyResult | undefined;
-  if (provider.requiresAuth && provider.authKey) {
-    key = getApiKey(
-      provider.authKey.split("_")[0].toLowerCase(),
-      provider.authKey,
-    );
-    if (key[1]) {
-      return `Cannot read ~/.r2ai.${
-        provider.authKey.split("_")[0].toLowerCase()
-      }-key`;
-    }
+  if (key?.[1] && provider.authKey) {
+    return `Cannot read ~/.r2ai.${getApiKeyName(provider.authKey)}-key`;
   }
 
   const payload = payloadBuilder(model, query, provider);
   const base = state.baseurl || provider.defaultBaseurl;
-  const url = urlBuilder(base, model, key && key[0] ? key[0] : undefined);
-  const headers = headersBuilder(key ? key[0] : null, provider);
+  const url = urlBuilder(base, model, key?.[0] || undefined);
+  const headers = headersBuilder(key?.[0] || null, provider);
 
   try {
     const res = httpPost(url, headers, JSON.stringify(payload));
@@ -287,7 +309,14 @@ export function handleAnthropic(
   }
 
   const payloadBuilder: PayloadBuilder = (model, query) => {
-    const payload: Record<string, unknown> = {
+    const payload: {
+      model: string;
+      max_tokens: number;
+      messages: Array<{ role: string; content: string }>;
+      temperature?: number;
+      top_p?: number;
+      top_k?: number;
+    } = {
       model,
       max_tokens: 5128,
       messages: [{ role: "user", content: query }],
@@ -331,7 +360,19 @@ export function handleOllama(
   hideprompt: boolean,
 ): string {
   const payloadBuilder: PayloadBuilder = (model, query) => {
-    const payload: Record<string, unknown> = {
+    const payload: {
+      stream: boolean;
+      model: string;
+      messages: Array<{ role: string; content: string }>;
+      options?: {
+        repeat_last_n: number;
+        top_p: number;
+        top_k: number;
+        temperature: number;
+        repeat_penalty: number;
+        seed: number;
+      };
+    } = {
       stream: false,
       model,
       messages: [{ role: "user", content: query }],
@@ -384,7 +425,14 @@ export function handleGemini(
   }
 
   const payloadBuilder: PayloadBuilder = (model, query) => {
-    const payload: Record<string, unknown> = {
+    const payload: {
+      contents: Array<{ parts: Array<{ text: string }> }>;
+      generationConfig?: {
+        temperature: number;
+        topP: number;
+        topK: number;
+      };
+    } = {
       contents: [{ parts: [{ text: query }] }],
     };
     if (state.deterministic) {
@@ -398,16 +446,15 @@ export function handleGemini(
   };
 
   const responseParser: ResponseParser = (res) => {
-    const r = res as any;
-    if (r.candidates && r.candidates[0]?.content?.parts?.[0]?.text) {
-      return filterResponse(r.candidates[0].content.parts[0].text);
+    if (res.candidates && res.candidates[0]?.content?.parts?.[0]?.text) {
+      return filterResponse(res.candidates[0].content.parts[0].text);
     }
-    if (r.error) {
+    if (res.error) {
       throw new Error(
-        typeof r.error === "string" ? r.error : JSON.stringify(r.error),
+        typeof res.error === "string" ? res.error : JSON.stringify(res.error),
       );
     }
-    console.log(JSON.stringify(r));
+    console.log(JSON.stringify(res));
     throw new Error("Invalid response format");
   };
   const urlBuilder: UrlBuilder = (base, model, key) =>

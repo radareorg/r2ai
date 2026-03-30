@@ -1,5 +1,4 @@
 import { HttpResponse } from "./types";
-import { state } from "./state";
 import { debugLog } from "./utils";
 
 interface HttpRequestOptions {
@@ -33,12 +32,12 @@ function executeCurl(options: HttpRequestOptions): string {
   }
 }
 
-function parseJson(output: string): any {
+function parseJson<T>(output: string): T {
   if (output === "") {
     throw new Error("empty response");
   }
   try {
-    return JSON.parse(output);
+    return JSON.parse(output) as T;
   } catch (e) {
     const err = e as Error;
     console.error("output:", output);
@@ -51,7 +50,7 @@ export function httpRequest(options: HttpRequestOptions): HttpResponse {
   try {
     const output = executeCurl(options);
     try {
-      return parseJson(output);
+      return parseJson<HttpResponse>(output);
     } catch (e) {
       return { error: (e as Error).message };
     }

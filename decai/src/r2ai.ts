@@ -1,5 +1,5 @@
 import { state } from "./state";
-import { debugLog, fileDump, tmpdir } from "./utils";
+import { fileDump, tmpdir } from "./utils";
 import { callProvider } from "./providers";
 import { httpGet } from "./http";
 
@@ -24,12 +24,12 @@ export function r2ai(
       ? state.baseurl + "/cmd"
       : state.host + ":" + state.port + "/cmd";
 
-    const url = host + "/" + q.replace(/ /g, "%20").replace(/'/g, "\\'");
+    const url = host + "/" + encodeURIComponent(q);
     const response = httpGet(url, []);
     if (response.error) {
       return `Error: ${response.error}`;
     }
-    return (response as any).result || JSON.stringify(response) ||
+    return response.result || JSON.stringify(response) ||
       "Cannot curl, use r2ai-server or r2ai -w";
   }
 

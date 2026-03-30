@@ -15,7 +15,7 @@ const PROVIDER_ENV_MAP: Record<string, string> = {
 
 export function getApiKey(provider: string, envvar: string): ApiKeyResult {
   const keyEnv = r2.cmd("'%" + envvar).trim();
-  if (keyEnv.indexOf("=") === -1 && keyEnv !== "") {
+  if (!keyEnv.includes("=") && keyEnv !== "") {
     return [keyEnv.trim(), null, "env"];
   }
 
@@ -25,7 +25,7 @@ export function getApiKey(provider: string, envvar: string): ApiKeyResult {
   if (fileExists(keysPath)) {
     const keyFile = r2.cmd("'cat " + keysPath);
     const kv = parseEnvLikeString(keyFile);
-    if (Object.keys(kv).indexOf(providerLower) !== -1) {
+    if (providerLower in kv) {
       return [kv[providerLower], null, "txt"];
     }
   }

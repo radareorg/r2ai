@@ -353,6 +353,10 @@ function autoHelp(): void {
   console.log(" '-e'    set decai configuration variables");
 }
 
+function getFlagValue(args: string): string {
+  return args.slice(2).trim();
+}
+
 export function handleCommand(
   args: string,
   mainHandler: (args: string) => boolean,
@@ -364,6 +368,7 @@ export function handleCommand(
 
   let output = "";
   const flag = args[1];
+  const argValue = getFlagValue(args);
 
   switch (flag) {
     case "H":
@@ -371,15 +376,14 @@ export function handleCommand(
       break;
 
     case "a":
-      autoMode(args.slice(2).trim(), mainHandler);
+      autoMode(argValue, mainHandler);
       break;
 
     case "m": {
-      const arg0 = args.slice(2).trim();
-      if (arg0 === "=") {
+      if (argValue === "=") {
         evalConfig("model=");
-      } else if (arg0) {
-        evalConfig("model=" + arg0);
+      } else if (argValue) {
+        evalConfig("model=" + argValue);
       } else {
         evalConfig("model");
       }
@@ -416,7 +420,7 @@ export function handleCommand(
       break;
 
     case "i": {
-      const parts = args.slice(2).trim().split(/ /g);
+      const parts = argValue.split(/\s+/).filter(Boolean);
       if (parts.length >= 2) {
         const file = parts[0];
         const query = parts.slice(1).join(" ");
@@ -429,9 +433,8 @@ export function handleCommand(
     }
 
     case "p": {
-      const evalArg = args.slice(2).trim();
-      if (evalArg) {
-        evalConfig("api=" + evalArg);
+      if (argValue) {
+        evalConfig("api=" + argValue);
       } else {
         listApiKeys();
       }
@@ -439,9 +442,8 @@ export function handleCommand(
     }
 
     case "r": {
-      const prompt = args.slice(2).trim();
-      if (prompt) {
-        state.prompt = prompt;
+      if (argValue) {
+        state.prompt = argValue;
       } else {
         console.log(state.prompt);
       }
@@ -473,9 +475,8 @@ export function handleCommand(
       break;
 
     case "b": {
-      const baseUrlArg = args.slice(2).trim();
-      if (baseUrlArg) {
-        evalConfig("baseurl=" + baseUrlArg);
+      if (argValue) {
+        evalConfig("baseurl=" + argValue);
       } else {
         console.log(state.baseurl);
       }
@@ -483,9 +484,8 @@ export function handleCommand(
     }
 
     case "e": {
-      const evalArg = args.slice(2).trim();
-      if (evalArg) {
-        evalConfig(evalArg);
+      if (argValue) {
+        evalConfig(argValue);
       } else {
         listAllConfig();
       }
@@ -494,7 +494,7 @@ export function handleCommand(
 
     case "q":
       try {
-        output = r2ai(args.slice(2).trim(), null, true);
+        output = r2ai(argValue, null, true);
       } catch (e) {
         const err = e as Error;
         console.error(err, err.stack);
@@ -502,7 +502,7 @@ export function handleCommand(
       break;
 
     case "Q":
-      output = r2ai(args.slice(2).trim(), state.lastOutput, false);
+      output = r2ai(argValue, state.lastOutput, false);
       break;
 
     case "x":

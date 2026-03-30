@@ -3,6 +3,10 @@ import { state } from "./state";
 import { listModelsFor } from "./models";
 import { listProviders } from "./providers";
 
+function parseBoolean(value: string): boolean {
+  return value === "true" || value === "1";
+}
+
 export const configHandlers: ConfigHandlers = {
   pipeline: {
     get: () => state.pipeline,
@@ -28,13 +32,13 @@ export const configHandlers: ConfigHandlers = {
   deterministic: {
     get: () => state.deterministic,
     set: (v: string) => {
-      state.deterministic = v === "true" || v === "1";
+      state.deterministic = parseBoolean(v);
     },
   },
   files: {
     get: () => state.useFiles,
     set: (v: string) => {
-      state.useFiles = v === "true";
+      state.useFiles = parseBoolean(v);
     },
   },
   think: {
@@ -46,7 +50,7 @@ export const configHandlers: ConfigHandlers = {
   debug: {
     get: () => state.debug,
     set: (v: string) => {
-      state.debug = v === "true" || v === "1";
+      state.debug = parseBoolean(v);
     },
   },
   api: {
@@ -75,7 +79,7 @@ export const configHandlers: ConfigHandlers = {
   cache: {
     get: () => state.cache,
     set: (v: string) => {
-      state.cache = v === "true" || v === "1";
+      state.cache = parseBoolean(v);
     },
   },
   cmds: {
@@ -87,13 +91,13 @@ export const configHandlers: ConfigHandlers = {
   tts: {
     get: () => state.tts,
     set: (v: string) => {
-      state.tts = v === "true" || v === "1";
+      state.tts = parseBoolean(v);
     },
   },
   yolo: {
     get: () => state.yolo,
     set: (v: string) => {
-      state.yolo = v === "true" || v === "1";
+      state.yolo = parseBoolean(v);
     },
   },
   prompt: {
@@ -126,22 +130,23 @@ export function evalConfig(arg: string): void {
   const eqIndex = arg.indexOf("=");
   const k = eqIndex === -1 ? arg : arg.slice(0, eqIndex);
   const v = eqIndex === -1 ? undefined : arg.slice(eqIndex + 1);
+  const handler = configHandlers[k];
 
-  if (!configHandlers[k]) {
+  if (!handler) {
     console.error("Unknown config key");
     return;
   }
 
   if (typeof v !== "undefined") {
-    configHandlers[k].set(v);
+    handler.set(v);
   } else {
-    console.log(configHandlers[k].get());
+    console.log(handler.get());
   }
 }
 
 export function listAllConfig(): void {
-  Object.keys(configHandlers).forEach((key) => {
-    const value = configHandlers[key].get();
+  Object.entries(configHandlers).forEach(([key, handler]) => {
+    const value = handler.get();
     console.log("decai -e " + key + "=" + value);
   });
 }

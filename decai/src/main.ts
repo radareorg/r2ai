@@ -1,5 +1,3 @@
-import type { R2PipeSync } from "./r2pipe";
-
 import { COMMAND } from "./constants";
 import { handleCommand } from "./commands";
 

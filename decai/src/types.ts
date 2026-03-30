@@ -1,7 +1,13 @@
-import type { R2PipeSync } from "r2papi";
+import type { R2PipeSync } from "./r2pipe";
+
+interface ConsoleLike {
+  log: (...args: unknown[]) => void;
+  error: (...args: unknown[]) => void;
+}
 
 declare global {
   const r2: R2PipeSync;
+  const console: ConsoleLike;
   function btoa(str: string): string;
 }
 
@@ -52,7 +58,7 @@ export interface AppState {
 }
 
 export interface ConfigHandler {
-  get: () => unknown;
+  get: () => string | number | boolean;
   set: (v: string) => void;
 }
 
@@ -62,29 +68,65 @@ export interface ConfigHandlers {
 
 export type ApiKeyResult = [string | null, string | null, string];
 
-export interface HttpResponse {
-  error?: { message?: string } | string;
-  choices?: Array<{ message: { content: string } }>;
-  content?: Array<{ text: string }>;
-  message?: { content: string };
-  candidates?: Array<{ content: { parts: Array<{ text: string }> } }>;
-  data?: Array<
-    {
-      id: string;
-      name?: string;
-      max_context_length?: number;
-      description?: string;
-    }
-  >;
-  models?: Array<{ name: string }>;
+export interface ApiError {
+  message?: string;
   [key: string]: unknown;
 }
+
+export interface OpenAIChoice {
+  message?: {
+    content?: string;
+  };
+}
+
+export interface AnthropicContentBlock {
+  text?: string;
+}
+
+export interface OllamaMessage {
+  content?: string;
+}
+
+export interface GeminiPart {
+  text?: string;
+}
+
+export interface GeminiCandidate {
+  content?: {
+    parts?: GeminiPart[];
+  };
+}
+
+export interface ModelDataEntry {
+  id: string;
+  name?: string;
+  max_context_length?: number;
+  description?: string;
+}
+
+export interface OllamaModelEntry {
+  name: string;
+}
+
+export interface HttpResponse {
+  error?: ApiError | string;
+  choices?: OpenAIChoice[];
+  content?: AnthropicContentBlock[];
+  message?: OllamaMessage;
+  candidates?: GeminiCandidate[];
+  data?: ModelDataEntry[];
+  models?: OllamaModelEntry[];
+  result?: string;
+  [key: string]: unknown;
+}
+
+export type JsonObject = Record<string, unknown>;
 
 export type PayloadBuilder = (
   model: string,
   query: string,
   provider: ProviderConfig,
-) => Record<string, unknown>;
+) => JsonObject;
 export type ResponseParser = (res: HttpResponse) => string;
 export type UrlBuilder = (base: string, model: string, key?: string) => string;
 export type HeadersBuilder = (
