@@ -134,6 +134,10 @@ static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool re
 
 static void cmd_r2ai_repl(RCorePluginSession *cps) {
 	RCore *core = cps->core;
+	RConfigHold *hold = r_config_hold_new (core->config);
+	r_config_hold (hold, "r2ai.clippy", NULL);
+	r_config_set_b (core->config, "r2ai.clippy", true);
+	r2ai_wizard_autorun (core);
 	RStrBuf *sb = r_strbuf_new ("");
 	while (true) {
 		r_line_set_prompt (core->cons->line, "[r2ai]> ");
@@ -164,12 +168,20 @@ static void cmd_r2ai_repl(RCorePluginSession *cps) {
 			free (error);
 		} else if (res) {
 			r_strbuf_appendf (sb, "Assistant: %s\n", res);
-			r_cons_printf (core->cons, "%s\n", res);
+			if (r_config_get_b (core->config, "r2ai.clippy")) {
+				char *cmd = r_str_newf ("?E %s", res);
+				r_core_cmd_call (core, cmd);
+				free (cmd);
+			} else {
+				r_cons_printf (core->cons, "%s\n", res);
+			}
 			r_cons_flush (core->cons);
 		}
 		free (res);
 	}
 	r_strbuf_free (sb);
+	r_config_hold_restore (hold);
+	r_config_hold_free (hold);
 }
 
 static void cmd_r2ai_R(RCorePluginSession *cps, const char *q) {
@@ -582,6 +594,8 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_desc (core->config, "r2ai.promptdir", "Directory containing .r2ai prompt files");
 	r_config_set_b (core->config, "r2ai.clippy", false);
 	r_config_desc (core->config, "r2ai.clippy", "Responses from the llm will be displayed by clippy");
+	r_config_set_b (core->config, "r2ai.wizard", true);
+	r_config_desc (core->config, "r2ai.wizard", "Run the setup wizard automatically on the first interactive chat session");
 	r_config_set_b (core->config, "r2ai.stream", false);
 	r_config_desc (core->config, "r2ai.stream", "Enable streaming responses from the LLM (true/false)");
 	r_config_set_i (core->config, "r2ai.auto.max_runs", 50);

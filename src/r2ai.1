@@ -44,6 +44,9 @@ Run predefined prompt with optional custom instructions.
 .B \-r
 Enter the chat REPL.
 .TP
+.B \-w
+Launch the interactive setup wizard.
+.TP
 .B \-L
 Show chat logs (use -Lj for JSON). Only for auto mode.
 .TP
@@ -87,6 +90,12 @@ Language for AI responses.
 .TP
 .B r2ai.prompt
 User prompt for \fBr2ai -d\fR.
+.TP
+.B r2ai.clippy
+Display chat replies using r2clippy instead of plain text.
+.TP
+.B r2ai.wizard
+Auto-start the setup wizard on the first interactive chat session.
 .TP
 .B r2ai.auto.max_runs
 Maximum loops in auto mode (\fBr2ai -a\fR).

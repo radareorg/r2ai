@@ -39,6 +39,7 @@ static char *build_conversation(RList *conversation) {
 
 static void r2ai_repl(RCorePluginSession *cps, const char *provider, const char *model, RList *conversation) {
 	RCore *core = cps->core;
+	r2ai_wizard_autorun (core);
 	r_line_set_prompt (core->cons->line, "[r2ai]> ");
 	while (true) {
 		const char *input = r_line_readline (core->cons);

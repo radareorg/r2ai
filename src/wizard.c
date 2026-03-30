@@ -44,6 +44,24 @@ static const char *wizard_tips[] = {
 	"May the source be with you, always!"
 };
 
+static char *wizard_ready_file(void) {
+	return r_file_home (".config/r2ai/.ready");
+}
+
+static bool wizard_mark_ready(void) {
+	char *config_dir = r_file_home (".config/r2ai");
+	r_sys_mkdirp (config_dir);
+	free (config_dir);
+
+	char *ready_file = wizard_ready_file ();
+	int fd = r_sandbox_open (ready_file, O_CREAT | O_WRONLY, 0644);
+	if (fd != -1) {
+		close (fd);
+	}
+	free (ready_file);
+	return fd != -1;
+}
+
 static void show_clippy_message(RCore *core, const char *message) {
 	r_cons_clear00 (core->cons);
 	char *cmd = r_str_newf ("?E %s", message);
@@ -107,27 +125,6 @@ static bool wizard_step_setup(RCore *core) {
 		"💬 Type 'shell' to enter r2ai shell mode, 'back' to return to wizard\n\n");
 
 	if (r_cons_yesno (core->cons, 'y', "Want to skip API key setup for now? (Y/n)")) {
-		return true;
-	}
-
-	R_API bool r2ai_wizard_isfirsttime (void) {
-		char *ready_file = r_str_home (".config/r2ai/.ready");
-		if (r_file_exists (ready_file)) {
-			free (ready_file);
-			return false;
-		}
-
-		// Create directory and touch the file
-		char *config_dir = r_str_home (".config/r2ai");
-		r_sys_mkdirp (config_dir);
-		free (config_dir);
-
-		int fd = r_sandbox_open (ready_file, O_CREAT | O_WRONLY, 0644);
-		if (fd != -1) {
-			close (fd);
-		}
-		free (ready_file);
-
 		return true;
 	}
 
@@ -272,6 +269,37 @@ static bool wizard_step_followup(RCore *core) {
 	return true;
 }
 
+static bool wizard_should_autorun(RCore *core) {
+	if (!core || !core->config || !core->cons) {
+		return false;
+	}
+	if (!isatty (STDIN_FILENO) || !isatty (STDOUT_FILENO)) {
+		return false;
+	}
+	if (!r_config_get_b (core->config, "r2ai.wizard")) {
+		return false;
+	}
+	return r2ai_wizard_isfirsttime ();
+}
+
+R_API bool r2ai_wizard_autorun(RCore *core) {
+	if (!wizard_should_autorun (core)) {
+		return false;
+	}
+	show_clippy_message (core, "🪄 Want help setting up r2ai?");
+	r_cons_printf (core->cons,
+		"\n"
+		"This looks like your first interactive r2ai session.\n"
+		"Run the setup wizard now to configure providers, API keys and the chat workflow.\n\n");
+	wizard_mark_ready ();
+	if (!r_cons_yesno (core->cons, 'y', "Start the setup wizard now? (Y/n)")) {
+		r_cons_printf (core->cons, "\nRun 'r2ai -w' any time to launch it later.\n\n");
+		r_cons_flush (core->cons);
+		return false;
+	}
+	return r2ai_wizard (core);
+}
+
 R_API bool r2ai_wizard(RCore *core) {
 	if (!core) {
 		return false;
@@ -319,27 +347,14 @@ R_API bool r2ai_wizard(RCore *core) {
 	show_clippy_message (core, "🎊 Wizard complete! Go forth and reverse!");
 	r_cons_printf (core->cons, "\nPress Enter to exit the wizard...\n");
 	r_line_readline (core->cons);
+	wizard_mark_ready ();
 
 	return true;
 }
 
 R_API bool r2ai_wizard_isfirsttime(void) {
-	char *ready_file = r_str_home (".config/r2ai/.ready");
-	if (r_file_exists (ready_file)) {
-		free (ready_file);
-		return false;
-	}
-
-	// Create directory and touch the file
-	char *config_dir = r_str_home (".config/r2ai");
-	r_sys_mkdirp (config_dir);
-	free (config_dir);
-
-	int fd = r_sandbox_open (ready_file, O_CREAT | O_WRONLY, 0644);
-	if (fd != -1) {
-		close (fd);
-	}
+	char *ready_file = wizard_ready_file ();
+	bool first_time = !r_file_exists (ready_file);
 	free (ready_file);
-
-	return true;
+	return first_time;
 }

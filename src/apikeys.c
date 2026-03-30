@@ -19,6 +19,9 @@ R_API void r2ai_apikeys_edit(RCorePluginSession *cps) {
 	RCore *core = cps->core;
 	bool exists = false;
 	char *keys_path = r2ai_apikeys_path (&exists);
+	char *config_dir = r_file_home (".config/r2ai");
+	r_sys_mkdirp (config_dir);
+	free (config_dir);
 	if (!exists) {
 		const char *template = "# API Keys configuration for r2ai\n"
 				"\n"
