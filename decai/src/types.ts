@@ -12,15 +12,16 @@ declare global {
 }
 
 export type ApiStyle = "openai" | "anthropic" | "ollama" | "gemini";
+export type AuthStyle = "none" | "bearer" | "anthropic";
 
 export interface ProviderConfig {
   defaultModel: string;
-  defaultBaseurl: string;
-  requiresAuth: boolean;
+  defaultBaseUrl: string;
   authKey?: string;
+  authStyle?: AuthStyle;
+  keyName?: string;
   apiStyle: ApiStyle;
   hardcodedModels?: string[];
-  listModelsCallback?: (provider: ProviderConfig) => string;
 }
 
 export interface ProviderRegistry {
@@ -38,6 +39,7 @@ export interface AppState {
   host: string;
   port: string;
   baseurl: string;
+  extraHeaders: string[];
   api: string;
   pipeline: string;
   commands: string;
@@ -47,6 +49,7 @@ export interface AppState {
   humanLanguage: string;
   deterministic: boolean;
   debug: boolean;
+  timeout: number;
   think: number;
   useFiles: boolean;
   contextFile: string;
@@ -110,6 +113,7 @@ export interface OllamaModelEntry {
 
 export interface HttpResponse {
   error?: ApiError | string;
+  rawOutput?: string;
   choices?: OpenAIChoice[];
   content?: AnthropicContentBlock[];
   message?: OllamaMessage;
@@ -121,18 +125,6 @@ export interface HttpResponse {
 }
 
 export type JsonObject = Record<string, unknown>;
-
-export type PayloadBuilder = (
-  model: string,
-  query: string,
-  provider: ProviderConfig,
-) => JsonObject;
-export type ResponseParser = (res: HttpResponse) => string;
-export type UrlBuilder = (base: string, model: string, key?: string) => string;
-export type HeadersBuilder = (
-  key: string | null,
-  provider: ProviderConfig,
-) => string[];
 
 export interface AutoReply {
   action: string;

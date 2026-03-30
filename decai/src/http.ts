@@ -1,4 +1,6 @@
 import { HttpResponse } from "./types";
+import { state } from "./state";
+import { mergeHeaders } from "./headers";
 import { debugLog } from "./utils";
 
 interface HttpRequestOptions {
@@ -14,45 +16,42 @@ function shellEscape(arg: string): string {
 
 function executeCurl(options: HttpRequestOptions): string {
   const { method, url, headers, payload } = options;
-  const cmdParts = ["curl", "-s", shellEscape(url)];
-  headers.forEach((h) => cmdParts.push("-H", shellEscape(h)));
-  cmdParts.push("-H", shellEscape("Content-Type: application/json"));
+  const cmdParts = ["curl", "-s"];
+  if (state.timeout > 0) {
+    cmdParts.push("--max-time", String(state.timeout));
+  }
+  const requestHeaders = mergeHeaders(
+    ["Content-Type: application/json"],
+    headers,
+  );
+  requestHeaders.forEach((h) => cmdParts.push("-H", shellEscape(h)));
 
   if (method === "POST") {
     if (!payload) throw new Error("Payload required for POST requests");
     const tmpfile = r2.fdump(payload);
-    cmdParts.push("-d", shellEscape(`@${tmpfile}`));
-    const cmd = cmdParts.join(" ") + " && rm " + shellEscape(tmpfile);
+    cmdParts.push("--data-binary", "@-", shellEscape(url));
+    const cmd = cmdParts.join(" ") + " < " + shellEscape(tmpfile) +
+      " && rm " + shellEscape(tmpfile);
     debugLog(cmd);
     return r2.syscmds(cmd);
   } else {
+    cmdParts.push(shellEscape(url));
     const cmd = cmdParts.join(" ");
     debugLog(cmd);
     return r2.syscmds(cmd);
   }
 }
 
-function parseJson<T>(output: string): T {
-  if (output === "") {
-    throw new Error("empty response");
-  }
-  try {
-    return JSON.parse(output) as T;
-  } catch (e) {
-    const err = e as Error;
-    console.error("output:", output);
-    console.error(err, err.stack);
-    throw new Error(err.message || "JSON parse error");
-  }
-}
-
 export function httpRequest(options: HttpRequestOptions): HttpResponse {
   try {
-    const output = executeCurl(options);
+    const output = executeCurl(options).trim();
+    if (output === "") {
+      return { error: "empty response" };
+    }
     try {
-      return parseJson<HttpResponse>(output);
-    } catch (e) {
-      return { error: (e as Error).message };
+      return JSON.parse(output) as HttpResponse;
+    } catch {
+      return { error: output, rawOutput: output };
     }
   } catch (e) {
     const err = e as Error;

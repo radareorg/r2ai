@@ -2,7 +2,7 @@ export const VERSION = "1.3.2";
 export const COMMAND = "decai";
 
 export const DEFAULT_PROMPT =
-  "Transform this pseudocode and respond ONLY with plain code (NO explanations, comments or markdown), Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and strings from comments like 'string:', Reduce lines of code and fit everything in a single function, Remove all dead code";
+  "Rewrite this pseudocode into concise and clean code. Output only the provided function. Do not add wrappers, helper examples, test code, or main-like functions. Replace goto with structured control flow, simplify as much as possible, infer types and use better names for variables and parameters, some strings may be appearing as comments, preserve only what is implied by the input, and remove dead code.";
 
 export const HELP_TEXT = {
   decai: `# Using Decai
@@ -27,6 +27,9 @@ These are the most recommended models for decompiling in local:
 
 ## Common Options
 * 'decai -e baseurl=<url>' override default host and port for API endpoint (e.g., 'http://localhost:11434')
+* 'decai -e headers=Authorization: Bearer ...\\nUser-Agent: curl/8.7.1' add or override HTTP headers
+* "export DECAI_HEADERS='Authorization: Bearer ...\\nUser-Agent: curl/8.7.1'" set extra headers from the environment
+* 'decai -e timeout=0' disable curl timeouts, or set a positive number of seconds
 
 * 'decai -e deterministic=true' to remove randomness from decompilation responses
 * 'decai -e lang=Python' to output the decompilation in Python instead of C

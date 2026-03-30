@@ -2,6 +2,7 @@ import { ConfigHandlers } from "./types";
 import { state } from "./state";
 import { listModelsFor } from "./models";
 import { listProviders } from "./providers";
+import { formatHeaders, parseHeaders } from "./headers";
 
 function parseBoolean(value: string): boolean {
   return value === "true" || value === "1";
@@ -51,6 +52,12 @@ export const configHandlers: ConfigHandlers = {
     get: () => state.debug,
     set: (v: string) => {
       state.debug = parseBoolean(v);
+    },
+  },
+  timeout: {
+    get: () => state.timeout,
+    set: (v: string) => {
+      state.timeout = Math.max(0, parseInt(v, 10) || 0);
     },
   },
   api: {
@@ -116,6 +123,12 @@ export const configHandlers: ConfigHandlers = {
     get: () => state.baseurl,
     set: (v: string) => {
       state.baseurl = v;
+    },
+  },
+  headers: {
+    get: () => formatHeaders(state.extraHeaders),
+    set: (v: string) => {
+      state.extraHeaders = parseHeaders(v);
     },
   },
   maxtokens: {

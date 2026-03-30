@@ -11,6 +11,8 @@ const PROVIDER_ENV_MAP: Record<string, string> = {
   xai: "XAI_API_KEY",
   ollama: "OLLAMA_API_KEY",
   ollamacloud: "OLLAMA_API_KEY",
+  opencode: "OPENCODE_API_KEY",
+  zen: "OPENCODE_API_KEY",
 };
 
 export function getApiKey(provider: string, envvar: string): ApiKeyResult {

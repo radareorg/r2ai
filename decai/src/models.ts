@@ -1,4 +1,4 @@
-import { getProvider } from "./providers";
+import { getProvider, listModels } from "./providers";
 
 export function listModelsFor(api: string): void {
   const providerConfig = getProvider(api);
@@ -9,10 +9,7 @@ export function listModelsFor(api: string): void {
   }
 
   try {
-    let models = "";
-    if (providerConfig.listModelsCallback) {
-      models = providerConfig.listModelsCallback(providerConfig);
-    }
+    const models = listModels(api);
 
     if (models) {
       console.log(models);

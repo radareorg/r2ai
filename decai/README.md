@@ -59,6 +59,7 @@ decai -e host=http://localhost
 decai -e port=11434
 decai -e prompt=Rewrite this function and respond ONLY with code, NO explanations, NO markdown, Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and strings from comments like 'string:'
 decai -e ctxfile=
+decai -e headers=
 decai -e cmds=pdc
 decai -e cache=false
 decai -e lang=C
@@ -104,6 +105,14 @@ r2ai
 claude
 openapi
 ...
+```
+
+Extra headers can be injected globally with `decai -e headers=...` or from the
+environment with `DECAI_HEADERS` / `R2AI_HEADERS`. Use one header per line, for
+example:
+
+```console
+[0x00406cac]> decai -e headers=Authorization: Bearer sk-123\nUser-Agent: curl/8.7.1
 ```
 
 ### Example using a local model and ollama
