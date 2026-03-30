@@ -28,6 +28,15 @@ if not r_core_dep.found()
   ]
 endif
 
+# Filter include dirs to only those that exist
+fs = import('fs')
+r2_valid_incdirs = []
+foreach d : r2_incdirs
+  if fs.is_dir(d)
+    r2_valid_incdirs += [d]
+  endif
+endforeach
+
 # Resolve all radare2 dependencies: pkg-config first, then manual search
 r2_deps = []
 foreach name : ['r_core', 'r_util', 'r_cons', 'r_config', 'r_socket']
@@ -38,7 +47,7 @@ foreach name : ['r_core', 'r_util', 'r_cons', 'r_config', 'r_socket']
       if lib.found()
         dep = declare_dependency(
           dependencies: [lib],
-          include_directories: include_directories(r2_incdirs),
+          include_directories: include_directories(r2_valid_incdirs),
         )
         break
       endif
