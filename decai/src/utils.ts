@@ -5,6 +5,14 @@ export function tmpdir(path: string): string {
   return dir + "/" + path;
 }
 
+export function ensureDir(path: string): void {
+  r2.cmd("'mkdir -p " + path);
+}
+
+export function ensureFile(path: string): void {
+  r2.cmd("'touch " + path);
+}
+
 export function fileExists(path: string): boolean {
   const helpMessage = r2.cmd2("test -h").logs?.[0]?.message ?? "";
   if (helpMessage.includes("-fdx")) {

@@ -1,8 +1,12 @@
 import { ConfigHandlers } from "./types";
-import { state } from "./state";
+import { DECAI_CONFIG_DIR, DECAI_CONFIG_PATH } from "./constants";
+import { defaultState, state } from "./state";
 import { listModelsFor } from "./models";
 import { listProviders } from "./providers";
 import { formatHeaders, parseHeaders } from "./headers";
+import { ensureDir, ensureFile, fileExists } from "./utils";
+
+let rcConfigLoaded = false;
 
 function parseBoolean(value: string): boolean {
   return value === "true" || value === "1";
@@ -139,6 +143,39 @@ export const configHandlers: ConfigHandlers = {
   },
 };
 
+function resetRcConfigState(): void {
+  state.decopipe = { ...defaultState.decopipe };
+  state.baseurl = defaultState.baseurl;
+  state.extraHeaders = [...defaultState.extraHeaders];
+  state.api = defaultState.api;
+  state.pipeline = defaultState.pipeline;
+  state.commands = defaultState.commands;
+  state.yolo = defaultState.yolo;
+  state.tts = defaultState.tts;
+  state.language = defaultState.language;
+  state.humanLanguage = defaultState.humanLanguage;
+  state.deterministic = defaultState.deterministic;
+  state.debug = defaultState.debug;
+  state.timeout = defaultState.timeout;
+  state.think = defaultState.think;
+  state.useFiles = defaultState.useFiles;
+  state.contextFile = defaultState.contextFile;
+  state.model = defaultState.model;
+  state.cache = defaultState.cache;
+  state.maxInputTokens = defaultState.maxInputTokens;
+  state.prompt = defaultState.prompt;
+}
+
+function normalizeRcLine(line: string): string | null {
+  const trimmed = line.trim();
+  if (!trimmed || trimmed.startsWith("#")) {
+    return null;
+  }
+  return trimmed.startsWith("decai -e ")
+    ? trimmed.slice("decai -e ".length).trim()
+    : trimmed;
+}
+
 export function evalConfig(arg: string): void {
   const eqIndex = arg.indexOf("=");
   const k = eqIndex === -1 ? arg : arg.slice(0, eqIndex);
@@ -162,4 +199,34 @@ export function listAllConfig(): void {
     const value = handler.get();
     console.log("decai -e " + key + "=" + value);
   });
+}
+
+export function loadRcConfig(): void {
+  resetRcConfigState();
+  if (!fileExists(DECAI_CONFIG_PATH)) {
+    return;
+  }
+  const rcFile = r2.cmd("'cat " + DECAI_CONFIG_PATH);
+  for (const line of rcFile.split(/\r?\n/)) {
+    const rcLine = normalizeRcLine(line);
+    if (rcLine) {
+      evalConfig(rcLine);
+    }
+  }
+}
+
+export function ensureRcConfigLoaded(): void {
+  if (rcConfigLoaded) {
+    return;
+  }
+  loadRcConfig();
+  rcConfigLoaded = true;
+}
+
+export function editRcConfig(): void {
+  ensureDir(DECAI_CONFIG_DIR);
+  ensureFile(DECAI_CONFIG_PATH);
+  r2.cmd("'ed " + DECAI_CONFIG_PATH);
+  loadRcConfig();
+  rcConfigLoaded = true;
 }

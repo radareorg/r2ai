@@ -1,5 +1,8 @@
 export const VERSION = "1.3.2";
 export const COMMAND = "decai";
+export const DECAI_CONFIG_DIR = "~/.config/r2ai";
+export const API_KEYS_PATH = DECAI_CONFIG_DIR + "/apikeys.txt";
+export const DECAI_CONFIG_PATH = DECAI_CONFIG_DIR + "/decai.txt";
 
 export const DEFAULT_PROMPT =
   "Rewrite this pseudocode into concise and clean code. Output only the provided function. Do not add wrappers, helper examples, test code, or main-like functions. Replace goto with structured control flow, simplify as much as possible, infer types and use better names for variables and parameters, some strings may be appearing as comments, preserve only what is implied by the input, and remove dead code.";
@@ -42,11 +45,13 @@ These are the most recommended models for decompiling in local:
 Remove services like OpenAI, Mistral, Anthropic, Grok, Gemini, .. require API keys to work.
 
 See 'decai -k' to list the status of available APIkeys
+Use 'decai -K' to edit apikeys.txt and 'decai -E' to edit decai.txt.
 
 Decai will pick them from the environment or the config files in your home:
 
 * echo KEY > ~/.r2ai.openai-key
 * export OPENAI_API_KEY=...
+* put one 'key=value' pair per line in ~/.config/r2ai/decai.txt
 
 ## Using the R2AI Server:
 

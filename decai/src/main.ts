@@ -1,7 +1,9 @@
 import { COMMAND } from "./constants";
 import { handleCommand } from "./commands";
+import { ensureRcConfigLoaded } from "./config";
 
 function main(args: string): boolean {
+  ensureRcConfigLoaded();
   const output = handleCommand(args, main);
   if (output) {
     r2.log(output);

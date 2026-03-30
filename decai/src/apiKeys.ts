@@ -1,5 +1,6 @@
+import { API_KEYS_PATH, DECAI_CONFIG_DIR } from "./constants";
 import { ApiKeyResult } from "./types";
-import { fileExists, parseEnvLikeString } from "./utils";
+import { ensureDir, ensureFile, fileExists, parseEnvLikeString } from "./utils";
 
 const PROVIDER_ENV_MAP: Record<string, string> = {
   mistral: "MISTRAL_API_KEY",
@@ -22,7 +23,7 @@ export function getApiKey(provider: string, envvar: string): ApiKeyResult {
   }
 
   const providerLower = provider.toLowerCase();
-  const keysPath = "~/.config/r2ai/apikeys.txt";
+  const keysPath = API_KEYS_PATH;
 
   if (fileExists(keysPath)) {
     const keyFile = r2.cmd("'cat " + keysPath);
@@ -44,7 +45,9 @@ export function getApiKey(provider: string, envvar: string): ApiKeyResult {
 }
 
 export function editApiKeys(): void {
-  r2.cmd("'ed ~/.config/r2ai/apikeys.txt");
+  ensureDir(DECAI_CONFIG_DIR);
+  ensureFile(API_KEYS_PATH);
+  r2.cmd("'ed " + API_KEYS_PATH);
 }
 
 export function listApiKeys(): void {

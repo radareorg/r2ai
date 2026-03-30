@@ -1,7 +1,7 @@
 import { AppState } from "./types";
 import { DEFAULT_PROMPT } from "./constants";
 
-export const state: AppState = {
+export const defaultState: AppState = {
   decopipe: { use: false },
   host: "http://localhost",
   port: "11434",
@@ -25,4 +25,10 @@ export const state: AppState = {
   maxInputTokens: -1,
   prompt: DEFAULT_PROMPT,
   lastOutput: "",
+};
+
+export const state: AppState = {
+  ...defaultState,
+  decopipe: { ...defaultState.decopipe },
+  extraHeaders: [...defaultState.extraHeaders],
 };

@@ -10,7 +10,7 @@ import {
   trimJson,
 } from "./utils";
 import { editApiKeys, listApiKeys } from "./apiKeys";
-import { evalConfig, listAllConfig } from "./config";
+import { editRcConfig, evalConfig, listAllConfig } from "./config";
 import { r2ai } from "./r2ai";
 
 export function showHelp(): void {
@@ -26,6 +26,7 @@ export function showHelp(): void {
   msg("-dD [query]   - decompile current function with given extra query");
   msg("-dr           - decompile function and its called ones (recursive)");
   msg("-e            - display and change eval config vars");
+  msg("-E            - edit decai.txt");
   msg("-h            - show this help");
   msg("-H            - help setting up r2ai");
   msg("-i [f] [q]    - include given file and query");
@@ -468,6 +469,10 @@ export function handleCommand(
 
     case "K":
       editApiKeys();
+      break;
+
+    case "E":
+      editRcConfig();
       break;
 
     case "k":

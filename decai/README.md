@@ -37,6 +37,7 @@ Usage: decai (-h) ...
  decai -dd [..]   - same as above, but ignoring cache
  decai -dD [query]- decompile current function with given extra query
  decai -e         - display and change eval config vars
+ decai -E         - edit decai.txt
  decai -h         - show this help
  decai -i [f] [q] - include given file and query
  decai -n         - suggest better function name
@@ -96,6 +97,10 @@ decai -e prompt=Rewrite this function and respond ONLY with code, NO explanation
 decai -e ctxfile=
 ...
 ```
+
+Persist user defaults in `~/.config/r2ai/decai.txt` with one `key=value` entry
+per line, then edit it with `decai -E`. That file is loaded on the first
+`decai` command in a session and reloaded after `decai -E` exits.
 
 List possible APIs to discuss with AI: `decai -e api=?`:
 
