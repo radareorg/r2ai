@@ -107,7 +107,7 @@ jobs:
 
       - name: Upload artifacts (tags only)
         if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.os }}-${{ matrix.build_system }}-binary
           path: release/r2ai-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.build_system }}.zip
