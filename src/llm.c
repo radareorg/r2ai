@@ -8,12 +8,17 @@ static const R2AIProvider r2ai_providers[] = {
 	{ "openai", "https://api.openai.com/v1", R2AI_API_OPENAI_COMPATIBLE, true, true },
 	{ "gemini", "https://generativelanguage.googleapis.com/v1beta", R2AI_API_GEMINI, true, false },
 	{ "anthropic", "https://api.anthropic.com/v1", R2AI_API_ANTHROPIC, true, false },
+	{ "claude", "https://api.anthropic.com/v1", R2AI_API_ANTHROPIC, true, false },
 	{ "ollama", "http://localhost:11434/api", R2AI_API_OLLAMA, false, true },
+	{ "ollamacloud", "https://ollama.com/api", R2AI_API_OLLAMA, true, true },
 	{ "openapi", "http://127.0.0.1:11434", R2AI_API_OPENAI_COMPATIBLE, false, false },
+	{ "opencode", "https://opencode.ai/zen/v1", R2AI_API_OPENAI_COMPATIBLE, true, true },
+	{ "zen", "https://opencode.ai/zen/v1", R2AI_API_OPENAI_COMPATIBLE, true, true },
 	{ "xai", "https://api.x.ai/v1", R2AI_API_OPENAI_COMPATIBLE, true, true },
 	{ "openrouter", "https://openrouter.ai/api/v1", R2AI_API_OPENAI_COMPATIBLE, true, true },
 	{ "groq", "https://api.groq.com/openai/v1", R2AI_API_OPENAI_COMPATIBLE, true, true },
 	{ "mistral", "https://api.mistral.ai/v1", R2AI_API_OPENAI_COMPATIBLE, true, true },
+	{ "lmstudio", "http://127.0.0.1:1234/v1", R2AI_API_OPENAI_COMPATIBLE, false, true },
 	{ "deepseek", "https://api.deepseek.com/v1", R2AI_API_OPENAI_COMPATIBLE, true, true },
 	{ NULL, NULL, R2AI_API_OPENAI_COMPATIBLE, false, false } // sentinel
 };

@@ -425,6 +425,20 @@ export const providerRegistry: ProviderRegistry = {
     apiStyle: "openai",
     hardcodedModels: ["deepseek-coder", "deepseek-chat"],
   },
+  openrouter: {
+    defaultModel: "openai/gpt-4o-mini",
+    defaultBaseUrl: "https://openrouter.ai/api",
+    authKey: "OPENROUTER_API_KEY",
+    authStyle: "bearer",
+    apiStyle: "openai",
+  },
+  groq: {
+    defaultModel: "llama-3.3-70b-versatile",
+    defaultBaseUrl: "https://api.groq.com/openai",
+    authKey: "GROQ_API_KEY",
+    authStyle: "bearer",
+    apiStyle: "openai",
+  },
 };
 
 export function getProvider(api: string): ProviderConfig | undefined {
