@@ -146,7 +146,7 @@ jobs:
         run: cp decai/decai.r2.js release-artifacts/
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             release-artifacts/**/*.zip
