@@ -7,7 +7,7 @@
 
 static void show_help() {
 	printf (
-		"Usage: r2ai [-vhp:m:q:Eb:Kc:f:ie] <prompt>\n"
+		"Usage: r2ai [-vhp:m:q:Eb:Kc:f:iew] <prompt>\n"
 		"  -v           Show version information\n"
 		"  -h           Show this help message\n"
 		"  -p <provider> Select LLM provider\n"
@@ -19,7 +19,8 @@ static void show_help() {
 		"  -i <script>  Load and interpret script file before executing commands\n"
 		"  -e <var=value> Set configuration variable\n"
 		"  -E           Edit the r2ai rc file\n"
-		"  -K           Edit the API keys file\n");
+		"  -K           Edit the API keys file\n"
+		"  -w           Launch interactive setup wizard\n");
 }
 
 static void show_version() {
@@ -38,6 +39,7 @@ static char *build_conversation(RList *conversation) {
 
 static void r2ai_repl(RCorePluginSession *cps, const char *provider, const char *model, RList *conversation) {
 	RCore *core = cps->core;
+	r2ai_wizard_autorun (core);
 	r_line_set_prompt (core->cons->line, "[r2ai]> ");
 	while (true) {
 		const char *input = r_line_readline (core->cons);
@@ -111,7 +113,7 @@ int main(int argc, const char **argv) {
 	r2ai_init (&cps);
 
 	RGetopt opt;
-	r_getopt_init (&opt, argc, argv, "vhp:m:q:Eb:Kc:f:ie:");
+	r_getopt_init (&opt, argc, argv, "vhp:m:q:Eb:Kc:f:ie:w");
 	while ((c = r_getopt_next (&opt)) != -1) {
 		switch (c) {
 		case 'p':
@@ -161,6 +163,12 @@ int main(int argc, const char **argv) {
 		case 'K':
 			{
 				r2ai_apikeys_edit (&cps);
+				goto beach;
+			}
+			break;
+		case 'w':
+			{
+				r2ai_wizard (core);
 				goto beach;
 			}
 			break;

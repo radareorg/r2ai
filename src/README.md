@@ -43,6 +43,7 @@ Usage: r2ai   [-args] [...]
 | r2ai -q                 list available query prompts
 | r2ai -q [name] (inst)   run predefined prompt with optional instructions
 | r2ai -r                 enter the chat repl
+| r2ai -w                 launch the interactive setup wizard
 | r2ai -L                 show chat logs (See -Lj for json). Only for auto mode.
 | r2ai -L-[N]             delete the last (or N last messages from the chat history)
 | r2ai -R                 reset the chat conversation context
@@ -97,6 +98,8 @@ These can be set with `r2ai -e <keyname>=<value>`
 | r2ai.lang        | Tells LLM which programming language to use for decompilation result. Only works for `r2ai -d` |
 | r2ai.hlang       | Tells LLM in which language to speak                                                           |
 | r2ai.prompt      | User prompt to send to LLM with `r2ai -d` |
+| r2ai.clippy      | Display chat replies using `r2clippy` instead of plain text |
+| r2ai.wizard      | Auto-start the setup wizard on the first interactive chat session |
 | r2ai.auto.max_runs | Maximum loops when using auto mode `r2ai -a` |
 | r2ai.auto.verbose | Only for auto mode `r2ai -a`. Will show the output of the tool which ran locally |
 | r2ai.auto.yolo | Set this to true if you don't want r2ai to ask you for approval before running commands sent by the LLM. This is **dangerous**. Recommendation: **leave this to false** unless you fully trust your LLM not to create havoc! |
