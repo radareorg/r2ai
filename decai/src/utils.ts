@@ -5,12 +5,9 @@ export function tmpdir(path: string): string {
   return dir + "/" + path;
 }
 
-export function ensureDir(path: string): void {
-  r2.cmd("'mkdir -p " + path);
-}
-
-export function ensureFile(path: string): void {
-  r2.cmd("'touch " + path);
+export function ensurePath(dir: string, file: string): void {
+  r2.cmd("'mkdir -p " + dir);
+  r2.cmd("'touch " + file);
 }
 
 export function fileExists(path: string): boolean {

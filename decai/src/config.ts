@@ -4,7 +4,7 @@ import { defaultState, state } from "./state";
 import { listModelsFor } from "./models";
 import { listProviders } from "./providers";
 import { formatHeaders, parseHeaders } from "./headers";
-import { ensureDir, ensureFile, fileExists } from "./utils";
+import { ensurePath, fileExists } from "./utils";
 
 let rcConfigLoaded = false;
 
@@ -144,26 +144,10 @@ export const configHandlers: ConfigHandlers = {
 };
 
 function resetRcConfigState(): void {
+  const keep = { host: state.host, port: state.port, lastOutput: state.lastOutput };
+  Object.assign(state, defaultState, keep);
   state.decopipe = { ...defaultState.decopipe };
-  state.baseurl = defaultState.baseurl;
   state.extraHeaders = [...defaultState.extraHeaders];
-  state.api = defaultState.api;
-  state.pipeline = defaultState.pipeline;
-  state.commands = defaultState.commands;
-  state.yolo = defaultState.yolo;
-  state.tts = defaultState.tts;
-  state.language = defaultState.language;
-  state.humanLanguage = defaultState.humanLanguage;
-  state.deterministic = defaultState.deterministic;
-  state.debug = defaultState.debug;
-  state.timeout = defaultState.timeout;
-  state.think = defaultState.think;
-  state.useFiles = defaultState.useFiles;
-  state.contextFile = defaultState.contextFile;
-  state.model = defaultState.model;
-  state.cache = defaultState.cache;
-  state.maxInputTokens = defaultState.maxInputTokens;
-  state.prompt = defaultState.prompt;
 }
 
 function normalizeRcLine(line: string): string | null {
@@ -224,8 +208,7 @@ export function ensureRcConfigLoaded(): void {
 }
 
 export function editRcConfig(): void {
-  ensureDir(DECAI_CONFIG_DIR);
-  ensureFile(DECAI_CONFIG_PATH);
+  ensurePath(DECAI_CONFIG_DIR, DECAI_CONFIG_PATH);
   r2.cmd("'ed " + DECAI_CONFIG_PATH);
   loadRcConfig();
   rcConfigLoaded = true;

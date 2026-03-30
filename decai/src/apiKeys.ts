@@ -1,6 +1,6 @@
 import { API_KEYS_PATH, DECAI_CONFIG_DIR } from "./constants";
 import { ApiKeyResult } from "./types";
-import { ensureDir, ensureFile, fileExists, parseEnvLikeString } from "./utils";
+import { ensurePath, fileExists, parseEnvLikeString } from "./utils";
 
 const PROVIDER_ENV_MAP: Record<string, string> = {
   mistral: "MISTRAL_API_KEY",
@@ -45,8 +45,7 @@ export function getApiKey(provider: string, envvar: string): ApiKeyResult {
 }
 
 export function editApiKeys(): void {
-  ensureDir(DECAI_CONFIG_DIR);
-  ensureFile(API_KEYS_PATH);
+  ensurePath(DECAI_CONFIG_DIR, API_KEYS_PATH);
   r2.cmd("'ed " + API_KEYS_PATH);
 }
 
