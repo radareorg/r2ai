@@ -1,5 +1,5 @@
 project('r2ai', 'c',
-  version : '1.3.2',
+  version : '1.3.4',
   default_options : ['warning_level=2', 'c_std=c11']
 )
 
