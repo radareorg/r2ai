@@ -178,6 +178,9 @@ R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider) {
 		if (R_STR_ISNOTEMPTY (host)) {
 			if (r_str_startswith (host, "http")) {
 				if (p->api_type == R2AI_API_OPENAI_COMPATIBLE) {
+					if (r_str_endswith (host, "/v1")) {
+						return r_str_newf ("%s", host);
+					}
 					return r_str_newf ("%s/v1", host);
 				}
 				return r_str_newf ("%s/api", host);
