@@ -1,8 +1,5 @@
 name: CI and Release
 
-env:
-  R2V: 6.0.4
-
 on:
   push:
     branches:
@@ -34,38 +31,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install meson ninja
 
-      - name: Install radare2 on Linux
-        if: matrix.os == 'ubuntu-24.04'
-        run: |
-          wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2_${R2V}_amd64.deb"
-          wget "https://github.com/radareorg/radare2/releases/download/${R2V}/radare2-dev_${R2V}_amd64.deb"
-          sudo dpkg -i "radare2_${R2V}_amd64.deb"
-          sudo dpkg -i "radare2-dev_${R2V}_amd64.deb"
-
-      - name: Install radare2 on macOS
-        if: matrix.os == 'macos-latest'
-        run: |
-          git clone --depth=1 --branch "${{env.R2V}}" https://github.com/radareorg/radare2
-          cd radare2
-          sys/install.sh
-
-      - name: Install radare2 on Windows
-        if: matrix.os == 'windows-latest'
-        shell: powershell
-        run: |
-          $url = "https://github.com/radareorg/radare2/releases/download/${{ env.R2V }}/radare2-${{ env.R2V }}-w64.zip"
-          $dest = "$env:TEMP\radare2.zip"
-          Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
-          $prefix = 'C:\radare2'
-          if (Test-Path $prefix) { Remove-Item -Path $prefix -Recurse -Force }
-          Expand-Archive -Path $dest -DestinationPath $prefix -Force
-          # Move contents from subdirectory if present
-          $subdirs = Get-ChildItem -Path $prefix -Directory
-          if ($subdirs.Count -eq 1) {
-            $subdir = $subdirs[0]
-            Get-ChildItem -Path $subdir.FullName | Move-Item -Destination $prefix -Force
-            Remove-Item -Path $subdir.FullName -Recurse -Force
-          }
+      - name: Install radare2
+        id: r2
+        uses: radareorg/github-actions@v1
 
       - name: Build with Make
         if: matrix.build_system == 'make'
@@ -75,7 +43,7 @@ jobs:
         if: matrix.build_system == 'meson' && matrix.os != 'windows-latest'
         run: |
           cd src
-          meson setup build -Dr2_prefix=${{ secrets.R2_PREFIX }} || meson configure build
+          meson setup build || meson configure build
           meson compile -C build
 
       - name: Build with Meson (Windows)
@@ -83,7 +51,7 @@ jobs:
         shell: powershell
         run: |
           cd src
-          $prefix = 'C:\radare2'
+          $prefix = "${{ steps.r2.outputs.prefix }}"
           meson setup build --backend ninja --prefix="$prefix" -Dr2_prefix="$prefix"
           if ($LASTEXITCODE -ne 0) { meson configure build }
           meson compile -C build
