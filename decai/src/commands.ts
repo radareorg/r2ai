@@ -26,7 +26,7 @@ export function showHelp(): void {
   msg("-dD [query]   - decompile current function with given extra query");
   msg("-dr           - decompile function and its called ones (recursive)");
   msg("-e            - display and change eval config vars");
-  msg("-E            - edit decai.txt");
+  msg("-E            - edit and run decai.txt");
   msg("-h            - show this help");
   msg("-H            - help setting up r2ai");
   msg("-i [f] [q]    - include given file and query");

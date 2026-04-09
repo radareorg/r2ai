@@ -190,10 +190,10 @@ export function loadRcConfig(): void {
   if (!fileExists(DECAI_CONFIG_PATH)) {
     return;
   }
-  const rcFile = r2.cmd("'cat " + DECAI_CONFIG_PATH);
+  const rcFile = r2.call("cat " + DECAI_CONFIG_PATH);
   for (const line of rcFile.split(/\r?\n/)) {
     const rcLine = normalizeRcLine(line);
-    if (rcLine) {
+    if (rcLine && rcLine[0] != '#') {
       evalConfig(rcLine);
     }
   }
