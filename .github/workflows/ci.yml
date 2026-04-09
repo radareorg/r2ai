@@ -33,7 +33,7 @@ jobs:
 
       - name: Install radare2
         id: r2
-        uses: radareorg/github-actions@main
+        uses: radareorg/github-actions@v1
 
       - name: Build with Make
         if: matrix.build_system == 'make'
