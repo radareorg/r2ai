@@ -288,6 +288,7 @@ export function autoMode(
         break;
       } else {
         console.log("Unknown response\n", JSON.stringify(out));
+        break;
       }
     } catch (e) {
       const response = out.indexOf('response": "');
