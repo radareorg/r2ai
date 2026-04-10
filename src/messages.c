@@ -1,4 +1,4 @@
-/* r2ai - Copyright 2023-2025 dnakov, pancake */
+/* r2ai - Copyright 2023-2026 dnakov, pancake */
 
 #include "r2ai.h"
 

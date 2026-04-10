@@ -1,4 +1,4 @@
-/* r2ai - MIT - Copyright 2024-2025 pancake */
+/* r2ai - MIT - Copyright 2024-2026 pancake */
 
 #include <r_util.h>
 

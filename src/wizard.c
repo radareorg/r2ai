@@ -1,4 +1,4 @@
-/* r2ai wizard - Copyright 2025 pancake */
+/* r2ai wizard - Copyright 2025-2026 pancake */
 
 #define R_LOG_ORIGIN "r2ai_wizard"
 

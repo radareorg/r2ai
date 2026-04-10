@@ -1,3 +1,5 @@
+/* Copyright r2ai - 2023-2026 - pancake */
+
 #include <r_core.h>
 #include <r_cons.h>
 #include <r_types.h>

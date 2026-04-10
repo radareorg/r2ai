@@ -1,4 +1,4 @@
-/* r2ai - Copyright 2023-2025 pancake */
+/* r2ai - Copyright 2023-2026 pancake */
 
 #define R_LOG_ORIGIN "rawtools"
 #include "r2ai.h"

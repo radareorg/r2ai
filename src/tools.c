@@ -1,4 +1,4 @@
-/* Copyright r2ai - 2023-2025 - pancake */
+/* Copyright r2ai - 2023-2026 - pancake */
 
 #include "r2ai.h"
 

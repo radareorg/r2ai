@@ -1,4 +1,4 @@
-/* Copyright r2ai - 2023-2025 - pancake */
+/* Copyright r2ai - 2023-2026 - pancake */
 
 #define _GNU_SOURCE
 // #define _POSIX_C_SOURCE 200809L

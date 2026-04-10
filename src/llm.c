@@ -1,3 +1,5 @@
+/* Copyright r2ai - 2023-2026 - pancake */
+
 #define R_LOG_ORIGIN "llm"
 
 #include "r2ai.h"

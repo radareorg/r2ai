@@ -1,4 +1,4 @@
-/* r2ai - Copyright 2023-2025 pancake */
+/* r2ai - Copyright 2023-2026 pancake */
 
 #define R_LOG_ORIGIN "r2ai"
 
@@ -242,16 +242,17 @@ static void cmd_r2ai_i(RCorePluginSession *cps, const char *arg) {
 		*query++ = 0;
 	}
 	char *s = r_file_slurp (fname, NULL);
-	if (R_STR_ISNOTEMPTY (s)) {
+	if (!s) {
 		R_LOG_ERROR ("Cannot open %s", fname);
 		free (fname);
 		return;
 	}
-	char *q = r_str_newf ("%s\n```\n%s\n```\n", query, s);
-	char *error = NULL;
-	char *res =
-		r2ai (cps, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
+	const char *prompt = R_STR_ISNOTEMPTY (query)? query: "Analyze the contents of the following file:";
+	char *q = r_str_newf ("%s\n```\n%s\n```\n", prompt, s);
 	free (s);
+	char *error = NULL;
+	char *res = r2ai (cps, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
+	free (q);
 	if (error) {
 		R_LOG_ERROR (error);
 		free (error);
@@ -260,7 +261,6 @@ static void cmd_r2ai_i(RCorePluginSession *cps, const char *arg) {
 	}
 	free (fname);
 	free (res);
-	free (q);
 }
 
 static void cmd_r2ai_m(RCorePluginSession *cps, const char *input) {
