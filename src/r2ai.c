@@ -47,14 +47,24 @@ R_API char *r2ai(RCorePluginSession *cps, R2AIArgs args) {
 		args.system_prompt = r_config_get (core->config, "r2ai.system");
 	}
 
-	RList *msgs = r2ai_msgs_new ();
-
-	if (args.input) {
-		R2AI_Message msg = { .role = "user", .content = (char *)args.input };
-		r2ai_msgs_add (msgs, &msg);
+	RList *msgs = args.messages;
+	bool own_msgs = false;
+	if (args.input || !msgs) {
+		msgs = r2ai_msgs_new ();
+		own_msgs = true;
+		if (args.messages) {
+			RListIter *iter;
+			R2AI_Message *m;
+			r_list_foreach (args.messages, iter, m) {
+				r2ai_msgs_add (msgs, m);
+			}
+		}
+		if (args.input) {
+			R2AI_Message m = { .role = "user", .content = (char *)args.input };
+			r2ai_msgs_add (msgs, &m);
+		}
+		args.messages = msgs;
 	}
-
-	args.messages = msgs;
 
 	char *content = NULL;
 	R2AI_ChatResponse *res = r2ai_llmcall (cps, args);
@@ -64,6 +74,9 @@ R_API char *r2ai(RCorePluginSession *cps, R2AIArgs args) {
 		}
 		r2ai_message_free ((R2AI_Message *)res->message);
 		free (res);
+	}
+	if (own_msgs) {
+		r2ai_msgs_free (msgs);
 	}
 	return content;
 }
