@@ -115,24 +115,27 @@ export function decompile(
 
     let out = "";
     if (state.decopipe.use) {
-      const dpipe = state.decopipe[state.decopipe.default as string] as {
-        pipeline: Array<{ model?: string; query: string }>;
-        globalQuery: string;
-      };
       const origModel = state.model;
-      let code = text + body;
+      try {
+        const dpipe = state.decopipe[state.decopipe.default as string] as {
+          pipeline: Array<{ model?: string; query: string }>;
+          globalQuery: string;
+        };
+        let code = text + body;
 
-      for (const dp of dpipe.pipeline) {
-        if (dp.model) state.model = dp.model;
-        const query = dp.query + ". " + dpipe.globalQuery;
-        out = r2ai(query, code, true);
-        if (state.debug) {
-          console.log("QUERY\n", query, "\nINPUT\n", code, "\nOUTPUT\n", out);
+        for (const dp of dpipe.pipeline) {
+          if (dp.model) state.model = dp.model;
+          const query = dp.query + ". " + dpipe.globalQuery;
+          out = r2ai(query, code, true);
+          if (state.debug) {
+            console.log("QUERY\n", query, "\nINPUT\n", code, "\nOUTPUT\n", out);
+          }
+          code = out;
         }
-        code = out;
+        out = code;
+      } finally {
+        state.model = origModel;
       }
-      out = code;
-      state.model = origModel;
     } else {
       const query = appendQuery;
       text += body + context;
