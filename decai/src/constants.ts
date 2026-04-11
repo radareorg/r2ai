@@ -1,4 +1,4 @@
-export const VERSION = "1.3.4";
+export const VERSION = "1.3.6";
 export const COMMAND = "decai";
 export const DECAI_CONFIG_DIR = "~/.config/r2ai";
 export const API_KEYS_PATH = DECAI_CONFIG_DIR + "/apikeys.txt";
