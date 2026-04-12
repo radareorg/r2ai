@@ -120,11 +120,18 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 			r_vdb_result_free (rs);
 		}
 		char *m = r_strbuf_drain (sb);
-		R2AI_Message msg = { .role = "user", .content = m };
-		context_pullback = r_list_length (args.messages);
-		r2ai_msgs_add (args.messages, &msg);
-		free (m);
-		// TODO: we can save the msg without context
+		int last = r_list_length (args.messages) - 1;
+		R2AI_Message *last_msg = (last >= 0)? r_list_get_n (args.messages, last): NULL;
+		if (last_msg && last_msg->role && !strcmp (last_msg->role, "user")) {
+			free ((char *)last_msg->content);
+			last_msg->content = m;
+			context_pullback = last;
+		} else {
+			R2AI_Message msg = { .role = "user", .content = m };
+			context_pullback = r_list_length (args.messages);
+			r2ai_msgs_add (args.messages, &msg);
+			free (m);
+		}
 	}
 
 	// Add the rest of the messages one by one
