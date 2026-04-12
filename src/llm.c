@@ -99,6 +99,10 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	if (!args.messages) {
 		args.messages = r2ai_msgs_new ();
 	}
+	if (args.input && args.messages && r_list_empty (args.messages)) {
+		R2AI_Message msg = { .role = "user", .content = (char *)args.input };
+		r2ai_msgs_add (args.messages, &msg);
+	}
 	int context_pullback = -1;
 	// context and user message
 	if (args.input && r_config_get_b (core->config, "r2ai.data")) {
@@ -132,13 +136,6 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 			r2ai_msgs_add (args.messages, &msg);
 			free (m);
 		}
-	}
-
-	// Add the rest of the messages one by one
-	if (!args.messages && args.input) {
-		R2AI_Message msg = { .role = "user", .content = (char *)args.input };
-		args.messages = r2ai_msgs_new ();
-		r2ai_msgs_add (args.messages, &msg);
 	}
 
 	args.thinking_tokens = r_config_get_i (core->config, "r2ai.thinking_tokens");
