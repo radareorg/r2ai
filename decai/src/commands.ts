@@ -362,6 +362,12 @@ function getFlagValue(args: string): string {
   return args.slice(2).trim();
 }
 
+function currentFunctionExists(): boolean {
+  return r2.cmd("afi.").trim().length > 0;
+}
+
+const noFunctionMessage = "Cannot find function at current offset";
+
 export function handleCommand(
   args: string,
   mainHandler: (args: string) => boolean,
@@ -397,6 +403,10 @@ export function handleCommand(
 
     case "n":
     case "f": {
+      if (!currentFunctionExists()) {
+        output = noFunctionMessage;
+        break;
+      }
       output = r2.cmd("axff~$[3]");
       const considerations = r2
         .cmd("fd.")
@@ -415,7 +425,11 @@ export function handleCommand(
       break;
     }
 
-    case "v":
+    case "v": {
+      if (!currentFunctionExists()) {
+        output = noFunctionMessage;
+        break;
+      }
       output = r2.cmd("afv;pdc");
       output = r2ai(
         "guess a better name and type for each local variable and function argument taking using. output an r2 script using afvn and afvt commands",
@@ -423,6 +437,7 @@ export function handleCommand(
         false,
       );
       break;
+    }
 
     case "i": {
       const parts = argValue.split(/\s+/).filter(Boolean);
@@ -460,6 +475,10 @@ export function handleCommand(
       break;
 
     case "s":
+      if (!currentFunctionExists()) {
+        output = noFunctionMessage;
+        break;
+      }
       output = suggestSignature();
       break;
 
@@ -515,6 +534,10 @@ export function handleCommand(
       break;
 
     case "x":
+      if (!currentFunctionExists()) {
+        output = noFunctionMessage;
+        break;
+      }
       output = explainFunction();
       if (args[2] === "*" || args[2] === "r") {
         output = "'CC " + output;
