@@ -118,7 +118,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	pj_kb (pj, "stream", false);
 
 	if (provider_info && provider_info->api_type == R2AI_API_OLLAMA) {
-		// Ollama uses "options" object for parameters
+		pj_kb (pj, "think", args.thinking_tokens > 0);
 		pj_ko (pj, "options");
 		if (args.max_tokens) {
 			pj_kn (pj, "num_predict", args.max_tokens);
