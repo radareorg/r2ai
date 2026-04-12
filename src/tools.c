@@ -493,11 +493,11 @@ R_API char *r2ai_qjs(RCore *core, RJson *args, bool verbose, char **edited_scrip
 	// Free edited_script after we're done using it
 	free (edited_script);
 
-	R_LOG_DEBUG ("Payload length: %d", (int)strlen (payload));
-
 	if (!payload) {
 		return strdup ("{ \"res\":\"Failed to create script payload\" }");
 	}
+
+	R_LOG_DEBUG ("Payload length: %d", (int)strlen (payload));
 
 	char *payload_base64 = r_base64_encode_dyn ((const ut8 *)payload, strlen (payload));
 	if (!payload_base64) {

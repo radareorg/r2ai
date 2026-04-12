@@ -136,7 +136,7 @@ static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool re
 	char *res = r2ai (cps, d_args);
 	free (s);
 	if (error) {
-		R_LOG_ERROR (error);
+		R_LOG_ERROR ("%s", error);
 		free (error);
 	} else {
 		r_cons_printf (core->cons, "%s\n", res);
@@ -254,7 +254,7 @@ static void cmd_r2ai_i(RCorePluginSession *cps, const char *arg) {
 	char *res = r2ai (cps, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
 	free (q);
 	if (error) {
-		R_LOG_ERROR (error);
+		R_LOG_ERROR ("%s", error);
 		free (error);
 	} else {
 		r_cons_printf (core->cons, "%s\n", res);

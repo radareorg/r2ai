@@ -51,11 +51,11 @@ R_API R2AIPrompt *parse_prompt_file(const char *filepath) {
 				r_str_trim (key);
 				r_str_trim (value);
 				if (!strcmp (key, "title")) {
-					prompt->desc = strdup (value);
+					prompt->title = strdup (value);
 				} else if (!strcmp (key, "author")) {
 					prompt->author = strdup (value);
 				} else if (!strcmp (key, "description")) {
-					prompt->title = strdup (value);
+					prompt->desc = strdup (value);
 				} else if (!strcmp (key, "command")) {
 					prompt->command = strdup (value);
 				} else if (!strcmp (key, "model")) {
