@@ -17,7 +17,7 @@ export const defaultState: AppState = {
   deterministic: true,
   debug: false,
   timeout: 180,
-  think: -1,
+  think: "",
   useFiles: false,
   contextFile: "",
   model: "",

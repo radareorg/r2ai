@@ -210,6 +210,7 @@ const providerRuntimes: Record<ApiStyle, ProviderRuntime> = {
         model: string;
         max_tokens: number;
         messages: Array<{ role: string; content: string }>;
+        thinking?: { type: string; budget_tokens?: number };
         temperature?: number;
         top_p?: number;
         top_k?: number;
@@ -218,14 +219,26 @@ const providerRuntimes: Record<ApiStyle, ProviderRuntime> = {
         max_tokens: 5128,
         messages: [{ role: "user", content: query }],
       };
-      if (state.deterministic) {
+      if (isThinkEnabled()) {
+        payload.thinking = { type: "enabled", budget_tokens: 4096 };
+        payload.max_tokens = 16000;
+      }
+      if (state.deterministic && !isThinkEnabled()) {
         Object.assign(payload, { temperature: 0, top_p: 0, top_k: 1 });
       }
       return payload;
     },
     parseResponse: (response) => {
-      if (response.content && response.content[0]?.text) {
-        return filterResponse(response.content[0].text);
+      if (response.content && Array.isArray(response.content)) {
+        const parts: string[] = [];
+        for (const block of response.content as Array<Record<string, unknown>>) {
+          if (block.text) {
+            parts.push(block.text as string);
+          }
+        }
+        if (parts.length > 0) {
+          return filterResponse(parts.join("\n"));
+        }
       }
       if (response.error) {
         const error = typeof response.error === "object"
@@ -243,6 +256,7 @@ const providerRuntimes: Record<ApiStyle, ProviderRuntime> = {
         stream: boolean;
         model: string;
         messages: Array<{ role: string; content: string }>;
+        think?: boolean | string;
         options?: {
           repeat_last_n: number;
           top_p: number;
@@ -256,6 +270,18 @@ const providerRuntimes: Record<ApiStyle, ProviderRuntime> = {
         model,
         messages: [{ role: "user", content: query }],
       };
+      if (isThinkEnabled()) {
+        if (state.think === "true" || state.think === "1") {
+          payload.think = true;
+        } else {
+          // Pass reasoning levels like "low", "medium", "high" as-is
+          payload.think = state.think;
+        }
+      } else {
+        // Disable thinking by default — models like glm-5 enable it
+        // implicitly, generating thousands of reasoning tokens
+        payload.think = false;
+      }
       if (state.deterministic) {
         payload.options = {
           repeat_last_n: 0,
@@ -283,32 +309,38 @@ const providerRuntimes: Record<ApiStyle, ProviderRuntime> = {
     buildUrl: (baseUrl) => baseUrl + "/api/chat",
   },
   gemini: {
-    buildPayload: (model, query) => {
+    buildPayload: (_model, query) => {
       const payload: {
         contents: Array<{ parts: Array<{ text: string }> }>;
-        generationConfig?: {
-          temperature: number;
-          topP: number;
-          topK: number;
-        };
+        generationConfig?: Record<string, unknown>;
       } = {
         contents: [{ parts: [{ text: query }] }],
       };
+      const genConfig: Record<string, unknown> = {};
       if (state.deterministic) {
-        payload.generationConfig = {
-          temperature: 0.0,
-          topP: 1.0,
-          topK: 1,
-        };
+        Object.assign(genConfig, { temperature: 0.0, topP: 1.0, topK: 1 });
+      }
+      if (state.think !== "") {
+        if (isThinkDisabled()) {
+          genConfig.thinkingConfig = { thinkingBudget: 0 };
+        } else {
+          genConfig.thinkingConfig = { thinkingBudget: 8192 };
+        }
+      }
+      if (Object.keys(genConfig).length > 0) {
+        payload.generationConfig = genConfig;
       }
       return payload;
     },
     parseResponse: (response) => {
-      if (
-        response.candidates &&
-        response.candidates[0]?.content?.parts?.[0]?.text
-      ) {
-        return filterResponse(response.candidates[0].content.parts[0].text);
+      if (response.candidates && response.candidates[0]?.content?.parts) {
+        const parts = response.candidates[0].content.parts as Array<Record<string, unknown>>;
+        const textParts = parts
+          .filter((p) => !p.thought && p.text)
+          .map((p) => p.text as string);
+        if (textParts.length > 0) {
+          return filterResponse(textParts.join("\n"));
+        }
       }
       if (response.error) {
         throw new Error(
@@ -473,15 +505,24 @@ export function listModels(providerName: string): string {
   }
 }
 
-function buildQuery(msg: string, hideprompt: boolean): string {
+function isThinkDisabled(): boolean {
+  return state.think === "false" || state.think === "0";
+}
+
+function isThinkEnabled(): boolean {
+  return state.think !== "" && !isThinkDisabled();
+}
+
+function buildQuery(msg: string, hideprompt: boolean, apiStyle: ApiStyle): string {
   let query = msg;
 
-  if (state.think >= 0) {
-    if (state.think === 0) {
+  // Only add prompt-based thinking hints for APIs without native think support
+  if (state.think !== "" && apiStyle === "openai") {
+    if (isThinkDisabled()) {
       query +=
         ' Answers directly and concisely, without showing any thinking steps or internal reasoning. Never include phrases like "Let me think".';
       query += " /no_think";
-    } else if (state.think > 0) {
+    } else {
       query =
         "Think step by step and explain the reasoning process, When answering, first output your reasoning inside <think> and </think> tags, then give the final answer." +
         query;
@@ -503,7 +544,7 @@ function callRuntime(
   hideprompt: boolean,
 ): string {
   const model = state.model || provider.defaultModel;
-  const query = buildQuery(msg, hideprompt);
+  const query = buildQuery(msg, hideprompt, provider.apiStyle);
   const apiKey = readProviderKey(provider);
 
   if (runtime.requiresUrlApiKey && apiKey?.[1] && provider.authKey) {
@@ -511,9 +552,11 @@ function callRuntime(
   }
 
   const payload = runtime.buildPayload(model, query);
-  const headers = getProviderHeaders(
-    buildAuthHeaders(provider, apiKey?.[0] || null),
-  );
+  const authHeaders = buildAuthHeaders(provider, apiKey?.[0] || null);
+  if (provider.apiStyle === "ollama") {
+    authHeaders.push("Accept: application/x-ndjson");
+  }
+  const headers = getProviderHeaders(authHeaders);
   const url = runtime.buildUrl(
     getProviderBaseUrl(provider),
     model,

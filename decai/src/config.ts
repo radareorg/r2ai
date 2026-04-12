@@ -47,9 +47,9 @@ export const configHandlers: ConfigHandlers = {
     },
   },
   think: {
-    get: () => state.think,
+    get: () => state.think || "false",
     set: (v: string) => {
-      state.think = v === "true" ? 1 : v === "false" ? 0 : +v;
+      state.think = v;
     },
   },
   debug: {

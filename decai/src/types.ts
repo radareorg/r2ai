@@ -50,7 +50,7 @@ export interface AppState {
   deterministic: boolean;
   debug: boolean;
   timeout: number;
-  think: number;
+  think: string;
   useFiles: boolean;
   contextFile: string;
   model: string;

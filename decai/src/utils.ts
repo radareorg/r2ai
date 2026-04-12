@@ -51,9 +51,7 @@ export function fileDump(fileName: string, fileData: string): void {
 
 export function filterResponse(msg: string): string {
   let result = msg;
-  if (state.think !== 2) {
-    result = result.replace(/<think>[\s\S]*?<\/think>/gi, "");
-  }
+  result = result.replace(/<think>[\s\S]*?<\/think>/gi, "");
   return result
     .split("\n")
     .filter((line) => !line.trim().startsWith("```"))

@@ -29,9 +29,8 @@ function executeCurl(options: HttpRequestOptions): string {
   if (method === "POST") {
     if (!payload) throw new Error("Payload required for POST requests");
     const tmpfile = r2.fdump(payload);
-    cmdParts.push("--data-binary", "@-", shellEscape(url));
-    const cmd = cmdParts.join(" ") + " < " + shellEscape(tmpfile) +
-      " && rm " + shellEscape(tmpfile);
+    cmdParts.push("--data-binary", "@" + shellEscape(tmpfile), shellEscape(url));
+    const cmd = cmdParts.join(" ") + "; rm " + shellEscape(tmpfile);
     debugLog(cmd);
     return r2.syscmds(cmd);
   } else {
@@ -40,6 +39,33 @@ function executeCurl(options: HttpRequestOptions): string {
     debugLog(cmd);
     return r2.syscmds(cmd);
   }
+}
+
+function parseNdjson(output: string): HttpResponse | null {
+  const lines = output.split("\n").filter((l) => l.trim() !== "");
+  if (lines.length <= 1) return null;
+
+  let content = "";
+  let lastObj: Record<string, unknown> | null = null;
+
+  for (const line of lines) {
+    try {
+      const obj = JSON.parse(line);
+      if (obj.error) return obj as HttpResponse;
+      if (obj.message?.content !== undefined) {
+        content += obj.message.content;
+      }
+      lastObj = obj;
+    } catch {
+      return null;
+    }
+  }
+
+  if (lastObj) {
+    lastObj.message = { role: "assistant", content };
+    return lastObj as HttpResponse;
+  }
+  return null;
 }
 
 export function httpRequest(options: HttpRequestOptions): HttpResponse {
@@ -51,6 +77,8 @@ export function httpRequest(options: HttpRequestOptions): HttpResponse {
     try {
       return JSON.parse(output) as HttpResponse;
     } catch {
+      const ndjson = parseNdjson(output);
+      if (ndjson) return ndjson;
       return { error: output, rawOutput: output };
     }
   } catch (e) {
