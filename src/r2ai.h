@@ -240,9 +240,15 @@ R_API void r2ai_msgs_free(RList *msgs);
 R_API void r2ai_conversation_free(R2AI_State *state);
 
 /**
- * Free a R2AI_Message structure
+ * Free a heap-allocated R2AI_Message (owned fields and the struct itself).
  */
 R_API void r2ai_message_free(R2AI_Message *msg);
+
+/**
+ * Release the owned fields of a R2AI_Message without freeing the struct.
+ * Use this for stack-allocated messages or when the caller owns the storage.
+ */
+R_API void r2ai_message_fini(R2AI_Message *msg);
 
 /**
  * Delete the last N messages from the message array

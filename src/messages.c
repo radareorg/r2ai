@@ -27,23 +27,28 @@ R_API void r2ai_content_blocks_free(RList *cb) {
 	r_list_free (cb);
 }
 
-R_API void r2ai_message_free(R2AI_Message *msg) {
+R_API void r2ai_message_fini(R2AI_Message *msg) {
 	if (!msg) {
 		return;
 	}
 	free (msg->role);
-	free ((void *)msg->content); // maybe double free
+	free ((void *)msg->content);
 	free (msg->reasoning_content);
 	free (msg->tool_call_id);
-
-	// Free tool calls
 	if (msg->tool_calls) {
 		r_list_free (msg->tool_calls);
 	}
-
 	if (msg->content_blocks) {
 		r2ai_content_blocks_free (msg->content_blocks);
 	}
+	memset (msg, 0, sizeof (*msg));
+}
+
+R_API void r2ai_message_free(R2AI_Message *msg) {
+	if (!msg) {
+		return;
+	}
+	r2ai_message_fini (msg);
 	free (msg);
 }
 
@@ -108,7 +113,6 @@ R_API bool r2ai_msgs_add(RList *msgs, const R2AI_Message *msg) {
 		RList *cb = r2ai_content_blocks_new ();
 		if (!cb) {
 			r2ai_message_free (new_msg);
-			free (new_msg);
 			return false;
 		}
 		RListIter *iter;
@@ -132,7 +136,6 @@ R_API bool r2ai_msgs_add(RList *msgs, const R2AI_Message *msg) {
 	new_msg->tool_calls = r_list_new ();
 	if (!new_msg->tool_calls) {
 		r2ai_message_free (new_msg);
-		free (new_msg);
 		return false;
 	}
 	new_msg->tool_calls->free = (RListFree)r2ai_tool_call_free;
@@ -229,7 +232,7 @@ R_API bool r2ai_msgs_from_json(RList *msgs, const RJson *json) {
 	if (content_blocks && content_blocks->type == R_JSON_ARRAY && content_blocks->children.count > 0) {
 		RList *cb = r2ai_content_blocks_new ();
 		if (!cb) {
-			r2ai_message_free (&new_msg);
+			r2ai_message_fini (&new_msg);
 			return false;
 		}
 		for (size_t i = 0; i < content_blocks->children.count; i++) {
@@ -240,7 +243,7 @@ R_API bool r2ai_msgs_from_json(RList *msgs, const RJson *json) {
 			R2AI_ContentBlock *dst = R_NEW0 (R2AI_ContentBlock);
 			if (!dst) {
 				r2ai_content_blocks_free (cb);
-				r2ai_message_free (&new_msg);
+				r2ai_message_fini (&new_msg);
 				return false;
 			}
 			const RJson *type = r_json_get (block, "type");
@@ -267,7 +270,7 @@ R_API bool r2ai_msgs_from_json(RList *msgs, const RJson *json) {
 
 	// Add the message without tool calls first
 	if (!r2ai_msgs_add (msgs, &new_msg)) {
-		r2ai_message_free (&new_msg);
+		r2ai_message_fini (&new_msg);
 		return false;
 	}
 
@@ -296,7 +299,7 @@ R_API bool r2ai_msgs_from_json(RList *msgs, const RJson *json) {
 			tc.id = (id && id->type == R_JSON_STRING)? id->str_value: NULL;
 
 			if (!r2ai_msgs_add_tool_call (msgs, &tc)) {
-				r2ai_message_free (&new_msg);
+				r2ai_message_fini (&new_msg);
 				return false;
 			}
 		}
