@@ -44,24 +44,23 @@ function formatHeader(header: ParsedHeader): string {
     : `${header.name}: ${header.value}`;
 }
 
+function collectHeaders(
+  headerLines: string[],
+  into: Map<string, string>,
+): void {
+  for (const rawLine of headerLines) {
+    const header = parseHeaderLine(rawLine.trim());
+    if (header) {
+      into.set(normalizeHeaderName(header.name), formatHeader(header));
+    }
+  }
+}
+
 export function parseHeaders(value: string): string[] {
   const headers = new Map<string, string>();
-  const normalized = value.replace(/\\n/g, "\n");
-
-  for (const rawLine of normalized.split(/\r?\n/g)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#")) {
-      continue;
-    }
-
-    const header = parseHeaderLine(line);
-    if (!header) {
-      continue;
-    }
-
-    headers.set(normalizeHeaderName(header.name), formatHeader(header));
-  }
-
+  const lines = value.replace(/\\n/g, "\n").split(/\r?\n/g)
+    .filter((l) => { const t = l.trim(); return t && !t.startsWith("#"); });
+  collectHeaders(lines, headers);
   return Array.from(headers.values());
 }
 
@@ -71,17 +70,9 @@ export function formatHeaders(headers: string[]): string {
 
 export function mergeHeaders(...groups: string[][]): string[] {
   const merged = new Map<string, string>();
-
   for (const group of groups) {
-    for (const rawHeader of group) {
-      const header = parseHeaderLine(rawHeader);
-      if (!header) {
-        continue;
-      }
-      merged.set(normalizeHeaderName(header.name), formatHeader(header));
-    }
+    collectHeaders(group, merged);
   }
-
   return Array.from(merged.values());
 }
 

@@ -1,22 +1,15 @@
 import { API_KEYS_PATH, DECAI_CONFIG_DIR } from "./constants";
+import { providerRegistry } from "./providers";
 import { ApiKeyResult } from "./types";
 import { ensurePath, fileExists, parseEnvLikeString } from "./utils";
 
-const PROVIDER_ENV_MAP: Record<string, string> = {
-  mistral: "MISTRAL_API_KEY",
-  anthropic: "ANTHROPIC_API_KEY",
-  huggingface: "HUGGINGFACE_API_KEY",
-  openai: "OPENAI_API_KEY",
-  gemini: "GEMINI_API_KEY",
-  deepseek: "DEEPSEEK_API_KEY",
-  xai: "XAI_API_KEY",
-  ollama: "OLLAMA_API_KEY",
-  ollamacloud: "OLLAMA_API_KEY",
-  opencode: "OPENCODE_API_KEY",
-  zen: "OPENCODE_API_KEY",
-  openrouter: "OPENROUTER_API_KEY",
-  groq: "GROQ_API_KEY",
-};
+function getProviderEnvMap(): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(providerRegistry)
+      .filter(([, v]) => v.authKey)
+      .map(([k, v]) => [k, v.authKey!]),
+  );
+}
 
 export function getApiKey(provider: string, envvar: string): ApiKeyResult {
   const keyEnv = r2.cmd("'%" + envvar).trim();
@@ -52,12 +45,9 @@ export function editApiKeys(): void {
 }
 
 export function listApiKeys(): void {
-  Object.entries(PROVIDER_ENV_MAP).forEach(([key, env]) => {
+  Object.entries(getProviderEnvMap()).forEach(([key, env]) => {
     const status = getApiKey(key, env)[2];
     console.log(status, "\t", key);
   });
 }
 
-export function getProviderEnvVar(provider: string): string {
-  return PROVIDER_ENV_MAP[provider.toLowerCase()] || "";
-}

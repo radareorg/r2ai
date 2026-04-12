@@ -55,7 +55,10 @@ function getErrorMessage(error: HttpResponse["error"]): string | undefined {
   if (!error) {
     return undefined;
   }
-  return typeof error === "string" ? error : error.message;
+  if (typeof error === "string") {
+    return error;
+  }
+  return error.message || JSON.stringify(error);
 }
 
 function getProviderBaseUrl(provider: ProviderConfig): string {
@@ -120,39 +123,25 @@ function uniqueBy<T>(items: T[], getKey: (item: T) => string): T[] {
   });
 }
 
-function listOpenAIModels(provider: ProviderConfig): string {
-  const apiKey = readProviderKey(provider);
-  const baseUrl = getProviderBaseUrl(provider);
-  const headers = getProviderHeaders(
-    buildAuthHeaders(provider, apiKey?.[0] || null),
-  );
-  return listDataModels(
-    baseUrl + "/v1/models",
-    headers,
-    (model) => model.id,
-  );
+function getProviderRequest(provider: ProviderConfig): {
+  baseUrl: string;
+  headers: string[];
+} {
+  const apiKey = readProviderKey(provider)?.[0] || null;
+  return {
+    baseUrl: getProviderBaseUrl(provider),
+    headers: getProviderHeaders(buildAuthHeaders(provider, apiKey)),
+  };
 }
 
-function listAnthropicModels(provider: ProviderConfig): string {
-  const apiKey = readProviderKey(provider);
-  const baseUrl = getProviderBaseUrl(provider);
-  const headers = getProviderHeaders(
-    buildAuthHeaders(provider, apiKey?.[0] || null),
-  );
-  return listDataModels(
-    baseUrl + "/v1/models",
-    headers,
-    (model) => model.id,
-  );
+function listV1Models(provider: ProviderConfig): string {
+  const { baseUrl, headers } = getProviderRequest(provider);
+  return listDataModels(baseUrl + "/v1/models", headers, (model) => model.id);
 }
 
 function listOllamaModels(provider: ProviderConfig): string {
-  const response = httpGet(
-    getProviderBaseUrl(provider) + "/api/tags",
-    getProviderHeaders(
-      buildAuthHeaders(provider, readProviderKey(provider)?.[0] || null),
-    ),
-  );
+  const { baseUrl, headers } = getProviderRequest(provider);
+  const response = httpGet(baseUrl + "/api/tags", headers);
   const error = getErrorMessage(response.error);
   if (error) {
     console.error(error);
@@ -164,11 +153,8 @@ function listOllamaModels(provider: ProviderConfig): string {
 }
 
 function listMistralModels(provider: ProviderConfig): string {
-  const apiKey = readProviderKey(provider);
-  const response = httpGet(
-    getProviderBaseUrl(provider) + "/v1/models",
-    getProviderHeaders(buildAuthHeaders(provider, apiKey?.[0] || null)),
-  );
+  const { baseUrl, headers } = getProviderRequest(provider);
+  const response = httpGet(baseUrl + "/v1/models", headers);
   if (response.data) {
     return uniqueBy(response.data, (model) => model.name || model.id)
       .map((model) =>
@@ -192,10 +178,7 @@ const providerRuntimes: Record<ApiStyle, ProviderRuntime> = {
     }),
     parseResponse: (response) => {
       if (response.error) {
-        const error = typeof response.error === "object"
-          ? response.error.message
-          : response.error;
-        throw new Error(error || "Unknown error");
+        throw new Error(getErrorMessage(response.error) || "Unknown error");
       }
       if (response.choices && response.choices[0]?.message?.content) {
         return filterResponse(response.choices[0].message.content);
@@ -241,10 +224,7 @@ const providerRuntimes: Record<ApiStyle, ProviderRuntime> = {
         }
       }
       if (response.error) {
-        const error = typeof response.error === "object"
-          ? response.error.message
-          : response.error;
-        throw new Error(error || "Unknown error");
+        throw new Error(getErrorMessage(response.error) || "Unknown error");
       }
       throw new Error("Invalid response format");
     },
@@ -296,10 +276,7 @@ const providerRuntimes: Record<ApiStyle, ProviderRuntime> = {
     },
     parseResponse: (response) => {
       if (response.error) {
-        const error = typeof response.error === "string"
-          ? response.error
-          : JSON.stringify(response.error);
-        throw new Error(error);
+        throw new Error(getErrorMessage(response.error));
       }
       if (response.message?.content) {
         return filterResponse(response.message.content);
@@ -343,11 +320,7 @@ const providerRuntimes: Record<ApiStyle, ProviderRuntime> = {
         }
       }
       if (response.error) {
-        throw new Error(
-          typeof response.error === "string"
-            ? response.error
-            : JSON.stringify(response.error),
-        );
+        throw new Error(getErrorMessage(response.error));
       }
       console.log(JSON.stringify(response));
       throw new Error("Invalid response format");
@@ -395,15 +368,6 @@ export const providerRegistry: ProviderRegistry = {
     keyName: "ollamacloud",
     authStyle: "bearer",
     apiStyle: "ollama",
-  },
-  opencode: {
-    defaultModel: "big-pickle",
-    defaultBaseUrl: "https://opencode.ai/zen",
-    authKey: "OPENCODE_API_KEY",
-    keyName: "opencode",
-    authStyle: "bearer",
-    apiStyle: "openai",
-    hardcodedModels: ["big-pickle", "glm-5", "kimi-k2.5"],
   },
   zen: {
     defaultModel: "big-pickle",
@@ -493,9 +457,8 @@ export function listModels(providerName: string): string {
 
   switch (provider.apiStyle) {
     case "openai":
-      return listOpenAIModels(provider);
     case "anthropic":
-      return listAnthropicModels(provider);
+      return listV1Models(provider);
     case "ollama":
       return listOllamaModels(provider);
     case "gemini":

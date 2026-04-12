@@ -3,7 +3,6 @@ import { state } from "./state";
 import { COMMAND, DEFAULT_PROMPT, HELP_TEXT, VERSION } from "./constants";
 import {
   b64,
-  debugLog,
   filterResponse,
   trimAnsi,
   trimDown,
@@ -12,6 +11,16 @@ import {
 import { editApiKeys, listApiKeys } from "./apiKeys";
 import { editRcConfig, evalConfig, listAllConfig } from "./config";
 import { r2ai } from "./r2ai";
+
+function withColorDisabled<T>(fn: () => T): T {
+  const origColor = r2.cmd("e scr.color");
+  r2.cmd("e scr.color=0");
+  try {
+    return fn();
+  } finally {
+    r2.cmd("e scr.color=" + origColor);
+  }
+}
 
 export function showHelp(): void {
   let helpmsg = "";
@@ -72,11 +81,9 @@ export function decompile(
   }
 
   const appendQuery = extraQuery ? " " + args : "";
-  const origColor = r2.cmd("e scr.color");
 
   try {
     const parsedArgs = args.slice(2).trim();
-    let count = 0;
     let text = "";
 
     if (
@@ -88,25 +95,23 @@ export function decompile(
         "\n[END]\n";
     }
 
-    r2.cmd("e scr.color=0");
-    let body = "## Before:\n";
-
-    for (const c of state.commands.split(",")) {
-      if (c.trim() === "") continue;
-
-      const oneliner = extraQuery || parsedArgs.trim().length === 0
-        ? c
-        : c + "@@= " + parsedArgs;
-      const output = r2.cmd(oneliner);
-
-      if (output.length > 5) {
-        body += "Output of " + c + ":\n[START]\n" + output + "\n[END]\n";
-        count++;
+    const { body, count } = withColorDisabled(() => {
+      let body = "## Before:\n";
+      let count = 0;
+      for (const c of state.commands.split(",")) {
+        if (c.trim() === "") continue;
+        const oneliner = extraQuery || parsedArgs.trim().length === 0
+          ? c
+          : c + "@@= " + parsedArgs;
+        const output = r2.cmd(oneliner);
+        if (output.length > 5) {
+          body += "Output of " + c + ":\n[START]\n" + output + "\n[END]\n";
+          count++;
+        }
       }
-    }
-
-    body += "## After:\n";
-    r2.cmd("e scr.color=" + origColor);
+      body += "## After:\n";
+      return { body, count };
+    });
 
     if (count === 0) {
       console.error("Nothing to do.");
@@ -153,7 +158,6 @@ export function decompile(
 
     return out.trim();
   } catch (e) {
-    r2.cmd("e scr.color=" + origColor);
     const err = e as Error;
     console.error(err, err.stack);
     return;
@@ -161,11 +165,10 @@ export function decompile(
 }
 
 export function explainFunction(): string {
-  const origColor = r2.cmd("e scr.color");
-  r2.cmd("e scr.color=0");
-  const hints = "[START]" +
-    state.commands.split(",").map((c) => r2.cmd(c)).join("\n") + "[END]";
-  r2.cmd("e scr.color=" + origColor);
+  const hints = withColorDisabled(() =>
+    "[START]" +
+    state.commands.split(",").map((c) => r2.cmd(c)).join("\n") + "[END]"
+  );
 
   const res = r2ai(
     "Analyze function calls, references, comments and strings, loops and ignore registers and memory accesses. Explain the purpose of this function in a single short sentence. /no_think Do not introduce or argue the response, translation of the explanation in " +

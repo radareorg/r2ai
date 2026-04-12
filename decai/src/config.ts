@@ -1,4 +1,4 @@
-import { ConfigHandlers } from "./types";
+import { ConfigHandler, ConfigHandlers } from "./types";
 import { DECAI_CONFIG_DIR, DECAI_CONFIG_PATH } from "./constants";
 import { defaultState, state } from "./state";
 import { listModelsFor } from "./models";
@@ -10,6 +10,26 @@ let rcConfigLoaded = false;
 
 function parseBoolean(value: string): boolean {
   return value === "true" || value === "1";
+}
+
+type StateKey = keyof typeof state;
+
+function boolHandler(key: StateKey): ConfigHandler {
+  // deno-lint-ignore no-explicit-any
+  const s = state as any;
+  return {
+    get: () => s[key] as boolean,
+    set: (v: string) => { s[key] = parseBoolean(v); },
+  };
+}
+
+function stringHandler(key: StateKey): ConfigHandler {
+  // deno-lint-ignore no-explicit-any
+  const s = state as any;
+  return {
+    get: () => s[key] as string,
+    set: (v: string) => { s[key] = v; },
+  };
 }
 
 export const configHandlers: ConfigHandlers = {
@@ -34,112 +54,43 @@ export const configHandlers: ConfigHandlers = {
       }
     },
   },
-  deterministic: {
-    get: () => state.deterministic,
-    set: (v: string) => {
-      state.deterministic = parseBoolean(v);
-    },
-  },
-  files: {
-    get: () => state.useFiles,
-    set: (v: string) => {
-      state.useFiles = parseBoolean(v);
-    },
-  },
+  deterministic: boolHandler("deterministic"),
+  files: boolHandler("useFiles"),
   think: {
     get: () => state.think || "false",
-    set: (v: string) => {
-      state.think = v;
-    },
+    set: (v: string) => { state.think = v; },
   },
-  debug: {
-    get: () => state.debug,
-    set: (v: string) => {
-      state.debug = parseBoolean(v);
-    },
-  },
+  debug: boolHandler("debug"),
   timeout: {
     get: () => state.timeout,
-    set: (v: string) => {
-      state.timeout = Math.max(0, parseInt(v, 10) || 0);
-    },
+    set: (v: string) => { state.timeout = Math.max(0, parseInt(v, 10) || 0); },
   },
   api: {
     get: () => state.api,
     set: (v: string) => {
       if (v === "?") {
-        const providersList = listProviders().join("\n");
-        console.error(providersList);
+        console.error(listProviders().join("\n"));
       } else {
         state.api = v;
       }
     },
   },
-  lang: {
-    get: () => state.language,
-    set: (v: string) => {
-      state.language = v;
-    },
-  },
-  hlang: {
-    get: () => state.humanLanguage,
-    set: (v: string) => {
-      state.humanLanguage = v;
-    },
-  },
-  cache: {
-    get: () => state.cache,
-    set: (v: string) => {
-      state.cache = parseBoolean(v);
-    },
-  },
-  cmds: {
-    get: () => state.commands,
-    set: (v: string) => {
-      state.commands = v;
-    },
-  },
-  tts: {
-    get: () => state.tts,
-    set: (v: string) => {
-      state.tts = parseBoolean(v);
-    },
-  },
-  yolo: {
-    get: () => state.yolo,
-    set: (v: string) => {
-      state.yolo = parseBoolean(v);
-    },
-  },
-  prompt: {
-    get: () => state.prompt,
-    set: (v: string) => {
-      state.prompt = v;
-    },
-  },
-  ctxfile: {
-    get: () => state.contextFile,
-    set: (v: string) => {
-      state.contextFile = v;
-    },
-  },
-  baseurl: {
-    get: () => state.baseurl,
-    set: (v: string) => {
-      state.baseurl = v;
-    },
-  },
+  lang: stringHandler("language"),
+  hlang: stringHandler("humanLanguage"),
+  cache: boolHandler("cache"),
+  cmds: stringHandler("commands"),
+  tts: boolHandler("tts"),
+  yolo: boolHandler("yolo"),
+  prompt: stringHandler("prompt"),
+  ctxfile: stringHandler("contextFile"),
+  baseurl: stringHandler("baseurl"),
   headers: {
     get: () => formatHeaders(state.extraHeaders),
-    set: (v: string) => {
-      state.extraHeaders = parseHeaders(v);
-    },
+    set: (v: string) => { state.extraHeaders = parseHeaders(v); },
   },
   maxtokens: {
     get: () => state.maxInputTokens,
-    set: (v: string) => {
-      state.maxInputTokens = parseInt(v, 10) || -1;
-    },
+    set: (v: string) => { state.maxInputTokens = parseInt(v, 10) || -1; },
   },
 };
 
