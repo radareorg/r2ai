@@ -33,10 +33,10 @@ export function trimDown(out: string): string {
 
 export function trimJson(out: string): string {
   let result = out;
-  const bob = result.indexOf("{");
-  if (bob !== -1) result = result.slice(bob);
-  const eob = result.lastIndexOf("}");
-  if (eob !== -1) result = result.slice(0, eob + 1);
+  const openBrace = result.indexOf("{");
+  if (openBrace !== -1) result = result.slice(openBrace);
+  const closeBrace = result.lastIndexOf("}");
+  if (closeBrace !== -1) result = result.slice(0, closeBrace + 1);
   return result;
 }
 

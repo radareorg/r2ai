@@ -21,7 +21,7 @@ export interface R2Plugin {
 
 export type R2PluginFactory = () => R2Plugin;
 
-export class R2PipeSyncFromSync {
+export class R2PipeAdapter {
   r2p: R2Pipe;
   constructor(r2p: R2Pipe) {
     this.r2p = r2p;
@@ -80,9 +80,8 @@ export class R2PipeSyncFromSync {
   }
 }
 
-export function newAsyncR2PipeFromSync(r2p: R2Pipe): R2PipeSync {
-  const asyncR2Pipe = new R2PipeSyncFromSync(r2p);
-  return asyncR2Pipe as R2PipeSync;
+export function newR2PipeSync(r2p: R2Pipe): R2PipeSync {
+  return new R2PipeAdapter(r2p) as R2PipeSync;
 }
 
 /**

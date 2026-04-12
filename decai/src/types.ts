@@ -126,6 +126,36 @@ export interface HttpResponse {
 
 export type JsonObject = Record<string, unknown>;
 
+export interface AnthropicPayload {
+  model: string;
+  max_tokens: number;
+  messages: Array<{ role: string; content: string }>;
+  thinking?: { type: string; budget_tokens?: number };
+  temperature?: number;
+  top_p?: number;
+  top_k?: number;
+}
+
+export interface OllamaPayload {
+  stream: boolean;
+  model: string;
+  messages: Array<{ role: string; content: string }>;
+  think?: boolean | string;
+  options?: {
+    repeat_last_n: number;
+    top_p: number;
+    top_k: number;
+    temperature: number;
+    repeat_penalty: number;
+    seed: number;
+  };
+}
+
+export interface GeminiPayload {
+  contents: Array<{ parts: Array<{ text: string }> }>;
+  generationConfig?: Record<string, unknown>;
+}
+
 export interface AutoReply {
   action: string;
   command?: string;

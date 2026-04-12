@@ -1,11 +1,13 @@
 import {
+  AnthropicPayload,
   ApiKeyResult,
   ApiStyle,
   AuthStyle,
+  GeminiPayload,
   HttpResponse,
-  JsonObject,
   ModelDataEntry,
   OllamaModelEntry,
+  OllamaPayload,
   ProviderConfig,
   ProviderRegistry,
 } from "./types";
@@ -16,7 +18,7 @@ import { getConfiguredHeaders, mergeHeaders } from "./headers";
 import { httpGet, httpPost } from "./http";
 
 interface ProviderRuntime {
-  buildPayload: (model: string, query: string) => JsonObject;
+  buildPayload: (model: string, query: string) => object;
   parseResponse: (response: HttpResponse) => string;
   buildUrl: (baseUrl: string, model: string, apiKey?: string) => string;
   requiresUrlApiKey?: boolean;
@@ -189,15 +191,7 @@ const providerRuntimes: Record<ApiStyle, ProviderRuntime> = {
   },
   anthropic: {
     buildPayload: (model, query) => {
-      const payload: {
-        model: string;
-        max_tokens: number;
-        messages: Array<{ role: string; content: string }>;
-        thinking?: { type: string; budget_tokens?: number };
-        temperature?: number;
-        top_p?: number;
-        top_k?: number;
-      } = {
+      const payload: AnthropicPayload = {
         model,
         max_tokens: 5128,
         messages: [{ role: "user", content: query }],
@@ -232,20 +226,7 @@ const providerRuntimes: Record<ApiStyle, ProviderRuntime> = {
   },
   ollama: {
     buildPayload: (model, query) => {
-      const payload: {
-        stream: boolean;
-        model: string;
-        messages: Array<{ role: string; content: string }>;
-        think?: boolean | string;
-        options?: {
-          repeat_last_n: number;
-          top_p: number;
-          top_k: number;
-          temperature: number;
-          repeat_penalty: number;
-          seed: number;
-        };
-      } = {
+      const payload: OllamaPayload = {
         stream: false,
         model,
         messages: [{ role: "user", content: query }],
@@ -287,10 +268,7 @@ const providerRuntimes: Record<ApiStyle, ProviderRuntime> = {
   },
   gemini: {
     buildPayload: (_model, query) => {
-      const payload: {
-        contents: Array<{ parts: Array<{ text: string }> }>;
-        generationConfig?: Record<string, unknown>;
-      } = {
+      const payload: GeminiPayload = {
         contents: [{ parts: [{ text: query }] }],
       };
       const genConfig: Record<string, unknown> = {};
