@@ -385,10 +385,10 @@ R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		cmd_r2ai_lr (cps);
 	} else if (r_str_startswith (input, "-L")) {
 		cmd_r2ai_logs (cps);
+	} else if (r_str_startswith (input, "-dr")) {
+		cmd_r2ai_d (cps, r_str_trim_head_ro (input + 3), true);
 	} else if (r_str_startswith (input, "-d")) {
 		cmd_r2ai_d (cps, r_str_trim_head_ro (input + 2), false);
-	} else if (r_str_startswith (input, "-dr")) {
-		cmd_r2ai_d (cps, r_str_trim_head_ro (input + 2), true);
 	} else if (r_str_startswith (input, "-S")) {
 		if (state->db == NULL) {
 			state->db = r_vdb_new (R2AI_DEFAULT_VECTORS);
@@ -411,6 +411,8 @@ R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		cmd_r2ai_i (cps, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-r")) {
 		cmd_r2ai_repl (cps);
+	} else if (r_str_startswith (input, "-Rq")) {
+		cmd_r2ai_R (cps, r_str_trim_head_ro (input + 3));
 	} else if (r_str_startswith (input, "-R")) {
 		RList *messages = r2ai_conversation_get (state);
 		if (!messages || r_list_empty (messages)) {
@@ -419,8 +421,6 @@ R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 			r2ai_msgs_clear (messages);
 			r_cons_printf (core->cons, "Chat conversation context has been reset\n");
 		}
-	} else if (r_str_startswith (input, "-Rq")) {
-		cmd_r2ai_R (cps, r_str_trim_head_ro (input + 3));
 	} else if (r_str_startswith (input, "-m")) {
 		cmd_r2ai_m (cps, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-p")) {

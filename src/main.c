@@ -113,7 +113,7 @@ int main(int argc, const char **argv) {
 	r2ai_init (&cps);
 
 	RGetopt opt;
-	r_getopt_init (&opt, argc, argv, "vhp:m:q:Eb:Kc:f:ie:w");
+	r_getopt_init (&opt, argc, argv, "vhp:m:q:Eb:Kc:f:i:e:w");
 	while ((c = r_getopt_next (&opt)) != -1) {
 		switch (c) {
 		case 'p':
