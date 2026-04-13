@@ -384,7 +384,7 @@ R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 	} else if (r_str_startswith (input, "-LR")) {
 		cmd_r2ai_lr (cps);
 	} else if (r_str_startswith (input, "-L")) {
-		cmd_r2ai_logs (cps);
+		cmd_r2ai_logs (cps, input + 2);
 	} else if (r_str_startswith (input, "-dr")) {
 		cmd_r2ai_d (cps, r_str_trim_head_ro (input + 3), true);
 	} else if (r_str_startswith (input, "-d")) {

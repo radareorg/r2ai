@@ -444,7 +444,7 @@ static void print_content_with_length(RCore *core, const char *content, const ch
 }
 
 // Add this function right after cmd_r2ai_a
-R_IPI void cmd_r2ai_logs(RCorePluginSession *cps) {
+R_IPI void cmd_r2ai_logs(RCorePluginSession *cps, const char *flags) {
 	RCore *core = cps->core;
 	R2AI_State *state = cps->data;
 	// Get conversation
@@ -454,9 +454,7 @@ R_IPI void cmd_r2ai_logs(RCorePluginSession *cps) {
 		return;
 	}
 
-	const char *input = r_core_cmd_str (core, "r2ai");
-	bool json_mode = input && strstr (input, "-Lj");
-	free ((char *)input);
+	bool json_mode = flags && strchr (flags, 'j');
 
 	if (json_mode) {
 		PJ *pj = pj_new ();
