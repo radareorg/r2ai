@@ -671,6 +671,8 @@ R_API bool r2ai_fini(RCorePluginSession *cps) {
 	r2ai_conversation_free (state);
 
 	if (state) {
+		r2ai_tools_free (state->tools);
+		state->tools = NULL;
 		r_vdb_free (state->db);
 		state->db = NULL;
 		free (state);

@@ -67,11 +67,15 @@ R_API RList *r2ai_get_tools(RCore *core, R2AI_State *state) {
 	}
 	if (!state->tools) {
 		state->tools = r_list_newf (NULL);
-		r_list_append (state->tools, (void *)&r2cmd_tool);
-		// Only add execute_js tool if enabled in config
-		if (r_config_get_b (core->config, "r2ai.auto.usejs")) {
-			r_list_append (state->tools, (void *)&qjs_tool);
-		}
+	}
+	if (!state->tools) {
+		return NULL;
+	}
+	r_list_purge (state->tools);
+	r_list_append (state->tools, (void *)&r2cmd_tool);
+	// Reflect the current config instead of caching the first-seen value.
+	if (r_config_get_b (core->config, "r2ai.auto.usejs")) {
+		r_list_append (state->tools, (void *)&qjs_tool);
 	}
 	return state->tools;
 }
