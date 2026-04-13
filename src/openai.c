@@ -5,13 +5,17 @@
 
 R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
-	args.provider = r_config_get (core->config, "r2ai.api");
-	args.model = r_config_get (core->config, "r2ai.model");
+	const char *provider_name = R_STR_ISNOTEMPTY (args.provider)
+		? args.provider
+		: r_config_get (core->config, "r2ai.api");
+	const char *model_name = R_STR_ISNOTEMPTY (args.model)
+		? args.model
+		: r_config_get (core->config, "r2ai.model");
 
-	const R2AIProvider *provider_info = r2ai_get_provider (args.provider);
-	const char *base_url = r2ai_get_provider_url (core, args.provider);
+	const R2AIProvider *provider_info = r2ai_get_provider (provider_name);
+	const char *base_url = r2ai_get_provider_url (core, provider_name);
 	// TODO: default model name should depend on api
-	const char *model_name = args.model? args.model: "gpt-4o-mini";
+	model_name = model_name? model_name: "gpt-4o-mini";
 	char **error = args.error;
 	RList *tools = args.tools;
 	// create a temp conversation to include the system prompt and the rest of the messages
@@ -137,7 +141,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 		}
 #endif
 
-		if (strcmp (args.provider, "mistral") == 0) {
+		if (!strcmp (provider_name, "mistral")) {
 			pj_kn (pj, "max_tokens", args.max_tokens? args.max_tokens: 5128);
 		} else {
 			pj_kn (pj, "max_completion_tokens", args.max_tokens? args.max_tokens: 5128);

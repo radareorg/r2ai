@@ -6,10 +6,11 @@
 
 R_IPI R2AI_ChatResponse *r2ai_gemini(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
-	args.model = r_config_get (core->config, "r2ai.model");
-
+	const char *model = R_STR_ISNOTEMPTY (args.model)
+		? args.model
+		: r_config_get (core->config, "r2ai.model");
 	const char *base_url = r2ai_get_provider_url (core, args.provider);
-	const char *model_name = args.model && strstr (args.model, "gemini")? args.model: "gemini-2.0-flash-exp";
+	const char *model_name = model && strstr (model, "gemini")? model: "gemini-2.0-flash-exp";
 	char **error = args.error;
 
 	// Create a temp conversation to include the system prompt and the rest of the messages
