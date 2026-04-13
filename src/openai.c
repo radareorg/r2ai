@@ -193,8 +193,10 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	if (r_config_get_b (core->config, "r2ai.debug")) {
 		// Generate curl command for debugging
 		RStrBuf *curl_cmd = r_strbuf_new ("curl -X POST");
-		for (int i = 0; headers[i]; i++) {
-			r_strbuf_appendf (curl_cmd, " -H \"%s\"", headers[i]);
+		if (headers) {
+			for (int i = 0; headers[i]; i++) {
+				r_strbuf_appendf (curl_cmd, " -H \"%s\"", headers[i]);
+			}
 		}
 		r_strbuf_appendf (curl_cmd, " -d '%s' \"%s\"", complete_json, openai_url);
 		eprintf ("Curl command: %s\n", r_strbuf_get (curl_cmd));
