@@ -40,6 +40,9 @@ R_IPI const R2AIProvider *r2ai_get_provider(const char *name) {
 // Forward declaration for rawtools
 R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
+	char *owned_model = NULL;
+	char *owned_provider = NULL;
+	R2AI_ChatResponse *res = NULL;
 
 	// Check if rawtools mode is enabled
 	bool rawtools_enabled = r_config_get_b (core->config, "r2ai.auto.raw");
@@ -51,13 +54,14 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 		return r2ai_rawtools_llmcall (cps, args);
 	}
 	R2AI_State *state = cps->data;
-	R2AI_ChatResponse *res = NULL;
 	if (!args.model) {
 		const char *config_model = r_config_get (core->config, "r2ai.model");
-		args.model = strdup (config_model? config_model: "");
+		owned_model = strdup (config_model? config_model: "");
+		args.model = owned_model;
 	}
 	if (!args.provider) {
-		args.provider = strdup (provider);
+		owned_provider = strdup (provider);
+		args.provider = owned_provider;
 	}
 
 	if (!args.max_tokens) {
@@ -71,7 +75,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	const R2AIProvider *prov = r2ai_get_provider (provider);
 	if (!prov) {
 		R_LOG_ERROR ("Unknown provider: %s", provider);
-		return NULL;
+		goto cleanup;
 	}
 
 	char *api_key = NULL;
@@ -88,7 +92,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 			r_str_case (Provider, true);
 			R_LOG_ERROR ("No API key found for the %s provider. Use r2ai -K", provider);
 			free (Provider);
-			return NULL;
+			goto cleanup;
 		}
 	}
 
@@ -142,7 +146,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 
 	const R2AIProvider *p = r2ai_get_provider (provider);
 	if (!p) {
-		return NULL;
+		goto cleanup;
 	}
 
 	switch (p->api_type) {
@@ -169,6 +173,9 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 		*args.error = NULL;
 	}
 
+cleanup:
+	free (owned_model);
+	free (owned_provider);
 	return res;
 }
 
