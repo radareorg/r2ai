@@ -42,6 +42,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
 	char *owned_model = NULL;
 	char *owned_provider = NULL;
+	char *owned_system_prompt = NULL;
 	R2AI_ChatResponse *res = NULL;
 
 	// Check if rawtools mode is enabled
@@ -96,10 +97,11 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 		}
 	}
 
-	// Set system_prompt from config if it's not already set
 	if (!args.system_prompt) {
 		args.system_prompt = r_config_get (core->config, "r2ai.system");
 	}
+	owned_system_prompt = r2ai_claw_system_prompt (args.system_prompt);
+	args.system_prompt = owned_system_prompt;
 	if (!args.messages) {
 		args.messages = r2ai_msgs_new ();
 	}
@@ -176,6 +178,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 cleanup:
 	free (owned_model);
 	free (owned_provider);
+	free (owned_system_prompt);
 	return res;
 }
 

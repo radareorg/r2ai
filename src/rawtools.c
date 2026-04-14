@@ -103,13 +103,12 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 		}
 	}
 
-	char *enhanced_system_prompt = NULL;
-	if (init_output) {
-		enhanced_system_prompt = r_str_newf ("%s\n\n%s\n\n%s", short_system_prompt, init_output, RAWTOOLS_PROMPT);
-	} else {
-		enhanced_system_prompt = r_str_newf ("%s\n\n%s", short_system_prompt, RAWTOOLS_PROMPT);
-	}
+	char *base_prompt = init_output
+		? r_str_newf ("%s\n\n%s\n\n%s", short_system_prompt, init_output, RAWTOOLS_PROMPT)
+		: r_str_newf ("%s\n\n%s", short_system_prompt, RAWTOOLS_PROMPT);
 	free (init_output);
+	char *enhanced_system_prompt = r2ai_claw_system_prompt (base_prompt);
+	free (base_prompt);
 	// Temporarily modify args to use enhanced prompt and no tools (since we're using prompt engineering)
 	R2AIArgs rawtools_args = args;
 	rawtools_args.system_prompt = enhanced_system_prompt;

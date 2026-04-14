@@ -28,4 +28,13 @@ R_API char *r2ai_apikeys_path(bool *exists);
 R_API void r2ai_apikeys_edit(RCorePluginSession *cps);
 R_API char *r2ai_apikeys_get(const char *provider);
 
+/* claw.c - SOUL.md / IDENTITY.md personality files */
+#define R2AI_CLAW_HINT "use 'r2ai -ide' to edit or 'r2ai -id-' to delete"
+R_API bool r2ai_claw_exists(void);
+R_API char *r2ai_claw_system_prompt(const char *base);
+R_API void r2ai_claw_create(RCorePluginSession *cps, const char *user_extra);
+R_API void r2ai_claw_show(RCorePluginSession *cps);
+R_API void r2ai_claw_edit(RCorePluginSession *cps);
+R_API void r2ai_claw_delete(RCorePluginSession *cps);
+
 #endif
