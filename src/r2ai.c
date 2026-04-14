@@ -613,7 +613,10 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 		core->config, "r2ai.system",
 		"You are a reverse engineer. The user is reversing a binary, using "
 		"radare2. The user will ask questions about the binary and you will "
-		"respond with the answer to the best of your ability.");
+		"respond with the answer to the best of your ability. "
+		"If none of the available tools fit the request, answer directly "
+		"from your own knowledge instead of inventing tool names. Only the "
+		"tools explicitly listed in this conversation exist.");
 	r_config_set (
 		core->config, "r2ai.prompt",
 		"Rewrite this function and respond ONLY with code, replace goto/labels "

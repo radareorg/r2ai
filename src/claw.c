@@ -70,6 +70,9 @@ static char *claw_personality(void) {
 }
 
 R_API char *r2ai_claw_system_prompt(const char *base) {
+	if (!r2ai_claw_exists ()) {
+		return strdup (base? base: "");
+	}
 	char *personality = claw_personality ();
 	char *result = r_str_newf ("%s%s", base? base: "", personality);
 	free (personality);
