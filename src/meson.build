@@ -65,6 +65,7 @@ srcs = files(
   'anthropic.c',
   'auto.c',
   'apikeys.c',
+  'claw.c',
   'gemini.c',
   'http.c',
   'json.c',

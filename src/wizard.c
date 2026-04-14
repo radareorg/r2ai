@@ -135,6 +135,34 @@ static bool wizard_step_setup(RCore *core) {
 	return true;
 }
 
+static void wizard_claw_invoke(RCore *core, const char *extra) {
+	char *cmd = R_STR_ISNOTEMPTY (extra)
+		? r_str_newf ("r2ai -id %s", extra)
+		: strdup ("r2ai -id");
+	r_core_cmd_call (core, cmd);
+	free (cmd);
+}
+
+static bool wizard_step_personality(RCore *core) {
+	if (r2ai_claw_exists ()) {
+		return true;
+	}
+	show_clippy_message (core, "🎭 Want to give r2ai a custom personality?");
+	r_cons_printf (core->cons,
+		"\nr2ai defaults to 'r2clippy'. Later you can %s.\n\n", R2AI_CLAW_HINT);
+	if (!r_cons_yesno (core->cons, 'n', "Generate a custom personality now? (y/N)")) {
+		return true;
+	}
+	r_cons_printf (core->cons,
+		"\nDescribe it in a few words (e.g. 'grumpy pirate hacker'),\n"
+		"or just press Enter to let r2ai pick something at random:\n");
+	const char *desc = r_line_readline (core->cons);
+	char *trimmed = desc? r_str_trim_dup (desc): NULL;
+	wizard_claw_invoke (core, trimmed);
+	free (trimmed);
+	return true;
+}
+
 static bool wizard_step_basic_usage(RCore *core) {
 	show_clippy_message (core, "🧩 Let's learn the basics of AI-powered reversing!");
 
@@ -323,6 +351,10 @@ R_API bool r2ai_wizard(RCore *core) {
 	}
 
 	if (!wizard_step_setup (core)) {
+		return false;
+	}
+
+	if (!wizard_step_personality (core)) {
 		return false;
 	}
 

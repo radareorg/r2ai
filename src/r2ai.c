@@ -19,6 +19,9 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -K", "Edit the API keys file",
 	"r2ai", " -h", "Show this help message",
 	"r2ai", " -i [file] [query]", "read file and ask the llm with the given query",
+	"r2ai", " -id [hint]", "generate SOUL.md and IDENTITY.md personality files (optional hint)",
+	"r2ai", " -ide", "edit SOUL.md and IDENTITY.md personality files",
+	"r2ai", " -id-", "delete SOUL.md and IDENTITY.md personality files",
 	"r2ai", " -m [model]", "show selected model, list suggested ones, choose one",
 	"r2ai", " -p [provider]", "set LLM provider (openai, anthropic, gemini, etc.)",
 	"r2ai", " -q", "list available query prompts",
@@ -338,6 +341,19 @@ static bool load_r2airc(RCorePluginSession *cps) {
 	return true;
 }
 
+static bool cmd_r2ai_id(RCorePluginSession *cps, const char *input) {
+	if (r_str_startswith (input, "-id-")) {
+		r2ai_claw_delete (cps);
+	} else if (r_str_startswith (input, "-ide")) {
+		r2ai_claw_edit (cps);
+	} else if (r_str_startswith (input, "-id")) {
+		r2ai_claw_create (cps, r_str_trim_head_ro (input + 3));
+	} else {
+		return false;
+	}
+	return true;
+}
+
 R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 	RCore *core = cps->core;
 	R2AI_State *state = cps->data;
@@ -407,6 +423,7 @@ R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 			}
 			r_vdb_result_free (rs);
 		}
+	} else if (cmd_r2ai_id (cps, input)) {
 	} else if (r_str_startswith (input, "-i")) {
 		cmd_r2ai_i (cps, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-r")) {
@@ -596,7 +613,10 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 		core->config, "r2ai.system",
 		"You are a reverse engineer. The user is reversing a binary, using "
 		"radare2. The user will ask questions about the binary and you will "
-		"respond with the answer to the best of your ability.");
+		"respond with the answer to the best of your ability. "
+		"If none of the available tools fit the request, answer directly "
+		"from your own knowledge instead of inventing tool names. Only the "
+		"tools explicitly listed in this conversation exist.");
 	r_config_set (
 		core->config, "r2ai.prompt",
 		"Rewrite this function and respond ONLY with code, replace goto/labels "

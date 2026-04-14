@@ -424,14 +424,15 @@ R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query) {
 	};
 	r2ai_msgs_add (messages, &user_msg);
 
-	const char *system_prompt = NULL;
-	if (!r_config_get_b (core->config, "r2ai.auto.think")) {
-		system_prompt = r_str_newf ("/no_think\nReasoning: Low\n%s", Gprompt_auto);
-	}
+	const char *base_system = r_config_get (core->config, "r2ai.system");
+	const char *think_prefix = r_config_get_b (core->config, "r2ai.auto.think")
+		? ""
+		: "/no_think\nReasoning: Low\n";
+	char *system_prompt = R_STR_ISNOTEMPTY (base_system)
+		? r_str_newf ("%s%s\n\n%s", think_prefix, base_system, Gprompt_auto)
+		: r_str_newf ("%s%s", think_prefix, Gprompt_auto);
 	process_messages (cps, messages, system_prompt, 1);
-	if (system_prompt) {
-		free ((char *)system_prompt);
-	}
+	free (system_prompt);
 }
 
 // Helper function to display content with length indication for long content

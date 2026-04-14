@@ -82,11 +82,12 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 	}
 	RCore *core = cps->core;
 
-	// Modify the system prompt to include rawtools instructions only if no tool messages
-	const char *original_system_prompt = args.system_prompt;
-
-	// For rawtools, use a shorter system prompt to avoid token limits
-	const char *short_system_prompt = "You are a reverse engineer using radare2. The binary is loaded. Use r2cmd tool for analysis.";
+	const char *user_system = R_STR_ISNOTEMPTY (args.system_prompt)
+		? args.system_prompt
+		: r_config_get (core->config, "r2ai.system");
+	if (R_STR_ISEMPTY (user_system)) {
+		user_system = "You are a reverse engineer using radare2. The binary is loaded. Use r2cmd tool for analysis.";
+	}
 
 	// Check for initial command output in messages
 	char *init_output = NULL;
@@ -103,13 +104,12 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 		}
 	}
 
-	char *enhanced_system_prompt = NULL;
-	if (init_output) {
-		enhanced_system_prompt = r_str_newf ("%s\n\n%s\n\n%s", short_system_prompt, init_output, RAWTOOLS_PROMPT);
-	} else {
-		enhanced_system_prompt = r_str_newf ("%s\n\n%s", short_system_prompt, RAWTOOLS_PROMPT);
-	}
+	char *base_prompt = init_output
+		? r_str_newf ("%s\n\n%s\n\n%s", user_system, init_output, RAWTOOLS_PROMPT)
+		: r_str_newf ("%s\n\n%s", user_system, RAWTOOLS_PROMPT);
 	free (init_output);
+	char *enhanced_system_prompt = r2ai_claw_system_prompt (base_prompt);
+	free (base_prompt);
 	// Temporarily modify args to use enhanced prompt and no tools (since we're using prompt engineering)
 	R2AIArgs rawtools_args = args;
 	rawtools_args.system_prompt = enhanced_system_prompt;
@@ -240,7 +240,6 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 
 		// Modify args to use original system prompt without rawtools enhancement
 		R2AIArgs fallback_args = args;
-		fallback_args.system_prompt = original_system_prompt;
 		fallback_args.tools = args.tools; // Keep tools for fallback
 
 		// Call provider directly
