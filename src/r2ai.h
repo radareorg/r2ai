@@ -219,9 +219,12 @@ R_API bool r2ai_msgs_from_json(RList *msgs, const RJson *json);
 
 /**
  * Convert messages array to JSON string
+ * When raw_tool_args is true, tool_call arguments are emitted as raw JSON
+ * objects (Ollama convention) instead of JSON-encoded strings (OpenAI
+ * convention).
  * Caller must free the returned string
  */
-R_API char *r2ai_msgs_to_json(const RList *msgs);
+R_API char *r2ai_msgs_to_json(const RList *msgs, bool raw_tool_args);
 
 /**
  * Convert messages array to Anthropic format JSON string

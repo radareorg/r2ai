@@ -93,7 +93,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 
 	if (temp_msgs && !r_list_empty (temp_msgs)) {
 		R_LOG_DEBUG ("Using input messages: %d messages", r_list_length (temp_msgs));
-		messages_json = r2ai_msgs_to_json (temp_msgs);
+		messages_json = r2ai_msgs_to_json (temp_msgs, provider_info && provider_info->api_type == R2AI_API_OLLAMA);
 		if (!messages_json) {
 			if (error) {
 				*error = strdup ("Failed to convert messages to JSON");

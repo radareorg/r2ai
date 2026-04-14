@@ -308,7 +308,7 @@ R_API bool r2ai_msgs_from_json(RList *msgs, const RJson *json) {
 	return true;
 }
 
-R_API char *r2ai_msgs_to_json(const RList *msgs) {
+R_API char *r2ai_msgs_to_json(const RList *msgs, bool raw_tool_args) {
 	if (!msgs || r_list_empty (msgs)) {
 		return NULL;
 	}
@@ -372,8 +372,14 @@ R_API char *r2ai_msgs_to_json(const RList *msgs) {
 				// Add name
 				pj_ks (pj, "name", tc->name? tc->name: "");
 
-				// Add arguments (required by OpenAI API)
-				pj_ks (pj, "arguments", tc->arguments? tc->arguments: "{}");
+				// OpenAI wants arguments as a JSON-encoded string; Ollama wants a raw object.
+				const char *a = R_STR_ISEMPTY (tc->arguments)? "{}": tc->arguments;
+				pj_k (pj, "arguments");
+				if (raw_tool_args) {
+					pj_raw (pj, a);
+				} else {
+					pj_s (pj, a);
+				}
 
 				pj_end (pj); // End function object
 				pj_end (pj); // End tool call object
