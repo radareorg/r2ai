@@ -8,7 +8,9 @@ typedef enum {
 	R2AI_API_OPENAI_COMPATIBLE,
 	R2AI_API_ANTHROPIC,
 	R2AI_API_GEMINI,
-	R2AI_API_OLLAMA
+	R2AI_API_OLLAMA,
+	R2AI_API_VERTEX_GEMINI,
+	R2AI_API_VERTEX_ANTHROPIC
 } R2AI_API_Type;
 
 /* Async task subsystem (see ASYNC.md) */
@@ -86,6 +88,11 @@ R_IPI void r2ai_refresh_embeddings(RCorePluginSession *cps);
 R_API char *r2ai_apikeys_path(bool *exists);
 R_API void r2ai_apikeys_edit(RCorePluginSession *cps);
 R_API char *r2ai_apikeys_get(const char *provider);
+
+/* vertex.c */
+R_IPI const char *r2ai_vertex_get_token(R2AI_State *state);
+R_IPI R2AI_ChatResponse *r2ai_vertex_gemini(RCorePluginSession *cps, R2AIArgs args);
+R_IPI R2AI_ChatResponse *r2ai_vertex_anthropic(RCorePluginSession *cps, R2AIArgs args);
 
 /* claw.c - SOUL.md / IDENTITY.md personality files */
 #define R2AI_CLAW_HINT "use 'r2ai -ide' to edit or 'r2ai -id-' to delete"

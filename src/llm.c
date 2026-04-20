@@ -22,6 +22,8 @@ static const R2AIProvider r2ai_providers[] = {
 	{ "mistral", "https://api.mistral.ai/v1", R2AI_API_OPENAI_COMPATIBLE, true, true },
 	{ "lmstudio", "http://127.0.0.1:1234/v1", R2AI_API_OPENAI_COMPATIBLE, false, true },
 	{ "deepseek", "https://api.deepseek.com/v1", R2AI_API_OPENAI_COMPATIBLE, true, true },
+	{ "vertex", NULL, R2AI_API_VERTEX_GEMINI, false, false },
+	{ "vertex-anthropic", NULL, R2AI_API_VERTEX_ANTHROPIC, false, false },
 	{ NULL, NULL, R2AI_API_OPENAI_COMPATIBLE, false, false } // sentinel
 };
 
@@ -43,6 +45,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	char *owned_model = NULL;
 	char *owned_provider = NULL;
 	char *owned_system_prompt = NULL;
+	char *api_key = NULL;
 	R2AI_ChatResponse *res = NULL;
 
 	// Check if rawtools mode is enabled
@@ -79,8 +82,14 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 		goto cleanup;
 	}
 
-	char *api_key = NULL;
-	if (prov->requires_api_key) {
+	bool is_vertex = (prov->api_type == R2AI_API_VERTEX_GEMINI || prov->api_type == R2AI_API_VERTEX_ANTHROPIC);
+	if (is_vertex) {
+		const char *vtoken = r2ai_vertex_get_token (state);
+		if (!vtoken) {
+			goto cleanup;
+		}
+		args.api_key = vtoken;
+	} else if (prov->requires_api_key) {
 		api_key = r2ai_apikeys_get (provider);
 		if (api_key) {
 			args.api_key = api_key;
@@ -158,6 +167,12 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	case R2AI_API_GEMINI:
 		res = r2ai_gemini (cps, args);
 		break;
+	case R2AI_API_VERTEX_GEMINI:
+		res = r2ai_vertex_gemini (cps, args);
+		break;
+	case R2AI_API_VERTEX_ANTHROPIC:
+		res = r2ai_vertex_anthropic (cps, args);
+		break;
 	case R2AI_API_OPENAI_COMPATIBLE:
 	case R2AI_API_OLLAMA:
 	default:
@@ -176,6 +191,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	}
 
 cleanup:
+	free (api_key);
 	free (owned_model);
 	free (owned_provider);
 	free (owned_system_prompt);
@@ -185,6 +201,10 @@ cleanup:
 R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider) {
 	const R2AIProvider *p = r2ai_get_provider (provider);
 	if (!p) {
+		return NULL;
+	}
+
+	if (p->api_type == R2AI_API_VERTEX_GEMINI || p->api_type == R2AI_API_VERTEX_ANTHROPIC) {
 		return NULL;
 	}
 
@@ -212,6 +232,11 @@ R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider) {
 }
 R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 	if (!provider) {
+		return NULL;
+	}
+	const R2AIProvider *pcheck = r2ai_get_provider (provider);
+	if (pcheck && (pcheck->api_type == R2AI_API_VERTEX_GEMINI || pcheck->api_type == R2AI_API_VERTEX_ANTHROPIC)) {
+		R_LOG_ERROR ("Model listing is not supported for Vertex AI providers");
 		return NULL;
 	}
 	const char *purl = r2ai_get_provider_url (core, provider);

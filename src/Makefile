@@ -53,6 +53,7 @@ OBJS+=tools.o
 OBJS+=messages.o
 OBJS+=anthropic.o
 OBJS+=gemini.o
+OBJS+=vertex.o
 OBJS+=http.o
 OBJS+=openai.o
 OBJS+=markdown.o

@@ -694,6 +694,10 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_desc (core->config, "r2ai.auto.usejs", "Enable/disable the execute_js tool for auto mode (true/false)");
 	r_config_set_b (core->config, "r2ai.auto.slim", true);
 	r_config_desc (core->config, "r2ai.auto.slim", "Use slim mode for auto commands (temporarily disable asm.lines.fcn and scr.utf8)");
+	r_config_set (core->config, "r2ai.vertex.project", "");
+	r_config_desc (core->config, "r2ai.vertex.project", "Google Cloud project ID for Vertex AI (required for vertex provider)");
+	r_config_set (core->config, "r2ai.vertex.region", "us-central1");
+	r_config_desc (core->config, "r2ai.vertex.region", "Google Cloud region for Vertex AI (e.g. us-central1, europe-west1)");
 	r_config_set_b (core->config, "r2ai.debug", false);
 	r_config_desc (core->config, "r2ai.debug", "Enable debug output including API request/response details and curl commands");
 	r_config_set_b (core->config, "r2ai.async", false);
@@ -728,6 +732,8 @@ R_API bool r2ai_fini(RCorePluginSession *cps) {
 	r_config_rm (core->config, "r2ai.http.backend");
 	r_config_rm (core->config, "r2ai.http.use_files");
 	r_config_rm (core->config, "r2ai.auto.slim");
+	r_config_rm (core->config, "r2ai.vertex.project");
+	r_config_rm (core->config, "r2ai.vertex.region");
 	r_config_rm (core->config, "r2ai.debug");
 	r_config_rm (core->config, "r2ai.async");
 	r_config_rm (core->config, "r2ai.async.purge");
@@ -740,6 +746,8 @@ R_API bool r2ai_fini(RCorePluginSession *cps) {
 		state->tools = NULL;
 		r_vdb_free (state->db);
 		state->db = NULL;
+		free (state->vertex_token);
+		state->vertex_token = NULL;
 		free (state);
 		cps->data = NULL;
 	}

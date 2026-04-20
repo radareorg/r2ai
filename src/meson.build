@@ -68,6 +68,7 @@ srcs = files(
   'apikeys.c',
   'claw.c',
   'gemini.c',
+  'vertex.c',
   'http.c',
   'json.c',
   'wizard.c',
