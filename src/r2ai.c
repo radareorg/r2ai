@@ -25,6 +25,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -m [model]", "show selected model, list suggested ones, choose one",
 	"r2ai", " -p [provider]", "set LLM provider (openai, anthropic, gemini, etc.)",
 	"r2ai", " -q", "list available query prompts",
+	"r2ai", " -qj", "list available query prompts in JSON",
 	"r2ai", " -q [name] (inst)", "run predefined prompt with optional instructions",
 	"r2ai", " -r", "enter the chat repl",
 	"r2ai", " -s[?ijynak*]", "async task queue: list, show, interact, approve, decline, kill (see r2ai -s?)",
@@ -500,6 +501,8 @@ R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		} else {
 			r_config_set (core->config, "r2ai.api", provider);
 		}
+	} else if (r_str_startswith (input, "-qj")) {
+		r2ai_cmd_qj (cps, r_str_trim_head_ro (input + 3));
 	} else if (r_str_startswith (input, "-q")) {
 		r2ai_cmd_q (cps, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-")) {

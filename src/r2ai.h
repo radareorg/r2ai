@@ -392,6 +392,7 @@ R_API char *r_json_to_string(const RJson *json);
  */
 R_API PJ *r_json_to_pj(const RJson *json, PJ *existing_pj);
 R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input);
+R_API void r2ai_cmd_qj(RCorePluginSession *cps, const char *input);
 R_API char *find_prompt_file(RList *search_dirs, const char *name);
 R_API R2AIPrompt *parse_prompt_file(const char *filepath);
 R_API void r2aiprompt_free(R2AIPrompt *prompt);

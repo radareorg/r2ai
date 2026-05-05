@@ -41,6 +41,7 @@ Usage: r2ai   [-args] [...]
 | r2ai -m                 show selected model, list suggested ones, choose one
 | r2ai -p [provider]      set LLM provider (openai, anthropic, gemini, etc.)
 | r2ai -q                 list available query prompts
+| r2ai -qj                list available query prompts in JSON
 | r2ai -q [name] (inst)   run predefined prompt with optional instructions
 | r2ai -r                 enter the chat repl
 | r2ai -w                 launch the interactive setup wizard
@@ -71,6 +72,7 @@ Query prompts are predefined templates that combine radare2 commands with struct
 ### Usage
 
 - `r2ai -q`: List all available query prompts
+- `r2ai -qj`: List all available query prompts in JSON
 - `r2ai -q [name]`: Run the specified prompt on the current function
 - `r2ai -q [name] [instructions]`: Run the prompt with additional custom instructions
 

@@ -38,6 +38,9 @@ Set LLM provider (openai, anthropic, gemini, etc.).
 .B \-q
 List available query prompts.
 .TP
+.B \-qj
+List available query prompts in JSON.
+.TP
 .B \-q \fIname\fR [\fIinstructions\fR]
 Run predefined prompt with optional custom instructions.
 .TP
@@ -153,6 +156,9 @@ Use auto mode:
 .TP
 List prompts:
 .B r2ai -q
+.TP
+List prompts as JSON:
+.B r2ai -qj
 .TP
 Run a prompt:
 .B r2ai -q explain

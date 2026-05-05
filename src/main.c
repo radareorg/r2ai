@@ -13,6 +13,7 @@ static void show_help() {
 		"  -p <provider> Select LLM provider\n"
 		"  -m <model>   Select LLM model\n"
 		"  -q <query>   Execute predefined prompt query (can be used multiple times)\n"
+		"  -qj          List predefined prompt queries as JSON\n"
 		"  -b <url>     Set base URL for provider API\n"
 		"  -c <command> Execute command after loading file (can be used multiple times)\n"
 		"  -f <file>    Load file with r2 API\n"
@@ -103,6 +104,7 @@ int main(int argc, const char **argv) {
 	const char *baseurl = NULL;
 	const char *filename = NULL;
 	const char *scriptfile = NULL;
+	bool list_queries_json = false;
 	RList *conversation = r_list_newf (free);
 	RList *queries = r_list_newf (free);
 	RList *commands = r_list_newf (free);
@@ -123,7 +125,11 @@ int main(int argc, const char **argv) {
 			model = opt.arg;
 			break;
 		case 'q':
-			r_list_append (queries, strdup (opt.arg));
+			if (!strcmp (opt.arg, "j")) {
+				list_queries_json = true;
+			} else {
+				r_list_append (queries, strdup (opt.arg));
+			}
 			break;
 		case 'b':
 			baseurl = opt.arg;
@@ -182,6 +188,12 @@ int main(int argc, const char **argv) {
 			show_help ();
 			goto beach;
 		}
+	}
+
+	if (list_queries_json) {
+		r2ai_cmd_qj (&cps, NULL);
+		r_cons_flush (core->cons);
+		goto beach;
 	}
 
 	if (baseurl) {

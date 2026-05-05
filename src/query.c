@@ -238,22 +238,7 @@ static bool prompt_name_seen(RList *seen, const char *name) {
 	return false;
 }
 
-static void prompt_print_summary(RCore *core, const char *name, R2AIPrompt *prompt) {
-	const char *title = prompt->title? prompt->title: "";
-	const char *desc = prompt->desc? prompt->desc: "";
-	if (*title && *desc) {
-		r_cons_printf (core->cons, "%s: %s - %s\n", name, title, desc);
-	} else if (*title) {
-		r_cons_printf (core->cons, "%s: %s\n", name, title);
-	} else if (*desc) {
-		r_cons_printf (core->cons, "%s: %s\n", name, desc);
-	} else {
-		r_cons_println (core->cons, name);
-	}
-}
-
-R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input) {
-	RCore *core = cps->core;
+static RList *prompt_search_dirs(RCore *core) {
 	const char *promptdir = r_config_get (core->config, "r2ai.promptdir");
 	if (!promptdir || !*promptdir) {
 		promptdir = "~/.config/r2ai/prompts";
@@ -265,52 +250,137 @@ R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input) {
 		r_list_append (search_dirs, expanded_dir);
 	} else {
 		free (expanded_dir);
-		expanded_dir = NULL;
 	}
 	if (r_file_is_directory (local_prompts)) {
 		r_list_append (search_dirs, local_prompts);
 	} else {
 		free (local_prompts);
-		local_prompts = NULL;
 	}
-	if (r_list_empty (search_dirs)) {
-		R_LOG_ERROR ("No prompt directories found");
-		r_list_free (search_dirs);
+	return search_dirs;
+}
+
+static RList *prompt_search_dirs_or_warn(RCore *core) {
+	RList *search_dirs = prompt_search_dirs (core);
+	if (!r_list_empty (search_dirs)) {
+		return search_dirs;
+	}
+	R_LOG_ERROR ("No prompt directories found");
+	r_list_free (search_dirs);
+	return NULL;
+}
+
+static void prompt_print_summary(RCore *core, const char *name, R2AIPrompt *prompt) {
+	const char *title = r_str_get (prompt->title);
+	const char *desc = r_str_get (prompt->desc);
+	if (*title && *desc) {
+		r_cons_printf (core->cons, "%s: %s - %s\n", name, title, desc);
+	} else if (*title) {
+		r_cons_printf (core->cons, "%s: %s\n", name, title);
+	} else if (*desc) {
+		r_cons_printf (core->cons, "%s: %s\n", name, desc);
+	} else {
+		r_cons_println (core->cons, name);
+	}
+}
+
+static char *prompt_name_from_file(const char *file) {
+	const char *suffix = r_str_endswith (file, ".r2ai.md")? ".r2ai.md": ".r2ai.txt";
+	return r_str_ndup (file, strlen (file) - strlen (suffix));
+}
+
+static void prompt_json_ks(PJ *pj, const char *key, const char *value) {
+	pj_ks (pj, key, r_str_get (value));
+}
+
+static void prompt_print_json(PJ *pj, const char *name, const char *filepath, R2AIPrompt *prompt) {
+	pj_o (pj);
+	pj_ks (pj, "name", name);
+	pj_ks (pj, "path", filepath);
+	pj_ks (pj, "format", r_str_endswith (filepath, ".r2ai.md")? "markdown": "legacy");
+	pj_kb (pj, "valid", prompt != NULL);
+	prompt_json_ks (pj, "title", prompt? prompt->title: NULL);
+	prompt_json_ks (pj, "description", prompt? prompt->desc: NULL);
+	prompt_json_ks (pj, "author", prompt? prompt->author: NULL);
+	prompt_json_ks (pj, "command", prompt? prompt->command: NULL);
+	prompt_json_ks (pj, "prompt", prompt? prompt->prompt: NULL);
+	prompt_json_ks (pj, "requires", prompt? prompt->requires: NULL);
+	prompt_json_ks (pj, "if_empty", prompt? prompt->if_empty: NULL);
+	prompt_json_ks (pj, "if_command", prompt? prompt->if_command: NULL);
+	prompt_json_ks (pj, "model", prompt? prompt->model: NULL);
+	prompt_json_ks (pj, "provider", prompt? prompt->provider: NULL);
+	pj_end (pj);
+}
+
+static void prompt_list(RCore *core, RList *search_dirs, bool json) {
+	RList *seen = r_list_newf (free);
+	PJ *pj = NULL;
+	if (json) {
+		pj = r_core_pj_new (core);
+		pj_a (pj);
+	}
+	RListIter *dir_iter;
+	char *dir;
+	r_list_foreach (search_dirs, dir_iter, dir) {
+		RList *files = r_sys_dir (dir);
+		RListIter *iter;
+		char *file;
+		r_list_foreach (files, iter, file) {
+			if (!r_str_endswith (file, ".r2ai.txt") && !r_str_endswith (file, ".r2ai.md")) {
+				continue;
+			}
+			char *name = prompt_name_from_file (file);
+			if (prompt_name_seen (seen, name)) {
+				free (name);
+				continue;
+			}
+			r_list_append (seen, strdup (name));
+			char *filepath = find_prompt_file (search_dirs, name);
+			if (!filepath) {
+				free (name);
+				continue;
+			}
+			R2AIPrompt *prompt = parse_prompt_file (filepath);
+			if (json) {
+				prompt_print_json (pj, name, filepath, prompt);
+			} else if (prompt) {
+				prompt_print_summary (core, name, prompt);
+			} else {
+				r_cons_println (core->cons, name);
+			}
+			r2aiprompt_free (prompt);
+			free (filepath);
+			free (name);
+		}
+		r_list_free (files);
+	}
+	if (json) {
+		pj_end (pj);
+		char *s = pj_drain (pj);
+		r_cons_println (core->cons, s);
+		free (s);
+	}
+	r_list_free (seen);
+}
+
+R_API void r2ai_cmd_qj(RCorePluginSession *cps, const char *input) {
+	(void)input;
+	RCore *core = cps->core;
+	RList *search_dirs = prompt_search_dirs_or_warn (core);
+	if (!search_dirs) {
+		return;
+	}
+	prompt_list (core, search_dirs, true);
+	r_list_free (search_dirs);
+}
+
+R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input) {
+	RCore *core = cps->core;
+	RList *search_dirs = prompt_search_dirs_or_warn (core);
+	if (!search_dirs) {
 		return;
 	}
 	if (!input || !*input) {
-		// list prompts
-		RList *seen = r_list_newf (free);
-		RListIter *dir_iter;
-		char *dir;
-		r_list_foreach (search_dirs, dir_iter, dir) {
-			RList *files = r_sys_dir (dir);
-			RListIter *iter;
-			char *file;
-			r_list_foreach (files, iter, file) {
-				if (r_str_endswith (file, ".r2ai.txt") || r_str_endswith (file, ".r2ai.md")) {
-					char *dot = strchr (file, '.');
-					char *name = dot? r_str_ndup (file, dot - file): strdup (file);
-					if (!prompt_name_seen (seen, name)) {
-						r_list_append (seen, strdup (name));
-						char *filepath = find_prompt_file (search_dirs, name);
-						if (filepath) {
-							R2AIPrompt *prompt = parse_prompt_file (filepath);
-							if (prompt) {
-								prompt_print_summary (core, name, prompt);
-								r2aiprompt_free (prompt);
-							} else {
-								r_cons_println (core->cons, name);
-							}
-							free (filepath);
-						}
-					}
-					free (name);
-				}
-			}
-			r_list_free (files);
-		}
-		r_list_free (seen);
+		prompt_list (core, search_dirs, false);
 	} else {
 		// run prompt
 		char *name = strdup (input);
@@ -395,26 +465,7 @@ R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input) {
 }
 
 R_API char *r2ai_load_prompt_text(RCore *core, const char *name) {
-	const char *promptdir = r_config_get (core->config, "r2ai.promptdir");
-	if (!promptdir || !*promptdir) {
-		promptdir = "~/.config/r2ai/prompts";
-	}
-	char *expanded_dir = r_file_abspath (promptdir);
-	char *local_prompts = r_file_abspath ("../prompts");
-	RList *search_dirs = r_list_newf (free);
-	if (r_file_is_directory (expanded_dir)) {
-		r_list_append (search_dirs, expanded_dir);
-	} else {
-		free (expanded_dir);
-		expanded_dir = NULL;
-	}
-	if (r_file_is_directory (local_prompts)) {
-		r_list_append (search_dirs, local_prompts);
-	} else {
-		free (local_prompts);
-		local_prompts = NULL;
-	}
-
+	RList *search_dirs = prompt_search_dirs (core);
 	char *filepath = find_prompt_file (search_dirs, name);
 	char *prompt_text = NULL;
 	if (filepath) {

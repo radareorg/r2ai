@@ -42,6 +42,7 @@ In the markdown body, you can use:
 ## Usage
 
 - `r2ai -q`: List all available prompts
+- `r2ai -qj`: List all available prompts in JSON
 - `r2ai -q name`: Run the prompt named `name`
 - `r2ai -q name extra text`: Run the prompt with additional text appended
 
