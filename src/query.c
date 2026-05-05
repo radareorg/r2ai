@@ -19,6 +19,91 @@ R_API void r2aiprompt_free(R2AIPrompt *prompt) {
 	free (prompt);
 }
 
+static char *prompt_value_dup(const char *value) {
+	char *res = strdup (value? value: "");
+	r_str_trim (res);
+	size_t len = strlen (res);
+	if (len > 1 && ((res[0] == '\'' && res[len - 1] == '\'') || (res[0] == '"' && res[len - 1] == '"'))) {
+		char *unquoted = r_str_ndup (res + 1, len - 2);
+		free (res);
+		res = unquoted;
+	}
+	return res;
+}
+
+static void prompt_set_value(char **dst, const char *value) {
+	free (*dst);
+	*dst = prompt_value_dup (value);
+}
+
+static bool prompt_set_key_value(R2AIPrompt *prompt, const char *raw_key, const char *raw_value) {
+	char *key = strdup (raw_key);
+	r_str_trim (key);
+	r_str_case (key, false);
+	char *p = key;
+	for (; *p; p++) {
+		if (*p == '-') {
+			*p = '_';
+		}
+	}
+
+	bool known = true;
+	if (!strcmp (key, "title")) {
+		prompt_set_value (&prompt->title, raw_value);
+	} else if (!strcmp (key, "author")) {
+		prompt_set_value (&prompt->author, raw_value);
+	} else if (!strcmp (key, "description") || !strcmp (key, "desc")) {
+		prompt_set_value (&prompt->desc, raw_value);
+	} else if (!strcmp (key, "command") || !strcmp (key, "commands")) {
+		prompt_set_value (&prompt->command, raw_value);
+	} else if (!strcmp (key, "prompt") || !strcmp (key, "query")) {
+		prompt_set_value (&prompt->prompt, raw_value);
+	} else if (!strcmp (key, "requires")) {
+		prompt_set_value (&prompt->requires, raw_value);
+	} else if (!strcmp (key, "if_empty")) {
+		prompt_set_value (&prompt->if_empty, raw_value);
+	} else if (!strcmp (key, "if_command")) {
+		prompt_set_value (&prompt->if_command, raw_value);
+	} else if (!strcmp (key, "model")) {
+		prompt_set_value (&prompt->model, raw_value);
+	} else if (!strcmp (key, "provider")) {
+		prompt_set_value (&prompt->provider, raw_value);
+	} else {
+		known = false;
+	}
+	free (key);
+	return known;
+}
+
+static bool parse_prompt_kv(R2AIPrompt *prompt, const char *text) {
+	bool parsed = false;
+	char *data = strdup (text);
+	RList *lines = r_str_split_list (data, "\n", -1);
+	RListIter *iter;
+	char *line;
+	r_list_foreach (lines, iter, line) {
+		r_str_trim (line);
+		if (!*line || *line == '#') {
+			continue;
+		}
+		char *colon = strchr (line, ':');
+		if (!colon) {
+			continue;
+		}
+		*colon = 0;
+		char *key = line;
+		char *value = colon + 1;
+		r_str_trim (key);
+		r_str_trim (value);
+		if (prompt_set_key_value (prompt, key, value)) {
+			parsed = true;
+		}
+	}
+	r_list_free (lines);
+	free (data);
+	return parsed;
+}
+
 R_API R2AIPrompt *parse_prompt_file(const char *filepath) {
 	R2AIPrompt *prompt = R_NEW0 (R2AIPrompt);
 	char *content = r_file_slurp (filepath, NULL);
@@ -27,51 +112,25 @@ R_API R2AIPrompt *parse_prompt_file(const char *filepath) {
 		return NULL;
 	}
 
-	// Check if it's a markdown file with YAML frontmatter
 	if (r_str_startswith (content, "---\n")) {
-		// Parse YAML frontmatter
 		char *frontmatter_end = strstr (content + 4, "\n---\n");
 		if (frontmatter_end) {
 			char *frontmatter = r_str_ndup (content + 4, frontmatter_end - (content + 4));
-			RList *lines = r_str_split_list (frontmatter, "\n", -1);
-			RListIter *iter;
-			char *line;
-			r_list_foreach (lines, iter, line) {
-				r_str_trim (line);
-				if (*line == 0) {
-					continue;
-				}
-				char *colon = strchr (line, ':');
-				if (!colon) {
-					continue;
-				}
-				*colon = 0;
-				char *key = line;
-				char *value = colon + 1;
-				r_str_trim (key);
-				r_str_trim (value);
-				if (!strcmp (key, "title")) {
-					prompt->title = strdup (value);
-				} else if (!strcmp (key, "author")) {
-					prompt->author = strdup (value);
-				} else if (!strcmp (key, "description")) {
-					prompt->desc = strdup (value);
-				} else if (!strcmp (key, "command")) {
-					prompt->command = strdup (value);
-				} else if (!strcmp (key, "model")) {
-					prompt->model = strdup (value);
-				} else if (!strcmp (key, "provider")) {
-					prompt->provider = strdup (value);
-				}
-			}
-			r_list_free (lines);
+			parse_prompt_kv (prompt, frontmatter);
 			free (frontmatter);
-			// The prompt content starts after the second ---
 			char *prompt_start = frontmatter_end + 5; // Skip "\n---\n"
 			prompt->prompt = strdup (prompt_start);
+		} else {
+			R_LOG_ERROR ("Invalid prompt file format: %s", filepath);
+			r2aiprompt_free (prompt);
+			prompt = NULL;
 		}
-	} else {
+	} else if (!parse_prompt_kv (prompt, content)) {
 		R_LOG_ERROR ("Invalid prompt file format: %s", filepath);
+		r2aiprompt_free (prompt);
+		prompt = NULL;
+	} else if (!prompt->prompt && prompt->desc) {
+		prompt->prompt = strdup (prompt->desc);
 	}
 
 	free (content);
@@ -151,21 +210,46 @@ R_API char *find_prompt_file(RList *search_dirs, const char *name) {
 	RListIter *dir_iter;
 	char *dir;
 	r_list_foreach (search_dirs, dir_iter, dir) {
-		char *filepath_txt = r_str_newf ("%s/%s.r2ai.txt", dir, name);
 		char *filepath_md = r_str_newf ("%s/%s.r2ai.md", dir, name);
-		if (r_file_exists (filepath_txt)) {
-			filepath = filepath_txt;
-			free (filepath_md);
-			break;
-		} else if (r_file_exists (filepath_md)) {
+		char *filepath_txt = r_str_newf ("%s/%s.r2ai.txt", dir, name);
+		if (r_file_exists (filepath_md)) {
 			filepath = filepath_md;
 			free (filepath_txt);
 			break;
+		} else if (r_file_exists (filepath_txt)) {
+			filepath = filepath_txt;
+			free (filepath_md);
+			break;
 		}
-		free (filepath_txt);
 		free (filepath_md);
+		free (filepath_txt);
 	}
 	return filepath;
+}
+
+static bool prompt_name_seen(RList *seen, const char *name) {
+	RListIter *iter;
+	char *it;
+	r_list_foreach (seen, iter, it) {
+		if (!strcmp (it, name)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static void prompt_print_summary(RCore *core, const char *name, R2AIPrompt *prompt) {
+	const char *title = prompt->title? prompt->title: "";
+	const char *desc = prompt->desc? prompt->desc: "";
+	if (*title && *desc) {
+		r_cons_printf (core->cons, "%s: %s - %s\n", name, title, desc);
+	} else if (*title) {
+		r_cons_printf (core->cons, "%s: %s\n", name, title);
+	} else if (*desc) {
+		r_cons_printf (core->cons, "%s: %s\n", name, desc);
+	} else {
+		r_cons_println (core->cons, name);
+	}
 }
 
 R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input) {
@@ -196,6 +280,7 @@ R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input) {
 	}
 	if (!input || !*input) {
 		// list prompts
+		RList *seen = r_list_newf (free);
 		RListIter *dir_iter;
 		char *dir;
 		r_list_foreach (search_dirs, dir_iter, dir) {
@@ -206,30 +291,26 @@ R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input) {
 				if (r_str_endswith (file, ".r2ai.txt") || r_str_endswith (file, ".r2ai.md")) {
 					char *dot = strchr (file, '.');
 					char *name = dot? r_str_ndup (file, dot - file): strdup (file);
-					char *filepath_txt = r_str_newf ("%s/%s.r2ai.txt", dir, name);
-					char *filepath_md = r_str_newf ("%s/%s.r2ai.md", dir, name);
-					char *filepath = NULL;
-					if (r_file_exists (filepath_txt)) {
-						filepath = filepath_txt;
-					} else if (r_file_exists (filepath_md)) {
-						filepath = filepath_md;
-					}
-					if (filepath) {
-						R2AIPrompt *prompt = parse_prompt_file (filepath);
-						if (prompt) {
-							r_cons_printf (core->cons, "%s: %s - %s\n", name, prompt->title? prompt->title: "", prompt->desc? prompt->desc: "");
-							r2aiprompt_free (prompt);
-						} else {
-							r_cons_println (core->cons, name);
+					if (!prompt_name_seen (seen, name)) {
+						r_list_append (seen, strdup (name));
+						char *filepath = find_prompt_file (search_dirs, name);
+						if (filepath) {
+							R2AIPrompt *prompt = parse_prompt_file (filepath);
+							if (prompt) {
+								prompt_print_summary (core, name, prompt);
+								r2aiprompt_free (prompt);
+							} else {
+								r_cons_println (core->cons, name);
+							}
+							free (filepath);
 						}
 					}
 					free (name);
-					free (filepath_txt);
-					free (filepath_md);
 				}
 			}
 			r_list_free (files);
 		}
+		r_list_free (seen);
 	} else {
 		// run prompt
 		char *name = strdup (input);
@@ -254,8 +335,8 @@ R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input) {
 			free (name);
 			return;
 		}
-		if (!prompt->title || !prompt->command) {
-			R_LOG_WARN ("Prompt %s is missing required Title or Command directive", name);
+		if (!prompt->command) {
+			R_LOG_WARN ("Prompt %s is missing required Command directive", name);
 		}
 		free (filepath);
 		// run commands

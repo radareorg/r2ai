@@ -4,24 +4,37 @@ This directory contains predefined prompt files for the r2ai plugin.
 
 ## Format
 
-Each prompt is stored in a `.r2ai` file using a simple Key: Value format.
+Each prompt is stored in a `.r2ai.md` file with YAML-style frontmatter and a markdown body.
 
-Lines starting with `#` are comments and ignored.
+Example:
+
+```markdown
+---
+description: 'Explain the current function'
+author: pancake
+command: r2ai -d
+if-empty: exit
+---
+Explain the purpose of this function in one or two short sentences.
+```
 
 Supported keys:
 
-- `Title`: The title of the prompt (required)
-- `Author`: The author of the prompt
-- `Description`: A brief description
-- `Command` or `Commands`: Commands to execute before sending the prompt, separated by `;` (required)
-- `Prompt` or `Query`: The main prompt text sent to the LLM
-- `Requires`: Requirements for the prompt (e.g., "analysis" to ensure binary analysis)
-- `If-Empty`: Alternative prompt or message if the command output is empty
-- `If-Command`: Additional commands to run if the main command produces output
+- `title`: The title of the prompt
+- `author`: The author of the prompt
+- `description`: A brief description
+- `command`: Commands to execute before sending the prompt, separated by `;` (required)
+- `requires`: Requirements for the prompt (e.g., "analysis" to ensure binary analysis)
+- `if-empty`: Alternative prompt or message if the command output is empty
+- `if-command`: Additional commands to run if the main command produces output
+- `model`: Model override for this prompt
+- `provider`: Provider override for this prompt
+
+Legacy `.r2ai.txt` files using `Title:`, `Command:`, `Prompt:` or `Query:` are still accepted.
 
 ## Variable Substitution
 
-In the `Prompt` field, you can use:
+In the markdown body, you can use:
 
 - `${VAR}`: Replaced with the value of the environment variable `VAR`
 - `$(cmd)`: Replaced with the output of the r2 command `cmd`
@@ -34,8 +47,8 @@ In the `Prompt` field, you can use:
 
 ## Conditionals
 
-- `If-Empty`: If the command output is empty, use this as the prompt instead
-- `If-Command`: If the command produces output, run these additional commands and append their output
+- `if-empty`: If the command output is empty, use this as the prompt instead
+- `if-command`: If the command produces output, run these additional commands and append their output
 
 ## Future Features
 

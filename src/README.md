@@ -54,7 +54,7 @@ Usage: r2ai   [-args] [...]
 
 ## Query Prompts
 
-Query prompts are predefined templates that combine radare2 commands with structured prompts to the LLM for common reverse engineering tasks. They are stored in the `prompts/` directory as `.r2ai.txt` files.
+Query prompts are predefined templates that combine radare2 commands with structured prompts to the LLM for common reverse engineering tasks. They are stored in the `prompts/` directory as `.r2ai.md` files with YAML-style frontmatter. Legacy `.r2ai.txt` prompts are still supported.
 
 ### Available Prompts
 
