@@ -561,9 +561,7 @@ static char *tool_logs_to_string(const RJson *logs_json) {
 static void normalize_tool_output(RCore *core, bool verbose, const char *tool_name, const char *args, R2AI_ToolResult *result) {
 	if (R_STR_ISEMPTY (result->output)) {
 		free (result->output);
-		result->output = strdup (!strcmp (tool_name, "execute_js")
-			? "Error: Empty or invalid response from QJS execution"
-			: "<no output>");
+		result->output = strdup ("<no output>");
 		return;
 	}
 	if (!strcmp (result->output, "R2AI_SIGINT")) {

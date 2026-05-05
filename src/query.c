@@ -19,35 +19,37 @@ R_API void r2aiprompt_free(R2AIPrompt *prompt) {
 	free (prompt);
 }
 
-static char **prompt_field(R2AIPrompt *prompt, const char *key) {
-	if (!strcmp (key, "title")) {
-		return &prompt->title;
+typedef struct {
+	const char *key;
+	size_t off;
+} PromptField;
+
+#define PROMPT_FIELD(k, f) \
+	{ k, r_offsetof (R2AIPrompt, f) }
+static const PromptField prompt_fields[] = {
+	PROMPT_FIELD ("title", title),
+	PROMPT_FIELD ("author", author),
+	PROMPT_FIELD ("description", desc),
+	PROMPT_FIELD ("command", command),
+	PROMPT_FIELD ("requires", requires),
+	PROMPT_FIELD ("if-empty", if_empty),
+	PROMPT_FIELD ("if-command", if_command),
+	PROMPT_FIELD ("model", model),
+	PROMPT_FIELD ("provider", provider),
+};
+#undef PROMPT_FIELD
+
+static bool prompt_set_field(R2AIPrompt *prompt, const char *key, const char *value) {
+	size_t i;
+	for (i = 0; i < R_ARRAY_SIZE (prompt_fields); i++) {
+		if (!strcmp (key, prompt_fields[i].key)) {
+			char **field = (char **) ((ut8 *)prompt + prompt_fields[i].off);
+			free (*field);
+			*field = strdup (value);
+			return true;
+		}
 	}
-	if (!strcmp (key, "author")) {
-		return &prompt->author;
-	}
-	if (!strcmp (key, "description")) {
-		return &prompt->desc;
-	}
-	if (!strcmp (key, "command")) {
-		return &prompt->command;
-	}
-	if (!strcmp (key, "requires")) {
-		return &prompt->requires;
-	}
-	if (!strcmp (key, "if-empty")) {
-		return &prompt->if_empty;
-	}
-	if (!strcmp (key, "if-command")) {
-		return &prompt->if_command;
-	}
-	if (!strcmp (key, "model")) {
-		return &prompt->model;
-	}
-	if (!strcmp (key, "provider")) {
-		return &prompt->provider;
-	}
-	return NULL;
+	return false;
 }
 
 R_API R2AIPrompt *parse_prompt_file(const char *filepath) {
@@ -90,11 +92,7 @@ R_API R2AIPrompt *parse_prompt_file(const char *filepath) {
 		*value++ = 0;
 		r_str_trim (line);
 		r_str_trim (value);
-		char **field = prompt_field (prompt, line);
-		if (field) {
-			free (*field);
-			*field = strdup (value);
-		}
+		prompt_set_field (prompt, line, value);
 	}
 	r_list_free (lines);
 	prompt->prompt = strdup (prompt_start);
