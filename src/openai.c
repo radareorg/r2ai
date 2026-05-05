@@ -364,9 +364,12 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 									}
 								}
 							}
-							if (!tc->name && !tc->arguments && !tc->id) {
+							if (!tc->name || !tc->arguments) {
 								r2ai_tool_call_free (tc);
 								continue;
+							}
+							if (!tc->id) {
+								tc->id = r_str_newf ("call_%zu", i);
 							}
 							r_list_append (message->tool_calls, tc);
 						}

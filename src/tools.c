@@ -529,10 +529,41 @@ static R2AI_ToolResult r2ai_qjs(RCore *core, R2AI_State *state, RJson *args, boo
 	return result;
 }
 
-static void normalize_tool_output(RCore *core, bool verbose, const char *args, R2AI_ToolResult *result) {
+static char *tool_logs_to_string(const RJson *logs_json) {
+	if (!logs_json || logs_json->type != R_JSON_ARRAY) {
+		return NULL;
+	}
+	RStrBuf *sb = r_strbuf_new ("");
+	if (!sb) {
+		return NULL;
+	}
+	for (size_t i = 0; i < logs_json->children.count; i++) {
+		const RJson *log = r_json_item (logs_json, i);
+		if (log && log->type == R_JSON_OBJECT) {
+			const RJson *type = r_json_get (log, "type");
+			const RJson *message = r_json_get (log, "message");
+			if (message && message->type == R_JSON_STRING) {
+				if (type && type->type == R_JSON_STRING && R_STR_ISNOTEMPTY (type->str_value)) {
+					r_strbuf_appendf (sb, "%s: ", type->str_value);
+				}
+				r_strbuf_appendf (sb, "%s\n", message->str_value);
+			}
+		}
+	}
+	char *s = r_strbuf_drain (sb);
+	if (R_STR_ISEMPTY (s)) {
+		free (s);
+		return NULL;
+	}
+	return s;
+}
+
+static void normalize_tool_output(RCore *core, bool verbose, const char *tool_name, const char *args, R2AI_ToolResult *result) {
 	if (R_STR_ISEMPTY (result->output)) {
 		free (result->output);
-		result->output = strdup ("{ \"res\":\"Error: Empty or invalid response from QJS execution\" }");
+		result->output = strdup (!strcmp (tool_name, "execute_js")
+			? "Error: Empty or invalid response from QJS execution"
+			: "<no output>");
 		return;
 	}
 	if (!strcmp (result->output, "R2AI_SIGINT")) {
@@ -549,33 +580,35 @@ static void normalize_tool_output(RCore *core, bool verbose, const char *args, R
 	}
 
 	char *normalized = NULL;
+	const RJson *logs_json = r_json_get (json, "logs");
 	const RJson *error_json = r_json_get (json, "error");
 	if (error_json && (error_json->type == R_JSON_BOOLEAN || error_json->type == R_JSON_STRING) &&
 		((error_json->type == R_JSON_BOOLEAN && error_json->num.u_value) ||
 			(error_json->type == R_JSON_STRING && error_json->str_value[0]))) {
-		const RJson *logs_json = r_json_get (json, "logs");
-		if (logs_json && logs_json->type == R_JSON_ARRAY) {
-			RStrBuf *sb = r_strbuf_new ("");
-			for (size_t i = 0; i < logs_json->children.count; i++) {
-				const RJson *log = r_json_item (logs_json, i);
-				if (log && log->type == R_JSON_OBJECT) {
-					const RJson *message = r_json_get (log, "message");
-					if (message && message->type == R_JSON_STRING) {
-						r_strbuf_appendf (sb, "%s\n", message->str_value);
-					}
-				}
-			}
-			normalized = r_strbuf_drain (sb);
-		} else if (error_json->type == R_JSON_STRING) {
+		normalized = tool_logs_to_string (logs_json);
+		if (!normalized && error_json->type == R_JSON_STRING) {
 			normalized = strdup (error_json->str_value);
-		} else {
+		}
+		if (!normalized) {
 			normalized = strdup ("Error occurred (no details available)");
 		}
 	} else {
 		const RJson *res_json = r_json_get (json, "res");
-		normalized = (res_json && res_json->type == R_JSON_STRING)
-			? strdup (res_json->str_value)
-			: strdup (result->output);
+		if (res_json && res_json->type == R_JSON_STRING) {
+			normalized = strdup (res_json->str_value);
+		} else {
+			normalized = strdup (result->output);
+		}
+		if (R_STR_ISEMPTY (normalized)) {
+			free (normalized);
+			normalized = tool_logs_to_string (logs_json);
+		}
+		if (!normalized && !strcmp (tool_name, "r2cmd")) {
+			normalized = strdup ("<no output>");
+		}
+		if (!normalized) {
+			normalized = strdup ("<no output>");
+		}
 	}
 	r_json_free (json);
 
@@ -631,6 +664,6 @@ R_API R2AI_ToolResult execute_tool(RCorePluginSession *cps, const char *tool_nam
 		result.output = strdup ("{ \"res\":\"Unknown tool\" }");
 	}
 	r_json_free (args_json);
-	normalize_tool_output (core, verbose, args, &result);
+	normalize_tool_output (core, verbose, tool_name, args, &result);
 	return result;
 }

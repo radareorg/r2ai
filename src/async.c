@@ -231,8 +231,27 @@ static RThreadFunctionRet worker_auto(RThread *th) {
 			return R_TH_STOP;
 		}
 
-		/* Take the first tool call. */
-		R2AI_ToolCall *tc = r_list_get_n (m->tool_calls, 0);
+		/* Take the first valid tool call. */
+		RListIter *iter;
+		R2AI_ToolCall *tc, *valid_tc = NULL;
+		r_list_foreach (m->tool_calls, iter, tc) {
+			if (tc->name && tc->arguments && tc->id) {
+				valid_tc = tc;
+				break;
+			}
+		}
+		if (!valid_tc) {
+			task_lock (t);
+			t->state = R2AI_TASK_ERROR;
+			free (t->error);
+			t->error = strdup ("llm returned an invalid tool call");
+			t->finished = time (NULL);
+			task_unlock (t);
+			r2ai_message_free ((R2AI_Message *)m);
+			free (res);
+			return R_TH_STOP;
+		}
+		tc = valid_tc;
 		char *name = tc->name? strdup (tc->name): NULL;
 		char *argsjson = tc->arguments? strdup (tc->arguments): NULL;
 		char *callid = tc->id? strdup (tc->id): NULL;
@@ -544,25 +563,19 @@ static bool answer_wait_approve(RCorePluginSession *cps, R2AITask *t, bool appro
 
 	char *tool_output = NULL;
 	if (approve) {
-		bool old_yolo = false;
-		if (!interactive) {
-			old_yolo = r_config_get_b (core->config, "r2ai.auto.yolo");
-			r_config_set_b (core->config, "r2ai.auto.yolo", true);
-		}
+		bool old_yolo = r_config_get_b (core->config, "r2ai.auto.yolo");
+		r_config_set_b (core->config, "r2ai.auto.yolo", true);
 		R2AI_ToolResult tool_result = execute_tool (cps, tool_name, tool_args);
-		if (!interactive) {
-			r_config_set_b (core->config, "r2ai.auto.yolo", old_yolo);
-		}
+		r_config_set_b (core->config, "r2ai.auto.yolo", old_yolo);
 		tool_output = tool_result.output;
 		tool_result.output = NULL;
 		r2ai_tool_result_fini (&tool_result);
 		if (!tool_output) {
 			tool_output = strdup ("<no output>");
 		}
+		task_append_outputf (t, "\nTool result (%s):\n%s\n", tool_name? tool_name: "?", tool_output);
 		if (interactive) {
 			r_cons_printf (core->cons, Color_GREEN "tool result:" Color_RESET " %s\n", tool_output);
-		} else {
-			task_append_outputf (t, "\nTool result (%s):\n%s\n", tool_name? tool_name: "?", tool_output);
 		}
 	} else {
 		tool_output = strdup ("<user declined to run tool>");
@@ -639,9 +652,12 @@ static void interact_once(RCorePluginSession *cps, int id) {
 		if (tool_args) {
 			r_cons_printf (core->cons, "args: %s\n", tool_args);
 		}
+		r_cons_flush (core->cons);
 
 		bool yolo = r_config_get_b (core->config, "r2ai.auto.yolo");
-		bool approve = yolo? true: r_cons_yesno (core->cons, 'y', "Run this tool? (Y/n)");
+		char *question = r_str_newf ("Run tool %s? (Y/n)", tool_name? tool_name: "?");
+		bool approve = yolo? true: r_cons_yesno (core->cons, 'y', "%s", question? question: "Run tool? (Y/n)");
+		free (question);
 		answer_wait_approve (cps, t, approve, true);
 	}
 	free (tool_name);
