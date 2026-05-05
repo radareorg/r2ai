@@ -411,8 +411,8 @@ static void show_task_list(RCorePluginSession *cps, bool json) {
 	queue_lock (q);
 	if (json) {
 		PJ *pj = r_core_pj_new (cps->core);
-		pj_ko (pj, "tasks");
-		pj_a (pj);
+		pj_o (pj);
+		pj_ka (pj, "tasks");
 		RListIter *it;
 		R2AITask *t;
 		r_list_foreach (q->tasks, it, t) {
@@ -426,6 +426,12 @@ static void show_task_list(RCorePluginSession *cps, bool json) {
 			pj_ki (pj, "age", (int) (time (NULL) - t->created));
 			if (t->pending_tool_name) {
 				pj_ks (pj, "pending_tool", t->pending_tool_name);
+			}
+			if (t->pending_tool_args) {
+				pj_ks (pj, "pending_tool_args", t->pending_tool_args);
+			}
+			if (t->pending_tool_call_id) {
+				pj_ks (pj, "pending_tool_call_id", t->pending_tool_call_id);
 			}
 			const char *out = r_strbuf_get (t->output);
 			if (R_STR_ISNOTEMPTY (out)) {
@@ -525,6 +531,60 @@ static void drop_task_locked(R2AITaskQueue *q, R2AITask *t) {
 	r_list_delete_data (q->tasks, t);
 }
 
+static bool answer_wait_approve(RCorePluginSession *cps, R2AITask *t, bool approve, bool interactive) {
+	RCore *core = cps->core;
+	task_lock (t);
+	if (t->state != R2AI_TASK_WAIT_APPROVE) {
+		task_unlock (t);
+		return false;
+	}
+	char *tool_name = t->pending_tool_name? strdup (t->pending_tool_name): NULL;
+	char *tool_args = t->pending_tool_args? strdup (t->pending_tool_args): NULL;
+	task_unlock (t);
+
+	char *tool_output = NULL;
+	if (approve) {
+		bool old_yolo = false;
+		if (!interactive) {
+			old_yolo = r_config_get_b (core->config, "r2ai.auto.yolo");
+			r_config_set_b (core->config, "r2ai.auto.yolo", true);
+		}
+		R2AI_ToolResult tool_result = execute_tool (cps, tool_name, tool_args);
+		if (!interactive) {
+			r_config_set_b (core->config, "r2ai.auto.yolo", old_yolo);
+		}
+		tool_output = tool_result.output;
+		tool_result.output = NULL;
+		r2ai_tool_result_fini (&tool_result);
+		if (!tool_output) {
+			tool_output = strdup ("<no output>");
+		}
+		if (interactive) {
+			r_cons_printf (core->cons, Color_GREEN "tool result:" Color_RESET " %s\n", tool_output);
+		} else {
+			task_append_outputf (t, "\nTool result (%s):\n%s\n", tool_name? tool_name: "?", tool_output);
+		}
+	} else {
+		tool_output = strdup ("<user declined to run tool>");
+		if (interactive) {
+			r_cons_printf (core->cons, "declined.\n");
+		} else {
+			task_append_output (t, "\nTool declined by user.\n");
+		}
+	}
+
+	task_lock (t);
+	free (t->tool_result);
+	t->tool_result = tool_output;
+	t->state = R2AI_TASK_RUNNING;
+	task_unlock (t);
+	r_th_sem_post (t->gate);
+
+	free (tool_name);
+	free (tool_args);
+	return true;
+}
+
 /* Interactive handler: act on first actionable task (or the given id). */
 static void interact_once(RCorePluginSession *cps, int id) {
 	RCore *core = cps->core;
@@ -582,27 +642,7 @@ static void interact_once(RCorePluginSession *cps, int id) {
 
 		bool yolo = r_config_get_b (core->config, "r2ai.auto.yolo");
 		bool approve = yolo? true: r_cons_yesno (core->cons, 'y', "Run this tool? (Y/n)");
-		char *tool_output = NULL;
-		if (approve) {
-			R2AI_ToolResult tool_result = execute_tool (cps, tool_name, tool_args);
-			tool_output = tool_result.output;
-			tool_result.output = NULL;
-			r2ai_tool_result_fini (&tool_result);
-			if (!tool_output) {
-				tool_output = strdup ("<no output>");
-			}
-			r_cons_printf (core->cons, Color_GREEN "tool result:" Color_RESET " %s\n", tool_output);
-		} else {
-			tool_output = strdup ("<user declined to run tool>");
-			r_cons_printf (core->cons, "declined.\n");
-		}
-
-		task_lock (t);
-		free (t->tool_result);
-		t->tool_result = tool_output;
-		t->state = R2AI_TASK_RUNNING;
-		task_unlock (t);
-		r_th_sem_post (t->gate);
+		answer_wait_approve (cps, t, approve, true);
 	}
 	free (tool_name);
 	free (tool_args);
@@ -617,6 +657,38 @@ static R2AITask *find_by_id(R2AITaskQueue *q, int id) {
 		}
 	}
 	return NULL;
+}
+
+static void answer_by_id(RCorePluginSession *cps, int id, bool approve) {
+	RCore *core = cps->core;
+	R2AI_State *state = cps->data;
+	if (!state || !state->async) {
+		return;
+	}
+	if (id <= 0) {
+		r_cons_printf (core->cons, "Missing task id\n");
+		return;
+	}
+	R2AITaskQueue *q = state->async;
+	queue_lock (q);
+	R2AITask *t = find_by_id (q, id);
+	if (!t) {
+		queue_unlock (q);
+		r_cons_printf (core->cons, "No task with id %d\n", id);
+		return;
+	}
+	task_lock (t);
+	bool wait_approve = t->state == R2AI_TASK_WAIT_APPROVE;
+	task_unlock (t);
+	queue_unlock (q);
+
+	if (!wait_approve) {
+		r_cons_printf (core->cons, "Task %d is not waiting for approval\n", id);
+		return;
+	}
+	if (answer_wait_approve (cps, t, approve, false)) {
+		r_cons_printf (core->cons, "%s task %d\n", approve? "Approved": "Declined", id);
+	}
 }
 
 static void kill_task_locked(R2AITaskQueue *q, R2AITask *t) {
@@ -738,6 +810,8 @@ static RCoreHelpMessage help_msg_r2ai_s = {
 	"r2ai", " -ss", "show details of the last created task",
 	"r2ai", " -si", "interactive: handle first actionable task",
 	"r2ai", " -si <id>", "interactive: handle only task <id>",
+	"r2ai", " -sy <id>", "approve pending tool call for task <id>",
+	"r2ai", " -sn <id>", "decline pending tool call for task <id>",
 	"r2ai", " -sa", "block until all tasks finish",
 	"r2ai", " -sp", "purge finished/errored/cancelled tasks",
 	"r2ai", " -s <id>", "show details of task <id>",
@@ -823,6 +897,12 @@ R_IPI void r2ai_async_cmd(RCorePluginSession *cps, const char *input) {
 		break;
 	case 'i':
 		interact_once (cps, id);
+		break;
+	case 'y':
+		answer_by_id (cps, id, true);
+		break;
+	case 'n':
+		answer_by_id (cps, id, false);
 		break;
 	case 'a':
 		wait_all (cps);

@@ -313,16 +313,16 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 					}
 				}
 				r2ai_tool_result_fini (&tool_result);
-				}
+			}
 
-				free (tool_name);
-				free (tool_args);
-				if (!cmd_output) {
-					cmd_output = strdup ("<no output>");
-				}
-				if (strcmp (cmd_output, "R2AI_SIGINT") == 0) {
-					r_cons_printf (core->cons, "\n\n\x1b[1" Color_RED "[r2ai] Processing interrupted after tool execution" Color_RESET "\n\n");
-					r_cons_flush (core->cons);
+			free (tool_name);
+			free (tool_args);
+			if (!cmd_output) {
+				cmd_output = strdup ("<no output>");
+			}
+			if (strcmp (cmd_output, "R2AI_SIGINT") == 0) {
+				r_cons_printf (core->cons, "\n\n\x1b[1" Color_RED "[r2ai] Processing interrupted after tool execution" Color_RESET "\n\n");
+				r_cons_flush (core->cons);
 				free (cmd_output);
 				cmd_output = strdup ("<user interrupted>");
 				interrupted = true;

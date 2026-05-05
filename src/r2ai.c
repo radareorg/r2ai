@@ -27,7 +27,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -q", "list available query prompts",
 	"r2ai", " -q [name] (inst)", "run predefined prompt with optional instructions",
 	"r2ai", " -r", "enter the chat repl",
-	"r2ai", " -s[?ijak*]", "async task queue: list, show, interact, kill (see r2ai -s?)",
+	"r2ai", " -s[?ijynak*]", "async task queue: list, show, interact, approve, decline, kill (see r2ai -s?)",
 	"r2ai", " -L", "show chat logs (See -Lj for json). Only for auto mode.",
 	"r2ai", " -C", "compact conversation history",
 	"r2ai", " -LR", "create a log report",
@@ -726,7 +726,7 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_set_b (core->config, "r2ai.async", false);
 	r_config_desc (core->config, "r2ai.async", "Run LLM calls in background threads (see r2ai -s, -si)");
 	r_config_set_b (core->config, "r2ai.async.purge", true);
-	r_config_desc (core->config, "r2ai.async.purge", "Reserved; use r2ai -s* to drop completed/errored/cancelled async tasks");
+	r_config_desc (core->config, "r2ai.async.purge", "Drop completed/errored/cancelled async tasks after status listings");
 	r_config_lock (core->config, true);
 
 	r2ai_async_init (state);
