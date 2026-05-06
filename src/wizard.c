@@ -214,6 +214,7 @@ static bool wizard_step_decompilation(RCore *core) {
 		"\n"
 		"🔍 Decompilation with AI:\n"
 		"   r2ai -d                    # Decompile current function\n"
+		"   r2ai -do                   # Decompile with source offsets\n"
 		"   r2ai -d explain this       # Ask about current function\n"
 		"   r2ai -dr                   # Recursive decompilation\n\n"
 		"🎛️ Advanced decompilation:\n"

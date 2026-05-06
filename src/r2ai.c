@@ -11,6 +11,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -w", "Launch the interactive setup wizard",
 	"r2ai", " -d", "Decompile current function",
 	"r2ai", " -d [query]", "Ask a question on the current function",
+	"r2ai", " -do", "Decompile current function with source offsets",
 	"r2ai", " -dr", "Decompile current function (+ 1 level of recursivity)",
 	"r2ai", " -a [query]", "Resolve question using auto mode",
 	"r2ai", " -b [url]", "set/show base URL for provider API",
@@ -115,7 +116,100 @@ R_API char *r2ai(RCorePluginSession *cps, R2AIArgs args) {
 	return content;
 }
 
-static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool recursive) {
+static bool r2ai_cmd_is_word(const char *cmd, const char *word) {
+	const size_t len = strlen (word);
+	return !strncmp (cmd, word, len) && (!cmd[len] || IS_WHITESPACE (cmd[len]));
+}
+
+static char *r2ai_offset_cmd(const char *cmd) {
+	char *trimmed = strdup (cmd);
+	r_str_trim (trimmed);
+	const char *replacement = NULL;
+	if (r2ai_cmd_is_word (trimmed, "pdc")) {
+		replacement = "pdco";
+	} else if (r2ai_cmd_is_word (trimmed, "pdg")) {
+		replacement = "pdgo";
+	} else if (r2ai_cmd_is_word (trimmed, "pdd")) {
+		replacement = "pddo";
+	}
+	if (replacement) {
+		char *res = r_str_newf ("%s%s", replacement, trimmed + 3);
+		free (trimmed);
+		return res;
+	}
+	return trimmed;
+}
+
+static void r2ai_collect_offsets(RList *offsets, const char *text, int *width) {
+	const char *p = text;
+	while (p && *p) {
+		const char *line = r_str_trim_head_ro (p);
+		if (r_str_startswith (line, "0x")) {
+			const char *q = line + 2;
+			while (IS_HEXCHAR (*q)) {
+				q++;
+			}
+			if (q > line + 2) {
+				int len = q - line;
+				r_list_append (offsets, r_str_ndup (line, len));
+				if (len > *width) {
+					*width = len;
+				}
+			}
+		}
+		p = strchr (p, '\n');
+		if (p) {
+			p++;
+		}
+	}
+}
+
+static const char *r2ai_next_offset(RListIter **iter) {
+	if (!iter || !*iter) {
+		return NULL;
+	}
+	const char *addr = (*iter)->data;
+	*iter = (*iter)->n;
+	return addr;
+}
+
+static bool r2ai_line_has_statement(const char *line) {
+	const char *trimmed = r_str_trim_head_ro (line);
+	if (R_STR_ISEMPTY (trimmed)) {
+		return false;
+	}
+	if (!strcmp (trimmed, "{") || !strcmp (trimmed, "}") || !strcmp (trimmed, "};")) {
+		return false;
+	}
+	if (*trimmed == '#') {
+		return false;
+	}
+	return true;
+}
+
+static char *r2ai_apply_offsets(const char *text, RList *offsets, int width) {
+	if (R_STR_ISEMPTY (text) || !offsets || r_list_empty (offsets)) {
+		return text? strdup (text): NULL;
+	}
+	if (width < 10) {
+		width = 10;
+	}
+	RStrBuf *sb = r_strbuf_new ("");
+	RListIter *offiter = offsets->head;
+	const char *p = text;
+	while (p && *p) {
+		const char *nl = strchr (p, '\n');
+		int len = nl? (int)(nl - p): (int)strlen (p);
+		char *line = r_str_ndup (p, len);
+		const char *addr = r2ai_line_has_statement (line)? r2ai_next_offset (&offiter): NULL;
+		r_strbuf_appendf (sb, "%*s | %s\n", width, addr? addr: "", line);
+		free (line);
+		p = nl? nl + 1: NULL;
+	}
+	return r_strbuf_drain (sb);
+}
+
+static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool recursive, const bool offsets) {
 	RCore *core = cps->core;
 	const char *prompt = r_config_get (core->config, "r2ai.prompt");
 	const char *lang = r_config_get (core->config, "r2ai.lang");
@@ -136,13 +230,28 @@ static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool re
 	RListIter *iter;
 	const char *cmd;
 	RList *refslist = NULL;
+	RList *offsetslist = offsets? r_list_newf (free): NULL;
+	char *offset_fallback = NULL;
+	int offset_width = 0;
 	if (recursive) {
 		char *refs = r_core_cmd_str (core, "axff~^C[2]~$$");
 		refslist = r_str_split_list (refs, ",", 0);
 		free (refs);
 	}
+	RConfigHold *hold = r_config_hold_new (core->config);
+	r_config_hold (hold, "scr.color", "scr.utf8", NULL);
+	r_config_set_i (core->config, "scr.color", 0);
+	r_config_set_b (core->config, "scr.utf8", false);
 	r_list_foreach (cmdslist, iter, cmd) {
-		char *dec = r_core_cmd_str (core, cmd);
+		char *ocmd = offsets? r2ai_offset_cmd (cmd): NULL;
+		const char *dcmd = ocmd? ocmd: cmd;
+		char *dec = r_core_cmd_str (core, dcmd);
+		if (offsets) {
+			if (!offset_fallback) {
+				offset_fallback = strdup (dec);
+			}
+			r2ai_collect_offsets (offsetslist, dec, &offset_width);
+		}
 		r_strbuf_append (sb, "\n[BEGIN]\n");
 		r_strbuf_append (sb, dec);
 		r_strbuf_append (sb, "[END]\n");
@@ -155,19 +264,25 @@ static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool re
 				if (core->num->nc.errors) {
 					continue;
 				}
-				char *dec = r_core_cmd_str_at (core, n, cmd);
+				char *dec = r_core_cmd_str_at (core, n, dcmd);
+				if (offsets) {
+					r2ai_collect_offsets (offsetslist, dec, &offset_width);
+				}
 				r_strbuf_append (sb, "\n[BEGIN]\n");
 				r_strbuf_append (sb, dec);
 				r_strbuf_append (sb, "[END]\n");
 				free (dec);
 			}
 		}
+		free (ocmd);
 	}
+	r_config_hold_restore (hold);
+	r_config_hold_free (hold);
 	r_list_free (refslist);
 	char *s = r_strbuf_drain (sb);
 	if (r_config_get_b (core->config, "r2ai.async")) {
 		const char *sys = r_config_get (core->config, "r2ai.system");
-		char *title = r_str_newf ("-d%s%s", recursive? "r": "", R_STR_ISNOTEMPTY (input)? " ": "");
+		char *title = r_str_newf ("-d%s%s%s", recursive? "r": "", offsets? "o": "", R_STR_ISNOTEMPTY (input)? " ": "");
 		if (R_STR_ISNOTEMPTY (input)) {
 			char *n = r_str_newf ("%s%s", title, input);
 			free (title);
@@ -183,12 +298,22 @@ static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool re
 		if (error) {
 			R_LOG_ERROR ("%s", error);
 			free (error);
-		} else {
+		} else if (offsets) {
+			char *ores = R_STR_ISNOTEMPTY (res)
+				? r2ai_apply_offsets (res, offsetslist, offset_width)
+				: (offset_fallback? strdup (offset_fallback): NULL);
+			if (ores) {
+				r_cons_printf (core->cons, "%s\n", ores);
+				free (ores);
+			}
+		} else if (res) {
 			r_cons_printf (core->cons, "%s\n", res);
 		}
 		free (res);
 	}
 	free (s);
+	free (offset_fallback);
+	r_list_free (offsetslist);
 	r_list_free (cmdslist);
 }
 
@@ -455,10 +580,12 @@ R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		cmd_r2ai_lr (cps);
 	} else if (r_str_startswith (input, "-L")) {
 		cmd_r2ai_logs (cps, input + 2);
+	} else if (r_str_startswith (input, "-do")) {
+		cmd_r2ai_d (cps, r_str_trim_head_ro (input + 3), false, true);
 	} else if (r_str_startswith (input, "-dr")) {
-		cmd_r2ai_d (cps, r_str_trim_head_ro (input + 3), true);
+		cmd_r2ai_d (cps, r_str_trim_head_ro (input + 3), true, false);
 	} else if (r_str_startswith (input, "-d")) {
-		cmd_r2ai_d (cps, r_str_trim_head_ro (input + 2), false);
+		cmd_r2ai_d (cps, r_str_trim_head_ro (input + 2), false, false);
 	} else if (r_str_startswith (input, "-S")) {
 		if (state->db == NULL) {
 			state->db = r_vdb_new (R2AI_DEFAULT_VECTORS);

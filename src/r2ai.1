@@ -14,6 +14,9 @@ Decompile the current function.
 .B \-d \fIquery\fR
 Ask a question about the current function.
 .TP
+.B \-do
+Decompile the current function with source offsets in the left column.
+.TP
 .B \-dr
 Decompile the current function with one level of recursivity.
 .TP
@@ -147,6 +150,9 @@ Find vulnerabilities in the current function.
 .TP
 Decompile current function:
 .B r2ai -d
+.TP
+Decompile current function with source offsets:
+.B r2ai -do
 .TP
 Ask about current function:
 .B r2ai -d "what is the input buffer size?"

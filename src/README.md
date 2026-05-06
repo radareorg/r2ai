@@ -33,6 +33,7 @@ make user-install
 Usage: r2ai   [-args] [...]
 | r2ai -d                 Decompile current function
 | r2ai -d [query]         Ask a question on the current function
+| r2ai -do                Decompile current function with source offsets
 | r2ai -dr                Decompile current function (+ 1 level of recursivity)
 | r2ai -a [query]         Resolve question using auto mode
 | r2ai -e (k(=v))         Same as '-e r2ai.'
@@ -120,7 +121,7 @@ $ r2 ./substitute
 [0x000010a0]> aa
 ```
 
-- Decompile the main function: `r2ai -d`
+- Decompile the main function: `r2ai -d` or `r2ai -do` to keep source offsets in the left column
 
 ```
 [0x000010a0]> s main
