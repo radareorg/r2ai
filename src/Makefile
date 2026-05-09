@@ -5,6 +5,8 @@ DOTLIB=.$(shell r2 -NNH R2_LIBEXT)
 R2SYSPLUGDIR=$(shell r2 -NNH R2_LIBR_PLUGINS)
 R2USRPLUGDIR=$(shell r2 -NNH R2_USER_PLUGINS)
 R2BINDIR=$(shell r2pm -H R2PM_BINDIR)
+R2INCDIR=$(shell r2 -NNH R2_INCDIR)/libr
+R2LIBDIR=$(shell r2 -NNH R2_LIBDIR)
 R2MANDIR=$(shell r2pm -H R2PM_MANDIR)
 ifeq ($(R2MANDIR),)
 R2MANDIR=$(shell r2 -NNH R2_PREFIX)/share/man
@@ -22,6 +24,8 @@ LDFLAGS+=$(R2_LDFLAGS)
 CFLAGS+=-I. -fPIC
 CFLAGS+=-Wall
 CFLAGS+=-g
+
+AR?=ar
 
 USE_R2_CURL=1
 USE_LIBCURL=0
@@ -63,6 +67,7 @@ OBJS+=wizard.o
 
 all: $(OBJS) r2check
 	$(CC) -fPIC -shared -o r2ai$(DOTLIB) $(OBJS) $(CFLAGS) $(LDFLAGS)
+	$(AR) rcs libr2ai.a $(OBJS)
 	$(CC) -pie -o r2ai$(DOTEXE) $(OBJS) $(CFLAGS) $(LDFLAGS) -lm main.c
 
 try: all
@@ -96,14 +101,20 @@ user-uninstall:
 
 install:
 	$(MAKE) uninstall
-	mkdir -p $(R2USRPLUGDIR)
+	mkdir -p $(R2SYSPLUGDIR)
 	mkdir -p $(R2BINDIR)
+	mkdir -p $(R2LIBDIR)
+	mkdir -p $(R2INCDIR)
 	cp -f r2ai$(DOTLIB) $(R2SYSPLUGDIR)/r2ai$(DOTLIB)
 	cp -f r2ai$(DOTEXE) $(R2BINDIR)/r2ai$(DOTEXE)
+	cp -f libr2ai.a $(R2LIBDIR)/libr2ai.a
+	cp -f r2ai.h $(R2INCDIR)/r2ai.h
 
 uninstall:
 	rm -f $(R2SYSPLUGDIR)/r2ai$(DOTLIB)
 	rm -f $(R2BINDIR)/r2ai$(DOTEXE)
+	rm -f $(R2LIBDIR)/libr2ai.a
+	rm -f $(R2INCDIR)/r2ai.h
 
 r2check:
 	@r2 -NN -qcq --

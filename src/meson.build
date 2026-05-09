@@ -83,13 +83,14 @@ srcs = files(
   'vdb.c',
 )
 
-shared_lib = shared_library('r2ai', srcs,
+r2ai_lib = library('r2ai', srcs,
   install: true,
   dependencies: common_deps,
+  pic: true,
 )
 
 executable('r2ai', 'main.c',
-  link_with: shared_lib,
+  link_with: r2ai_lib,
   install: true,
   dependencies: common_deps,
 )
