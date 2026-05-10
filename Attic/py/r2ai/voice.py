@@ -2,7 +2,9 @@
 
 import os
 import re
+import subprocess
 from .utils import syscmdstr
+from subprocess import Popen, PIPE
 
 HAVE_WHISPER = False
 model = None
@@ -52,17 +54,12 @@ def stt(seconds, lang):
         os.remove(".audiomsg.wav")
     except OSError:
         pass
-    _devnull = os.open(os.devnull, os.O_WRONLY)
-    _pid = os.fork()
-    if _pid == 0:
-        os.dup2(_devnull, 1)
-        os.dup2(_devnull, 2)
-        os.close(_devnull)
-        os.execvp("ffmpeg", ["ffmpeg", "-f", "avfoundation", "-t", "5", "-i", device, ".audiomsg.wav"])
-        os._exit(1)
-    os.close(_devnull)
-    _, _status = os.waitpid(_pid, 0)
-    rc = os.WEXITSTATUS(_status) if os.WIFEXITED(_status) else 1
+    result = subprocess.run(
+        ["ffmpeg", "-f", "avfoundation", "-t", "5", "-i", device, ".audiomsg.wav"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+    rc = result.returncode
     if rc != 0:
         tts("(r2ai)", "cannot record from microphone. missing permissions in terminal?", lang)
         return
@@ -94,18 +91,8 @@ def tts(author, text, lang):
             festlang = "spanish"
         elif lang == "it":
             festlang = "italian"
-        _r_fd, _w_fd = os.pipe()
-        _pid = os.fork()
-        if _pid == 0:
-            os.dup2(_r_fd, 0)
-            os.close(_r_fd)
-            os.close(_w_fd)
-            os.execvp("festival", ["festival", "--tts", "--language", festlang])
-            os._exit(1)
-        os.close(_r_fd)
-        os.write(_w_fd, text.encode("utf-8") if isinstance(text, str) else text)
-        os.close(_w_fd)
-        os.waitpid(_pid, 0)
+        p = Popen(['festival', '--tts', '--language', festlang], stdin=PIPE)
+        p.communicate(input=text)
     else:
         if lang == "es":
             VOICE = "Marisol"
@@ -113,8 +100,4 @@ def tts(author, text, lang):
             VOICE = "Montse"
         else:
             VOICE = "Moira"
-        _pid = os.fork()
-        if _pid == 0:
-            os.execvp("say", ["say", "-v", VOICE, clean_text])
-            os._exit(1)
-        os.waitpid(_pid, 0)
+        subprocess.run(["say", "-v", VOICE, clean_text])
