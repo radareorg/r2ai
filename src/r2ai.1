@@ -29,6 +29,15 @@ Set configuration option (same as 'r2ai.' prefix).
 .B \-h
 Show help message.
 .TP
+.B \-f \fIfile\fR
+Load a file with the radare2 API before running scripts, commands, or queries.
+.TP
+.B \-s \fIaddr\fR
+Seek to an address after loading the file specified with \fB\-f\fR.
+.TP
+.B \-c \fIcommand\fR
+Execute a radare2 command after loading the file. Can be used multiple times.
+.TP
 .B \-i \fIfile\fR \fIquery\fR
 Read a file and ask the LLM with the given query.
 .TP

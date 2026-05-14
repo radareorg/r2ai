@@ -7,7 +7,7 @@
 
 static void show_help() {
 	printf (
-		"Usage: r2ai [-vhp:m:q:Eb:Kc:f:iew] <prompt>\n"
+		"Usage: r2ai [-vhp:m:q:Eb:Kc:f:s:i:e:w] <prompt>\n"
 		"  -v           Show version information\n"
 		"  -h           Show this help message\n"
 		"  -p <provider> Select LLM provider\n"
@@ -17,6 +17,7 @@ static void show_help() {
 		"  -b <url>     Set base URL for provider API\n"
 		"  -c <command> Execute command after loading file (can be used multiple times)\n"
 		"  -f <file>    Load file with r2 API\n"
+		"  -s <addr>    Seek to address after loading file\n"
 		"  -i <script>  Load and interpret script file before executing commands\n"
 		"  -e <var=value> Set configuration variable\n"
 		"  -E           Edit the r2ai rc file\n"
@@ -103,6 +104,7 @@ int main(int argc, const char **argv) {
 	const char *model = NULL;
 	const char *baseurl = NULL;
 	const char *filename = NULL;
+	const char *seekaddr = NULL;
 	const char *scriptfile = NULL;
 	bool list_queries_json = false;
 	RList *conversation = r_list_newf (free);
@@ -115,7 +117,7 @@ int main(int argc, const char **argv) {
 	r2ai_init (&cps);
 
 	RGetopt opt;
-	r_getopt_init (&opt, argc, argv, "vhp:m:q:Eb:Kc:f:i:e:w");
+	r_getopt_init (&opt, argc, argv, "vhp:m:q:Eb:Kc:f:s:i:e:w");
 	while ((c = r_getopt_next (&opt)) != -1) {
 		switch (c) {
 		case 'p':
@@ -139,6 +141,9 @@ int main(int argc, const char **argv) {
 			break;
 		case 'f':
 			filename = opt.arg;
+			break;
+		case 's':
+			seekaddr = opt.arg;
 			break;
 		case 'i':
 			scriptfile = opt.arg;
@@ -204,6 +209,11 @@ int main(int argc, const char **argv) {
 		r_core_call (core, cmd);
 		free (cmd);
 		// TODO: use the C api instead of the 'o' command and check for error if file exists etc
+		if (seekaddr) {
+			char *seekcmd = r_str_newf ("s %s", seekaddr);
+			r_core_call (core, seekcmd);
+			free (seekcmd);
+		}
 	} else {
 		r_core_cmd0 (core, CLIPPY " Interesting, no files to analyse. Use -f or :o");
 		r_cons_flush (core->cons);
