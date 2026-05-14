@@ -50,8 +50,16 @@ def stt(seconds, lang):
         return
     tts("(r2ai) listening for 5s... ", "digues?", lang)
     print(f"DEVICE IS {device}")
-    os.system("rm -f .audiomsg.wav")
-    rc = os.system(f"ffmpeg -f avfoundation -t 5 -i '{device}' .audiomsg.wav > /dev/null 2>&1")
+    try:
+        os.remove(".audiomsg.wav")
+    except OSError:
+        pass
+    result = subprocess.run(
+        ["ffmpeg", "-f", "avfoundation", "-t", "5", "-i", device, ".audiomsg.wav"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+    rc = result.returncode
     if rc != 0:
         tts("(r2ai)", "cannot record from microphone. missing permissions in terminal?", lang)
         return
@@ -60,7 +68,10 @@ def stt(seconds, lang):
         result = model.transcribe(".audiomsg.wav")
     else:
         result = model.transcribe(".audiomsg.wav", language=lang)
-    os.system("rm -f .audiomsg.wav")
+    try:
+        os.remove(".audiomsg.wav")
+    except OSError:
+        pass
     tts("(r2ai)", "ok", lang)
     text = result["text"].strip()
     if text == "you":
