@@ -7,9 +7,15 @@
 
 static void show_help() {
 	printf (
-		"Usage: r2ai [-vhp:m:q:Eb:Kc:f:s:i:e:w] <prompt>\n"
+		"Usage: r2ai [-vhdorEwK] [-p provider] [-m model] [-q query]\n"
+		"            [-b url] [-c command] [-f file] [-s addr]\n"
+		"            [-i script] [-e var=value] [prompt]\n"
 		"  -v           Show version information\n"
 		"  -h           Show this help message\n"
+		"  -d           Decompile current function\n"
+		"  -d <query>   Ask a question on the current function\n"
+		"  -do          Decompile current function with source offsets\n"
+		"  -dr          Decompile current function recursively\n"
 		"  -p <provider> Select LLM provider\n"
 		"  -m <model>   Select LLM model\n"
 		"  -q <query>   Execute predefined prompt query (can be used multiple times)\n"
@@ -27,6 +33,21 @@ static void show_help() {
 
 static void show_version() {
 	printf ("r2ai " R2AI_VERSION "\n");
+}
+
+static char *join_argv(int argc, const char **argv, int start) {
+	if (start >= argc) {
+		return strdup ("");
+	}
+	int i;
+	RStrBuf *sb = r_strbuf_new ("");
+	for (i = start; i < argc; i++) {
+		if (i > start) {
+			r_strbuf_append (sb, " ");
+		}
+		r_strbuf_append (sb, argv[i]);
+	}
+	return r_strbuf_drain (sb);
 }
 
 static char *build_conversation(RList *conversation) {
@@ -107,6 +128,9 @@ int main(int argc, const char **argv) {
 	const char *seekaddr = NULL;
 	const char *scriptfile = NULL;
 	bool list_queries_json = false;
+	bool decompile = false;
+	bool decompile_recursive = false;
+	bool decompile_offsets = false;
 	RList *conversation = r_list_newf (free);
 	RList *queries = r_list_newf (free);
 	RList *commands = r_list_newf (free);
@@ -117,9 +141,26 @@ int main(int argc, const char **argv) {
 	r2ai_init (&cps);
 
 	RGetopt opt;
-	r_getopt_init (&opt, argc, argv, "vhp:m:q:Eb:Kc:f:s:i:e:w");
+	r_getopt_init (&opt, argc, argv, "vhdorp:m:q:Eb:Kc:f:s:i:e:w");
 	while ((c = r_getopt_next (&opt)) != -1) {
 		switch (c) {
+		case 'd':
+			decompile = true;
+			break;
+		case 'o':
+			if (!decompile) {
+				show_help ();
+				goto beach;
+			}
+			decompile_offsets = true;
+			break;
+		case 'r':
+			if (!decompile) {
+				show_help ();
+				goto beach;
+			}
+			decompile_recursive = true;
+			break;
 		case 'p':
 			provider = opt.arg;
 			break;
@@ -200,6 +241,11 @@ int main(int argc, const char **argv) {
 		r_cons_flush (core->cons);
 		goto beach;
 	}
+	if (decompile && decompile_offsets && decompile_recursive) {
+		r_cons_println (core->cons, "Cannot combine -do and -dr.");
+		r_cons_flush (core->cons);
+		goto beach;
+	}
 
 	if (baseurl) {
 		r_config_set (core->config, "r2ai.baseurl", baseurl);
@@ -241,6 +287,16 @@ int main(int argc, const char **argv) {
 	}
 	if (model) {
 		r_config_set (core->config, "r2ai.model", model);
+	}
+	if (decompile) {
+		const char *dflag = decompile_offsets? "-do": (decompile_recursive? "-dr": "-d");
+		char *query = join_argv (argc, argv, opt.ind);
+		char *dcmd = R_STR_ISNOTEMPTY (query)? r_str_newf ("%s %s", dflag, query): strdup (dflag);
+		cmd_r2ai (&cps, dcmd);
+		r_cons_flush (core->cons);
+		free (dcmd);
+		free (query);
+		goto beach;
 	}
 
 	// Process queries if any
