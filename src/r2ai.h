@@ -19,17 +19,9 @@
 #define r_core_call(x,y) r_core_cmd_call(x,y)
 #endif
 
-#define R2AI_VERSION "1.3.8"
-
-#if 0
-#define R2AI_DEFAULT_MODEL "gpt-5-mini"
-#define R2AI_DEFAULT_PROVIDER "openai"
-#else
-// #define R2AI_DEFAULT_MODEL "gpt-oss:20b"
-// #define R2AI_DEFAULT_MODEL "gemma3:12b"
-#define R2AI_DEFAULT_MODEL "mannix/jan-nano"
+#define R2AI_VERSION "1.4.0"
+#define R2AI_DEFAULT_MODEL "gpt-oss:20b"
 #define R2AI_DEFAULT_PROVIDER "ollama"
-#endif
 
 #define R2AI_DEFAULT_VECTORS 16
 
@@ -59,8 +51,6 @@ typedef struct {
 #error Your radare2 is too old
 #endif
 
-
-
 // Tool definition structure
 typedef struct {
 	char *name;
@@ -82,10 +72,6 @@ typedef struct {
 	const char *id;
 } R2AI_ToolCall;
 
-/**
- * Free an R2AI_ToolCall instance
- */
-R_API void r2ai_tool_call_free(R2AI_ToolCall *tc);
 
 typedef struct {
 	char *type;
@@ -189,126 +175,33 @@ typedef struct r2ai_state_t {
 	ut64 vertex_token_expiry; // Monotonic microseconds when the cached token expires
 } R2AI_State;
 
-/**
- * Initialize a new empty messages array
- */
-R_API RList *r2ai_msgs_new(void);
-
-/**
- * Initialize the conversation container (call during plugin init)
- */
+// conversation
 R_API void r2ai_conversation_init(R2AI_State *state);
-
-/**
- * Get the conversation instance (returns NULL if not initialized)
- */
 R_API RList *r2ai_conversation_get(R2AI_State *state);
-
-/**
- * Clear all messages in a container without freeing the container
- */
-R_API void r2ai_msgs_clear(RList *msgs);
-
-/**
- * Add a message to the array
- * All strings are duplicated, so caller can free their copies
- */
-R_API bool r2ai_msgs_add(RList *msgs, const R2AI_Message *msg);
-
-/**
- * Add a tool call to the last message in the array
- * All strings are duplicated, so caller can free their copies
- */
-R_API bool r2ai_msgs_add_tool_call(RList *msgs, const R2AI_ToolCall *tc);
-
-/**
- * Parse a JSON response string and add the messages to the array
- * Returns true on success, false on failure
- */
-R_API bool r2ai_msgs_from_response(RList *msgs, const char *json_str);
-
-/**
- * Parse a RJson object directly and add the messages to the array
- * Returns true on success, false on failure
- */
-R_API bool r2ai_msgs_from_json(RList *msgs, const RJson *json);
-
-/**
- * Convert messages array to JSON string
- * When raw_tool_args is true, tool_call arguments are emitted as raw JSON
- * objects (Ollama convention) instead of JSON-encoded strings (OpenAI
- * convention).
- * Caller must free the returned string
- */
-R_API char *r2ai_msgs_to_json(const RList *msgs, bool raw_tool_args);
-
-/**
- * Convert messages array to Anthropic format JSON string
- * Caller must free the returned string
- */
-R_API char *r2ai_msgs_to_anthropic_json(const RList *msgs);
-
-/**
- * Free a messages array and all associated data
- */
-R_API void r2ai_msgs_free(RList *msgs);
-
-/**
- * Free the conversation (call during plugin unload)
- */
 R_API void r2ai_conversation_free(R2AI_State *state);
 
-/**
- * Free a heap-allocated R2AI_Message (owned fields and the struct itself).
- */
+// messages
+R_API RList *r2ai_msgs_new(void);
+R_API void r2ai_msgs_clear(RList *msgs);
+R_API bool r2ai_msgs_add(RList *msgs, const R2AI_Message *msg);
+R_API bool r2ai_msgs_add_tool_call(RList *msgs, const R2AI_ToolCall *tc);
+R_API bool r2ai_msgs_from_response(RList *msgs, const char *json_str);
+R_API bool r2ai_msgs_from_json(RList *msgs, const RJson *json);
+R_API char *r2ai_msgs_to_json(const RList *msgs, bool raw_tool_args);
+R_API char *r2ai_msgs_to_anthropic_json(const RList *msgs);
+R_API void r2ai_msgs_free(RList *msgs);
 R_API void r2ai_message_free(R2AI_Message *msg);
-
-/**
- * Release the owned fields of a R2AI_Message without freeing the struct.
- * Use this for stack-allocated messages or when the caller owns the storage.
- */
 R_API void r2ai_message_fini(R2AI_Message *msg);
-
-/**
- * Delete the last N messages from the message array
- * If n <= 0, defaults to deleting just the last message
- */
 R_API void r2ai_delete_last_messages(RList *messages, int n);
 
-/**
- * Get the tools instance from state
- * Returns a pointer to the tools RList
- */
+// tools
 R_API RList *r2ai_get_tools(RCore *core, R2AI_State *state);
-
-/**
- * Parse OpenAI format tools JSON into internal tools RList
- * Caller must free the result with r2ai_tools_free
- */
 R_API RList *r2ai_tools_parse(const char *tools_json);
-
-/**
- * Convert tools RList to OpenAI format JSON
- * Caller must free the returned string
- */
 R_API char *r2ai_tools_to_openai_json(const RList *tools);
-
-/**
- * Convert tools RList to Anthropic format JSON
- * Caller must free the returned string
- */
 R_API char *r2ai_tools_to_anthropic_json(const RList *tools);
-
-/**
- * Free a tools RList and all associated data
- */
 R_API void r2ai_tools_free(RList *tools);
-
 R_API void r2ai_tool_result_fini(R2AI_ToolResult *result);
-
-/**
- * Execute a tool and return the output plus any edited command/comment metadata.
- */
+R_API void r2ai_tool_call_free(R2AI_ToolCall *tc);
 R_API R2AI_ToolResult execute_tool(RCorePluginSession *cps, const char *tool_name, const char *args);
 
 /**
@@ -382,15 +275,11 @@ R_IPI void cmd_r2ai_lr(RCorePluginSession *cps);
  */
 R_API void process_messages(RCorePluginSession *cps, RList *messages, const char *system_prompt, int n_run);
 
-/**
- * Helper function to convert RJson to string
- */
+// json helpers that must be moved into r2
 R_API char *r_json_to_string(const RJson *json);
-
-/**
- * Helper function to convert RJson to PJ
- */
 R_API PJ *r_json_to_pj(const RJson *json, PJ *existing_pj);
+
+// commands
 R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input);
 R_API void r2ai_cmd_qj(RCorePluginSession *cps, const char *input);
 R_API char *find_prompt_file(RList *search_dirs, const char *name);
