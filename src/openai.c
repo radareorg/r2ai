@@ -3,6 +3,14 @@
 #include "r2ai.h"
 #include "r2ai_priv.h"
 
+static const char *json_string(const RJson *json) {
+	return (json && json->type == R_JSON_STRING)? json->str_value: NULL;
+}
+
+static uint64_t json_integer(const RJson *json) {
+	return (json && json->type == R_JSON_INTEGER)? json->num.u_value: 0;
+}
+
 R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
 	const char *provider_name = R_STR_ISNOTEMPTY (args.provider)
@@ -13,6 +21,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 		: r_config_get (core->config, "r2ai.model");
 
 	const R2AIProvider *provider_info = r2ai_get_provider (provider_name);
+	const bool is_ollama = provider_info && provider_info->api_type == R2AI_API_OLLAMA;
 	const char *base_url = r2ai_get_provider_url (core, provider_name);
 	// TODO: default model name should depend on api
 	model_name = model_name? model_name: "gpt-4o-mini";
@@ -83,7 +92,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 		headers[0] = "Content-Type: application/json";
 		headers[1] = auth_header;
 	}
-	const char *urlfmt = (provider_info && provider_info->api_type == R2AI_API_OLLAMA)
+	const char *urlfmt = is_ollama
 		? "%s/chat"
 		: "%s/chat/completions";
 	char *openai_url = r_str_newf (urlfmt, base_url);
@@ -93,7 +102,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 
 	if (temp_msgs && !r_list_empty (temp_msgs)) {
 		R_LOG_DEBUG ("Using input messages: %d messages", r_list_length (temp_msgs));
-		messages_json = r2ai_msgs_to_json (temp_msgs, provider_info && provider_info->api_type == R2AI_API_OLLAMA);
+		messages_json = r2ai_msgs_to_json (temp_msgs, is_ollama);
 		if (!messages_json) {
 			if (error) {
 				*error = strdup ("Failed to convert messages to JSON");
@@ -121,7 +130,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	pj_ks (pj, "model", model_name);
 	pj_kb (pj, "stream", false);
 
-	if (provider_info && provider_info->api_type == R2AI_API_OLLAMA) {
+	if (is_ollama) {
 		pj_kb (pj, "think", args.thinking_tokens > 0);
 		pj_ko (pj, "options");
 		if (args.max_tokens) {
@@ -242,144 +251,88 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	char *res_copy = strdup (res);
 	RJson *jres = r_json_parse (res_copy);
 	if (jres) {
-		// Create a new message structure
 		R2AI_Message *message = R_NEW0 (R2AI_Message);
 		R2AI_Usage *usage = R_NEW0 (R2AI_Usage);
-		if (message) {
-			// Process the response using our r2ai_msgs_from_json logic
-			const RJson *usage_json = NULL;
-			if (provider_info && provider_info->api_type == R2AI_API_OLLAMA) {
-				// Ollama has usage info at top level
-				usage_json = jres;
-			} else {
-				usage_json = r_json_get (jres, "usage");
+		const RJson *usage_json = is_ollama? jres: r_json_get (jres, "usage");
+		if (usage_json && usage_json->type == R_JSON_OBJECT) {
+			usage->prompt_tokens = json_integer (r_json_get (usage_json, is_ollama? "prompt_eval_count": "prompt_tokens"));
+			usage->completion_tokens = json_integer (r_json_get (usage_json, is_ollama? "eval_count": "completion_tokens"));
+			usage->total_tokens = is_ollama
+				? usage->prompt_tokens + usage->completion_tokens
+				: json_integer (r_json_get (usage_json, "total_tokens"));
+		}
+
+		const RJson *message_json = is_ollama? r_json_get (jres, "message"): NULL;
+		if (!is_ollama) {
+			const RJson *choices = r_json_get (jres, "choices");
+			if (choices && choices->type == R_JSON_ARRAY) {
+				const RJson *choice = r_json_item (choices, 0);
+				message_json = choice? r_json_get (choice, "message"): NULL;
+			}
+		}
+
+		if (message_json) {
+			const char *role = json_string (r_json_get (message_json, "role"));
+			const char *content = json_string (r_json_get (message_json, "content"));
+			const char *reasoning_content = json_string (r_json_get (message_json, "reasoning_content"));
+			const char *thinking = json_string (r_json_get (message_json, "thinking"));
+			const char *tool_call_id = json_string (r_json_get (message_json, "tool_call_id"));
+			const RJson *tool_calls = r_json_get (message_json, "tool_calls");
+
+			message->role = strdup (role? role: "assistant");
+			if (content) {
+				message->content = strdup (content);
+			}
+			if (R_STR_ISNOTEMPTY (reasoning_content)) {
+				message->reasoning_content = strdup (reasoning_content);
+			} else if (R_STR_ISNOTEMPTY (thinking)) {
+				message->reasoning_content = strdup (thinking);
+			}
+			if (R_STR_ISNOTEMPTY (tool_call_id)) {
+				message->tool_call_id = strdup (tool_call_id);
 			}
 
-			if (usage_json && usage_json->type == R_JSON_OBJECT) {
-				if (provider_info && provider_info->api_type == R2AI_API_OLLAMA) {
-					// Ollama field names
-					const RJson *prompt_tokens = r_json_get (usage_json, "prompt_eval_count");
-					const RJson *completion_tokens = r_json_get (usage_json, "eval_count");
-					if (prompt_tokens && prompt_tokens->type == R_JSON_INTEGER) {
-						usage->prompt_tokens = prompt_tokens->num.u_value;
-					}
-					if (completion_tokens && completion_tokens->type == R_JSON_INTEGER) {
-						usage->completion_tokens = completion_tokens->num.u_value;
-					}
-					// Calculate total_tokens for ollama
-					usage->total_tokens = usage->prompt_tokens + usage->completion_tokens;
-				} else {
-					// OpenAI field names
-					const RJson *prompt_tokens = r_json_get (usage_json, "prompt_tokens");
-					const RJson *completion_tokens = r_json_get (usage_json, "completion_tokens");
-					const RJson *total_tokens = r_json_get (usage_json, "total_tokens");
-					if (prompt_tokens && prompt_tokens->type == R_JSON_INTEGER) {
-						usage->prompt_tokens = prompt_tokens->num.u_value;
-					}
-					if (completion_tokens && completion_tokens->type == R_JSON_INTEGER) {
-						usage->completion_tokens = completion_tokens->num.u_value;
-					}
-					if (total_tokens && total_tokens->type == R_JSON_INTEGER) {
-						usage->total_tokens = total_tokens->num.u_value;
-					}
-				}
-			}
-			const RJson *message_json = NULL;
-			if (provider_info && provider_info->api_type == R2AI_API_OLLAMA) {
-				// Ollama returns message directly
-				message_json = r_json_get (jres, "message");
-			} else {
-				// OpenAI-style response with choices array
-				const RJson *choices = r_json_get (jres, "choices");
-				if (choices && choices->type == R_JSON_ARRAY) {
-					const RJson *choice = r_json_item (choices, 0);
-					if (choice) {
-						message_json = r_json_get (choice, "message");
-					}
-				}
-			}
-
-			if (message_json) {
-				const RJson *role = r_json_get (message_json, "role");
-				const RJson *content = r_json_get (message_json, "content");
-				const RJson *reasoning_content = r_json_get (message_json, "reasoning_content");
-				const RJson *thinking = r_json_get (message_json, "thinking");
-				const RJson *tool_call_id = r_json_get (message_json, "tool_call_id");
-				const RJson *tool_calls = r_json_get (message_json, "tool_calls");
-
-				// Set the basic message properties
-				message->role = (role && role->type == R_JSON_STRING)? strdup (role->str_value): strdup ("assistant");
-
-				if (content && content->type == R_JSON_STRING) {
-					message->content = strdup (content->str_value);
-				}
-
-				if (reasoning_content && reasoning_content->type == R_JSON_STRING && R_STR_ISNOTEMPTY (reasoning_content->str_value)) {
-					message->reasoning_content = strdup (reasoning_content->str_value);
-				} else if (thinking && thinking->type == R_JSON_STRING && R_STR_ISNOTEMPTY (thinking->str_value)) {
-					message->reasoning_content = strdup (thinking->str_value);
-				}
-
-				if (tool_call_id && tool_call_id->type == R_JSON_STRING && R_STR_ISNOTEMPTY (tool_call_id->str_value)) {
-					message->tool_call_id = strdup (tool_call_id->str_value);
-				}
-
-				if (tool_calls && tool_calls->type == R_JSON_ARRAY && tool_calls->children.count > 0) {
-					message->tool_calls = r_list_new ();
-					if (message->tool_calls) {
-						message->tool_calls->free = (RListFree)r2ai_tool_call_free;
-						for (size_t i = 0; i < tool_calls->children.count; i++) {
-							const RJson *tool_call = r_json_item (tool_calls, i);
-							if (!tool_call || tool_call->type != R_JSON_OBJECT) {
-								continue;
-							}
-							R2AI_ToolCall *tc = R_NEW0 (R2AI_ToolCall);
-							if (!tc) {
-								continue;
-							}
-							const RJson *tc_id = r_json_get (tool_call, "id");
-							if (tc_id && tc_id->type == R_JSON_STRING && R_STR_ISNOTEMPTY (tc_id->str_value)) {
-								tc->id = strdup (tc_id->str_value);
-							}
-							const RJson *function = r_json_get (tool_call, "function");
-							const RJson *name_json = NULL;
-							const RJson *arguments = NULL;
-							if (function && function->type == R_JSON_OBJECT) {
-								name_json = r_json_get (function, "name");
-								arguments = r_json_get (function, "arguments");
-							} else {
-								name_json = r_json_get (tool_call, "name");
-								arguments = r_json_get (tool_call, "arguments");
-							}
-							if (name_json && name_json->type == R_JSON_STRING && R_STR_ISNOTEMPTY (name_json->str_value)) {
-								tc->name = strdup (name_json->str_value);
-							}
-							if (arguments) {
-								if (arguments->type == R_JSON_STRING && R_STR_ISNOTEMPTY (arguments->str_value)) {
-									tc->arguments = strdup (arguments->str_value);
-								} else {
-									char *arguments_json = r_json_to_string (arguments);
-									if (arguments_json) {
-										tc->arguments = arguments_json;
-									}
-								}
-							}
-							if (!tc->name || !tc->arguments) {
-								r2ai_tool_call_free (tc);
-								continue;
-							}
-							if (!tc->id) {
-								tc->id = r_str_newf ("call_%zu", i);
-							}
-							r_list_append (message->tool_calls, tc);
+			if (tool_calls && tool_calls->type == R_JSON_ARRAY && tool_calls->children.count > 0) {
+				message->tool_calls = r_list_newf ((RListFree)r2ai_tool_call_free);
+				if (message->tool_calls) {
+					size_t i;
+					for (i = 0; i < tool_calls->children.count; i++) {
+						const RJson *tool_call = r_json_item (tool_calls, i);
+						if (!tool_call || tool_call->type != R_JSON_OBJECT) {
+							continue;
 						}
-						if (r_list_empty (message->tool_calls)) {
-							r_list_free (message->tool_calls);
-							message->tool_calls = NULL;
+						const RJson *function = r_json_get (tool_call, "function");
+						const RJson *source = (function && function->type == R_JSON_OBJECT)? function: tool_call;
+						const char *name = json_string (r_json_get (source, "name"));
+						const RJson *arguments = r_json_get (source, "arguments");
+						if (R_STR_ISEMPTY (name) || !arguments) {
+							continue;
 						}
+						R2AI_ToolCall *tc = R_NEW0 (R2AI_ToolCall);
+						const char *tc_id = json_string (r_json_get (tool_call, "id"));
+						if (R_STR_ISNOTEMPTY (tc_id)) {
+							tc->id = strdup (tc_id);
+						}
+						if (!tc->id) {
+							tc->id = r_str_newf ("call_%zu", i);
+						}
+						tc->name = strdup (name);
+						if (arguments->type == R_JSON_STRING && R_STR_ISNOTEMPTY (arguments->str_value)) {
+							tc->arguments = strdup (arguments->str_value);
+						} else {
+							tc->arguments = r_json_to_string (arguments);
+						}
+						if (!tc->name || !tc->arguments) {
+							r2ai_tool_call_free (tc);
+							continue;
+						}
+						r_list_append (message->tool_calls, tc);
+					}
+					if (r_list_empty (message->tool_calls)) {
+						r_list_free (message->tool_calls);
+						message->tool_calls = NULL;
 					}
 				}
-				// TODO: Handle tool calls if present?
 			}
 		}
 		r_json_free (jres);
