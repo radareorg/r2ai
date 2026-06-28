@@ -30,6 +30,7 @@ These are the most recommended models for decompiling in local:
 
 ## Common Options
 * 'decai -e baseurl=<url>' override default host and port for API endpoint (e.g., 'http://localhost:11434')
+* 'decai -e apitype=chat|generate' choose the Ollama API endpoint (default: chat)
 * 'decai -e headers=Authorization: Bearer ...\\nUser-Agent: curl/8.7.1' add or override HTTP headers
 * "export DECAI_HEADERS='Authorization: Bearer ...\\nUser-Agent: curl/8.7.1'" set extra headers from the environment
 * 'decai -e timeout=0' disable curl timeouts, or set a positive number of seconds

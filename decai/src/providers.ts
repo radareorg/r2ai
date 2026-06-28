@@ -229,8 +229,12 @@ const providerRuntimes: Record<ApiStyle, ProviderRuntime> = {
       const payload: OllamaPayload = {
         stream: false,
         model,
-        messages: [{ role: "user", content: query }],
       };
+      if (state.apitype === "generate") {
+        payload.prompt = query;
+      } else {
+        payload.messages = [{ role: "user", content: query }];
+      }
       if (isThinkEnabled()) {
         if (state.think === "true" || state.think === "1") {
           payload.think = true;
@@ -259,12 +263,15 @@ const providerRuntimes: Record<ApiStyle, ProviderRuntime> = {
       if (response.error) {
         throw new Error(getErrorMessage(response.error));
       }
+      if (typeof response.response === "string") {
+        return filterResponse(response.response);
+      }
       if (response.message?.content) {
         return filterResponse(response.message.content);
       }
       throw new Error(JSON.stringify(response));
     },
-    buildUrl: (baseUrl) => baseUrl + "/api/chat",
+    buildUrl: (baseUrl) => baseUrl + "/api/" + state.apitype,
   },
   gemini: {
     buildPayload: (_model, query) => {

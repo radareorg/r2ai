@@ -25,7 +25,7 @@ static void show_help() {
 		"  -f <file>    Load file with r2 API\n"
 		"  -s <addr>    Seek to address after loading file\n"
 		"  -i <script>  Load and interpret script file before executing commands\n"
-		"  -e <var=value> Set configuration variable\n"
+		"  -e <var=value> Set configuration variable (same as r2ai.var)\n"
 		"  -E           Edit the r2ai rc file\n"
 		"  -K           Edit the API keys file\n"
 		"  -w           Launch interactive setup wizard\n");
@@ -197,7 +197,11 @@ int main(int argc, const char **argv) {
 					*equals = '\0';
 					const char *var = var_value;
 					const char *value = equals + 1;
-					r_config_set (core->config, var, value);
+					char *key = r_str_startswith (var, "r2ai")
+						? strdup (var)
+						: r_str_newf ("r2ai.%s", var);
+					r_config_set (core->config, key, value);
+					free (key);
 				} else {
 					r_cons_println (core->cons, "Invalid format for -e. Use var=value.");
 				}

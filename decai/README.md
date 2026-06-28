@@ -56,6 +56,7 @@ Configuration options:
 ```console
 [0x00000000]> decai -e
 decai -e api=ollama
+decai -e apitype=chat
 decai -e host=http://localhost
 decai -e port=11434
 decai -e prompt=Rewrite this function and respond ONLY with code, NO explanations, NO markdown, Change 'goto' into if/else/for/while, Simplify as much as possible, use better variable names, take function arguments and strings from comments like 'string:'

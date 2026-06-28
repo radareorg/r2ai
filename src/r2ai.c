@@ -753,6 +753,21 @@ static bool cb_r2ai_http_backend(void *user, void *data) {
 	// return false; // always return false to test
 }
 
+static bool cb_r2ai_apitype(void *user, void *data) {
+	RCore *core = (RCore *)user;
+	RConfigNode *node = (RConfigNode *)data;
+	if (*node->value == '?') {
+		r_cons_println (core->cons, "chat");
+		r_cons_println (core->cons, "generate");
+		return false;
+	}
+	if (!strcmp (node->value, "chat") || !strcmp (node->value, "generate")) {
+		return true;
+	}
+	R_LOG_ERROR ("Invalid apitype '%s'. Use chat or generate.", node->value);
+	return false;
+}
+
 R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	RCore *core = cps->core;
 	// Initialize state
@@ -780,6 +795,8 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_desc (core->config, "r2ai.model", "Model identifier for the selected provider (e.g. gpt-5-mini)");
 	r_config_set (core->config, "r2ai.baseurl", "");
 	r_config_desc (core->config, "r2ai.baseurl", "Base URL for provider API (overrides default endpoints)");
+	r_config_set_cb (core->config, "r2ai.apitype", "chat", &cb_r2ai_apitype);
+	r_config_desc (core->config, "r2ai.apitype", "Ollama API endpoint type to use (chat or generate)");
 	r_config_set_i (core->config, "r2ai.max_tokens", 4096); // max output tokens, or max total tokens
 	r_config_desc (core->config, "r2ai.max_tokens", "Maximum tokens for LLM responses (output/total depending on provider)");
 	r_config_set_i (core->config, "r2ai.thinking_tokens", 0);
@@ -872,6 +889,7 @@ R_API bool r2ai_fini(RCorePluginSession *cps) {
 	r_config_rm (core->config, "r2ai.api");
 	r_config_rm (core->config, "r2ai.cmds");
 	r_config_rm (core->config, "r2ai.model");
+	r_config_rm (core->config, "r2ai.apitype");
 	r_config_rm (core->config, "r2ai.prompt");
 	r_config_rm (core->config, "r2ai.stream");
 	r_config_rm (core->config, "r2ai.system");

@@ -18,6 +18,7 @@ export const defaultState: AppState = {
   debug: false,
   timeout: 180,
   think: "",
+  apitype: "chat",
   useFiles: false,
   contextFile: "",
   model: "",

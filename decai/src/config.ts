@@ -32,6 +32,17 @@ function stringHandler(key: StateKey): ConfigHandler {
   };
 }
 
+function normalizeApiType(value: string): "chat" | "generate" | null {
+  const apiType = value.trim();
+  if (apiType === "chat") {
+    return "chat";
+  }
+  if (apiType === "generate") {
+    return "generate";
+  }
+  return null;
+}
+
 export const configHandlers: ConfigHandlers = {
   pipeline: {
     get: () => state.pipeline,
@@ -59,6 +70,17 @@ export const configHandlers: ConfigHandlers = {
   think: {
     get: () => state.think || "false",
     set: (v: string) => { state.think = v; },
+  },
+  apitype: {
+    get: () => state.apitype,
+    set: (v: string) => {
+      const apiType = normalizeApiType(v);
+      if (apiType) {
+        state.apitype = apiType;
+      } else {
+        console.error("Invalid apitype. Use chat or generate.");
+      }
+    },
   },
   debug: boolHandler("debug"),
   timeout: {

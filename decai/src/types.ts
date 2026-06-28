@@ -13,6 +13,7 @@ declare global {
 
 export type ApiStyle = "openai" | "anthropic" | "ollama" | "gemini";
 export type AuthStyle = "none" | "bearer" | "anthropic";
+export type OllamaApiType = "chat" | "generate";
 
 export interface ProviderConfig {
   defaultModel: string;
@@ -51,6 +52,7 @@ export interface AppState {
   debug: boolean;
   timeout: number;
   think: string;
+  apitype: OllamaApiType;
   useFiles: boolean;
   contextFile: string;
   model: string;
@@ -139,7 +141,8 @@ export interface AnthropicPayload {
 export interface OllamaPayload {
   stream: boolean;
   model: string;
-  messages: Array<{ role: string; content: string }>;
+  messages?: Array<{ role: string; content: string }>;
+  prompt?: string;
   think?: boolean | string;
   options?: {
     repeat_last_n: number;

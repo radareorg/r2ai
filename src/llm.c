@@ -39,6 +39,21 @@ R_IPI const R2AIProvider *r2ai_get_provider(const char *name) {
 	return NULL;
 }
 
+static bool is_generate_api(RCore *core) {
+	const char *apitype = r_config_get (core->config, "r2ai.apitype");
+	return R_STR_ISNOTEMPTY (apitype) && !strcmp (apitype, "generate");
+}
+
+static bool use_rawtools(RCore *core, const R2AIProvider *provider, const R2AIArgs *args) {
+	if (!args || !args->tools || r_list_empty (args->tools)) {
+		return false;
+	}
+	if (r_config_get_b (core->config, "r2ai.auto.raw")) {
+		return true;
+	}
+	return provider && provider->api_type == R2AI_API_OLLAMA && is_generate_api (core);
+}
+
 // Forward declaration for rawtools
 R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
@@ -48,14 +63,9 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	char *api_key = NULL;
 	R2AI_ChatResponse *res = NULL;
 
-	// Check if rawtools mode is enabled
-	bool rawtools_enabled = r_config_get_b (core->config, "r2ai.auto.raw");
 	const char *provider = args.provider? args.provider: r_config_get (core->config, "r2ai.api");
 	if (!provider) {
 		provider = "gemini";
-	}
-	if (rawtools_enabled && args.tools && r_list_length (args.tools) > 0) {
-		return r2ai_rawtools_llmcall (cps, args);
 	}
 	R2AI_State *state = cps->data;
 	if (!args.model) {
@@ -106,6 +116,12 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 		}
 	}
 
+	int context_pullback = -1;
+	if (use_rawtools (core, prov, &args)) {
+		res = r2ai_rawtools_llmcall (cps, args);
+		goto finish;
+	}
+
 	if (!args.system_prompt) {
 		args.system_prompt = r_config_get (core->config, "r2ai.system");
 	}
@@ -118,7 +134,6 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 		R2AI_Message msg = { .role = "user", .content = (char *)args.input };
 		r2ai_msgs_add (args.messages, &msg);
 	}
-	int context_pullback = -1;
 	// context and user message
 	if (args.input && r_config_get_b (core->config, "r2ai.data")) {
 		const int K = r_config_get_i (core->config, "r2ai.data.nth");
@@ -179,6 +194,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 		res = r2ai_openai (cps, args);
 		break;
 	}
+finish:
 	if (context_pullback != -1) {
 		R2AI_Message *msg = r_list_get_n (args.messages, context_pullback);
 		free ((char *)msg->content);

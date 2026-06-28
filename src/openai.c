@@ -11,6 +11,52 @@ static uint64_t json_integer(const RJson *json) {
 	return (json && json->type == R_JSON_INTEGER)? json->num.u_value: 0;
 }
 
+static bool is_generate_api(RCore *core) {
+	const char *apitype = r_config_get (core->config, "r2ai.apitype");
+	if (R_STR_ISEMPTY (apitype)) {
+		return false;
+	}
+	return !strcmp (apitype, "generate");
+}
+
+static char *ollama_generate_prompt_from_messages(const RList *msgs, char **system_prompt) {
+	if (system_prompt) {
+		*system_prompt = NULL;
+	}
+	if (!msgs || r_list_empty (msgs)) {
+		return NULL;
+	}
+
+	RStrBuf *sb = r_strbuf_new ("");
+	if (!sb) {
+		return NULL;
+	}
+
+	RListIter *iter;
+	const R2AI_Message *msg;
+	r_list_foreach (msgs, iter, msg) {
+		const char *role = msg->role? msg->role: "user";
+		const char *content = msg->content;
+		if (R_STR_ISEMPTY (content)) {
+			continue;
+		}
+		if (!strcmp (role, "system") || !strcmp (role, "developer")) {
+			if (system_prompt && !*system_prompt) {
+				*system_prompt = strdup (content);
+				continue;
+			}
+		}
+		r_strbuf_appendf (sb, "%s: %s\n\n", role, content);
+	}
+
+	char *prompt = r_strbuf_drain (sb);
+	if (R_STR_ISEMPTY (prompt) && system_prompt && *system_prompt) {
+		free (prompt);
+		prompt = strdup (*system_prompt);
+	}
+	return prompt;
+}
+
 R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
 	const char *provider_name = R_STR_ISNOTEMPTY (args.provider)
@@ -22,6 +68,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 
 	const R2AIProvider *provider_info = r2ai_get_provider (provider_name);
 	const bool is_ollama = provider_info && provider_info->api_type == R2AI_API_OLLAMA;
+	const bool use_generate = is_ollama && is_generate_api (core);
 	const char *base_url = r2ai_get_provider_url (core, provider_name);
 	// TODO: default model name should depend on api
 	model_name = model_name? model_name: "gpt-4o-mini";
@@ -93,19 +140,25 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 		headers[1] = auth_header;
 	}
 	const char *urlfmt = is_ollama
-		? "%s/chat"
+		? (use_generate? "%s/generate": "%s/chat")
 		: "%s/chat/completions";
 	char *openai_url = r_str_newf (urlfmt, base_url);
 
-	// Create a messages JSON object, either from input messages or from content
-	char *messages_json = NULL;
+	// Prepare the input messages in the shape required by the selected endpoint.
+	char *chat_messages_json = NULL;
+	char *generate_prompt = NULL;
+	char *generate_system = NULL;
 
 	if (temp_msgs && !r_list_empty (temp_msgs)) {
 		R_LOG_DEBUG ("Using input messages: %d messages", r_list_length (temp_msgs));
-		messages_json = r2ai_msgs_to_json (temp_msgs, is_ollama);
-		if (!messages_json) {
+		if (use_generate) {
+			generate_prompt = ollama_generate_prompt_from_messages (temp_msgs, &generate_system);
+		} else {
+			chat_messages_json = r2ai_msgs_to_json (temp_msgs, is_ollama);
+		}
+		if (!chat_messages_json && !generate_prompt) {
 			if (error) {
-				*error = strdup ("Failed to convert messages to JSON");
+				*error = strdup ("Failed to prepare messages for request");
 			}
 			free (auth_header);
 			return NULL;
@@ -121,7 +174,11 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	// Convert tools to OpenAI format if available
 	char *openai_tools_json = NULL;
 	if (tools && !r_list_empty (tools)) {
-		openai_tools_json = r2ai_tools_to_openai_json (tools);
+		if (use_generate) {
+			R_LOG_DEBUG ("Skipping native tool definitions for /api/generate payload");
+		} else {
+			openai_tools_json = r2ai_tools_to_openai_json (tools);
+		}
 	}
 
 	// Create the model settings part
@@ -156,36 +213,26 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 			pj_kn (pj, "max_completion_tokens", args.max_tokens? args.max_tokens: 5128);
 		}
 	}
-
+	if (use_generate) {
+		pj_ks (pj, "prompt", generate_prompt);
+		if (R_STR_ISNOTEMPTY (generate_system)) {
+			pj_ks (pj, "system", generate_system);
+		}
+	} else {
+		pj_k (pj, "messages");
+		pj_raw (pj, chat_messages_json);
+		if (openai_tools_json) {
+			pj_k (pj, "tools");
+			pj_raw (pj, openai_tools_json);
+		}
+	}
 	pj_end (pj);
 
-	// Get the JSON for model settings
-	char *model_json = pj_drain (pj);
-
-	// Manually create the final JSON by combining parts
-	// Remove the closing brace from model_json
-	size_t model_len = strlen (model_json);
-	if (model_len > 0 && model_json[model_len - 1] == '}') {
-		model_json[model_len - 1] = '\0';
-	}
-
-	// Create the full JSON with proper structure
-	char *complete_json;
-	if (openai_tools_json) {
-		complete_json = r_str_newf ("%s, \"messages\": %s, \"tools\": %s}",
-			model_json,
-			messages_json,
-			openai_tools_json);
-		free (openai_tools_json);
-	} else {
-		complete_json = r_str_newf ("%s, \"messages\": %s}",
-			model_json,
-			messages_json);
-	}
-
-	// Free intermediate strings
-	free (model_json);
-	free (messages_json);
+	char *complete_json = pj_drain (pj);
+	free (chat_messages_json);
+	free (generate_prompt);
+	free (generate_system);
+	free (openai_tools_json);
 
 	if (!complete_json) {
 		if (error) {
@@ -262,8 +309,20 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 				: json_integer (r_json_get (usage_json, "total_tokens"));
 		}
 
-		const RJson *message_json = is_ollama? r_json_get (jres, "message"): NULL;
-		if (!is_ollama) {
+		const RJson *message_json = NULL;
+		if (use_generate) {
+			const char *content = json_string (r_json_get (jres, "response"));
+			const char *thinking = json_string (r_json_get (jres, "thinking"));
+			message->role = strdup ("assistant");
+			if (content) {
+				message->content = strdup (content);
+			}
+			if (R_STR_ISNOTEMPTY (thinking)) {
+				message->reasoning_content = strdup (thinking);
+			}
+		} else if (is_ollama) {
+			message_json = r_json_get (jres, "message");
+		} else {
 			const RJson *choices = r_json_get (jres, "choices");
 			if (choices && choices->type == R_JSON_ARRAY) {
 				const RJson *choice = r_json_item (choices, 0);
