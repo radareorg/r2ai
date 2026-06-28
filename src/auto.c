@@ -388,6 +388,7 @@ R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query) {
 	// If this is the first message in a new conversation, clear previous history
 	if (r_list_empty (messages) || r_config_get_b (core->config, "r2ai.auto.reset_on_query")) {
 		r2ai_msgs_clear (messages);
+		R_FREE (state->cache_prefix);
 	}
 
 	// Add user query
@@ -590,6 +591,7 @@ static void process_conversation_with_llm(RCorePluginSession *cps, bool compact)
 		if (compact) {
 			// Clear the conversation and add summary as system message
 			r2ai_msgs_clear (messages);
+			R_FREE (state->cache_prefix);
 			R2AI_Message summary_msg = {
 				.role = "system",
 				.content = res

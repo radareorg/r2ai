@@ -173,6 +173,7 @@ typedef struct r2ai_state_t {
 	char *prompt_auto; // Auto-mode system prompt
 	char *vertex_token; // Cached Vertex AI OAuth2 token
 	ut64 vertex_token_expiry; // Monotonic microseconds when the cached token expires
+	char *cache_prefix; // Last chat request prefix used by r2ai.cacheck
 } R2AI_State;
 
 // conversation

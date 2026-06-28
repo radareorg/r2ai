@@ -57,6 +57,54 @@ static char *ollama_generate_prompt_from_messages(const RList *msgs, char **syst
 	return prompt;
 }
 
+static void cache_part(RStrBuf *sb, const char *s) {
+	const char *v = r_str_get (s);
+	r_strbuf_appendf (sb, "%zu:%s\n", strlen (v), v);
+}
+
+static char *cache_prefix(const char *provider, const char *model, const char *tools_json, const char *messages_json) {
+	RStrBuf *sb = r_strbuf_new ("");
+	cache_part (sb, provider);
+	cache_part (sb, model);
+	cache_part (sb, tools_json);
+	const char *messages = r_str_get (messages_json);
+	size_t len = strlen (messages);
+	if (len > 0 && messages[len - 1] == ']') {
+		len--;
+	}
+	r_strbuf_appendf (sb, "%zu:", len);
+	r_strbuf_append_n (sb, messages, len);
+	return r_strbuf_drain (sb);
+}
+
+static size_t prefix_len(const char *a, const char *b) {
+	size_t i = 0;
+	while (a[i] && b[i] && a[i] == b[i]) {
+		i++;
+	}
+	return i;
+}
+
+static void check_chat_cache(RCorePluginSession *cps, const char *provider, const char *model, const char *tools_json, const char *messages_json) {
+	RCore *core = cps->core;
+	R2AI_State *state = cps->data;
+	if (!state || !r_config_get_b (core->config, "r2ai.cacheck")) {
+		return;
+	}
+	char *prefix = cache_prefix (provider, model, tools_json, messages_json);
+	if (state->cache_prefix) {
+		const size_t old_len = strlen (state->cache_prefix);
+		if (!r_str_startswith (prefix, state->cache_prefix)) {
+			const size_t kept = prefix_len (state->cache_prefix, prefix);
+			R_LOG_WARN ("Chat cache prefix changed: preserved %zu/%zu bytes from previous request. Keep system prompt, tool catalog, and previous messages append-only to maximize provider cache hits.", kept, old_len);
+		} else {
+			R_LOG_DEBUG ("Chat cache prefix preserved: %zu bytes", old_len);
+		}
+		R_FREE (state->cache_prefix);
+	}
+	state->cache_prefix = prefix;
+}
+
 R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
 	const char *provider_name = R_STR_ISNOTEMPTY (args.provider)
@@ -229,6 +277,9 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	pj_end (pj);
 
 	char *complete_json = pj_drain (pj);
+	if (!use_generate) {
+		check_chat_cache (cps, provider_name, model_name, openai_tools_json, chat_messages_json);
+	}
 	free (chat_messages_json);
 	free (generate_prompt);
 	free (generate_system);

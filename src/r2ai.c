@@ -617,6 +617,7 @@ R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 			r_cons_printf (core->cons, "No conversation history to reset\n");
 		} else {
 			r2ai_msgs_clear (messages);
+			R_FREE (state->cache_prefix);
 			r_cons_printf (core->cons, "Chat conversation context has been reset\n");
 		}
 	} else if (r_str_startswith (input, "-m")) {
@@ -797,6 +798,8 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_desc (core->config, "r2ai.baseurl", "Base URL for provider API (overrides default endpoints)");
 	r_config_set_cb (core->config, "r2ai.apitype", "chat", &cb_r2ai_apitype);
 	r_config_desc (core->config, "r2ai.apitype", "Ollama API endpoint type to use (chat or generate)");
+	r_config_set_b (core->config, "r2ai.cacheck", false);
+	r_config_desc (core->config, "r2ai.cacheck", "Warn when chat requests are not append-only and may miss provider prompt-cache hits");
 	r_config_set_i (core->config, "r2ai.max_tokens", 4096); // max output tokens, or max total tokens
 	r_config_desc (core->config, "r2ai.max_tokens", "Maximum tokens for LLM responses (output/total depending on provider)");
 	r_config_set_i (core->config, "r2ai.thinking_tokens", 0);
@@ -890,6 +893,7 @@ R_API bool r2ai_fini(RCorePluginSession *cps) {
 	r_config_rm (core->config, "r2ai.cmds");
 	r_config_rm (core->config, "r2ai.model");
 	r_config_rm (core->config, "r2ai.apitype");
+	r_config_rm (core->config, "r2ai.cacheck");
 	r_config_rm (core->config, "r2ai.prompt");
 	r_config_rm (core->config, "r2ai.stream");
 	r_config_rm (core->config, "r2ai.system");
@@ -919,6 +923,7 @@ R_API bool r2ai_fini(RCorePluginSession *cps) {
 		state->prompt_auto = NULL;
 		free (state->vertex_token);
 		state->vertex_token = NULL;
+		R_FREE (state->cache_prefix);
 		free (state);
 		cps->data = NULL;
 	}
