@@ -30,7 +30,7 @@ R_API void r2ai_apikeys_edit(RCorePluginSession *cps) {
 			"# MISTRAL=your-mistral-api-key-here\n";
 		r_file_dump (keys_path, (const ut8 *)template, strlen (template), 0);
 	}
-	r_cons_editor (core->cons, keys_path, NULL);
+	r2ai_cons_editor (core->cons, keys_path, NULL);
 	free (keys_path);
 }
 

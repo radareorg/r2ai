@@ -79,6 +79,13 @@ typedef struct {
 } R2AIProvider;
 
 R_API void cmd_r2ai(RCorePluginSession *cps, const char *input);
+static inline char *r2ai_cons_editor(RCons *cons, const char *file, const char *str) {
+#if R2_ABIVERSION >= 120
+	return r_cons_editor (cons, file, str, NULL);
+#else
+	return r_cons_editor (cons, file, str);
+#endif
+}
 R_IPI const R2AIProvider *r2ai_get_provider(const char *name);
 R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider);
 R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider);

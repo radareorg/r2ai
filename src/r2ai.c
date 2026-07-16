@@ -533,11 +533,7 @@ R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		r2ai_apikeys_edit (cps);
 	} else if (r_str_startswith (input, "-E")) {
 		char *rc_path = r_file_home (".config/r2ai/rc");
-#if R2_ABIVERSION >= 120
-		r_cons_editor (core->cons, rc_path, NULL, NULL);
-#else
-		r_cons_editor (core->cons, rc_path, NULL);
-#endif
+		r2ai_cons_editor (core->cons, rc_path, NULL);
 		free (rc_path);
 		load_r2airc (cps);
 	} else if (r_str_startswith (input, "-e")) {

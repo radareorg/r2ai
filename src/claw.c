@@ -144,7 +144,7 @@ R_API void r2ai_claw_edit(RCorePluginSession *cps) {
 	for (i = 0; i < CLAW_NFILES; i++) {
 		char *path = r_file_home (CLAW_FILES[i].rel);
 		if (path && r_file_exists (path)) {
-			r_cons_editor (cps->core->cons, path, NULL);
+			r2ai_cons_editor (cps->core->cons, path, NULL);
 		}
 		free (path);
 	}

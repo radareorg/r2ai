@@ -1,6 +1,6 @@
 /* Copyright r2ai - 2023-2026 - pancake */
 
-#include "r2ai.h"
+#include "r2ai_priv.h"
 
 R_API char *strip_command_comment(const char *input, char **comment_out) {
 	const char *hash_pos = strchr (input, '#');
@@ -320,7 +320,7 @@ static R2AI_ToolResult r2ai_r2cmd(RCore *core, RJson *args, bool verbose) {
 		bool is_multiline = strchr (input_command, '\n') != NULL;
 
 		if (is_multiline) {
-			r_cons_editor (core->cons, NULL, input_command);
+			r2ai_cons_editor (core->cons, NULL, input_command);
 		} else {
 			r_cons_newline (core->cons);
 			r_cons_readpush (core->cons, input_command, strlen (input_command));
@@ -448,7 +448,7 @@ static R2AI_ToolResult r2ai_qjs(RCore *core, R2AI_State *state, RJson *args, boo
 		if (is_multiline) {
 			// Use editor for multi-line scripts
 			edited_script = strdup (script);
-			r_cons_editor (core->cons, NULL, edited_script);
+			r2ai_cons_editor (core->cons, NULL, edited_script);
 			script = edited_script;
 		} else {
 			// For single-line scripts, push the script to input buffer
