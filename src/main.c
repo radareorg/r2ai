@@ -211,7 +211,11 @@ int main(int argc, const char **argv) {
 		case 'E':
 			{
 				char *rc_path = r_file_home (".config/r2ai/rc");
+#if R2_ABIVERSION >= 120
+				r_cons_editor (core->cons, rc_path, NULL, NULL);
+#else
 				r_cons_editor (core->cons, rc_path, NULL);
+#endif
 				free (rc_path);
 				goto beach;
 			}
