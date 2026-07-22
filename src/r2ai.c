@@ -526,7 +526,7 @@ R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 	RCore *core = cps->core;
 	R2AI_State *state = cps->data;
 	if (*input == '?' || r_str_startswith (input, "-h")) {
-		r_core_cmd_help (core, help_msg_r2ai);
+		r2ai_cmd_help (core, help_msg_r2ai);
 	} else if (r_str_startswith (input, "-w")) {
 		r2ai_wizard (core);
 	} else if (r_str_startswith (input, "-K")) {
@@ -634,7 +634,7 @@ R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 	} else if (r_str_startswith (input, "-q")) {
 		r2ai_cmd_q (cps, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-")) {
-		r_core_cmd_help (core, help_msg_r2ai);
+		r2ai_cmd_help (core, help_msg_r2ai);
 	} else {
 		if (r_config_get_b (core->config, "r2ai.async")) {
 			const char *sys = r_config_get (core->config, "r2ai.system");

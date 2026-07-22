@@ -845,7 +845,7 @@ static RCoreHelpMessage help_msg_r2ai_s_kill = {
 
 static void show_help(RCorePluginSession *cps) {
 	RCore *core = cps->core;
-	r_core_cmd_help (core, help_msg_r2ai_s);
+	r2ai_cmd_help (core, help_msg_r2ai_s);
 }
 
 static void purge_finished(RCorePluginSession *cps) {
@@ -933,7 +933,7 @@ R_IPI void r2ai_async_cmd(RCorePluginSession *cps, const char *input) {
 			if (id > 0) {
 				kill_by_id (cps, id);
 			} else {
-				r_core_cmd_help (core, help_msg_r2ai_s_kill);
+				r2ai_cmd_help (core, help_msg_r2ai_s_kill);
 			}
 		}
 		break;

@@ -15,6 +15,16 @@
 #include "r_vdb.h"
 #include "markdown.h"
 
+#ifndef R_LIB_ABIVERSION
+#define R_LIB_ABIVERSION R2_ABIVERSION
+#endif
+
+#if R_LIB_ABIVERSION >= 125
+#define r2ai_cmd_help(core,msg) r_cons_cmd_help ((core)->cons, msg)
+#else
+#define r2ai_cmd_help(core,msg) r_core_cmd_help (core, msg)
+#endif
+
 #if R2_ABIVERSION < 83
 #define r_core_call(x,y) r_core_cmd_call(x,y)
 #endif
