@@ -11,7 +11,7 @@ static const R2AIProvider r2ai_providers[] = {
 	{ "gemini", "https://generativelanguage.googleapis.com/v1beta", R2AI_API_GEMINI, true, false },
 	{ "anthropic", "https://api.anthropic.com/v1", R2AI_API_ANTHROPIC, true, false },
 	{ "claude", "https://api.anthropic.com/v1", R2AI_API_ANTHROPIC, true, false },
-	{ "ollama", "http://localhost:11434/api", R2AI_API_OLLAMA, false, true },
+	{ "ollama", "http://localhost:11434/v1", R2AI_API_OLLAMA, false, true },
 	{ "ollamacloud", "https://ollama.com/api", R2AI_API_OLLAMA, true, true },
 	{ "openapi", "http://127.0.0.1:11434", R2AI_API_OPENAI_COMPATIBLE, false, false },
 	{ "opencode", "https://opencode.ai/zen/v1", R2AI_API_OPENAI_COMPATIBLE, true, true },
@@ -214,7 +214,29 @@ cleanup:
 	return res;
 }
 
-R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider) {
+static char *provider_api_url(const char *host, const char *api_root, bool preserve_root) {
+	char *url = r_str_startswith (host, "http")? strdup (host): r_str_newf ("http://%s", host);
+	if (!url) {
+		return NULL;
+	}
+	r_str_trim (url);
+	size_t len = strlen (url);
+	while (len > 0 && url[len - 1] == '/') {
+		url[--len] = 0;
+	}
+	const bool has_root = r_str_endswith (url, "/v1") || r_str_endswith (url, "/api");
+	if (has_root && (preserve_root || r_str_endswith (url, api_root))) {
+		return url;
+	}
+	if (has_root) {
+		url[len - 3] = 0;
+	}
+	char *res = r_str_newf ("%s%s", url, api_root);
+	free (url);
+	return res;
+}
+
+R_IPI char *r2ai_get_provider_url(RCore *core, const char *provider) {
 	const R2AIProvider *p = r2ai_get_provider (provider);
 	if (!p) {
 		return NULL;
@@ -224,27 +246,21 @@ R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider) {
 		return NULL;
 	}
 
-	// Handle providers that support custom baseurl
+	const bool is_ollama = p->api_type == R2AI_API_OLLAMA;
+	const bool use_generate = is_ollama && is_generate_api (core);
+
 	if (p->supports_custom_baseurl) {
 		const char *host = r_config_get (core->config, "r2ai.baseurl");
 		if (R_STR_ISNOTEMPTY (host)) {
-			if (r_str_startswith (host, "http")) {
-				if (p->api_type == R2AI_API_OPENAI_COMPATIBLE) {
-					if (r_str_endswith (host, "/v1")) {
-						return r_str_newf ("%s", host);
-					}
-					return r_str_newf ("%s/v1", host);
-				}
-				return r_str_newf ("%s/api", host);
-			}
-			if (p->api_type == R2AI_API_OPENAI_COMPATIBLE) {
-				return r_str_newf ("http://%s/v1", host);
-			}
-			return r_str_newf ("http://%s/api", host);
+			const char *api_root = use_generate? "/api": "/v1";
+			return provider_api_url (host, api_root, is_ollama && !use_generate);
 		}
 	}
+	if (use_generate) {
+		return provider_api_url (p->url, "/api", false);
+	}
 
-	return p->url;
+	return p->url? strdup (p->url): NULL;
 }
 R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 	if (!provider) {
@@ -255,7 +271,7 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 		R_LOG_ERROR ("Model listing is not supported for Vertex AI providers");
 		return NULL;
 	}
-	const char *purl = r2ai_get_provider_url (core, provider);
+	char *purl = r2ai_get_provider_url (core, provider);
 	if (!purl) {
 		return NULL;
 	}
@@ -271,10 +287,12 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 	char *models_url = NULL;
 	int code = 0;
 	char *response = NULL;
+	const bool usetags = p && p->api_type == R2AI_API_OLLAMA && r_str_endswith (purl, "/api");
 
 	// Special handling for Gemini
 	if (!strcmp (provider, "gemini")) {
 		if (!api_key) {
+			free (purl);
 			return NULL;
 		}
 		models_url = r_str_newf ("%s/models?key=%s", purl, api_key);
@@ -283,8 +301,6 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 		response = r2ai_http_get (core, models_url, headers, &code, NULL);
 	} else {
 		// Create models endpoint URL
-		const R2AIProvider *prov = r2ai_get_provider (provider);
-		const bool usetags = (prov && prov->api_type == R2AI_API_OLLAMA);
 		models_url = r_str_newf ("%s/%s", purl, usetags? "tags": "models");
 
 		if (api_key) {
@@ -319,6 +335,7 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 
 	free (models_url);
 	free (api_key);
+	free (purl);
 
 	if (!response || code != 200) {
 		R_LOG_DEBUG ("Failed to fetch models from %s (code: %d)", provider, code);
@@ -341,8 +358,6 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 			// Gemini has "models" array directly
 			data = r_json_get (json, "models");
 		} else {
-			const R2AIProvider *prov = r2ai_get_provider (provider);
-			const bool usetags = (prov && prov->api_type == R2AI_API_OLLAMA);
 			data = r_json_get (json, usetags? "models": "data");
 		}
 
@@ -372,8 +387,7 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 						free (s);
 					}
 				} else {
-					const R2AIProvider *prov = r2ai_get_provider (provider);
-					if (prov && prov->api_type == R2AI_API_OLLAMA) {
+					if (usetags) {
 						id = r_json_get (model_item, "model");
 					} else {
 						id = r_json_get (model_item, "id");

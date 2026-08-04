@@ -3,4 +3,7 @@ TARGETS=all clean mrproper user-install install user-uninstall uninstall fmt ind
 $(TARGETS):
 	$(MAKE) -C src $@
 
-.PHONY: $(TARGETS)
+test: all
+	$(MAKE) -C test
+
+.PHONY: $(TARGETS) test

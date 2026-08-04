@@ -11,6 +11,12 @@ static uint64_t json_integer(const RJson *json) {
 	return (json && json->type == R_JSON_INTEGER)? json->num.u_value: 0;
 }
 
+typedef enum {
+	R2AI_CHAT_OPENAI,
+	R2AI_CHAT_OLLAMA,
+	R2AI_GENERATE_OLLAMA
+} R2AIChatAPI;
+
 static bool is_generate_api(RCore *core) {
 	const char *apitype = r_config_get (core->config, "r2ai.apitype");
 	if (R_STR_ISEMPTY (apitype)) {
@@ -105,6 +111,129 @@ static void check_chat_cache(RCorePluginSession *cps, const char *provider, cons
 	state->cache_prefix = prefix;
 }
 
+static char *chat_request_json(RCorePluginSession *cps, const R2AIArgs *args, const char *provider, const char *model, const RList *messages, R2AIChatAPI api, bool check_cache) {
+	const bool use_generate = api == R2AI_GENERATE_OLLAMA;
+	const bool use_ollama = api != R2AI_CHAT_OPENAI;
+	const R2AIProvider *provider_info = r2ai_get_provider (provider);
+	const bool is_ollama_provider = provider_info && provider_info->api_type == R2AI_API_OLLAMA;
+	char *messages_json = NULL;
+	char *generate_prompt = NULL;
+	char *generate_system = NULL;
+	if (use_generate) {
+		generate_prompt = ollama_generate_prompt_from_messages (messages, &generate_system);
+	} else {
+		messages_json = r2ai_msgs_to_json (messages, use_ollama);
+	}
+	if (!messages_json && !generate_prompt) {
+		return NULL;
+	}
+
+	char *tools_json = NULL;
+	if (args->tools && !r_list_empty (args->tools)) {
+		if (use_generate) {
+			R_LOG_DEBUG ("Skipping native tool definitions for /api/generate payload");
+		} else {
+			tools_json = r2ai_tools_to_openai_json (args->tools);
+		}
+	}
+
+	PJ *pj = pj_new ();
+	if (!pj) {
+		free (messages_json);
+		free (generate_prompt);
+		free (generate_system);
+		free (tools_json);
+		return NULL;
+	}
+	pj_o (pj);
+	pj_ks (pj, "model", model);
+	pj_kb (pj, "stream", false);
+	if (use_ollama) {
+		pj_kb (pj, "think", args->thinking_tokens > 0);
+		pj_ko (pj, "options");
+		if (args->max_tokens) {
+			pj_kn (pj, "num_predict", args->max_tokens);
+		}
+		if (args->temperature > 0) {
+			pj_kd (pj, "temperature", args->temperature);
+		}
+		pj_end (pj);
+	} else if (is_ollama_provider || !strcmp (provider, "mistral")) {
+		pj_kn (pj, "max_tokens", args->max_tokens? args->max_tokens: 5128);
+	} else {
+		pj_kn (pj, "max_completion_tokens", args->max_tokens? args->max_tokens: 5128);
+	}
+	if (use_generate) {
+		pj_ks (pj, "prompt", generate_prompt);
+		if (R_STR_ISNOTEMPTY (generate_system)) {
+			pj_ks (pj, "system", generate_system);
+		}
+	} else {
+		pj_k (pj, "messages");
+		pj_raw (pj, messages_json);
+		if (tools_json) {
+			pj_k (pj, "tools");
+			pj_raw (pj, tools_json);
+		}
+	}
+	pj_end (pj);
+
+	if (!use_generate && check_cache) {
+		check_chat_cache (cps, provider, model, tools_json, messages_json);
+	}
+	free (messages_json);
+	free (generate_prompt);
+	free (generate_system);
+	free (tools_json);
+	return pj_drain (pj);
+}
+
+static char *chat_api_url(const char *base_url, R2AIChatAPI api) {
+	const char *path = api == R2AI_CHAT_OPENAI
+		? "/chat/completions"
+		: (api == R2AI_GENERATE_OLLAMA? "/generate": "/chat");
+	return r_str_newf ("%s%s", base_url, path);
+}
+
+static char *ollama_native_base(const char *base_url) {
+	if (r_str_endswith (base_url, "/api")) {
+		return strdup (base_url);
+	}
+	if (r_str_endswith (base_url, "/v1")) {
+		char *url = strdup (base_url);
+		if (!url) {
+			return NULL;
+		}
+		url[strlen (url) - 3] = 0;
+		char *res = r_str_newf ("%s/api", url);
+		free (url);
+		return res;
+	}
+	return r_str_newf ("%s/api", base_url);
+}
+
+static bool allow_ollama_fallback(RCore *core, const char *provider) {
+	if (strcmp (provider, "ollama")) {
+		return false;
+	}
+	const char *base_url = r_config_get (core->config, "r2ai.baseurl");
+	if (R_STR_ISEMPTY (base_url)) {
+		return true;
+	}
+	char *url = strdup (base_url);
+	if (!url) {
+		return false;
+	}
+	r_str_trim (url);
+	size_t len = strlen (url);
+	while (len > 0 && url[len - 1] == '/') {
+		url[--len] = 0;
+	}
+	const bool explicit_root = r_str_endswith (url, "/v1") || r_str_endswith (url, "/api");
+	free (url);
+	return !explicit_root;
+}
+
 R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
 	const char *provider_name = R_STR_ISNOTEMPTY (args.provider)
@@ -115,19 +244,28 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 		: r_config_get (core->config, "r2ai.model");
 
 	const R2AIProvider *provider_info = r2ai_get_provider (provider_name);
-	const bool is_ollama = provider_info && provider_info->api_type == R2AI_API_OLLAMA;
-	const bool use_generate = is_ollama && is_generate_api (core);
-	const char *base_url = r2ai_get_provider_url (core, provider_name);
+	const bool is_ollama_provider = provider_info && provider_info->api_type == R2AI_API_OLLAMA;
+	const bool use_generate = is_ollama_provider && is_generate_api (core);
+	char *base_url = r2ai_get_provider_url (core, provider_name);
+	if (!base_url) {
+		if (args.error) {
+			*args.error = strdup ("Failed to resolve provider URL");
+		}
+		return NULL;
+	}
+	R2AIChatAPI chat_api = use_generate
+		? R2AI_GENERATE_OLLAMA
+		: (is_ollama_provider && r_str_endswith (base_url, "/api")? R2AI_CHAT_OLLAMA: R2AI_CHAT_OPENAI);
 	// TODO: default model name should depend on api
 	model_name = model_name? model_name: "gpt-4o-mini";
 	char **error = args.error;
-	RList *tools = args.tools;
 	// create a temp conversation to include the system prompt and the rest of the messages
 	RList *temp_msgs = r2ai_msgs_new ();
 	if (!temp_msgs) {
 		if (error) {
 			*error = strdup ("Failed to create temporary messages array");
 		}
+		free (base_url);
 		return NULL;
 	}
 	R2AI_Message system_msg = {
@@ -177,165 +315,93 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 		*error = NULL;
 	}
 
-	const char **headers = NULL;
 	char *auth_header = NULL;
+	const char *headers[] = { "Content-Type: application/json", NULL, NULL };
 	if (R_STR_ISNOTEMPTY (args.api_key)) {
 		auth_header = r_str_newf ("Authorization: Bearer %s", args.api_key);
 		R_LOG_DEBUG ("Auth header: %s", auth_header);
-		static const char *static_headers[] = { NULL, NULL, NULL };
-		headers = static_headers;
-		headers[0] = "Content-Type: application/json";
 		headers[1] = auth_header;
 	}
-	const char *urlfmt = is_ollama
-		? (use_generate? "%s/generate": "%s/chat")
-		: "%s/chat/completions";
-	char *openai_url = r_str_newf (urlfmt, base_url);
-
-	// Prepare the input messages in the shape required by the selected endpoint.
-	char *chat_messages_json = NULL;
-	char *generate_prompt = NULL;
-	char *generate_system = NULL;
-
-	if (temp_msgs && !r_list_empty (temp_msgs)) {
-		R_LOG_DEBUG ("Using input messages: %d messages", r_list_length (temp_msgs));
-		if (use_generate) {
-			generate_prompt = ollama_generate_prompt_from_messages (temp_msgs, &generate_system);
-		} else {
-			chat_messages_json = r2ai_msgs_to_json (temp_msgs, is_ollama);
-		}
-		if (!chat_messages_json && !generate_prompt) {
-			if (error) {
-				*error = strdup ("Failed to prepare messages for request");
-			}
-			free (auth_header);
-			return NULL;
-		}
-	} else {
+	if (r_list_empty (temp_msgs)) {
 		if (error) {
 			*error = strdup ("No messages provided");
 		}
 		free (auth_header);
+		free (base_url);
+		r2ai_msgs_free (temp_msgs);
 		return NULL;
 	}
+	R_LOG_DEBUG ("Using input messages: %d messages", r_list_length (temp_msgs));
 
-	// Convert tools to OpenAI format if available
-	char *openai_tools_json = NULL;
-	if (tools && !r_list_empty (tools)) {
-		if (use_generate) {
-			R_LOG_DEBUG ("Skipping native tool definitions for /api/generate payload");
-		} else {
-			openai_tools_json = r2ai_tools_to_openai_json (tools);
+	char *res = NULL;
+	int code = 0;
+	char *fallback_base = NULL;
+	const char *request_base = base_url;
+	bool first_request = true;
+	for (;;) {
+		char *request_json = chat_request_json (cps, &args, provider_name, model_name, temp_msgs, chat_api, first_request);
+		if (!request_json) {
+			if (error) {
+				*error = strdup ("Failed to create request JSON");
+			}
+			free (fallback_base);
+			free (auth_header);
+			free (base_url);
+			r2ai_msgs_free (temp_msgs);
+			return NULL;
 		}
-	}
+		char *api_url = chat_api_url (request_base, chat_api);
+		char *tmpdir = r_file_tmpdir ();
+		char *req_path = r_str_newf ("%s" R_SYS_DIR "r2ai_openai_request.json", tmpdir);
+		r_file_dump (req_path, (const ut8 *)request_json, strlen (request_json), 0);
+		R_LOG_DEBUG ("Full request saved to %s", req_path);
+		R_LOG_DEBUG ("LLM API request data: %s", request_json);
+		free (req_path);
+		free (tmpdir);
 
-	// Create the model settings part
-	PJ *pj = pj_new ();
-	pj_o (pj);
-	pj_ks (pj, "model", model_name);
-	pj_kb (pj, "stream", false);
-
-	if (is_ollama) {
-		pj_kb (pj, "think", args.thinking_tokens > 0);
-		pj_ko (pj, "options");
-		if (args.max_tokens) {
-			pj_kn (pj, "num_predict", args.max_tokens);
-		}
-		if (args.temperature > 0) {
-			pj_kd (pj, "temperature", args.temperature);
-		}
-		pj_end (pj); // end options
-	} else {
-#if 0
-		// gpt-5-mini-chat is the only gpt-5 model that supports temperature
-		// gpt-5 gpt-5-mini and gpt-5-nano just throw an error
-		// Only add temperature if this provider/model doesn't have the temperature error flag
-		if (!model_has_error (args.provider, model_name, MODEL_ERROR_TEMPERATURE)) {
-			pj_kd (pj, "temperature", args.temperature? args.temperature: 0.01);
-		}
-#endif
-
-		if (!strcmp (provider_name, "mistral")) {
-			pj_kn (pj, "max_tokens", args.max_tokens? args.max_tokens: 5128);
-		} else {
-			pj_kn (pj, "max_completion_tokens", args.max_tokens? args.max_tokens: 5128);
-		}
-	}
-	if (use_generate) {
-		pj_ks (pj, "prompt", generate_prompt);
-		if (R_STR_ISNOTEMPTY (generate_system)) {
-			pj_ks (pj, "system", generate_system);
-		}
-	} else {
-		pj_k (pj, "messages");
-		pj_raw (pj, chat_messages_json);
-		if (openai_tools_json) {
-			pj_k (pj, "tools");
-			pj_raw (pj, openai_tools_json);
-		}
-	}
-	pj_end (pj);
-
-	char *complete_json = pj_drain (pj);
-	if (!use_generate) {
-		check_chat_cache (cps, provider_name, model_name, openai_tools_json, chat_messages_json);
-	}
-	free (chat_messages_json);
-	free (generate_prompt);
-	free (generate_system);
-	free (openai_tools_json);
-
-	if (!complete_json) {
-		if (error) {
-			*error = strdup ("Failed to create complete request JSON");
-		}
-		free (auth_header);
-		return NULL;
-	}
-
-	// Save the full JSON to a file for inspection
-	// XXX: only create request/response files when r2ai.debug is set
-	char *tmpdir = r_file_tmpdir ();
-	char *req_path = r_str_newf ("%s" R_SYS_DIR "r2ai_openai_request.json", tmpdir);
-	r_file_dump (req_path, (const ut8 *)complete_json, strlen (complete_json), 0);
-	R_LOG_DEBUG ("Full request saved to %s", req_path);
-	free (req_path);
-	free (tmpdir);
-
-	R_LOG_DEBUG ("OpenAI API request data: %s", complete_json);
-
-	if (r_config_get_b (core->config, "r2ai.debug")) {
-		// Generate curl command for debugging
-		RStrBuf *curl_cmd = r_strbuf_new ("curl -X POST");
-		if (headers) {
+		if (r_config_get_b (core->config, "r2ai.debug")) {
+			RStrBuf *curl_cmd = r_strbuf_new ("curl -X POST");
 			for (int i = 0; headers[i]; i++) {
 				r_strbuf_appendf (curl_cmd, " -H \"%s\"", headers[i]);
 			}
+			r_strbuf_appendf (curl_cmd, " -d '%s' \"%s\"", request_json, api_url);
+			eprintf ("Curl command: %s\n", r_strbuf_get (curl_cmd));
+			r_strbuf_free (curl_cmd);
 		}
-		r_strbuf_appendf (curl_cmd, " -d '%s' \"%s\"", complete_json, openai_url);
-		eprintf ("Curl command: %s\n", r_strbuf_get (curl_cmd));
-		r_strbuf_free (curl_cmd);
-	}
 
-	// Make the API call
-	char *res = NULL;
-	int code = 0;
-	res = r2ai_http_post (core, openai_url, headers, complete_json, &code, NULL);
-	free (complete_json);
-	free (openai_url);
+		res = r2ai_http_post (core, api_url, headers, request_json, &code, NULL);
+		free (request_json);
+		free (api_url);
+		if (chat_api != R2AI_CHAT_OPENAI || (code != 404 && code != 405) || !allow_ollama_fallback (core, provider_name)) {
+			break;
+		}
+		fallback_base = ollama_native_base (base_url);
+		if (!fallback_base) {
+			break;
+		}
+		R_LOG_INFO ("OpenAI-compatible Ollama endpoint unavailable; falling back to /api/chat");
+		free (res);
+		res = NULL;
+		request_base = fallback_base;
+		chat_api = R2AI_CHAT_OLLAMA;
+		first_request = false;
+	}
+	free (fallback_base);
+	free (base_url);
 
 	if (code != 200) {
-		R_LOG_ERROR ("OpenAI API error %d", code);
+		R_LOG_ERROR ("LLM API error %d", code);
 		if (res) {
-			R_LOG_ERROR ("OpenAI API error response: %s", res);
+			R_LOG_ERROR ("LLM API error response: %s", res);
 		}
 		free (auth_header);
 		free (res);
+		r2ai_msgs_free (temp_msgs);
 		return NULL;
 	}
 
 	// Save the response for inspection
-	tmpdir = r_file_tmpdir ();
+	char *tmpdir = r_file_tmpdir ();
 	char *res_path = r_str_newf ("%s" R_SYS_DIR "r2ai_openai_response.json", tmpdir);
 	r_file_dump (res_path, (const ut8 *)res, strlen (res), 0);
 	if (r_config_get_b (core->config, "r2ai.debug")) {
@@ -349,13 +415,14 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	char *res_copy = strdup (res);
 	RJson *jres = r_json_parse (res_copy);
 	if (jres) {
+		const bool is_native_ollama = chat_api != R2AI_CHAT_OPENAI;
 		R2AI_Message *message = R_NEW0 (R2AI_Message);
 		R2AI_Usage *usage = R_NEW0 (R2AI_Usage);
-		const RJson *usage_json = is_ollama? jres: r_json_get (jres, "usage");
+		const RJson *usage_json = is_native_ollama? jres: r_json_get (jres, "usage");
 		if (usage_json && usage_json->type == R_JSON_OBJECT) {
-			usage->prompt_tokens = json_integer (r_json_get (usage_json, is_ollama? "prompt_eval_count": "prompt_tokens"));
-			usage->completion_tokens = json_integer (r_json_get (usage_json, is_ollama? "eval_count": "completion_tokens"));
-			usage->total_tokens = is_ollama
+			usage->prompt_tokens = json_integer (r_json_get (usage_json, is_native_ollama? "prompt_eval_count": "prompt_tokens"));
+			usage->completion_tokens = json_integer (r_json_get (usage_json, is_native_ollama? "eval_count": "completion_tokens"));
+			usage->total_tokens = is_native_ollama
 				? usage->prompt_tokens + usage->completion_tokens
 				: json_integer (r_json_get (usage_json, "total_tokens"));
 		}
@@ -371,7 +438,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 			if (R_STR_ISNOTEMPTY (thinking)) {
 				message->reasoning_content = strdup (thinking);
 			}
-		} else if (is_ollama) {
+		} else if (is_native_ollama) {
 			message_json = r_json_get (jres, "message");
 		} else {
 			const RJson *choices = r_json_get (jres, "choices");
@@ -456,8 +523,10 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 		return result;
 	}
 
+	free (res_copy);
 	free (auth_header);
 	free (res);
+	r2ai_msgs_free (temp_msgs);
 	return NULL;
 }
 

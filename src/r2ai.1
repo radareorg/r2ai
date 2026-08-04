@@ -86,10 +86,10 @@ Name of the provider (e.g., openai). List possibilities with \fBr2ai -e r2ai.api
 Model name. List possibilities with \fBr2ai -e r2ai.model=?\fR.
 .TP
 .B r2ai.baseurl
-Remote LLM base URL (e.g., http://127.0.0.1:11434).
+Provider API root. A /v1 suffix selects OpenAI-compatible chat completions; /api selects native Ollama.
 .TP
 .B r2ai.apitype
-Ollama API endpoint type to use: chat (default) or generate.
+Use chat completions (default) or the native Ollama generate operation.
 .TP
 .B r2ai.cacheck
 Warn when chat requests are not append-only and may miss provider prompt-cache hits.

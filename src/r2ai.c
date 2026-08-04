@@ -795,9 +795,9 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_set_cb (core->config, "r2ai.model", R2AI_DEFAULT_MODEL, &cb_r2ai_model);
 	r_config_desc (core->config, "r2ai.model", "Model identifier for the selected provider (e.g. gpt-5-mini)");
 	r_config_set (core->config, "r2ai.baseurl", "");
-	r_config_desc (core->config, "r2ai.baseurl", "Base URL for provider API (overrides default endpoints)");
+	r_config_desc (core->config, "r2ai.baseurl", "Provider API root (/v1 for OpenAI-compatible chat or /api for native Ollama)");
 	r_config_set_cb (core->config, "r2ai.apitype", "chat", &cb_r2ai_apitype);
-	r_config_desc (core->config, "r2ai.apitype", "Ollama API endpoint type to use (chat or generate)");
+	r_config_desc (core->config, "r2ai.apitype", "Chat completions (default) or native Ollama generate operation");
 	r_config_set_b (core->config, "r2ai.cacheck", false);
 	r_config_desc (core->config, "r2ai.cacheck", "Warn when chat requests are not append-only and may miss provider prompt-cache hits");
 	r_config_set_i (core->config, "r2ai.max_tokens", 4096); // max output tokens, or max total tokens

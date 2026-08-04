@@ -251,9 +251,9 @@ R_API char *r2ai_http_get(RCore *core, const char *url, const char **headers, in
  *
  * @param core RCore instance for configuration
  * @param provider The provider name (e.g., "openai", "anthropic", etc.)
- * @return Base URL for the provider, or NULL if unknown
+ * @return Newly allocated base URL for the provider, or NULL if unknown
  */
-R_IPI const char *r2ai_get_provider_url(RCore *core, const char *provider);
+R_IPI char *r2ai_get_provider_url(RCore *core, const char *provider);
 
 // anthropic
 R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args);

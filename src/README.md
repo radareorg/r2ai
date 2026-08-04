@@ -94,8 +94,8 @@ These can be set with `r2ai -e <keyname>=<value>`
 |------------------|------------------------------------------------------------------------------------------------|
 | r2ai.api         | Name of the provider e.g `openai`. List possibilities with `r2ai -e r2ai.api=?`                |
 | r2ai.model       | Model name. List possibilities with `r2ai -e r2ai.model=?`                                     |
-| r2ai.baseurl     | Remote LLM base URL. Specify host if necessary e.g http://127.0.0.1:11434. |
-| r2ai.apitype | Ollama API endpoint type to use: `chat` (default) or `generate`. |
+| r2ai.baseurl     | Provider API root. Use `/v1` for OpenAI-compatible chat or `/api` for native Ollama. |
+| r2ai.apitype | Use chat completions (default) or the native Ollama `generate` operation. |
 | r2ai.cacheck | Warn when chat requests are not append-only and may miss provider prompt-cache hits. |
 | r2ai.max_tokens  | Maximum output tokens or maximum total tokens. Check the appropriate limits for your model     |
 | r2ai.temperature | How creative the model should be. 0=not creative, 1=very creative                              |

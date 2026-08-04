@@ -1,0 +1,33 @@
+NAME=OpenAI-compatible base URL
+FILE=-
+TIMEOUT=10
+CMDS=<<EOF
+!HOME=/tmp/r2ai-r2r-no-home R2_RCFILE=/dev/null ../src/r2ai -p ollama -m fixture-model -b http://127.0.0.1:1/v1/ -e debug=true -e http.backend=socket -e http.max_retries=0 -e http.timeout=1 'fixture prompt' 2>&1 | sed -n '/^Curl command:/{h;s/.*\(Content-Type: application\/json\).*/\1/p;g;s/.*"\(http[^\"]*\)".*/\1/p;}'
+EOF
+EXPECT=<<EOF
+Content-Type: application/json
+http://127.0.0.1:1/v1/chat/completions
+EOF
+RUN
+
+NAME=Native Ollama API root
+FILE=-
+TIMEOUT=10
+CMDS=<<EOF
+!HOME=/tmp/r2ai-r2r-no-home R2_RCFILE=/dev/null ../src/r2ai -p ollama -m fixture-model -b http://127.0.0.1:1/api -e debug=true -e http.backend=socket -e http.max_retries=0 -e http.timeout=1 'fixture prompt' 2>&1 | sed -n '/^Curl command:/s/.*"\(http[^\"]*\)".*/\1/p'
+EOF
+EXPECT=<<EOF
+http://127.0.0.1:1/api/chat
+EOF
+RUN
+
+NAME=Native Ollama generate API
+FILE=-
+TIMEOUT=10
+CMDS=<<EOF
+!HOME=/tmp/r2ai-r2r-no-home R2_RCFILE=/dev/null ../src/r2ai -p ollama -m fixture-model -b http://127.0.0.1:1/v1 -e apitype=generate -e debug=true -e http.backend=socket -e http.max_retries=0 -e http.timeout=1 'fixture prompt' 2>&1 | sed -n '/^Curl command:/s/.*"\(http[^\"]*\)".*/\1/p'
+EOF
+EXPECT=<<EOF
+http://127.0.0.1:1/api/generate
+EOF
+RUN

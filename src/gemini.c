@@ -9,7 +9,7 @@ R_IPI R2AI_ChatResponse *r2ai_gemini(RCorePluginSession *cps, R2AIArgs args) {
 	const char *model = R_STR_ISNOTEMPTY (args.model)
 		? args.model
 		: r_config_get (core->config, "r2ai.model");
-	const char *base_url = r2ai_get_provider_url (core, args.provider);
+	char *base_url = r2ai_get_provider_url (core, args.provider);
 	const char *model_name = model && strstr (model, "gemini")? model: "gemini-2.0-flash-exp";
 	char **error = args.error;
 
@@ -19,6 +19,7 @@ R_IPI R2AI_ChatResponse *r2ai_gemini(RCorePluginSession *cps, R2AIArgs args) {
 		if (error) {
 			*error = strdup ("Failed to create temporary messages array");
 		}
+		free (base_url);
 		return NULL;
 	}
 
@@ -69,6 +70,7 @@ R_IPI R2AI_ChatResponse *r2ai_gemini(RCorePluginSession *cps, R2AIArgs args) {
 		base_url,
 		model_name,
 		args.api_key);
+	free (base_url);
 
 	// Create Gemini-style request JSON
 	PJ *pj = pj_new ();
