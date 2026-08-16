@@ -29,7 +29,7 @@
 #define r_core_call(x,y) r_core_cmd_call(x,y)
 #endif
 
-#define R2AI_VERSION "1.4.0"
+#define R2AI_VERSION "1.4.2"
 #define R2AI_DEFAULT_MODEL "gpt-oss:20b"
 #define R2AI_DEFAULT_PROVIDER "ollama"
 

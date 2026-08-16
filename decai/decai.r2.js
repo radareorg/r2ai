@@ -1,7 +1,7 @@
 📦
 27073 /main.js
 ✄
-var ee="1.4.0",y="decai",A="~/.config/r2ai",M=A+"/apikeys.txt",R=A+"/decai.txt",N="Rewrite this pseudocode into concise and clean code. Output only the provided function. Do not add wrappers, helper examples, test code, or main-like functions. Replace goto with structured control flow, simplify as much as possible, infer types and use better names for variables and parameters, some strings may be appearing as comments, preserve only what is implied by the input, and remove dead code.",F={decai:`# Using Decai
+var ee="1.4.2",y="decai",A="~/.config/r2ai",M=A+"/apikeys.txt",R=A+"/decai.txt",N="Rewrite this pseudocode into concise and clean code. Output only the provided function. Do not add wrappers, helper examples, test code, or main-like functions. Replace goto with structured control flow, simplify as much as possible, infer types and use better names for variables and parameters, some strings may be appearing as comments, preserve only what is implied by the input, and remove dead code.",F={decai:`# Using Decai
 
 Decai is the radare2 plugin for decompiling functions with the help of language models.
 
