@@ -1,5 +1,5 @@
 import { state } from "./state";
-import { fileDump, tmpdir } from "./utils";
+import { fileDump, joinUrl, tmpdir } from "./utils";
 import { callProvider } from "./providers";
 import { httpGet } from "./http";
 
@@ -20,11 +20,8 @@ export function r2ai(
       ? cleanQuery
       : ["-i", fileName, cleanQuery].join(" ");
 
-    const host = state.baseurl
-      ? state.baseurl + "/cmd"
-      : state.host + ":" + state.port + "/cmd";
-
-    const url = host + "/" + encodeURIComponent(q);
+    const baseUrl = state.baseurl || state.host + ":" + state.port;
+    const url = joinUrl(baseUrl, "cmd/" + encodeURIComponent(q));
     const response = httpGet(url, []);
     if (response.error) {
       return `Error: ${response.error}`;

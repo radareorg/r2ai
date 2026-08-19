@@ -22,6 +22,10 @@ export function padRight(str: string, length: number): string {
   return str + " ".repeat(Math.max(0, length - str.length));
 }
 
+export function joinUrl(baseUrl: string, path: string): string {
+  return baseUrl.replace(/\/+$/, "") + "/" + path.replace(/^\/+/, "");
+}
+
 export function trimAnsi(str: string): string {
   return str.replace(/\x1b\[[0-9;]*m/g, "");
 }

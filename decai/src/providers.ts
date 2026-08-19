@@ -12,7 +12,7 @@ import {
   ProviderRegistry,
 } from "./types";
 import { state } from "./state";
-import { filterResponse, padRight } from "./utils";
+import { filterResponse, joinUrl, padRight } from "./utils";
 import { getApiKey } from "./apiKeys";
 import { getConfiguredHeaders, mergeHeaders } from "./headers";
 import { httpGet, httpPost } from "./http";
@@ -138,12 +138,13 @@ function getProviderRequest(provider: ProviderConfig): {
 
 function listV1Models(provider: ProviderConfig): string {
   const { baseUrl, headers } = getProviderRequest(provider);
-  return listDataModels(baseUrl + "/v1/models", headers, (model) => model.id);
+  const url = joinUrl(baseUrl, "v1/models");
+  return listDataModels(url, headers, (model) => model.id);
 }
 
 function listOllamaModels(provider: ProviderConfig): string {
   const { baseUrl, headers } = getProviderRequest(provider);
-  const response = httpGet(baseUrl + "/api/tags", headers);
+  const response = httpGet(joinUrl(baseUrl, "api/tags"), headers);
   const error = getErrorMessage(response.error);
   if (error) {
     console.error(error);
@@ -156,7 +157,7 @@ function listOllamaModels(provider: ProviderConfig): string {
 
 function listMistralModels(provider: ProviderConfig): string {
   const { baseUrl, headers } = getProviderRequest(provider);
-  const response = httpGet(baseUrl + "/v1/models", headers);
+  const response = httpGet(joinUrl(baseUrl, "v1/models"), headers);
   if (response.data) {
     return uniqueBy(response.data, (model) => model.name || model.id)
       .map((model) =>
@@ -187,7 +188,7 @@ const providerRuntimes: Record<ApiStyle, ProviderRuntime> = {
       }
       throw new Error("Invalid response format");
     },
-    buildUrl: (baseUrl) => baseUrl + "/v1/chat/completions",
+    buildUrl: (baseUrl) => joinUrl(baseUrl, "v1/chat/completions"),
   },
   anthropic: {
     buildPayload: (model, query) => {
@@ -222,7 +223,7 @@ const providerRuntimes: Record<ApiStyle, ProviderRuntime> = {
       }
       throw new Error("Invalid response format");
     },
-    buildUrl: (baseUrl) => baseUrl + "/v1/messages",
+    buildUrl: (baseUrl) => joinUrl(baseUrl, "v1/messages"),
   },
   ollama: {
     buildPayload: (model, query) => {
@@ -271,7 +272,7 @@ const providerRuntimes: Record<ApiStyle, ProviderRuntime> = {
       }
       throw new Error(JSON.stringify(response));
     },
-    buildUrl: (baseUrl) => baseUrl + "/api/" + state.apitype,
+    buildUrl: (baseUrl) => joinUrl(baseUrl, "api/" + state.apitype),
   },
   gemini: {
     buildPayload: (_model, query) => {
@@ -311,7 +312,10 @@ const providerRuntimes: Record<ApiStyle, ProviderRuntime> = {
       throw new Error("Invalid response format");
     },
     buildUrl: (baseUrl, model, apiKey) =>
-      `${baseUrl}/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      joinUrl(
+        baseUrl,
+        `v1beta/models/${model}:generateContent?key=${apiKey}`,
+      ),
     requiresUrlApiKey: true,
   },
 };
