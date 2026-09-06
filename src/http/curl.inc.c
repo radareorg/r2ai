@@ -30,8 +30,7 @@ static char *escape_cmd_double_quotes(const char *str) {
 	return escaped;
 }
 
-static HttpResponse build_and_execute_curl(const char *cmd_start, const HTTPRequest *request, const char *input_data) {
-	HttpResponse error = { .code = -1 };
+static HttpResponse build_and_execute_curl(const char *cmd_start, const HTTPRequest *request, const char *input_data) {	HttpResponse error = { .code = -1 };
 	int timeout = request->config.timeout;
 	if (!request->url) {
 		return error;
@@ -39,6 +38,9 @@ static HttpResponse build_and_execute_curl(const char *cmd_start, const HTTPRequ
 
 	// Compose curl command
 	RStrBuf *cmd = r_strbuf_new (cmd_start);
+	if (!cmd) {
+		return error;
+	}
 
 	// Add timeout
 	r_strbuf_appendf (cmd, " --connect-timeout %d --max-time %d", 10, timeout);
@@ -47,14 +49,23 @@ static HttpResponse build_and_execute_curl(const char *cmd_start, const HTTPRequ
 	if (request->headers) {
 		for (int i = 0; request->headers[i] != NULL; i++) {
 			char *escaped_header = escape_cmd_double_quotes (request->headers[i]);
-			r_strbuf_appendf (cmd, " -H \"%s\"", escaped_header);
-			free (escaped_header);
+			if (escaped_header) {
+				r_strbuf_appendf (cmd, " -H \"%s\"", escaped_header);
+				free (escaped_header);
+			}
 		}
 	}
 	char *escaped_url = escape_cmd_double_quotes (request->url);
+	if (!escaped_url) {
+		r_strbuf_free (cmd);
+		return error;
+	}
 	r_strbuf_appendf (cmd, " -w \"\\n%%{http_code}\" \"%s\"", escaped_url);
 	free (escaped_url);
 	char *cmd_str = r_strbuf_drain (cmd);
+	if (!cmd_str) {
+		return error;
+	}
 	R_LOG_DEBUG ("Running system curl: %s", cmd_str);
 	char *response = r_sys_cmd_str (cmd_str, input_data, NULL);
 

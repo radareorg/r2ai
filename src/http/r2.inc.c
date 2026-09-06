@@ -21,6 +21,9 @@ static HttpResponse socket_http_post_with_interrupt(const HTTPRequest *request) 
 		free (result);
 		return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
 	}
+	if (!result) {
+		return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
+	}
 	return (HttpResponse){ .body = result, .code = code, .length = rlen };
 }
 
@@ -33,7 +36,6 @@ static HttpResponse socket_http_get_with_interrupt(const HTTPRequest *request) {
 	signal (SIGALRM, r2ai_http_sigint_handler);
 	alarm (request->config.timeout); // Use configured timeout
 #endif
-	// Make the request - use r_socket_http_get if available
 	int code = 0;
 	int rlen = 0;
 	char *result = r_socket_http_get (request->url, request->headers, &code, &rlen);
@@ -43,6 +45,9 @@ static HttpResponse socket_http_get_with_interrupt(const HTTPRequest *request) {
 	if (r2ai_http_interrupted) {
 		R_LOG_DEBUG ("HTTP request was interrupted by user");
 		free (result);
+		return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
+	}
+	if (!result) {
 		return (HttpResponse){ .body = NULL, .code = -1, .length = 0 };
 	}
 	return (HttpResponse){ .body = result, .code = code, .length = rlen };

@@ -36,8 +36,7 @@ static int progress_callback(void *clientp, curl_off_t dltotal, curl_off_t dlnow
 	return r2ai_http_interrupted? 1: 0;
 }
 
-static HttpResponse curl_http_request(const HTTPRequest *request, bool is_post) {
-	HttpResponse error = { .code = -1 };
+static HttpResponse curl_http_request(const HTTPRequest *request, bool is_post) {	HttpResponse error = { .code = -1 };
 	if (!request->url || (is_post && !request->data)) {
 		return error;
 	}
@@ -46,14 +45,13 @@ static HttpResponse curl_http_request(const HTTPRequest *request, bool is_post) 
 	CURLcode res;
 	struct curl_slist *curl_headers = NULL;
 	CurlResponse response = { 0 };
+	HttpResponse result = { .code = -1 };
 
-	// Initialize response
 	response.data = malloc (1);
 	if (!response.data) {
 		return error;
 	}
 	response.data[0] = '\0';
-	response.size = 0;
 
 	curl = curl_easy_init ();
 	if (!curl) {
@@ -61,10 +59,8 @@ static HttpResponse curl_http_request(const HTTPRequest *request, bool is_post) 
 		return error;
 	}
 
-	// Set URL
 	curl_easy_setopt (curl, CURLOPT_URL, request->url);
 
-	// Set method-specific options
 	if (is_post) {
 		curl_easy_setopt (curl, CURLOPT_POST, 1L);
 		curl_easy_setopt (curl, CURLOPT_POSTFIELDS, request->data);
@@ -73,7 +69,6 @@ static HttpResponse curl_http_request(const HTTPRequest *request, bool is_post) 
 		curl_easy_setopt (curl, CURLOPT_HTTPGET, 1L);
 	}
 
-	// Set headers if provided
 	if (request->headers) {
 		for (int i = 0; request->headers[i] != NULL; i++) {
 			curl_headers = curl_slist_append (curl_headers, request->headers[i]);
@@ -81,53 +76,42 @@ static HttpResponse curl_http_request(const HTTPRequest *request, bool is_post) 
 		curl_easy_setopt (curl, CURLOPT_HTTPHEADER, curl_headers);
 	}
 
-	// Set write callback
 	curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, write_callback);
 	curl_easy_setopt (curl, CURLOPT_WRITEDATA, (void *)&response);
 
-	// Set progress callback to handle interrupts
 	curl_easy_setopt (curl, CURLOPT_NOPROGRESS, 0L);
 	curl_easy_setopt (curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
 	curl_easy_setopt (curl, CURLOPT_XFERINFODATA, NULL);
 
-	// Set timeout options
-	curl_easy_setopt (curl, CURLOPT_CONNECTTIMEOUT, 10L); // 10 seconds connect timeout
-	curl_easy_setopt (curl, CURLOPT_TIMEOUT, (long)request->config.timeout); // Use configured timeout
-
-	// Follow redirects
+	curl_easy_setopt (curl, CURLOPT_CONNECTTIMEOUT, 10L);
+	curl_easy_setopt (curl, CURLOPT_TIMEOUT, (long)request->config.timeout);
 	curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
 
-	// Perform the request
 	res = curl_easy_perform (curl);
 
-	// Check for interruption
 	if (r2ai_http_interrupted) {
 		R_LOG_DEBUG ("HTTP request was interrupted by user");
-		free (response.data);
-		curl_slist_free_all (curl_headers);
-		curl_easy_cleanup (curl);
-		return error;
+		goto cleanup;
 	}
 
-	// Get response code
-	long http_code;
+	long http_code = 0;
 	curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
 
-	// Check for errors
 	if (res != CURLE_OK) {
 		R_LOG_ERROR ("curl_easy_perform () failed: %s", curl_easy_strerror (res));
-		free (response.data);
-		curl_slist_free_all (curl_headers);
-		curl_easy_cleanup (curl);
-		return error;
+		goto cleanup;
 	}
 
-	// If we get here, the request was successful
-	// Cleanup
+	result.body = response.data;
+	result.code = (int)http_code;
+	result.length = (int)response.size;
+	response.data = NULL;
+
+cleanup:
+	free (response.data);
 	curl_slist_free_all (curl_headers);
 	curl_easy_cleanup (curl);
-
-	return (HttpResponse){ .body = response.data, .code = (int)http_code, .length = response.size };
+	return result;
 }
 
 HttpResponse curl_http_get(const HTTPRequest *request) {
