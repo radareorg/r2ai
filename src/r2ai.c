@@ -107,8 +107,7 @@ R_API char *r2ai(RCorePluginSession *cps, R2AIArgs args) {
 		if (res->message && res->message->content) {
 			content = strdup (res->message->content);
 		}
-		r2ai_message_free ((R2AI_Message *)res->message);
-		free (res);
+		r2ai_chat_response_free (res);
 	}
 	if (own_msgs) {
 		r2ai_msgs_free (msgs);

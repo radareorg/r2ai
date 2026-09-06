@@ -216,10 +216,7 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 	if (!response->message || !response->message->content || !*response->message->content) {
 		R_LOG_DEBUG ("No tool call found and no content, falling back to normal mode");
 
-		if (response->message) {
-			r2ai_message_free ((R2AI_Message *)response->message);
-		}
-		free (response);
+		r2ai_chat_response_free (response);
 
 		R2AIArgs fallback_args = args;
 		fallback_args.tools = args.tools;
@@ -242,12 +239,7 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 			return fallback_response;
 		}
 
-		if (fallback_response) {
-			if (fallback_response->message) {
-				r2ai_message_free ((R2AI_Message *)fallback_response->message);
-			}
-			free (fallback_response);
-		}
+		r2ai_chat_response_free (fallback_response);
 
 		R2AI_ChatResponse *warning_response = R_NEW0 (R2AI_ChatResponse);
 		R2AI_Message *msg = R_NEW0 (R2AI_Message);

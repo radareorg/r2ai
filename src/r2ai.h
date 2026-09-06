@@ -202,6 +202,7 @@ R_API char *r2ai_msgs_to_json(const RList *msgs, bool raw_tool_args);
 R_API char *r2ai_msgs_to_anthropic_json(const RList *msgs);
 R_API void r2ai_msgs_free(RList *msgs);
 R_API void r2ai_message_free(R2AI_Message *msg);
+R_IPI void r2ai_chat_response_free(R2AI_ChatResponse *res);
 R_API void r2ai_message_fini(R2AI_Message *msg);
 R_API void r2ai_delete_last_messages(RList *messages, int n);
 

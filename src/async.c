@@ -167,8 +167,7 @@ static RThreadFunctionRet worker_query(RThread *th) {
 	task_unlock (t);
 
 	if (res) {
-		r2ai_message_free ((R2AI_Message *)res->message);
-		free (res);
+		r2ai_chat_response_free (res);
 	}
 	return R_TH_STOP;
 }
@@ -211,9 +210,7 @@ static RThreadFunctionRet worker_auto(RThread *th) {
 			t->state = R2AI_TASK_ERROR;
 			t->finished = time (NULL);
 			task_unlock (t);
-			if (res) {
-				free (res);
-			}
+			r2ai_chat_response_free (res);
 			return R_TH_STOP;
 		}
 		const R2AI_Message *m = res->message;
@@ -226,8 +223,7 @@ static RThreadFunctionRet worker_auto(RThread *th) {
 			t->state = R2AI_TASK_COMPLETE;
 			t->finished = time (NULL);
 			task_unlock (t);
-			r2ai_message_free ((R2AI_Message *)m);
-			free (res);
+			r2ai_chat_response_free (res);
 			return R_TH_STOP;
 		}
 
@@ -247,16 +243,14 @@ static RThreadFunctionRet worker_auto(RThread *th) {
 			t->error = strdup ("llm returned an invalid tool call");
 			t->finished = time (NULL);
 			task_unlock (t);
-			r2ai_message_free ((R2AI_Message *)m);
-			free (res);
+			r2ai_chat_response_free (res);
 			return R_TH_STOP;
 		}
 		tc = valid_tc;
 		char *name = tc->name? strdup (tc->name): NULL;
 		char *argsjson = tc->arguments? strdup (tc->arguments): NULL;
 		char *callid = tc->id? strdup (tc->id): NULL;
-		r2ai_message_free ((R2AI_Message *)m);
-		free (res);
+		r2ai_chat_response_free (res);
 
 		task_lock (t);
 		free (t->pending_tool_name);

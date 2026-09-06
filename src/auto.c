@@ -93,8 +93,8 @@ static void handle_final_response_attempt(RCorePluginSession *cps, RList *messag
 			}
 			// Add final response to messages for completeness
 			r2ai_msgs_add (messages, final_msg);
-			free (final_response);
 		}
+		r2ai_chat_response_free (final_response);
 		free (final_system_prompt);
 	} else {
 		r_cons_printf (core->cons, "Auto mode interrupted without final response.\n");
@@ -222,7 +222,7 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 
 	if (!message) {
 		R_LOG_ERROR ("No message in response");
-		free (response);
+		r2ai_chat_response_free (response);
 		handle_final_response_attempt (cps, messages, effective_prompt, &error);
 		return;
 	}
@@ -368,8 +368,8 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 		r2ai_print_run_end (cps, usage, n_run, max_runs);
 	}
 
-	// Free the response struct itself since r2ai_message_free doesn't do it anymore
-	free (response);
+	// Free the response, including its message and usage
+	r2ai_chat_response_free (response);
 }
 
 R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query) {

@@ -52,6 +52,15 @@ R_API void r2ai_message_free(R2AI_Message *msg) {
 	free (msg);
 }
 
+R_IPI void r2ai_chat_response_free(R2AI_ChatResponse *res) {
+	if (!res) {
+		return;
+	}
+	r2ai_message_free ((R2AI_Message *)res->message);
+	free ((void *)res->usage);
+	free (res);
+}
+
 // Conversation is now stored in R2AI_State
 
 R_API void r2ai_conversation_init(R2AI_State *state) {
