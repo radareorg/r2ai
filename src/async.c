@@ -328,13 +328,18 @@ R_IPI void r2ai_async_fini(R2AI_State *state) {
 		task_lock (t);
 		bool live = task_is_live_locked (t);
 		t->cancel_req = true;
+		/* take ownership of the thread while holding the task lock */
+		RThread *th = live? t->thread: NULL;
+		if (th) {
+			t->thread = NULL;
+		}
 		task_unlock (t);
 		if (t->gate) {
 			r_th_sem_post (t->gate);
 		}
-		if (live && t->thread) {
-			r_th_kill_free (t->thread);
-			t->thread = NULL;
+		if (th) {
+			/* kill_free joins the thread: never do it under the task lock */
+			r_th_kill_free (th);
 			killed++;
 		}
 	}
