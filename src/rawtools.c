@@ -76,8 +76,7 @@ static bool parse_raw_tool_call(const char *response, char **tool_name, char **t
 }
 
 // Function to handle rawtools mode in LLM call
-R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args) {
-	if (!cps) {
+R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args) {	if (!cps) {
 		return NULL;
 	}
 	RCore *core = cps->core;
@@ -110,15 +109,15 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 	free (init_output);
 	char *enhanced_system_prompt = r2ai_claw_system_prompt (base_prompt);
 	free (base_prompt);
-	// Temporarily modify args to use enhanced prompt and no tools (since we're using prompt engineering)
+
 	R2AIArgs rawtools_args = args;
 	rawtools_args.system_prompt = enhanced_system_prompt;
-	rawtools_args.tools = NULL; // Disable native tool calling
+	rawtools_args.tools = NULL;
 
-	// Make the LLM call directly to provider
 	const char *provider = rawtools_args.provider? rawtools_args.provider: r_config_get (core->config, "r2ai.api");
 	if (!provider) {
 		R_LOG_ERROR ("No provider defined");
+		free (enhanced_system_prompt);
 		return NULL;
 	}
 
@@ -138,14 +137,12 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 
 	R_LOG_DEBUG ("[RAWTOOLS] Raw model response: %s", response->message->content);
 
-	// Check if the response contains a raw tool call
 	char *tool_name = NULL;
 	char *tool_args = NULL;
 
 	if (parse_raw_tool_call (response->message->content, &tool_name, &tool_args)) {
 		R_LOG_DEBUG ("Raw tool call detected: %s with args: %s", tool_name, tool_args);
 
-		// Find the tool in our tools list
 		RList *tools = r2ai_get_tools (cps->core, cps->data);
 		bool tool_found = false;
 
@@ -160,67 +157,55 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 			}
 		}
 
-		if (tool_found) {
-			// Modify the existing response to include tool call information
-			R2AI_Message *modified_message = R_NEW0 (R2AI_Message);
-			modified_message->role = strdup ("assistant");
-			// Remove the TOOL line from content, or set to empty if that's all there is
-			char *content = strdup (response->message->content? response->message->content: "");
-			char *tool_line = strstr (content, "TOOL: ");
-			if (tool_line) {
-				// Find the end of the line
-				char *line_end = strchr (tool_line, '\n');
-				if (line_end) {
-					// Remove the TOOL line
-					memmove (tool_line, line_end + 1, strlen (line_end + 1) + 1);
-				} else {
-					// The TOOL line is the entire content
-					*tool_line = '\0';
-				}
-			}
-			modified_message->content = content;
+		R2AI_Message *modified_message = R_NEW0 (R2AI_Message);
+		if (!modified_message) {
+			free (tool_name);
+			free (tool_args);
+			return response;
+		}
+		modified_message->role = strdup ("assistant");
 
-			// Set up proper tool call structure
+		if (tool_found) {
+			char *content = strdup (response->message->content? response->message->content: "");
+			if (content) {
+				char *tool_line = strstr (content, "TOOL: ");
+				if (tool_line) {
+					char *line_end = strchr (tool_line, '\n');
+					if (line_end) {
+						memmove (tool_line, line_end + 1, strlen (line_end + 1) + 1);
+					} else {
+						*tool_line = '\0';
+					}
+				}
+				modified_message->content = content;
+			}
+
 			modified_message->tool_calls = r_list_new ();
 			if (modified_message->tool_calls) {
 				modified_message->tool_calls->free = (RListFree)r2ai_tool_call_free;
 				R2AI_ToolCall *tc = R_NEW0 (R2AI_ToolCall);
-				tc->name = tool_name;
-				tc->arguments = tool_args;
-				char id_buf[32];
-				snprintf (id_buf, sizeof (id_buf), "rawtool_%d", (int)time (NULL));
-				tc->id = strdup (id_buf);
-				r_list_append (modified_message->tool_calls, tc);
+				if (tc) {
+					char id_buf[32];
+					snprintf (id_buf, sizeof (id_buf), "rawtool_%d", (int)time (NULL));
+					tc->name = tool_name;
+					tc->arguments = tool_args;
+					tc->id = strdup (id_buf);
+					r_list_append (modified_message->tool_calls, tc);
+					tool_name = NULL;
+					tool_args = NULL;
+				}
 			}
-			tool_name = NULL;
-			tool_args = NULL;
-
-			// Replace the response message
-			if (response->message) {
-				r2ai_message_free ((R2AI_Message *)response->message);
-			}
-			*(R2AI_Message **)&response->message = modified_message;
 		} else {
-			// Unknown tool, modify content to indicate error
-			R2AI_Message *modified_message = R_NEW0 (R2AI_Message);
-			modified_message->role = strdup ("assistant");
-			size_t result_len = strlen ("Unknown tool: ") + strlen (tool_name) + 1;
-			modified_message->content = malloc (result_len);
-			if (modified_message->content) {
-				snprintf (modified_message->content, result_len, "Unknown tool: %s", tool_name);
-			}
-
-			// Replace the response message
-			if (response->message) {
-				r2ai_message_free ((R2AI_Message *)response->message);
-			}
-			*(R2AI_Message **)&response->message = modified_message;
-			free (tool_name);
-			free (tool_args);
-			tool_name = NULL;
-			tool_args = NULL;
+			char *errmsg = r_str_newf ("Unknown tool: %s", tool_name);
+			modified_message->content = errmsg;
 		}
 
+		if (response->message) {
+			r2ai_message_free ((R2AI_Message *)response->message);
+		}
+		*(R2AI_Message **)&response->message = modified_message;
+		free (tool_name);
+		free (tool_args);
 		return response;
 	}
 
@@ -228,21 +213,17 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 	free (tool_name);
 	free (tool_args);
 
-	// If the response has no content, try again with normal mode (without rawtools prompt)
 	if (!response->message || !response->message->content || !*response->message->content) {
 		R_LOG_DEBUG ("No tool call found and no content, falling back to normal mode");
 
-		// Free the current response
 		if (response->message) {
 			r2ai_message_free ((R2AI_Message *)response->message);
 		}
 		free (response);
 
-		// Modify args to use original system prompt without rawtools enhancement
 		R2AIArgs fallback_args = args;
-		fallback_args.tools = args.tools; // Keep tools for fallback
+		fallback_args.tools = args.tools;
 
-		// Call provider directly
 		const char *provider = fallback_args.provider? fallback_args.provider: r_config_get (core->config, "r2ai.api");
 		if (!provider) {
 			R_LOG_ERROR ("No provider defined");
@@ -261,7 +242,6 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 			return fallback_response;
 		}
 
-		// If still no content, create a response with warning
 		if (fallback_response) {
 			if (fallback_response->message) {
 				r2ai_message_free ((R2AI_Message *)fallback_response->message);
@@ -269,12 +249,13 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 			free (fallback_response);
 		}
 
-		// Create a warning response
 		R2AI_ChatResponse *warning_response = R_NEW0 (R2AI_ChatResponse);
 		R2AI_Message *msg = R_NEW0 (R2AI_Message);
-		msg->role = strdup ("assistant");
-		msg->content = strdup ("Warning: LLM provided no response content");
-		*((R2AI_Message **)&warning_response->message) = msg;
+		if (msg) {
+			msg->role = strdup ("assistant");
+			msg->content = strdup ("Warning: LLM provided no response content");
+			*((R2AI_Message **)&warning_response->message) = msg;
+		}
 		R_LOG_WARN ("LLM provided no response content");
 		return warning_response;
 	}
