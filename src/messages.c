@@ -163,6 +163,9 @@ R_API bool r2ai_msgs_add_tool_call(RList *msgs, const R2AI_ToolCall *tc) {
 	}
 
 	R2AI_Message *msg = r_list_get_n (msgs, r_list_length (msgs) - 1);
+	if (!msg) {
+		return false;
+	}
 
 	// Ensure tool_calls list exists
 	if (!msg->tool_calls) {
