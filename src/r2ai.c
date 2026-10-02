@@ -208,6 +208,24 @@ static char *r2ai_apply_offsets(const char *text, RList *offsets, int width) {
 	return r_strbuf_drain (sb);
 }
 
+// query the llm with rag and log the error if any, returns NULL on failure
+static char *ask(RCorePluginSession *cps, const char *input) {
+	char *err = NULL;
+	char *res = r2ai (cps, (R2AIArgs){ .input = input, .error = &err, .dorag = true });
+	if (err) {
+		R_LOG_ERROR ("%s", err);
+		free (err);
+		R_FREE (res);
+	}
+	return res;
+}
+
+static void enqueue(RCorePluginSession *cps, const char *title, const char *query) {
+	const char *sys = r_config_get (cps->core->config, "r2ai.system");
+	int id = r2ai_async_query (cps, title, query, sys);
+	r_cons_printf (cps->core->cons, "[async] task %d queued (%s)\n", id, title);
+}
+
 static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool recursive, const bool offsets) {
 	RCore *core = cps->core;
 	const char *prompt = r_config_get (core->config, "r2ai.prompt");
@@ -281,24 +299,13 @@ static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool re
 	free (refs);
 	char *s = r_strbuf_drain (sb);
 	if (r_config_get_b (core->config, "r2ai.async")) {
-		const char *sys = r_config_get (core->config, "r2ai.system");
-		char *title = r_str_newf ("-d%s%s%s", recursive? "r": "", offsets? "o": "", R_STR_ISNOTEMPTY (input)? " ": "");
-		if (R_STR_ISNOTEMPTY (input)) {
-			char *n = r_str_newf ("%s%s", title, input);
-			free (title);
-			title = n;
-		}
-		int id = r2ai_async_query (cps, title, s, sys);
-		r_cons_printf (core->cons, "[async] task %d queued (%s)\n", id, title);
+		const char *q = r_str_get (input);
+		char *title = r_str_newf ("-d%s%s%s%s", recursive? "r": "", offsets? "o": "", *q? " ": "", q);
+		enqueue (cps, title, s);
 		free (title);
 	} else {
-		char *error = NULL;
-		R2AIArgs d_args = { .input = s, .error = &error, .dorag = true };
-		char *res = r2ai (cps, d_args);
-		if (error) {
-			R_LOG_ERROR ("%s", error);
-			free (error);
-		} else if (offsets) {
+		char *res = ask (cps, s);
+		if (res && offsets) {
 			char *ores = R_STR_ISNOTEMPTY (res)
 				? r2ai_apply_offsets (res, offsetslist, offset_width)
 				: (offset_fallback? strdup (offset_fallback): NULL);
@@ -365,14 +372,8 @@ static void cmd_r2ai_repl(RCorePluginSession *cps) {
 			}
 		}
 		r_strbuf_appendf (sb, "User: %s\n", ptr);
-		const char *a = r_strbuf_tostring (sb);
-		char *error = NULL;
-		char *res =
-			r2ai (cps, (R2AIArgs){ .input = a, .error = &error, .dorag = true });
-		if (error) {
-			R_LOG_ERROR ("%s", error);
-			free (error);
-		} else if (res) {
+		char *res = ask (cps, r_strbuf_tostring (sb));
+		if (res) {
 			r_strbuf_appendf (sb, "Assistant: %s\n", res);
 			if (r_config_get_b (core->config, "r2ai.clippy")) {
 				char *cmd = r_str_newf ("?E %s", res);
@@ -432,15 +433,9 @@ static void cmd_r2ai_i(RCorePluginSession *cps, const char *arg) {
 	const char *prompt = R_STR_ISNOTEMPTY (query)? query: "Analyze the contents of the following file:";
 	char *q = r_str_newf ("%s\n```\n%s\n```\n", prompt, s);
 	free (s);
-	char *error = NULL;
-	char *res = r2ai (cps, (R2AIArgs){ .input = q, .error = &error, .dorag = true });
+	char *res = ask (cps, q);
 	free (q);
-	if (error) {
-		R_LOG_ERROR ("%s", error);
-		free (error);
-	} else {
-		r2ai_print_response (core, res);
-	}
+	r2ai_print_response (core, res);
 	free (fname);
 	free (res);
 }
@@ -596,21 +591,11 @@ R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		r2ai_cmd_help (core, help_msg_r2ai);
 	} else {
 		if (r_config_get_b (core->config, "r2ai.async")) {
-			const char *sys = r_config_get (core->config, "r2ai.system");
-			int id = r2ai_async_query (cps, input, input, sys);
-			r_cons_printf (core->cons, "[async] task %d queued\n", id);
+			enqueue (cps, input, input);
 		} else {
-			char *err = NULL;
-			char *res =
-				r2ai (cps, (R2AIArgs){ .input = input, .error = &err, .dorag = true });
-			if (err) {
-				R_LOG_ERROR ("%s", err);
-				R_FREE (err);
-			}
-			if (res) {
-				r2ai_print_response (core, res);
-				free (res);
-			}
+			char *res = ask (cps, input);
+			r2ai_print_response (core, res);
+			free (res);
 		}
 	}
 }
