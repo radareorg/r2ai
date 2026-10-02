@@ -201,7 +201,7 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 
 	r2ai_stats_init_run (state, n_run);
 
-	r_cons_printf (core->cons, Color_BLUE "About to call r2ai_llmcall with n_run=%d%s\n", n_run, Color_RESET);
+	R_LOG_DEBUG ("About to call r2ai_llmcall with n_run=%d", n_run);
 	r_cons_flush (core->cons);
 
 	// Set up args for r2ai_llmcall call with tools directly
@@ -379,8 +379,7 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query) {
 	RCore *core = cps->core;
 	R2AI_State *state = cps->data;
-	r_cons_printf (core->cons, Color_CYAN "cmd_r2ai_a called with query: %s" Color_RESET "\n", user_query);
-	r_cons_flush (core->cons);
+	R_LOG_DEBUG ("cmd_r2ai_a called with query: %s", user_query);
 	// Get conversation
 	RList *messages = r2ai_conversation_get (state);
 	if (!messages) {
