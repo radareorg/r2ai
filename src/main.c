@@ -105,8 +105,8 @@ static void r2ai_repl(RCorePluginSession *cps, const char *provider, const char 
 					free (cmd);
 				} else {
 					r_cons_println (core->cons, res);
-					r_list_append (conversation, r_str_newf ("Assistant: %s", res));
 				}
+				r_list_append (conversation, r_str_newf ("Assistant: %s", res));
 				free (res);
 			}
 			if (err) {
