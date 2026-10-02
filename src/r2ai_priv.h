@@ -89,6 +89,8 @@ static inline char *r2ai_cons_editor(RCons *cons, const char *file, const char *
 #endif
 }
 R_IPI const R2AIProvider *r2ai_get_provider(const char *name);
+R_IPI R2AI_ChatResponse *r2ai_send(RCorePluginSession *cps, const R2AIProvider *p, R2AIArgs args);
+R_IPI R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, const R2AIProvider *p, R2AIArgs args);
 R_IPI char *r2ai_get_provider_url(RCore *core, const char *provider);
 R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider);
 R_IPI void r2ai_list_providers(RCore *core, RStrBuf *sb);

@@ -269,7 +269,6 @@ R_API bool r2ai_fini(RCorePluginSession *cps);
 
 R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args);
 
-R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args);
 
 R_IPI void cmd_r2ai_c(RCorePluginSession *cps);
 R_IPI void cmd_r2ai_logs(RCorePluginSession *cps, const char *flags);

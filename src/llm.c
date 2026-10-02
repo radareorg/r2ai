@@ -39,6 +39,25 @@ R_IPI const R2AIProvider *r2ai_get_provider(const char *name) {
 	return NULL;
 }
 
+static bool is_vertex(const R2AIProvider *p) {
+	return p->api_type == R2AI_API_VERTEX_GEMINI || p->api_type == R2AI_API_VERTEX_ANTHROPIC;
+}
+
+R_IPI R2AI_ChatResponse *r2ai_send(RCorePluginSession *cps, const R2AIProvider *p, R2AIArgs args) {
+	switch (p->api_type) {
+	case R2AI_API_ANTHROPIC:
+		return r2ai_anthropic (cps, args);
+	case R2AI_API_GEMINI:
+		return r2ai_gemini (cps, args);
+	case R2AI_API_VERTEX_GEMINI:
+		return r2ai_vertex_gemini (cps, args);
+	case R2AI_API_VERTEX_ANTHROPIC:
+		return r2ai_vertex_anthropic (cps, args);
+	default:
+		return r2ai_openai (cps, args);
+	}
+}
+
 static bool is_generate_api(RCore *core) {
 	const char *apitype = r_config_get (core->config, "r2ai.apitype");
 	return R_STR_ISNOTEMPTY (apitype) && !strcmp (apitype, "generate");
@@ -92,8 +111,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 		goto cleanup;
 	}
 
-	bool is_vertex = (prov->api_type == R2AI_API_VERTEX_GEMINI || prov->api_type == R2AI_API_VERTEX_ANTHROPIC);
-	if (is_vertex) {
+	if (is_vertex (prov)) {
 		const char *vtoken = r2ai_vertex_get_token (state);
 		if (!vtoken) {
 			goto cleanup;
@@ -106,19 +124,14 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 		}
 	}
 	// Make sure we have an API key before proceeding
-	if (prov->requires_api_key) {
-		if (R_STR_ISEMPTY (args.api_key)) {
-			char *Provider = strdup (provider);
-			r_str_case (Provider, true);
-			R_LOG_ERROR ("No API key found for the %s provider. Use r2ai -K", provider);
-			free (Provider);
-			goto cleanup;
-		}
+	if (prov->requires_api_key && R_STR_ISEMPTY (args.api_key)) {
+		R_LOG_ERROR ("No API key found for the %s provider. Use r2ai -K", provider);
+		goto cleanup;
 	}
 
 	int context_pullback = -1;
 	if (use_rawtools (core, prov, &args)) {
-		res = r2ai_rawtools_llmcall (cps, args);
+		res = r2ai_rawtools_llmcall (cps, prov, args);
 		goto finish;
 	}
 
@@ -170,30 +183,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 
 	args.thinking_tokens = r_config_get_i (core->config, "r2ai.thinking_tokens");
 
-	const R2AIProvider *p = r2ai_get_provider (provider);
-	if (!p) {
-		goto cleanup;
-	}
-
-	switch (p->api_type) {
-	case R2AI_API_ANTHROPIC:
-		res = r2ai_anthropic (cps, args);
-		break;
-	case R2AI_API_GEMINI:
-		res = r2ai_gemini (cps, args);
-		break;
-	case R2AI_API_VERTEX_GEMINI:
-		res = r2ai_vertex_gemini (cps, args);
-		break;
-	case R2AI_API_VERTEX_ANTHROPIC:
-		res = r2ai_vertex_anthropic (cps, args);
-		break;
-	case R2AI_API_OPENAI_COMPATIBLE:
-	case R2AI_API_OLLAMA:
-	default:
-		res = r2ai_openai (cps, args);
-		break;
-	}
+	res = r2ai_send (cps, prov, args);
 finish:
 	if (context_pullback != -1) {
 		R2AI_Message *msg = r_list_get_n (args.messages, context_pullback);
@@ -242,7 +232,7 @@ R_IPI char *r2ai_get_provider_url(RCore *core, const char *provider) {
 		return NULL;
 	}
 
-	if (p->api_type == R2AI_API_VERTEX_GEMINI || p->api_type == R2AI_API_VERTEX_ANTHROPIC) {
+	if (is_vertex (p)) {
 		return NULL;
 	}
 
@@ -266,8 +256,11 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 	if (!provider) {
 		return NULL;
 	}
-	const R2AIProvider *pcheck = r2ai_get_provider (provider);
-	if (pcheck && (pcheck->api_type == R2AI_API_VERTEX_GEMINI || pcheck->api_type == R2AI_API_VERTEX_ANTHROPIC)) {
+	const R2AIProvider *p = r2ai_get_provider (provider);
+	if (!p) {
+		return NULL;
+	}
+	if (is_vertex (p)) {
 		R_LOG_ERROR ("Model listing is not supported for Vertex AI providers");
 		return NULL;
 	}
@@ -275,64 +268,31 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 	if (!purl) {
 		return NULL;
 	}
-
-	// Get API key for authentication (except for providers that don't require it)
-	char *api_key = NULL;
-	const R2AIProvider *p = r2ai_get_provider (provider);
-	if (p && p->requires_api_key) {
-		// Consolidated helper to fetch the API key from env or file
-		api_key = r2ai_apikeys_get (provider);
+	const bool gemini = p->api_type == R2AI_API_GEMINI;
+	const bool usetags = p->api_type == R2AI_API_OLLAMA && r_str_endswith (purl, "/api");
+	char *api_key = p->requires_api_key? r2ai_apikeys_get (provider): NULL;
+	if (gemini && !api_key) {
+		free (purl);
+		return NULL;
 	}
-
-	char *models_url = NULL;
-	int code = 0;
-	char *response = NULL;
-	const bool usetags = p && p->api_type == R2AI_API_OLLAMA && r_str_endswith (purl, "/api");
-
-	// Special handling for Gemini
-	if (!strcmp (provider, "gemini")) {
-		if (!api_key) {
-			free (purl);
-			return NULL;
-		}
-		models_url = r_str_newf ("%s/models?key=%s", purl, api_key);
-		const char *headers[2] = { "Content-Type: application/json", NULL };
-		R_LOG_DEBUG ("GET %s", models_url);
-		response = r2ai_http_get (core, models_url, headers, &code, NULL);
-	} else {
-		// Create models endpoint URL
-		models_url = r_str_newf ("%s/%s", purl, usetags? "tags": "models");
-
-		if (api_key) {
-			const char *headers[4] = { "Content-Type: application/json", NULL, NULL, NULL };
-			char *auth_header = NULL;
-			char *version_header = NULL;
-
-			const R2AIProvider *prov = r2ai_get_provider (provider);
-			if (prov && prov->api_type == R2AI_API_ANTHROPIC) {
-				// Anthropic uses different header format
-				auth_header = r_str_newf ("x-api-key: %s", api_key);
-				version_header = strdup ("anthropic-version: 2023-06-01");
-				headers[1] = auth_header;
-				headers[2] = version_header;
-			} else {
-				// Standard OpenAI-compatible format
-				auth_header = r_str_newf ("Authorization: Bearer %s", api_key);
-				headers[1] = auth_header;
-			}
-
-			// Make HTTP GET request
-			R_LOG_DEBUG ("GET %s", models_url);
-			response = r2ai_http_get (core, models_url, headers, &code, NULL);
-			free (auth_header);
-			free (version_header);
+	char *models_url = r_str_newf ("%s/%s", purl, usetags? "tags": "models");
+	char *auth_header = NULL;
+	const char *headers[4] = { "Content-Type: application/json", NULL, NULL, NULL };
+	if (api_key) {
+		if (p->api_type == R2AI_API_ANTHROPIC) {
+			auth_header = r_str_newf ("x-api-key: %s", api_key);
+			headers[2] = "anthropic-version: 2023-06-01";
+		} else if (gemini) {
+			auth_header = r_str_newf ("x-goog-api-key: %s", api_key);
 		} else {
-			// We have no headers
-			R_LOG_DEBUG ("GET %s", models_url);
-			response = r2ai_http_get (core, models_url, NULL, &code, NULL);
+			auth_header = r_str_newf ("Authorization: Bearer %s", api_key);
 		}
+		headers[1] = auth_header;
 	}
-
+	R_LOG_DEBUG ("GET %s", models_url);
+	int code = 0;
+	char *response = r2ai_http_get (core, models_url, headers, &code, NULL);
+	free (auth_header);
 	free (models_url);
 	free (api_key);
 	free (purl);
@@ -343,70 +303,27 @@ R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider) {
 		return NULL;
 	}
 
-	// Parse JSON response
 	RList *models = r_list_newf (free);
-	if (!models) {
-		free (response);
-		return NULL;
-	}
-
 	RJson *json = r_json_parse (response);
-	if (json) {
-		const RJson *data = NULL;
-
-		if (!strcmp (provider, "gemini")) {
-			// Gemini has "models" array directly
-			data = r_json_get (json, "models");
-		} else {
-			data = r_json_get (json, usetags? "models": "data");
+	const RJson *data = json? r_json_get (json, (gemini || usetags)? "models": "data"): NULL;
+	const char *key = gemini? "name": usetags? "model": "id";
+	const RJson *item;
+	for (item = (data && data->type == R_JSON_ARRAY)? data->children.first: NULL; item; item = item->next) {
+		const char *id = r_json_get_str (item, key);
+		if (R_STR_ISEMPTY (id)) {
+			continue;
 		}
-
-		if (data && data->type == R_JSON_ARRAY) {
-			const RJson *model_item = data->children.first;
-			while (model_item) {
-				const RJson *id = NULL;
-				char *model_id = NULL;
-
-				if (!strcmp (provider, "gemini")) {
-					// Gemini: extract model ID from "name" field (e.g., "models/gemini-1.5-flash" -> "gemini-1.5-flash")
-					const RJson *name = r_json_get (model_item, "name");
-					if (name && name->type == R_JSON_STRING && R_STR_ISNOTEMPTY (name->str_value)) {
-						char *s = strdup (name->str_value);
-						RList *parts = r_str_split_list (s, "/", 0);
-						if (parts && r_list_length (parts) > 1) {
-							model_id = strdup ((char *)r_list_get_n (parts, r_list_length (parts) - 1));
-						} else {
-							model_id = strdup (name->str_value);
-						}
-						r_list_free (parts);
-						// Only include Gemini models
-						if (!strstr (model_id, "gemini")) {
-							free (model_id);
-							model_id = NULL;
-						}
-						free (s);
-					}
-				} else {
-					if (usetags) {
-						id = r_json_get (model_item, "model");
-					} else {
-						id = r_json_get (model_item, "id");
-					}
-					if (id && id->type == R_JSON_STRING && R_STR_ISNOTEMPTY (id->str_value)) {
-						model_id = strdup (id->str_value);
-					}
-				}
-
-				if (model_id) {
-					R_LOG_DEBUG ("Model: %s", model_id);
-					r_list_append (models, model_id);
-				}
-				model_item = model_item->next;
+		if (gemini) {
+			// "models/gemini-1.5-flash" -> "gemini-1.5-flash", skipping non gemini models
+			const char *slash = strrchr (id, '/');
+			id = slash? slash + 1: id;
+			if (!strstr (id, "gemini")) {
+				continue;
 			}
 		}
-		r_json_free (json);
+		r_list_append (models, strdup (id));
 	}
-
+	r_json_free (json);
 	free (response);
 	return models;
 }

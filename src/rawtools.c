@@ -76,9 +76,7 @@ static bool parse_raw_tool_call(const char *response, char **tool_name, char **t
 }
 
 // Function to handle rawtools mode in LLM call
-R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args) {	if (!cps) {
-		return NULL;
-	}
+R_IPI R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, const R2AIProvider *p, R2AIArgs args) {
 	RCore *core = cps->core;
 
 	const char *user_system = R_STR_ISNOTEMPTY (args.system_prompt)
@@ -114,21 +112,7 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 	rawtools_args.system_prompt = enhanced_system_prompt;
 	rawtools_args.tools = NULL;
 
-	const char *provider = rawtools_args.provider? rawtools_args.provider: r_config_get (core->config, "r2ai.api");
-	if (!provider) {
-		R_LOG_ERROR ("No provider defined");
-		free (enhanced_system_prompt);
-		return NULL;
-	}
-
-	R2AI_ChatResponse *response = NULL;
-	const R2AIProvider *p = r2ai_get_provider (provider);
-	if (p && p->api_type == R2AI_API_ANTHROPIC) {
-		response = r2ai_anthropic (cps, rawtools_args);
-	} else {
-		response = r2ai_openai (cps, rawtools_args);
-	}
-
+	R2AI_ChatResponse *response = r2ai_send (cps, p, rawtools_args);
 	free (enhanced_system_prompt);
 
 	if (!response || !response->message || !response->message->content) {
@@ -218,22 +202,7 @@ R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, R2AIArgs args)
 
 		r2ai_chat_response_free (response);
 
-		R2AIArgs fallback_args = args;
-		fallback_args.tools = args.tools;
-
-		const char *provider = fallback_args.provider? fallback_args.provider: r_config_get (core->config, "r2ai.api");
-		if (!provider) {
-			R_LOG_ERROR ("No provider defined");
-			return NULL;
-		}
-
-		R2AI_ChatResponse *fallback_response = NULL;
-		const R2AIProvider *p = r2ai_get_provider (provider);
-		if (p && p->api_type == R2AI_API_ANTHROPIC) {
-			fallback_response = r2ai_anthropic (cps, fallback_args);
-		} else {
-			fallback_response = r2ai_openai (cps, fallback_args);
-		}
+		R2AI_ChatResponse *fallback_response = r2ai_send (cps, p, args);
 
 		if (fallback_response && fallback_response->message && fallback_response->message->content && *fallback_response->message->content) {
 			return fallback_response;
