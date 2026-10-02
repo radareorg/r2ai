@@ -226,23 +226,22 @@ static void enqueue(RCorePluginSession *cps, const char *title, const char *quer
 	r_cons_printf (cps->core->cons, "[async] task %d queued (%s)\n", id, title);
 }
 
+static void add_block(RStrBuf *sb, char *dec, RList *offsets, int *width) {
+	if (offsets) {
+		r2ai_collect_offsets (offsets, dec, width);
+	}
+	r_strbuf_appendf (sb, "\n[BEGIN]\n%s[END]\n", dec);
+	free (dec);
+}
+
 static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool recursive, const bool offsets) {
 	RCore *core = cps->core;
-	const char *prompt = r_config_get (core->config, "r2ai.prompt");
 	const char *lang = r_config_get (core->config, "r2ai.lang");
-	char *full_prompt;
-	if (!R_STR_ISEMPTY (input)) {
-		R_LOG_DEBUG ("User question: %s", input);
-		full_prompt = strdup (input);
-	} else {
-		if (!R_STR_ISEMPTY (lang)) {
-			full_prompt = r_str_newf ("%s. Translate the code into %s programming language.", prompt, lang);
-		} else {
-			full_prompt = strdup (prompt);
-		}
+	RStrBuf *sb = r_strbuf_new (R_STR_ISNOTEMPTY (input)? input: r_config_get (core->config, "r2ai.prompt"));
+	if (R_STR_ISEMPTY (input) && R_STR_ISNOTEMPTY (lang)) {
+		r_strbuf_appendf (sb, ". Translate the code into %s programming language.", lang);
 	}
 	char *cmds = strdup (r_config_get (core->config, "r2ai.cmds"));
-	RStrBuf *sb = r_strbuf_new (full_prompt);
 	RList *cmdslist = r_str_split_list (cmds, ",", -1);
 	RListIter *iter;
 	const char *cmd;
@@ -263,16 +262,10 @@ static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool re
 		char *ocmd = offsets? r2ai_offset_cmd (cmd): NULL;
 		const char *dcmd = ocmd? ocmd: cmd;
 		char *dec = r_core_cmd_str (core, dcmd);
-		if (offsets) {
-			if (!offset_fallback) {
-				offset_fallback = strdup (dec);
-			}
-			r2ai_collect_offsets (offsetslist, dec, &offset_width);
+		if (offsets && !offset_fallback) {
+			offset_fallback = strdup (dec);
 		}
-		r_strbuf_append (sb, "\n[BEGIN]\n");
-		r_strbuf_append (sb, dec);
-		r_strbuf_append (sb, "[END]\n");
-		free (dec);
+		add_block (sb, dec, offsetslist, &offset_width);
 		if (recursive) {
 			RListIter *iter2;
 			char *at;
@@ -281,14 +274,7 @@ static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool re
 				if (core->num->nc.errors) {
 					continue;
 				}
-				char *dec = r_core_cmd_str_at (core, n, dcmd);
-				if (offsets) {
-					r2ai_collect_offsets (offsetslist, dec, &offset_width);
-				}
-				r_strbuf_append (sb, "\n[BEGIN]\n");
-				r_strbuf_append (sb, dec);
-				r_strbuf_append (sb, "[END]\n");
-				free (dec);
+				add_block (sb, r_core_cmd_str_at (core, n, dcmd), offsetslist, &offset_width);
 			}
 		}
 		free (ocmd);
