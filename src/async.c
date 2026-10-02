@@ -71,6 +71,7 @@ static void task_free(R2AITask *t) {
 	if (t->messages) {
 		r2ai_msgs_free (t->messages);
 	}
+	r_list_free (t->tools);
 	free (t->title);
 	free (t->query);
 	free (t->system_prompt);
@@ -92,7 +93,8 @@ static void queue_unlock(R2AITaskQueue *q) {
 	r_th_lock_leave (q->lock);
 }
 
-/* Build the LLM args for the worker, without any live RCore work. */
+/* Build the LLM args for the worker from the task snapshot.
+ * Note that r2ai_llmcall and the providers still read core->config. */
 static void fill_args_from_task(R2AITask *t, R2AIArgs *args, char **error) {
 	memset (args, 0, sizeof (*args));
 	args->messages = t->messages;
@@ -111,9 +113,7 @@ static R2AI_ChatResponse *run_llm_once(R2AITask *t) {
 	fill_args_from_task (t, &args, &error);
 
 	/* For AUTO tasks we must send tools. */
-	if (t->kind == R2AI_TASK_AUTO) {
-		args.tools = r2ai_get_tools (t->cps->core, t->cps->data);
-	}
+	args.tools = t->tools;
 
 	R2AI_ChatResponse *res = r2ai_llmcall (t->cps, args);
 
@@ -178,7 +178,7 @@ static RThreadFunctionRet worker_auto(RThread *th) {
 	task_lock (t);
 	t->state = R2AI_TASK_RUNNING;
 	t->started = time (NULL);
-	int max_runs = r_config_get_i (t->cps->core->config, "r2ai.auto.max_runs");
+	int max_runs = t->max_runs;
 	task_unlock (t);
 
 	while (true) {
@@ -364,6 +364,11 @@ static R2AITask *task_new(RCorePluginSession *cps, R2AITaskKind kind, const char
 	const char *p = r_config_get (core->config, "r2ai.api");
 	t->model = m? strdup (m): NULL;
 	t->provider = p? strdup (p): NULL;
+	if (kind == R2AI_TASK_AUTO) {
+		RList *tools = r2ai_get_tools (core, cps->data);
+		t->tools = tools? r_list_clone (tools, NULL): NULL;
+		t->max_runs = r_config_get_i (core->config, "r2ai.auto.max_runs");
+	}
 	t->messages = r2ai_msgs_new ();
 	R2AI_Message um = { .role = "user", .content = (char *)query };
 	r2ai_msgs_add (t->messages, &um);

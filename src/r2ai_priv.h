@@ -39,6 +39,8 @@ typedef struct r2ai_task_t {
 	char *model;
 	char *provider;
 	RList *messages; /* R2AI_Message * - owned conversation */
+	RList *tools; /* R2AI_Tool * - snapshot taken on the main thread, items not owned */
+	int max_runs;
 	RStrBuf *output; /* flushed by -si */
 	char *error;
 	char *pending_tool_name;
