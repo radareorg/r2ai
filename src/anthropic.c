@@ -205,28 +205,12 @@ R_IPI R2AI_ChatResponse *r2ai_anthropic_parse_response(const char *json, char **
 				}
 
 				if (has_tool_use && n_tool_calls > 0) {
-					message->tool_calls = r_list_new ();
-					if (!message->tool_calls) {
-						if (error) {
-							*error = strdup ("Failed to allocate memory for tool calls");
-						}
-						r_json_free (jres);
-						free (response_copy);
-						r2ai_message_free (message);
-						return NULL;
-					}
-					message->tool_calls->free = (RListFree)r2ai_tool_call_free;
+					message->tool_calls = r_list_newf ((RListFree)r2ai_tool_call_free);
 				}
 
 				int tool_idx = 0;
 				if (content_array && content_array->type == R_JSON_ARRAY) {
 					RList *cb = r2ai_content_blocks_new ();
-					if (!cb) {
-						r_json_free (jres);
-						free (response_copy);
-						r2ai_message_free (message);
-						return NULL;
-					}
 					const RJson *content_item = content_array->children.first;
 					while (content_item) {
 						const RJson *type = r_json_get (content_item, "type");
