@@ -143,7 +143,6 @@ static char *replace_vars(RCore *core, const char *text) {
 				p = end + 1;
 			} else {
 				r_strbuf_append (sb, "${");
-				p += 2;
 			}
 		} else if (*p == '$' && *(p + 1) == '(') {
 			p += 2;
@@ -158,7 +157,6 @@ static char *replace_vars(RCore *core, const char *text) {
 				p = end + 1;
 			} else {
 				r_strbuf_append (sb, "$(");
-				p += 2;
 			}
 		} else {
 			r_strbuf_append_n (sb, p, 1);
