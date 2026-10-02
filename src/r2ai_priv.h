@@ -89,6 +89,7 @@ static inline char *r2ai_cons_editor(RCons *cons, const char *file, const char *
 #endif
 }
 R_IPI const R2AIProvider *r2ai_get_provider(const char *name);
+R_IPI const char *r2ai_system_prompt(RCore *core, const char *sysp);
 R_IPI R2AI_ChatResponse *r2ai_send(RCorePluginSession *cps, const R2AIProvider *p, R2AIArgs args);
 R_IPI char *r2ai_post(RCore *core, const char *name, const char *url, const char **headers, const char *data, int *code, char **error);
 R_IPI char *r2ai_gemini_request(const R2AIArgs *args);

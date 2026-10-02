@@ -77,11 +77,7 @@ static bool parse_raw_tool_call(const char *response, char **tool_name, char **t
 
 // Function to handle rawtools mode in LLM call
 R_IPI R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, const R2AIProvider *p, R2AIArgs args) {
-	RCore *core = cps->core;
-
-	const char *user_system = R_STR_ISNOTEMPTY (args.system_prompt)
-		? args.system_prompt
-		: r_config_get (core->config, "r2ai.system");
+	const char *user_system = args.system_prompt;
 	if (R_STR_ISEMPTY (user_system)) {
 		user_system = "You are a reverse engineer using radare2. The binary is loaded. Use r2cmd tool for analysis.";
 	}

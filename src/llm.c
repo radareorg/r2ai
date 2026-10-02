@@ -73,7 +73,11 @@ static bool use_rawtools(RCore *core, const R2AIProvider *provider, const R2AIAr
 	return provider && provider->api_type == R2AI_API_OLLAMA && is_generate_api (core);
 }
 
-// Forward declaration for rawtools
+// the given system prompt, or r2ai.system when it is empty
+R_IPI const char *r2ai_system_prompt(RCore *core, const char *sysp) {
+	return R_STR_ISNOTEMPTY (sysp)? sysp: r_config_get (core->config, "r2ai.system");
+}
+
 R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
 	char *owned_model = NULL;
@@ -129,15 +133,13 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 		goto cleanup;
 	}
 
+	args.system_prompt = r2ai_system_prompt (core, args.system_prompt);
 	int context_pullback = -1;
 	if (use_rawtools (core, prov, &args)) {
 		res = r2ai_rawtools_llmcall (cps, prov, args);
 		goto finish;
 	}
 
-	if (!args.system_prompt) {
-		args.system_prompt = r_config_get (core->config, "r2ai.system");
-	}
 	owned_system_prompt = r2ai_claw_system_prompt (args.system_prompt);
 	args.system_prompt = owned_system_prompt;
 	if (!args.messages) {

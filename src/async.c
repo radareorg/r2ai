@@ -327,10 +327,11 @@ static R2AITask *task_new(RCorePluginSession *cps, R2AITaskKind kind, const char
 	t->state = R2AI_TASK_PENDING;
 	t->title = strdup (title? title: "");
 	t->query = strdup (query? query: "");
+	// resolve the system prompt here, workers must not read the config
 	if (R_STR_ISEMPTY (system_prompt) && kind == R2AI_TASK_AUTO) {
 		t->system_prompt = r2ai_auto_system_prompt (cps);
 	} else {
-		t->system_prompt = system_prompt? strdup (system_prompt): NULL;
+		t->system_prompt = r_str_new (r2ai_system_prompt (core, system_prompt));
 	}
 	const char *m = r_config_get (core->config, "r2ai.model");
 	const char *p = r_config_get (core->config, "r2ai.api");
@@ -368,6 +369,7 @@ static int submit(RCorePluginSession *cps, R2AITaskKind kind, const char *title,
 	} else {
 		finish (t, R2AI_TASK_ERROR, strdup ("failed to spawn worker"));
 	}
+	r_cons_printf (cps->core->cons, "[async] task %d queued (%s)\n", id, t->title);
 	return id;
 }
 

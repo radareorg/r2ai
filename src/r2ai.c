@@ -70,16 +70,11 @@ static char *r2ai_default_auto_prompt(void) {
 }
 
 R_API char *r2ai(RCorePluginSession *cps, R2AIArgs args) {
-	RCore *core = cps->core;
 	if (R_STR_ISEMPTY (args.input) && !args.messages) {
 		if (args.error) {
 			*args.error = r_str_newf ("Usage: r2ai [-h] [prompt]");
 		}
 		return NULL;
-	}
-
-	if (R_STR_ISEMPTY (args.system_prompt)) {
-		args.system_prompt = r_config_get (core->config, "r2ai.system");
 	}
 
 	RList *msgs = args.messages;
@@ -231,12 +226,6 @@ static char *ask(RCorePluginSession *cps, const char *input, bool chat) {
 	return res;
 }
 
-static void enqueue(RCorePluginSession *cps, const char *title, const char *query) {
-	const char *sys = r_config_get (cps->core->config, "r2ai.system");
-	int id = r2ai_async_query (cps, title, query, sys);
-	r_cons_printf (cps->core->cons, "[async] task %d queued (%s)\n", id, title);
-}
-
 static void add_block(RStrBuf *sb, char *dec, RList *offsets, int *width) {
 	if (offsets) {
 		r2ai_collect_offsets (offsets, dec, width);
@@ -298,7 +287,7 @@ static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool re
 	if (r_config_get_b (core->config, "r2ai.async")) {
 		const char *q = r_str_get (input);
 		char *title = r_str_newf ("-d%s%s%s%s", recursive? "r": "", offsets? "o": "", *q? " ": "", q);
-		enqueue (cps, title, s);
+		r2ai_async_query (cps, title, s, NULL);
 		free (title);
 	} else {
 		char *res = ask (cps, s, true);
@@ -513,12 +502,9 @@ R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 	} else if (r_str_startswith (input, "-a")) {
 		const char *q = r_str_trim_head_ro (input + 2);
 		if (r_config_get_b (core->config, "r2ai.async")) {
-			char *system_prompt = r2ai_auto_system_prompt (cps);
 			char *title = r_str_newf ("-a %s", q);
-			int id = r2ai_async_auto (cps, title, q, system_prompt);
-			r_cons_printf (core->cons, "[async] task %d queued (%s)\n", id, title);
+			r2ai_async_auto (cps, title, q, NULL);
 			free (title);
-			free (system_prompt);
 		} else {
 			cmd_r2ai_a (cps, q);
 		}
@@ -588,7 +574,7 @@ R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		r2ai_cmd_help (core, help_msg_r2ai);
 	} else {
 		if (r_config_get_b (core->config, "r2ai.async")) {
-			enqueue (cps, input, input);
+			r2ai_async_query (cps, input, input, NULL);
 		} else {
 			char *res = ask (cps, input, true);
 			r2ai_print_response (core, res);
