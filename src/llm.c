@@ -425,20 +425,16 @@ R_IPI void r2ai_list_providers(RCore *core, RStrBuf *sb) {
 }
 
 R_IPI void r2ai_refresh_embeddings(RCorePluginSession *cps) {
-	RCore *core = cps->core;
 	R2AI_State *state = cps->data;
-	RListIter *iter, *iter2;
-	char *line;
-	char *file;
-	// refresh embeddings database
 	r_vdb_free (state->db);
 	state->db = r_vdb_new (R2AI_DEFAULT_VECTORS);
-	// enumerate .txt files in directory
-	const char *path = r_config_get (core->config, "r2ai.data.path");
+	const char *path = r_config_get (cps->core->config, "r2ai.data.path");
 	RList *files = r_sys_dir (path);
 	if (r_list_empty (files)) {
 		R_LOG_WARN ("Cannot find any file in r2ai.data.path");
 	}
+	RListIter *iter, *iter2;
+	char *file, *line;
 	r_list_foreach (files, iter, file) {
 		if (!r_str_endswith (file, ".txt")) {
 			continue;
@@ -446,19 +442,18 @@ R_IPI void r2ai_refresh_embeddings(RCorePluginSession *cps) {
 		R_LOG_DEBUG ("Index %s", file);
 		char *filepath = r_file_new (path, file, NULL);
 		char *text = r_file_slurp (filepath, NULL);
-		if (text) {
-			R_LOG_DEBUG ("Index %s", file);
-			RList *lines = r_str_split_list (text, "\n", -1);
-			r_list_foreach (lines, iter2, line) {
-				if (r_str_trim_head_ro (line)[0] == 0) {
-					continue;
-				}
-				r_vdb_insert (state->db, line);
-				R_LOG_DEBUG ("Insert %s", line);
-			}
-			r_list_free (lines);
-		}
 		free (filepath);
+		if (!text) {
+			continue;
+		}
+		RList *lines = r_str_split_list (text, "\n", -1);
+		r_list_foreach (lines, iter2, line) {
+			if (*r_str_trim_head_ro (line)) {
+				r_vdb_insert (state->db, line);
+			}
+		}
+		r_list_free (lines);
+		free (text);
 	}
 	r_list_free (files);
 }

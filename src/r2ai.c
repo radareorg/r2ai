@@ -390,40 +390,30 @@ static void cmd_r2ai_repl(RCorePluginSession *cps) {
 	r_config_hold_free (hold);
 }
 
-static void cmd_r2ai_R(RCorePluginSession *cps, const char *q) {
+static void cmd_r2ai_R(RCorePluginSession *cps, const char *q, bool refresh) {
 	RCore *core = cps->core;
 	R2AI_State *state = cps->data;
-	if (!r_config_get_b (core->config, "r2ai.data")) {
+	if (refresh && !r_config_get_b (core->config, "r2ai.data")) {
 		R_LOG_ERROR ("r2ai -e r2ai.data=true");
 		return;
 	}
-	if (R_STR_ISEMPTY (q)) {
-		if (state->db) {
-			r_vdb_free (state->db);
-			state->db = NULL;
-		}
+	if (refresh || !state->db) {
 		r2ai_refresh_embeddings (cps);
-	} else {
-		r2ai_refresh_embeddings (cps);
-		const int K = r_config_get_i (core->config, "r2ai.data.nth");
-		RVdbResultSet *rs = r_vdb_query (state->db, q, K);
-
-		if (rs) {
-			R_LOG_DEBUG ("Query: \"%s\"", q);
-			R_LOG_DEBUG ("Found up to %d neighbors (actual found: %d)", K, rs->size);
-			int i;
-			for (i = 0; i < rs->size; i++) {
-				RVdbResult *r = &rs->results[i];
-				KDNode *n = r->node;
-				float dist_sq = r->dist_sq;
-				float cos_sim = 1.0f - (dist_sq * 0.5f); // for normalized vectors
-				printf ("%2d) dist_sq=%.4f cos_sim=%.4f text=\"%s\"\n", i + 1, dist_sq, cos_sim, (n->text? n->text: "(null)"));
-			}
-			r_vdb_result_free (rs);
-		} else {
-			R_LOG_ERROR ("No vdb results found");
-		}
 	}
+	if (R_STR_ISEMPTY (q)) {
+		return;
+	}
+	RVdbResultSet *rs = r_vdb_query (state->db, q, r_config_get_i (core->config, "r2ai.data.nth"));
+	if (!rs) {
+		R_LOG_ERROR ("No vdb results found");
+		return;
+	}
+	int i;
+	for (i = 0; i < rs->size; i++) {
+		RVdbResult *r = &rs->results[i];
+		r_cons_printf (core->cons, "%2d) %.4f %s\n", i + 1, r->dist_sq, r->node->text);
+	}
+	r_vdb_result_free (rs);
 }
 
 static void cmd_r2ai_i(RCorePluginSession *cps, const char *arg) {
@@ -462,41 +452,6 @@ static void cmd_r2ai_m(RCorePluginSession *cps, const char *input) {
 	} else {
 		r_config_set (core->config, "r2ai.model", input);
 	}
-}
-
-static void load_embeddings(RCorePluginSession *cps) {
-	RCore *core = cps->core;
-	R2AI_State *state = cps->data;
-	RListIter *iter, *iter2;
-	char *line;
-	char *file;
-	// enumerate .txt files in directory
-	const char *path = r_config_get (core->config, "r2ai.data.path");
-	RList *files = r_sys_dir (path);
-	if (r_list_empty (files)) {
-		R_LOG_WARN ("Cannot find any file in r2ai.data.path");
-	}
-	r_list_foreach (files, iter, file) {
-		if (!r_str_endswith (file, ".txt")) {
-			continue;
-		}
-		R_LOG_DEBUG ("Index %s", file);
-		char *filepath = r_file_new (path, file, NULL);
-		char *text = r_file_slurp (filepath, NULL);
-		if (text) {
-			RList *lines = r_str_split_list (text, "\n", -1);
-			r_list_foreach (lines, iter2, line) {
-				if (r_str_trim_head_ro (line)[0] == 0) {
-					continue;
-				}
-				r_vdb_insert (state->db, line);
-				R_LOG_DEBUG ("Insert %s", line);
-			}
-			r_list_free (lines);
-		}
-		free (filepath);
-	}
-	r_list_free (files);
 }
 
 static bool load_r2airc(RCorePluginSession *cps) {
@@ -607,30 +562,14 @@ R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 	} else if (r_str_startswith (input, "-d")) {
 		cmd_r2ai_d (cps, r_str_trim_head_ro (input + 2), false, false);
 	} else if (r_str_startswith (input, "-S")) {
-		if (state->db == NULL) {
-			state->db = r_vdb_new (R2AI_DEFAULT_VECTORS);
-			load_embeddings (cps);
-		}
-		const char *arg = r_str_trim_head_ro (input + 2);
-		const int K = 10;
-		RVdbResultSet *rs = r_vdb_query (state->db, arg, K);
-		if (rs) {
-			int i;
-			eprintf ("Found up to %d neighbors (actual found: %d).\n", K, rs->size);
-			for (i = 0; i < rs->size; i++) {
-				RVdbResult *r = &rs->results[i];
-				KDNode *n = r->node;
-				r_cons_printf (core->cons, "- (%.4f) %s\n", r->dist_sq, n->text);
-			}
-			r_vdb_result_free (rs);
-		}
+		cmd_r2ai_R (cps, r_str_trim_head_ro (input + 2), false);
 	} else if (cmd_r2ai_id (cps, input)) {
 	} else if (r_str_startswith (input, "-i")) {
 		cmd_r2ai_i (cps, r_str_trim_head_ro (input + 2));
 	} else if (r_str_startswith (input, "-r")) {
 		cmd_r2ai_repl (cps);
 	} else if (r_str_startswith (input, "-Rq")) {
-		cmd_r2ai_R (cps, r_str_trim_head_ro (input + 3));
+		cmd_r2ai_R (cps, r_str_trim_head_ro (input + 3), true);
 	} else if (r_str_startswith (input, "-R")) {
 		RList *messages = r2ai_conversation_get (state);
 		if (!messages || r_list_empty (messages)) {
