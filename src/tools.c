@@ -320,7 +320,11 @@ static R2AI_ToolResult r2ai_r2cmd(RCore *core, RJson *args, bool verbose) {
 		bool is_multiline = strchr (input_command, '\n') != NULL;
 
 		if (is_multiline) {
-			r2ai_cons_editor (core->cons, NULL, input_command);
+			char *edited = r2ai_cons_editor (core->cons, NULL, input_command);
+			if (edited) {
+				free (input_command);
+				input_command = edited;
+			}
 		} else {
 			r_cons_newline (core->cons);
 			r_cons_readpush (core->cons, input_command, strlen (input_command));
@@ -447,8 +451,10 @@ static R2AI_ToolResult r2ai_qjs(RCore *core, R2AI_State *state, RJson *args, boo
 
 		if (is_multiline) {
 			// Use editor for multi-line scripts
-			edited_script = strdup (script);
-			r2ai_cons_editor (core->cons, NULL, edited_script);
+			edited_script = r2ai_cons_editor (core->cons, NULL, script);
+			if (!edited_script) {
+				edited_script = strdup (script);
+			}
 			script = edited_script;
 		} else {
 			// For single-line scripts, push the script to input buffer
