@@ -83,9 +83,8 @@ R_IPI R2AI_ChatResponse *r2ai_gemini(RCorePluginSession *cps, R2AIArgs args) {
 	char *url = r_str_newf ("%s/models/%s:generateContent", base_url, model);
 	free (base_url);
 	// OAuth tokens start with "ya29.", the key travels in the headers and never in the url
-	char *auth = r_str_startswith (args.api_key, "ya29.")
-		? r_str_newf ("Authorization: Bearer %s", args.api_key)
-		: r_str_newf ("x-goog-api-key: %s", args.api_key);
+	const bool oauth = r_str_startswith (args.api_key, "ya29.");
+	char *auth = r_str_newf (oauth? "Authorization: Bearer %s": "x-goog-api-key: %s", args.api_key);
 	const char *headers[] = { "Content-Type: application/json", auth, NULL };
 	char *data = r2ai_gemini_request (&args);
 	int code = 0;
