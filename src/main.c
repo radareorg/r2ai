@@ -314,8 +314,7 @@ int main(int argc, const char **argv) {
 		if (opt.ind >= argc) {
 			r2ai_repl (&cps, provider, model, conversation);
 		} else {
-			const char *prompt = argv[opt.ind];
-
+			char *prompt = join_argv (argc, argv, opt.ind);
 			char *err = NULL;
 			R2AIArgs args = {
 				.input = prompt,
@@ -329,7 +328,11 @@ int main(int argc, const char **argv) {
 				r_cons_println (core->cons, res);
 				free (res);
 			}
-			free (err);
+			if (err) {
+				R_LOG_ERROR ("%s", err);
+				free (err);
+			}
+			free (prompt);
 			r_cons_flush (core->cons);
 		}
 	}
