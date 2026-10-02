@@ -35,6 +35,24 @@ static bool task_is_live_locked(const R2AITask *t) {
 	return s == R2AI_TASK_PENDING || s == R2AI_TASK_RUNNING || s == R2AI_TASK_WAIT_APPROVE || s == R2AI_TASK_WAIT_INPUT;
 }
 
+static bool is_done(R2AITaskState st) {
+	return st == R2AI_TASK_COMPLETE || st == R2AI_TASK_ERROR || st == R2AI_TASK_CANCELLED;
+}
+
+static R2AITaskQueue *queue(RCorePluginSession *cps) {
+	return ((R2AI_State *)cps->data)->async;
+}
+
+static void print_block(RCons *cons, const char *hdr, const char *text) {
+	if (R_STR_ISEMPTY (text)) {
+		return;
+	}
+	r_cons_printf (cons, "%s%s", hdr, text);
+	if (!r_str_endswith (text, "\n")) {
+		r_cons_newline (cons);
+	}
+}
+
 /* Append text to task->output. Takes task lock. */
 static void task_append_output(R2AITask *t, const char *text) {
 	if (R_STR_ISEMPTY (text)) {
@@ -52,6 +70,12 @@ static void task_append_outputf(R2AITask *t, const char *fmt, ...) {
 	va_end (ap);
 	task_append_output (t, s);
 	free (s);
+}
+
+static void pending_clear(R2AITask *t) {
+	R_FREE (t->pending_tool_name);
+	R_FREE (t->pending_tool_args);
+	R_FREE (t->pending_tool_call_id);
 }
 
 static void task_free(R2AITask *t) {
@@ -79,9 +103,7 @@ static void task_free(R2AITask *t) {
 	free (t->provider);
 	r_strbuf_free (t->output);
 	free (t->error);
-	free (t->pending_tool_name);
-	free (t->pending_tool_args);
-	free (t->pending_tool_call_id);
+	pending_clear (t);
 	free (t->tool_result);
 	free (t);
 }
@@ -93,30 +115,46 @@ static void queue_unlock(R2AITaskQueue *q) {
 	r_th_lock_leave (q->lock);
 }
 
-/* Build the LLM args for the worker from the task snapshot.
- * Note that r2ai_llmcall and the providers still read core->config. */
-static void fill_args_from_task(R2AITask *t, R2AIArgs *args, char **error) {
-	memset (args, 0, sizeof (*args));
-	args->messages = t->messages;
-	args->system_prompt = t->system_prompt;
-	args->model = t->model;
-	args->provider = t->provider;
-	args->error = error;
-	args->dorag = false;
+static void task_start(R2AITask *t) {
+	task_lock (t);
+	t->state = R2AI_TASK_RUNNING;
+	t->started = time (NULL);
+	task_unlock (t);
 }
 
-/* Worker: execute one LLM turn, appending any text output.
- * Returns the R2AI_ChatResponse (caller owns). */
+static bool cancelled(R2AITask *t) {
+	task_lock (t);
+	bool res = t->cancel_req;
+	task_unlock (t);
+	return res;
+}
+
+// terminate the worker, an earlier error reported by the llm call takes precedence
+static RThreadFunctionRet finish(R2AITask *t, R2AITaskState st, char *err) {
+	task_lock (t);
+	if (err && !t->error) {
+		t->error = err;
+	} else {
+		free (err);
+	}
+	t->state = st;
+	t->finished = time (NULL);
+	task_unlock (t);
+	return R_TH_STOP;
+}
+
+// run one llm turn, r2ai_llmcall and the providers still read core->config
 static R2AI_ChatResponse *run_llm_once(R2AITask *t) {
 	char *error = NULL;
-	R2AIArgs args;
-	fill_args_from_task (t, &args, &error);
-
-	/* For AUTO tasks we must send tools. */
-	args.tools = t->tools;
-
+	R2AIArgs args = {
+		.messages = t->messages,
+		.system_prompt = t->system_prompt,
+		.model = t->model,
+		.provider = t->provider,
+		.tools = t->tools,
+		.error = &error,
+	};
 	R2AI_ChatResponse *res = r2ai_llmcall (t->cps, args);
-
 	if (error) {
 		task_lock (t);
 		free (t->error);
@@ -126,11 +164,7 @@ static R2AI_ChatResponse *run_llm_once(R2AITask *t) {
 	return res;
 }
 
-/* Append human-readable chunks of the assistant message to task output. */
-static void dump_message_to_output(R2AITask *t, const R2AI_Message *m) {
-	if (!m) {
-		return;
-	}
+static void dump_message(R2AITask *t, const R2AI_Message *m) {
 	if (m->reasoning_content) {
 		task_append_outputf (t, "<thinking>\n%s\n</thinking>\n", m->reasoning_content);
 	}
@@ -139,162 +173,100 @@ static void dump_message_to_output(R2AITask *t, const R2AI_Message *m) {
 	}
 }
 
-/* Thread entry-point for QUERY tasks. */
 static RThreadFunctionRet worker_query(RThread *th) {
 	R2AITask *t = (R2AITask *)th->user;
-	task_lock (t);
-	t->state = R2AI_TASK_RUNNING;
-	t->started = time (NULL);
-	task_unlock (t);
-
+	task_start (t);
 	R2AI_ChatResponse *res = run_llm_once (t);
-	task_lock (t);
-	if (t->cancel_req) {
-		t->state = R2AI_TASK_CANCELLED;
-	} else if (!res || !res->message) {
-		if (!t->error) {
-			t->error = strdup ("llm call returned no response");
-		}
-		t->state = R2AI_TASK_ERROR;
-	} else {
-		const R2AI_Message *m = res->message;
-		task_unlock (t);
-		dump_message_to_output (t, m);
-		task_lock (t);
-		t->state = R2AI_TASK_COMPLETE;
+	bool ok = res && res->message;
+	bool cancel = cancelled (t);
+	if (ok && !cancel) {
+		dump_message (t, res->message);
 	}
-	t->finished = time (NULL);
-	task_unlock (t);
-
-	if (res) {
-		r2ai_chat_response_free (res);
+	r2ai_chat_response_free (res);
+	if (cancel) {
+		return finish (t, R2AI_TASK_CANCELLED, NULL);
 	}
-	return R_TH_STOP;
+	return ok
+		? finish (t, R2AI_TASK_COMPLETE, NULL)
+		: finish (t, R2AI_TASK_ERROR, strdup ("llm call returned no response"));
 }
 
-/* Thread entry-point for AUTO tasks. */
-static RThreadFunctionRet worker_auto(RThread *th) {
-	R2AITask *t = (R2AITask *)th->user;
+static R2AI_ToolCall *first_tool_call(const R2AI_Message *m) {
+	RListIter *iter;
+	R2AI_ToolCall *tc;
+	r_list_foreach (m->tool_calls, iter, tc) {
+		if (tc->name && tc->arguments && tc->id) {
+			return tc;
+		}
+	}
+	return NULL;
+}
+
+// hand the tool call to the main thread and block until it answers, returns false if cancelled
+static bool wait_tool(R2AITask *t, const R2AI_ToolCall *tc) {
 	task_lock (t);
-	t->state = R2AI_TASK_RUNNING;
-	t->started = time (NULL);
-	int max_runs = t->max_runs;
+	pending_clear (t);
+	R_FREE (t->tool_result);
+	t->pending_tool_name = strdup (tc->name);
+	t->pending_tool_args = strdup (tc->arguments);
+	t->pending_tool_call_id = strdup (tc->id);
+	t->state = R2AI_TASK_WAIT_APPROVE;
 	task_unlock (t);
 
-	while (true) {
+	r_th_sem_wait (t->gate);
+
+	task_lock (t);
+	if (t->cancel_req) {
+		task_unlock (t);
+		return false;
+	}
+	R2AI_Message msg = {
+		.role = "tool",
+		.tool_call_id = t->pending_tool_call_id,
+		.content = t->tool_result? t->tool_result: "<no output>",
+	};
+	r2ai_msgs_add (t->messages, &msg);
+	R_FREE (t->tool_result);
+	pending_clear (t);
+	task_unlock (t);
+	return true;
+}
+
+static RThreadFunctionRet worker_auto(RThread *th) {
+	R2AITask *t = (R2AITask *)th->user;
+	task_start (t);
+	for (;;) {
+		if (cancelled (t)) {
+			return finish (t, R2AI_TASK_CANCELLED, NULL);
+		}
+		if (t->steps >= t->max_runs) {
+			return finish (t, R2AI_TASK_ERROR, r_str_newf ("max runs (%d) reached", t->max_runs));
+		}
 		task_lock (t);
-		if (t->cancel_req) {
-			t->state = R2AI_TASK_CANCELLED;
-			t->finished = time (NULL);
-			task_unlock (t);
-			return R_TH_STOP;
-		}
-		if (t->steps >= max_runs) {
-			t->state = R2AI_TASK_ERROR;
-			free (t->error);
-			t->error = r_str_newf ("max runs (%d) reached", max_runs);
-			t->finished = time (NULL);
-			task_unlock (t);
-			return R_TH_STOP;
-		}
 		t->steps++;
-		t->state = R2AI_TASK_RUNNING;
 		task_unlock (t);
 
 		R2AI_ChatResponse *res = run_llm_once (t);
 		if (!res || !res->message) {
-			task_lock (t);
-			if (!t->error) {
-				t->error = strdup ("llm call returned no response");
-			}
-			t->state = R2AI_TASK_ERROR;
-			t->finished = time (NULL);
-			task_unlock (t);
 			r2ai_chat_response_free (res);
-			return R_TH_STOP;
+			return finish (t, R2AI_TASK_ERROR, strdup ("llm call returned no response"));
 		}
 		const R2AI_Message *m = res->message;
-		dump_message_to_output (t, m);
+		dump_message (t, m);
 		r2ai_msgs_add (t->messages, m);
-
-		bool has_tool = m->tool_calls && r_list_length (m->tool_calls) > 0;
-		if (!has_tool) {
-			task_lock (t);
-			t->state = R2AI_TASK_COMPLETE;
-			t->finished = time (NULL);
-			task_unlock (t);
+		if (r_list_empty (m->tool_calls)) {
 			r2ai_chat_response_free (res);
-			return R_TH_STOP;
+			return finish (t, R2AI_TASK_COMPLETE, NULL);
 		}
-
-		/* Take the first valid tool call. */
-		RListIter *iter;
-		R2AI_ToolCall *tc, *valid_tc = NULL;
-		r_list_foreach (m->tool_calls, iter, tc) {
-			if (tc->name && tc->arguments && tc->id) {
-				valid_tc = tc;
-				break;
-			}
-		}
-		if (!valid_tc) {
-			task_lock (t);
-			t->state = R2AI_TASK_ERROR;
-			free (t->error);
-			t->error = strdup ("llm returned an invalid tool call");
-			t->finished = time (NULL);
-			task_unlock (t);
-			r2ai_chat_response_free (res);
-			return R_TH_STOP;
-		}
-		tc = valid_tc;
-		char *name = tc->name? strdup (tc->name): NULL;
-		char *argsjson = tc->arguments? strdup (tc->arguments): NULL;
-		char *callid = tc->id? strdup (tc->id): NULL;
+		R2AI_ToolCall *tc = first_tool_call (m);
+		bool ok = tc && wait_tool (t, tc);
 		r2ai_chat_response_free (res);
-
-		task_lock (t);
-		free (t->pending_tool_name);
-		free (t->pending_tool_args);
-		free (t->pending_tool_call_id);
-		free (t->tool_result);
-		t->pending_tool_name = name;
-		t->pending_tool_args = argsjson;
-		t->pending_tool_call_id = callid;
-		t->tool_result = NULL;
-		t->state = R2AI_TASK_WAIT_APPROVE;
-		task_unlock (t);
-
-		/* Wait for main thread to provide tool_result via gate. */
-		r_th_sem_wait (t->gate);
-
-		task_lock (t);
-		if (t->cancel_req) {
-			t->state = R2AI_TASK_CANCELLED;
-			t->finished = time (NULL);
-			task_unlock (t);
-			return R_TH_STOP;
+		if (!ok) {
+			return tc
+				? finish (t, R2AI_TASK_CANCELLED, NULL)
+				: finish (t, R2AI_TASK_ERROR, strdup ("llm returned an invalid tool call"));
 		}
-		char *tool_out = t->tool_result? t->tool_result: strdup ("<no output>");
-		t->tool_result = NULL;
-		char *tool_id = t->pending_tool_call_id? strdup (t->pending_tool_call_id): NULL;
-		free (t->pending_tool_name);
-		free (t->pending_tool_args);
-		free (t->pending_tool_call_id);
-		t->pending_tool_name = NULL;
-		t->pending_tool_args = NULL;
-		t->pending_tool_call_id = NULL;
-		task_unlock (t);
-
-		R2AI_Message tool_msg = {
-			.role = "tool",
-			.tool_call_id = tool_id,
-			.content = tool_out,
-};
-		r2ai_msgs_add (t->messages, &tool_msg);
-		free (tool_id);
-		free (tool_out);
 	}
-	return R_TH_STOP;
 }
 
 R_IPI void r2ai_async_init(R2AI_State *state) {
@@ -388,21 +360,13 @@ static int queue_register(R2AITaskQueue *q, R2AITask *t) {
 }
 
 static int submit(RCorePluginSession *cps, R2AITaskKind kind, const char *title, const char *query, const char *sysp, RThreadFunction fn) {
-	R2AI_State *state = cps->data;
-	if (!state || !state->async) {
-		return -1;
-	}
 	R2AITask *t = task_new (cps, kind, title, query, sysp);
-	int id = queue_register (state->async, t);
+	int id = queue_register (queue (cps), t);
 	t->thread = r_th_new (fn, t, 0);
 	if (t->thread) {
 		r_th_start (t->thread);
 	} else {
-		task_lock (t);
-		t->state = R2AI_TASK_ERROR;
-		free (t->error);
-		t->error = strdup ("failed to spawn worker");
-		task_unlock (t);
+		finish (t, R2AI_TASK_ERROR, strdup ("failed to spawn worker"));
 	}
 	return id;
 }
@@ -424,13 +388,8 @@ R_IPI int r2ai_async_auto(RCorePluginSession *cps,
 static void purge_finished(RCorePluginSession *cps);
 
 static void show_task_list(RCorePluginSession *cps, bool json) {
-	R2AI_State *state = cps->data;
 	RCore *core = cps->core;
-	if (!state || !state->async) {
-		r_cons_printf (core->cons, "async queue not initialised\n");
-		return;
-	}
-	R2AITaskQueue *q = state->async;
+	R2AITaskQueue *q = queue (cps);
 	queue_lock (q);
 	if (json) {
 		PJ *pj = r_core_pj_new (cps->core);
@@ -490,13 +449,7 @@ static void show_task_list(RCorePluginSession *cps, bool json) {
 				extra = extrabuf;
 			}
 			r_cons_printf (core->cons, "%-4d %-6s %-13s %-4d  %s%s\n", t->id, kind_name (t->kind), state_name (t->state), age, t->title? t->title: "", extra);
-			const char *out = r_strbuf_get (t->output);
-			if (R_STR_ISNOTEMPTY (out)) {
-				r_cons_printf (core->cons, "output:\n%s", out);
-				if (!r_str_endswith (out, "\n")) {
-					r_cons_newline (core->cons);
-				}
-			}
+			print_block (core->cons, "output:\n", r_strbuf_get (t->output));
 			free (extrabuf);
 			task_unlock (t);
 		}
@@ -605,11 +558,7 @@ static bool answer_wait_approve(RCorePluginSession *cps, R2AITask *t, bool appro
 /* Interactive handler: act on first actionable task (or the given id). */
 static void interact_once(RCorePluginSession *cps, int id) {
 	RCore *core = cps->core;
-	R2AI_State *state = cps->data;
-	if (!state || !state->async) {
-		return;
-	}
-	R2AITaskQueue *q = state->async;
+	R2AITaskQueue *q = queue (cps);
 	R2AITask *t = find_actionable (q, id);
 	if (!t) {
 		/* Nothing to do - silent by default so cmd.prompt stays clean. */
@@ -629,19 +578,14 @@ static void interact_once(RCorePluginSession *cps, int id) {
 	queue_unlock (q);
 
 	r_cons_printf (core->cons, "\n" Color_BLUE "[async task %d | %s | %s]" Color_RESET "\n", tid, kind_name (kind), state_name (st));
-	if (!R_STR_ISEMPTY (output)) {
-		r_cons_printf (core->cons, "%s", output);
-		if (!r_str_endswith (output, "\n")) {
-			r_cons_newline (core->cons);
-		}
-	}
+	print_block (core->cons, "", output);
 	free (output);
 	if (err) {
 		r_cons_printf (core->cons, Color_RED "error: %s" Color_RESET "\n", err);
 		free (err);
 	}
 
-	if (st == R2AI_TASK_COMPLETE || st == R2AI_TASK_ERROR || st == R2AI_TASK_CANCELLED) {
+	if (is_done (st)) {
 		/* Remove the task from the queue (join the thread on free). */
 		queue_lock (q);
 		drop_task_locked (q, t);
@@ -659,16 +603,17 @@ static void interact_once(RCorePluginSession *cps, int id) {
 		r_cons_flush (core->cons);
 
 		bool yolo = r_config_get_b (core->config, "r2ai.auto.yolo");
-		char *question = r_str_newf ("Run tool %s? (Y/n)", tool_name? tool_name: "?");
-		bool approve = yolo? true: r_cons_yesno (core->cons, 'y', "%s", question? question: "Run tool? (Y/n)");
-		free (question);
+		bool approve = yolo || r_cons_yesno (core->cons, 'y', "Run tool %s? (Y/n)", tool_name? tool_name: "?");
 		answer_wait_approve (cps, t, approve, true);
 	}
 	free (tool_name);
 	free (tool_args);
 }
 
-static R2AITask *find_by_id(R2AITaskQueue *q, int id) {
+// lock the queue and find the task, reports and unlocks when it does not exist
+static R2AITask *lookup(RCorePluginSession *cps, int id) {
+	R2AITaskQueue *q = queue (cps);
+	queue_lock (q);
 	RListIter *it;
 	R2AITask *t;
 	r_list_foreach (q->tasks, it, t) {
@@ -676,25 +621,20 @@ static R2AITask *find_by_id(R2AITaskQueue *q, int id) {
 			return t;
 		}
 	}
+	queue_unlock (q);
+	r_cons_printf (cps->core->cons, "No task with id %d\n", id);
 	return NULL;
 }
 
 static void answer_by_id(RCorePluginSession *cps, int id, bool approve) {
 	RCore *core = cps->core;
-	R2AI_State *state = cps->data;
-	if (!state || !state->async) {
-		return;
-	}
 	if (id <= 0) {
 		r_cons_printf (core->cons, "Missing task id\n");
 		return;
 	}
-	R2AITaskQueue *q = state->async;
-	queue_lock (q);
-	R2AITask *t = find_by_id (q, id);
+	R2AITaskQueue *q = queue (cps);
+	R2AITask *t = lookup (cps, id);
 	if (!t) {
-		queue_unlock (q);
-		r_cons_printf (core->cons, "No task with id %d\n", id);
 		return;
 	}
 	task_lock (t);
@@ -728,16 +668,9 @@ static void kill_task_locked(R2AITaskQueue *q, R2AITask *t) {
 
 static void kill_by_id(RCorePluginSession *cps, int id) {
 	RCore *core = cps->core;
-	R2AI_State *state = cps->data;
-	if (!state || !state->async) {
-		return;
-	}
-	R2AITaskQueue *q = state->async;
-	queue_lock (q);
-	R2AITask *t = find_by_id (q, id);
+	R2AITaskQueue *q = queue (cps);
+	R2AITask *t = lookup (cps, id);
 	if (!t) {
-		queue_unlock (q);
-		r_cons_printf (core->cons, "No task with id %d\n", id);
 		return;
 	}
 	kill_task_locked (q, t);
@@ -747,11 +680,7 @@ static void kill_by_id(RCorePluginSession *cps, int id) {
 
 static void kill_all(RCorePluginSession *cps) {
 	RCore *core = cps->core;
-	R2AI_State *state = cps->data;
-	if (!state || !state->async) {
-		return;
-	}
-	R2AITaskQueue *q = state->async;
+	R2AITaskQueue *q = queue (cps);
 	queue_lock (q);
 	int n = 0;
 	while (!r_list_empty (q->tasks)) {
@@ -765,51 +694,29 @@ static void kill_all(RCorePluginSession *cps) {
 
 static void show_task_by_id(RCorePluginSession *cps, int id) {
 	RCore *core = cps->core;
-	R2AI_State *state = cps->data;
-	if (!state || !state->async) {
-		return;
-	}
-	R2AITaskQueue *q = state->async;
-	queue_lock (q);
-	R2AITask *t = find_by_id (q, id);
+	R2AITaskQueue *q = queue (cps);
+	R2AITask *t = lookup (cps, id);
 	if (!t) {
-		queue_unlock (q);
-		r_cons_printf (core->cons, "No task with id %d\n", id);
 		return;
 	}
 	task_lock (t);
-	r_cons_printf (core->cons, "id:     %d\n", t->id);
-	r_cons_printf (core->cons, "kind:   %s\n", kind_name (t->kind));
-	r_cons_printf (core->cons, "state:  %s\n", state_name (t->state));
-	r_cons_printf (core->cons, "title:  %s\n", t->title? t->title: "");
-	r_cons_printf (core->cons, "model:  %s\n", t->model? t->model: "");
-	r_cons_printf (core->cons, "prov:   %s\n", t->provider? t->provider: "");
-	r_cons_printf (core->cons, "steps:  %d\n", t->steps);
-	r_cons_printf (core->cons, "age:    %ds\n", (int) (time (NULL) - t->created));
+	r_cons_printf (core->cons, "id:     %d\nkind:   %s\nstate:  %s\ntitle:  %s\nmodel:  %s\nprov:   %s\nsteps:  %d\nage:    %ds\n",
+		t->id, kind_name (t->kind), state_name (t->state), t->title, r_str_get (t->model),
+		r_str_get (t->provider), t->steps, (int) (time (NULL) - t->created));
 	if (t->pending_tool_name) {
 		r_cons_printf (core->cons, "tool:   %s %s\n", t->pending_tool_name, t->pending_tool_args? t->pending_tool_args: "");
 	}
 	if (t->error) {
 		r_cons_printf (core->cons, "error:  %s\n", t->error);
 	}
-	const char *out = r_strbuf_get (t->output);
-	if (!R_STR_ISEMPTY (out)) {
-		r_cons_printf (core->cons, "output:\n%s", out);
-		if (!r_str_endswith (out, "\n")) {
-			r_cons_newline (core->cons);
-		}
-	}
+	print_block (core->cons, "output:\n", r_strbuf_get (t->output));
 	task_unlock (t);
 	queue_unlock (q);
 }
 
 static void show_last_task(RCorePluginSession *cps) {
 	RCore *core = cps->core;
-	R2AI_State *state = cps->data;
-	if (!state || !state->async) {
-		return;
-	}
-	R2AITaskQueue *q = state->async;
+	R2AITaskQueue *q = queue (cps);
 	queue_lock (q);
 	R2AITask *t = r_list_last (q->tasks);
 	int id = t? t->id: 0;
@@ -853,17 +760,13 @@ static void show_help(RCorePluginSession *cps) {
 }
 
 static void purge_finished(RCorePluginSession *cps) {
-	R2AI_State *state = cps->data;
-	if (!state || !state->async) {
-		return;
-	}
-	R2AITaskQueue *q = state->async;
+	R2AITaskQueue *q = queue (cps);
 	queue_lock (q);
 	RListIter *it, *tmp;
 	R2AITask *t;
 	r_list_foreach_safe (q->tasks, it, tmp, t) {
 		task_lock (t);
-		bool drop = t->state == R2AI_TASK_COMPLETE || t->state == R2AI_TASK_ERROR || t->state == R2AI_TASK_CANCELLED;
+		bool drop = is_done (t->state);
 		task_unlock (t);
 		if (drop) {
 			drop_task_locked (q, t);
@@ -873,11 +776,7 @@ static void purge_finished(RCorePluginSession *cps) {
 }
 
 static void wait_all(RCorePluginSession *cps) {
-	R2AI_State *state = cps->data;
-	if (!state || !state->async) {
-		return;
-	}
-	R2AITaskQueue *q = state->async;
+	R2AITaskQueue *q = queue (cps);
 	for (;;) {
 		bool any = false;
 		queue_lock (q);
