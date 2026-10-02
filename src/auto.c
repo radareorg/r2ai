@@ -56,7 +56,7 @@ static void r2ai_print_run_end(RCorePluginSession *cps, const R2AI_Usage *usage,
 	char *total_time_str = format_time_duration (total_time);
 
 	// Print detailed stats
-	r_cons_printf (core->cons, "\x1b[1" Color_BLUE "%s | total: %d in: %d out: %d | run: %d in: %d out: %d | %s / %s" Color_RESET "\n", r_config_get (core->config, "r2ai.model"), state->stats.total_tokens, state->stats.total_prompt_tokens, state->stats.total_completion_tokens, state->stats.run_tokens, state->stats.run_prompt_tokens, state->stats.run_completion_tokens, run_time_str, total_time_str);
+	r_cons_printf (core->cons, Color_BOLD Color_BLUE "%s | total: %d in: %d out: %d | run: %d in: %d out: %d | %s / %s" Color_RESET "\n", r_config_get (core->config, "r2ai.model"), state->stats.total_tokens, state->stats.total_prompt_tokens, state->stats.total_completion_tokens, state->stats.run_tokens, state->stats.run_prompt_tokens, state->stats.run_completion_tokens, run_time_str, total_time_str);
 	r_cons_newline (core->cons);
 	r_cons_flush (core->cons);
 
@@ -323,7 +323,7 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 				cmd_output = strdup ("<no output>");
 			}
 			if (strcmp (cmd_output, "R2AI_SIGINT") == 0) {
-				r_cons_printf (core->cons, "\n\n\x1b[1" Color_RED "[r2ai] Processing interrupted after tool execution" Color_RESET "\n\n");
+				r_cons_printf (core->cons, "\n\n" Color_BOLD Color_RED "[r2ai] Processing interrupted after tool execution" Color_RESET "\n\n");
 				r_cons_flush (core->cons);
 				free (cmd_output);
 				cmd_output = strdup ("<user interrupted>");
@@ -469,9 +469,9 @@ R_IPI void cmd_r2ai_logs(RCorePluginSession *cps, const char *flags) {
 		return;
 	}
 
-	r_cons_printf (core->cons, "\x1b[1" Color_BLUE "[r2ai] Chat Logs (%d messages)" Color_RESET "\n", r_list_length (messages));
+	r_cons_printf (core->cons, Color_BOLD Color_BLUE "[r2ai] Chat Logs (%d messages)" Color_RESET "\n", r_list_length (messages));
 
-	r_cons_printf (core->cons, "\x1b[1" Color_YELLOW "Note: System prompt is applied automatically but not stored in history" Color_RESET "\n\n");
+	r_cons_printf (core->cons, Color_BOLD Color_YELLOW "Note: System prompt is applied automatically but not stored in history" Color_RESET "\n\n");
 
 	// Display each message in the conversation
 	RListIter *iter;
@@ -481,17 +481,17 @@ R_IPI void cmd_r2ai_logs(RCorePluginSession *cps, const char *flags) {
 
 		// Format based on role
 		if (!strcmp (role, "user")) {
-			r_cons_printf (core->cons, "\x1b[1" Color_GREEN "[user]:" Color_RESET " ");
+			r_cons_printf (core->cons, Color_BOLD Color_GREEN "[user]:" Color_RESET " ");
 			print_content_with_length (core, msg->content, "<no content>");
 		} else if (!strcmp (role, "assistant")) {
-			r_cons_printf (core->cons, "\x1b[1" Color_CYAN "[assistant]:" Color_RESET " ");
+			r_cons_printf (core->cons, Color_BOLD Color_CYAN "[assistant]:" Color_RESET " ");
 			print_content_with_length (core, msg->content, "<no content>");
 			// Show tool calls if present
 			if (msg->tool_calls && r_list_length (msg->tool_calls) > 0) {
 				RListIter *iter;
 				R2AI_ToolCall *tc;
 				r_list_foreach (msg->tool_calls, iter, tc) {
-					r_cons_printf (core->cons, "  \x1b[1" Color_MAGENTA "[tool call]:" Color_RESET " %s\n", tc->name? tc->name: "<unnamed>");
+					r_cons_printf (core->cons, "  " Color_BOLD Color_MAGENTA "[tool call]:" Color_RESET " %s\n", tc->name? tc->name: "<unnamed>");
 
 					if (tc->arguments) {
 						r_cons_printf (core->cons, "    %s\n", tc->arguments);
@@ -499,13 +499,13 @@ R_IPI void cmd_r2ai_logs(RCorePluginSession *cps, const char *flags) {
 				}
 			}
 		} else if (!strcmp (role, "tool")) {
-			r_cons_printf (core->cons, "\x1b[1" Color_MAGENTA "[tool]:" Color_RESET " ");
+			r_cons_printf (core->cons, Color_BOLD Color_MAGENTA "[tool]:" Color_RESET " ");
 			print_content_with_length (core, msg->content, "<no result>");
 
 			// Don't show the tool call ID as requested
 		} else {
 			// Other roles (system, etc.)
-			r_cons_printf (core->cons, "\x1b[1" Color_WHITE "[%s]:" Color_RESET " ", role);
+			r_cons_printf (core->cons, Color_BOLD Color_WHITE "[%s]:" Color_RESET " ", role);
 			print_content_with_length (core, msg->content, "<no content>");
 		}
 
