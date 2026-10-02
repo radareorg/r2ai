@@ -236,101 +236,45 @@ static bool allow_ollama_fallback(RCore *core, const char *provider) {
 
 R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	RCore *core = cps->core;
-	const char *provider_name = R_STR_ISNOTEMPTY (args.provider)
-		? args.provider
-		: r_config_get (core->config, "r2ai.api");
-	const char *model_name = R_STR_ISNOTEMPTY (args.model)
-		? args.model
-		: r_config_get (core->config, "r2ai.model");
+	const char *provider_name = args.provider;
+	const char *model_name = R_STR_ISNOTEMPTY (args.model)? args.model: "gpt-4o-mini";
 
 	const R2AIProvider *provider_info = r2ai_get_provider (provider_name);
 	const bool is_ollama_provider = provider_info && provider_info->api_type == R2AI_API_OLLAMA;
 	const bool use_generate = is_ollama_provider && is_generate_api (core);
 	char *base_url = r2ai_get_provider_url (core, provider_name);
 	if (!base_url) {
-		if (args.error) {
-			*args.error = strdup ("Failed to resolve provider URL");
-		}
+		*args.error = strdup ("Failed to resolve provider URL");
 		return NULL;
 	}
 	R2AIChatAPI chat_api = use_generate
 		? R2AI_GENERATE_OLLAMA
 		: (is_ollama_provider && r_str_endswith (base_url, "/api")? R2AI_CHAT_OLLAMA: R2AI_CHAT_OPENAI);
-	// TODO: default model name should depend on api
-	model_name = model_name? model_name: "gpt-4o-mini";
 	char **error = args.error;
-	// create a temp conversation to include the system prompt and the rest of the messages
+	// the system prompt goes first, o1 and o3 models call it "developer"
 	RList *temp_msgs = r2ai_msgs_new ();
-	if (!temp_msgs) {
-		if (error) {
-			*error = strdup ("Failed to create temporary messages array");
-		}
+	if (R_STR_ISNOTEMPTY (args.system_prompt)) {
+		const bool dev = strstr (model_name, "o1") || strstr (model_name, "o3");
+		R2AI_Message system_msg = { .role = dev? "developer": "system", .content = (char *)args.system_prompt };
+		r2ai_msgs_add (temp_msgs, &system_msg);
+	}
+	RListIter *iter;
+	R2AI_Message *msg;
+	r_list_foreach (args.messages, iter, msg) {
+		r2ai_msgs_add (temp_msgs, msg);
+	}
+	if (r_list_empty (args.messages)) {
+		*error = strdup ("No messages provided");
 		free (base_url);
+		r2ai_msgs_free (temp_msgs);
 		return NULL;
 	}
-	R2AI_Message system_msg = {
-		.role = "system",
-		.content = (char *)args.system_prompt
-	};
-	// Add system message if available from args.system_prompt
-	if (R_STR_ISNOTEMPTY (args.system_prompt)) {
-		R_LOG_DEBUG ("Using system prompt: %s", args.system_prompt);
-		// if the model name contains "o1" or "o3", it's "developer" role
-		if (strstr (model_name, "o1") || strstr (model_name, "o3")) {
-			system_msg.role = "developer";
-			system_msg.content = (char *)args.system_prompt;
-		} else {
-			system_msg.role = "system";
-			system_msg.content = (char *)args.system_prompt;
-		}
-		r2ai_msgs_add (temp_msgs, &system_msg);
-	} else {
-		// Fallback to config if args.system_prompt is not set
-		const char *sysprompt = r_config_get (core->config, "r2ai.system");
-		if (R_STR_ISNOTEMPTY (sysprompt)) {
-			R_LOG_DEBUG ("Using system prompt from config: %s", sysprompt);
-			if (strstr (model_name, "o1") || strstr (model_name, "o3")) {
-				system_msg.role = "developer";
-			} else {
-				system_msg.role = "system";
-			}
-			system_msg.content = (char *)sysprompt;
-			r2ai_msgs_add (temp_msgs, &system_msg);
-		}
-	}
-	if (args.messages) {
-		RListIter *iter;
-		R2AI_Message *msg;
-		r_list_foreach (args.messages, iter, msg) {
-			r2ai_msgs_add (temp_msgs, msg);
-		}
-	} else {
-		R_LOG_WARN ("No messages");
-	}
-	// Safely print debug info about first message
-	if (temp_msgs && !r_list_empty (temp_msgs) && ((R2AI_Message *)r_list_get_n (temp_msgs, 0))->role) {
-		R_LOG_DEBUG ("First message role: %s", ((R2AI_Message *)r_list_get_n (temp_msgs, 0))->role);
-	}
-	if (error) {
-		*error = NULL;
-	}
-
 	char *auth_header = NULL;
 	const char *headers[] = { "Content-Type: application/json", NULL, NULL };
 	if (R_STR_ISNOTEMPTY (args.api_key)) {
 		auth_header = r_str_newf ("Authorization: Bearer %s", args.api_key);
 		headers[1] = auth_header;
 	}
-	if (r_list_empty (temp_msgs)) {
-		if (error) {
-			*error = strdup ("No messages provided");
-		}
-		free (auth_header);
-		free (base_url);
-		r2ai_msgs_free (temp_msgs);
-		return NULL;
-	}
-	R_LOG_DEBUG ("Using input messages: %d messages", r_list_length (temp_msgs));
 
 	char *res = NULL;
 	int code = 0;
@@ -340,9 +284,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	for (;;) {
 		char *request_json = chat_request_json (cps, &args, provider_name, model_name, temp_msgs, chat_api, first_request);
 		if (!request_json) {
-			if (error) {
-				*error = strdup ("Failed to create request JSON");
-			}
+			*error = strdup ("Failed to create request JSON");
 			free (fallback_base);
 			free (auth_header);
 			free (base_url);
@@ -350,25 +292,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 			return NULL;
 		}
 		char *api_url = chat_api_url (request_base, chat_api);
-		char *tmpdir = r_file_tmpdir ();
-		char *req_path = r_str_newf ("%s" R_SYS_DIR "r2ai_openai_request.json", tmpdir);
-		r_file_dump (req_path, (const ut8 *)request_json, strlen (request_json), 0);
-		R_LOG_DEBUG ("Full request saved to %s", req_path);
-		R_LOG_DEBUG ("LLM API request data: %s", request_json);
-		free (req_path);
-		free (tmpdir);
-
-		if (r_config_get_b (core->config, "r2ai.debug")) {
-			RStrBuf *curl_cmd = r_strbuf_new ("curl -X POST");
-			for (int i = 0; headers[i]; i++) {
-				r_strbuf_appendf (curl_cmd, " -H \"%s\"", headers[i]);
-			}
-			r_strbuf_appendf (curl_cmd, " -d '%s' \"%s\"", request_json, api_url);
-			eprintf ("Curl command: %s\n", r_strbuf_get (curl_cmd));
-			r_strbuf_free (curl_cmd);
-		}
-
-		res = r2ai_http_post (core, api_url, headers, request_json, &code, NULL);
+		res = r2ai_post (core, "openai", api_url, headers, request_json, &code, error);
 		free (request_json);
 		free (api_url);
 		if (chat_api != R2AI_CHAT_OPENAI || (code != 404 && code != 405) || !allow_ollama_fallback (core, provider_name)) {
@@ -379,8 +303,7 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 			break;
 		}
 		R_LOG_INFO ("OpenAI-compatible Ollama endpoint unavailable; falling back to /api/chat");
-		free (res);
-		res = NULL;
+		R_FREE (*error);
 		request_base = fallback_base;
 		chat_api = R2AI_CHAT_OLLAMA;
 		first_request = false;
@@ -388,31 +311,15 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	free (fallback_base);
 	free (base_url);
 
-	if (code != 200) {
-		R_LOG_ERROR ("LLM API error %d", code);
-		if (res) {
-			R_LOG_ERROR ("LLM API error response: %s", res);
-		}
-		free (auth_header);
-		free (res);
+	free (auth_header);
+	if (!res) {
 		r2ai_msgs_free (temp_msgs);
 		return NULL;
 	}
-
-	// Save the response for inspection
-	char *tmpdir = r_file_tmpdir ();
-	char *res_path = r_str_newf ("%s" R_SYS_DIR "r2ai_openai_response.json", tmpdir);
-	r_file_dump (res_path, (const ut8 *)res, strlen (res), 0);
 	if (r_config_get_b (core->config, "r2ai.debug")) {
 		eprintf ("OpenAI API response: %s\n", res);
 	}
-	free (res_path);
-	free (tmpdir);
-
-	// Parse the response into our messages structure
-
-	char *res_copy = strdup (res);
-	RJson *jres = r_json_parse (res_copy);
+	RJson *jres = r_json_parse (res);
 	if (jres) {
 		const bool is_native_ollama = chat_api != R2AI_CHAT_OPENAI;
 		R2AI_Message *message = R_NEW0 (R2AI_Message);
@@ -515,22 +422,11 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 		R2AI_ChatResponse *result = R_NEW0 (R2AI_ChatResponse);
 		result->message = message;
 		result->usage = usage;
-		free (res_copy);
-		free (auth_header);
 		r2ai_msgs_free (temp_msgs);
 		free (res);
 		return result;
 	}
-
-	free (res_copy);
-	free (auth_header);
 	free (res);
 	r2ai_msgs_free (temp_msgs);
-	return NULL;
-}
-
-R_IPI char *r2ai_openai_stream(RCore *core, R2AIArgs args) {
-	(void)core;
-	(void)args;
 	return NULL;
 }

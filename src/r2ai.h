@@ -250,7 +250,7 @@ R_IPI char *r2ai_get_provider_url(RCore *core, const char *provider);
 
 // anthropic
 R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args);
-R_IPI R2AI_ChatResponse *r2ai_anthropic_parse_response(const char *json, char **error);
+R_IPI R2AI_ChatResponse *r2ai_anthropic_parse_response(char *json, char **error);
 
 // openai
 R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args);

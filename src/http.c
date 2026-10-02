@@ -4,6 +4,7 @@
 // #define _POSIX_C_SOURCE 200809L
 #include <signal.h>
 #include "r2ai.h"
+#include "r2ai_priv.h"
 
 // Global flag for tracking interrupt status
 static volatile sig_atomic_t r2ai_http_interrupted = 0;
@@ -277,4 +278,39 @@ R_API char *r2ai_http_get(RCore *core, const char *url, const char **headers, in
 		*rlen = response.length;
 	}
 	return response.body;
+}
+
+static void dump_payload(const char *name, const char *kind, const char *data) {
+	char *tmpdir = r_file_tmpdir ();
+	char *path = r_str_newf ("%s" R_SYS_DIR "r2ai_%s_%s.json", tmpdir, name, kind);
+	r_file_dump (path, (const ut8 *)data, -1, false);
+	R_LOG_DEBUG ("%s %s saved to %s", name, kind, path);
+	free (path);
+	free (tmpdir);
+}
+
+// post a provider request, returns the body on success or NULL with the reason in error
+R_IPI char *r2ai_post(RCore *core, const char *name, const char *url, const char **headers, const char *data, int *code, char **error) {
+	dump_payload (name, "request", data);
+	if (r_config_get_b (core->config, "r2ai.debug")) {
+		RStrBuf *sb = r_strbuf_new ("curl -X POST");
+		int i;
+		for (i = 0; headers[i]; i++) {
+			r_strbuf_appendf (sb, " -H \"%s\"", headers[i]);
+		}
+		r_strbuf_appendf (sb, " -d '%s' \"%s\"", data, url);
+		eprintf ("Curl command: %s\n", r_strbuf_get (sb));
+		r_strbuf_free (sb);
+	}
+	char *res = r2ai_http_post (core, url, headers, data, code, NULL);
+	if (res && *code == 200) {
+		dump_payload (name, "response", res);
+		return res;
+	}
+	if (error) {
+		free (*error);
+		*error = r_str_newf ("%s API error %d%s%s", name, *code, res? ": ": "", r_str_get (res));
+	}
+	free (res);
+	return NULL;
 }

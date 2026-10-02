@@ -90,6 +90,10 @@ static inline char *r2ai_cons_editor(RCons *cons, const char *file, const char *
 }
 R_IPI const R2AIProvider *r2ai_get_provider(const char *name);
 R_IPI R2AI_ChatResponse *r2ai_send(RCorePluginSession *cps, const R2AIProvider *p, R2AIArgs args);
+R_IPI char *r2ai_post(RCore *core, const char *name, const char *url, const char **headers, const char *data, int *code, char **error);
+R_IPI char *r2ai_gemini_request(const R2AIArgs *args);
+R_IPI R2AI_ChatResponse *r2ai_gemini_parse(char *json, char **error);
+R_IPI char *r2ai_anthropic_request(const R2AIArgs *args, bool vertex);
 R_IPI R2AI_ChatResponse *r2ai_rawtools_llmcall(RCorePluginSession *cps, const R2AIProvider *p, R2AIArgs args);
 R_IPI char *r2ai_get_provider_url(RCore *core, const char *provider);
 R_IPI RList *r2ai_fetch_available_models(RCore *core, const char *provider);

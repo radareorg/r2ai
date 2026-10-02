@@ -1,303 +1,128 @@
 /* Copyright r2ai - 2023-2026 - pancake */
 
 #include "r2ai.h"
+#include "r2ai_priv.h"
 
-static const char *modelname(const char *model_name) {
-	return model_name? model_name: "claude-3-7-sonnet-20250219";
+// request body, vertex takes the api version in the body and the model in the url
+R_IPI char *r2ai_anthropic_request(const R2AIArgs *args, bool vertex) {
+	char *messages = r_list_empty (args->messages)? NULL: r2ai_msgs_to_anthropic_json (args->messages);
+	if (!messages) {
+		return NULL;
+	}
+	PJ *pj = pj_new ();
+	pj_o (pj);
+	if (vertex) {
+		pj_ks (pj, "anthropic_version", "vertex-2023-10-16");
+		pj_kb (pj, "stream", false);
+	} else {
+		pj_ks (pj, "model", R_STR_ISNOTEMPTY (args->model)? args->model: "claude-3-7-sonnet-20250219");
+	}
+	pj_kn (pj, "max_tokens", args->max_tokens? args->max_tokens: 4096);
+	if (args->thinking_tokens >= 1024) {
+		pj_ko (pj, "thinking");
+		pj_ks (pj, "type", "enabled");
+		pj_kn (pj, "budget_tokens", args->thinking_tokens);
+		pj_end (pj);
+	}
+	if (R_STR_ISNOTEMPTY (args->system_prompt)) {
+		pj_ks (pj, "system", args->system_prompt);
+	}
+	pj_k (pj, "messages");
+	pj_raw (pj, messages);
+	free (messages);
+	char *tools = r_list_empty (args->tools)? NULL: r2ai_tools_to_anthropic_json (args->tools);
+	if (tools) {
+		pj_k (pj, "tools");
+		pj_raw (pj, tools);
+		free (tools);
+	}
+	pj_end (pj);
+	return pj_drain (pj);
 }
 
 R_IPI R2AI_ChatResponse *r2ai_anthropic(RCorePluginSession *cps, R2AIArgs args) {
-	RCore *core = cps->core;
-	const char *model = args.model;
-	char **error = args.error;
-	RList *tools = args.tools;
-	RList *messages_input = args.messages;
-
-	if (error) {
-		*error = NULL;
-	}
-
-	// Setup HTTP headers
-	char *auth_header = r_str_newf ("x-api-key: %s", args.api_key);
-	char *anthropic_version = "anthropic-version: 2023-06-01";
-	const char *headers[] = {
-		"Content-Type: application/json",
-		auth_header,
-		anthropic_version,
-		NULL
-	};
-
-	const char *anthropic_url = "https://api.anthropic.com/v1/messages";
-
-	// Get system message if available
-	const char *system_message = NULL;
-
-	// First check if it's provided in args.system_prompt
-	if (R_STR_ISNOTEMPTY (args.system_prompt)) {
-		system_message = args.system_prompt;
-	} else {
-		// If no system_prompt in args, check config as fallback
-		system_message = r_config_get (core->config, "r2ai.system");
-	}
-
-	// Create messages JSON
-	char *messages_json = NULL;
-
-	if (messages_input && !r_list_empty (messages_input)) {
-		// Convert directly to JSON without filtering
-		messages_json = r2ai_msgs_to_anthropic_json (messages_input);
-		if (!messages_json) {
-			if (error) {
-				*error = strdup ("Failed to convert messages to JSON");
-			}
-			free (auth_header);
-			return NULL;
-		}
-	} else {
-		if (error) {
-			*error = strdup ("No input or messages provided");
-		}
-		free (auth_header);
+	char *data = r2ai_anthropic_request (&args, false);
+	if (!data) {
+		*args.error = strdup ("No input or messages provided");
 		return NULL;
 	}
-
-	// Convert tools to Anthropic format if available
-	char *anthropic_tools_json = NULL;
-	if (tools && !r_list_empty (tools)) {
-		anthropic_tools_json = r2ai_tools_to_anthropic_json (tools);
-	}
-
-	// Create the request JSON
-	PJ *pj = pj_new ();
-	pj_o (pj);
-	pj_ks (pj, "model", modelname (model));
-	pj_kn (pj, "max_tokens", args.max_tokens);
-	if (args.thinking_tokens >= 1024) {
-		pj_ko (pj, "thinking");
-		pj_ks (pj, "type", "enabled");
-		pj_kn (pj, "budget_tokens", args.thinking_tokens);
-		pj_end (pj);
-	}
-	// Add system message if available
-	if (system_message) {
-		pj_ks (pj, "system", system_message);
-	}
-
-	// Add messages
-	pj_k (pj, "messages");
-	// messages_json already contains the array itself, so we use raw
-	pj_raw (pj, messages_json);
-
-	// Add tools if available
-	if (anthropic_tools_json) {
-		pj_k (pj, "tools");
-		pj_raw (pj, anthropic_tools_json);
-		free (anthropic_tools_json);
-	}
-
-	pj_end (pj);
-
-	char *data = pj_drain (pj);
-	free (messages_json);
-
-	// Save the full JSON for debugging
-	char *tmpdir = r_file_tmpdir ();
-	char *req_path = r_str_newf ("%s" R_SYS_DIR "r2ai_anthropic_request.json", tmpdir);
-	r_file_dump (req_path, (const ut8 *)data, strlen (data), 0);
-	R_LOG_DEBUG ("Full request saved to %s", req_path);
-	free (req_path);
-	free (tmpdir);
-
-	R_LOG_DEBUG ("Anthropic API request data: %s", data);
-
-	if (r_config_get_b (core->config, "r2ai.debug")) {
-		// Generate curl command for debugging
-		RStrBuf *curl_cmd = r_strbuf_new ("curl -X POST");
-		for (int i = 0; headers[i]; i++) {
-			r_strbuf_appendf (curl_cmd, " -H \"%s\"", headers[i]);
-		}
-		r_strbuf_appendf (curl_cmd, " -d '%s' \"%s\"", data, anthropic_url);
-		eprintf ("Curl command: %s\n", r_strbuf_get (curl_cmd));
-		r_strbuf_free (curl_cmd);
-	}
-
-	// Make the API call
+	char *auth = r_str_newf ("x-api-key: %s", args.api_key);
+	const char *headers[] = { "Content-Type: application/json", auth, "anthropic-version: 2023-06-01", NULL };
 	int code = 0;
-	char *res = r2ai_http_post (core, anthropic_url, headers, data, &code, NULL);
+	char *res = r2ai_post (cps->core, "anthropic", "https://api.anthropic.com/v1/messages", headers, data, &code, args.error);
 	free (data);
-	free (auth_header);
-
-	if (!res || code != 200) {
-		R_LOG_ERROR ("Anthropic API error %d", code);
-		if (error && res) {
-			*error = strdup (res);
-		} else if (error) {
-			*error = strdup ("Failed to get response from Anthropic API");
-		}
-		free (res);
-		return NULL;
-	}
-
-	// Save the response for inspection
-	tmpdir = r_file_tmpdir ();
-	char *res_path = r_str_newf ("%s" R_SYS_DIR "r2ai_anthropic_response.json", tmpdir);
-	r_file_dump (res_path, (const ut8 *)res, strlen (res), 0);
-	R_LOG_DEBUG ("Anthropic API response saved to %s", res_path);
-	free (res_path);
-	free (tmpdir);
-
-	if (r_config_get_b (core->config, "r2ai.debug")) {
-		R_LOG_DEBUG ("Anthropic API response: %s", res);
-	}
-
-	R2AI_ChatResponse *result = r2ai_anthropic_parse_response (res, error);
+	free (auth);
+	R2AI_ChatResponse *result = res? r2ai_anthropic_parse_response (res, args.error): NULL;
 	free (res);
 	return result;
 }
 
-/* Shared Anthropic response parser -- used by both anthropic.c and vertex.c */
-R_IPI R2AI_ChatResponse *r2ai_anthropic_parse_response(const char *json, char **error) {
-	R2AI_ChatResponse *result = R_NEW0 (R2AI_ChatResponse);
-	R2AI_Message *message = NULL;
-	R2AI_Usage *usage = NULL;
-
-	char *response_copy = strdup (json);
-	if (response_copy) {
-		RJson *jres = r_json_parse (response_copy);
-		if (jres) {
-			message = R_NEW0 (R2AI_Message);
-
-			const RJson *usage_json = r_json_get (jres, "usage");
-			if (usage_json && usage_json->type == R_JSON_OBJECT) {
-				usage = R_NEW0 (R2AI_Usage);
-				if (usage) {
-					const RJson *prompt_tokens = r_json_get (usage_json, "input_tokens");
-					const RJson *completion_tokens = r_json_get (usage_json, "output_tokens");
-					if (prompt_tokens && prompt_tokens->type == R_JSON_INTEGER) {
-						usage->prompt_tokens = prompt_tokens->num.u_value;
-					}
-					if (completion_tokens && completion_tokens->type == R_JSON_INTEGER) {
-						usage->completion_tokens = completion_tokens->num.u_value;
-					}
-					usage->total_tokens = usage->prompt_tokens + usage->completion_tokens;
-				}
-			}
-
-			if (message) {
-				message->role = strdup ("assistant");
-
-				RStrBuf *content_buf = r_strbuf_new ("");
-
-				int has_tool_use = 0;
-				int n_tool_calls = 0;
-
-				const RJson *content_array = r_json_get (jres, "content");
-				if (content_array && content_array->type == R_JSON_ARRAY) {
-					const RJson *content_item = content_array->children.first;
-					while (content_item) {
-						const RJson *type = r_json_get (content_item, "type");
-						if (type && type->type == R_JSON_STRING && !strcmp (type->str_value, "tool_use")) {
-							has_tool_use = 1;
-							n_tool_calls++;
-						}
-						content_item = content_item->next;
-					}
-				}
-
-				if (has_tool_use && n_tool_calls > 0) {
-					message->tool_calls = r_list_newf ((RListFree)r2ai_tool_call_free);
-				}
-
-				int tool_idx = 0;
-				if (content_array && content_array->type == R_JSON_ARRAY) {
-					RList *cb = r2ai_content_blocks_new ();
-					const RJson *content_item = content_array->children.first;
-					while (content_item) {
-						const RJson *type = r_json_get (content_item, "type");
-						if (type && type->type == R_JSON_STRING) {
-							R2AI_ContentBlock *block = R_NEW0 (R2AI_ContentBlock);
-							if (!strcmp (type->str_value, "text")) {
-								const RJson *text = r_json_get (content_item, "text");
-								if (text && text->type == R_JSON_STRING) {
-									r_strbuf_append (content_buf, text->str_value);
-									block->type = strdup ("text");
-									block->text = strdup (text->str_value);
-								}
-							} else if (!strcmp (type->str_value, "tool_use") && tool_idx < n_tool_calls) {
-								const RJson *name = r_json_get (content_item, "name");
-								const RJson *id = r_json_get (content_item, "id");
-								const RJson *input = r_json_get (content_item, "input");
-
-								block->type = strdup ("tool_use");
-								R2AI_ToolCall *tc = R_NEW0 (R2AI_ToolCall);
-								if (name && name->type == R_JSON_STRING) {
-									block->name = strdup (name->str_value);
-									tc->name = strdup (name->str_value);
-								}
-
-								if (id && id->type == R_JSON_STRING) {
-									block->id = strdup (id->str_value);
-									tc->id = strdup (id->str_value);
-								}
-
-								if (input && input->type == R_JSON_OBJECT) {
-									char *input_str = r_json_to_string (input);
-									if (input_str) {
-										R_LOG_DEBUG ("Input string: %s", input_str);
-										block->input = strdup (input_str);
-										tc->arguments = strdup (input_str);
-										free (input_str);
-									}
-								}
-
-								r_list_append (message->tool_calls, tc);
-								tool_idx++;
-							} else if (!strcmp (type->str_value, "thinking")) {
-								const RJson *tdata = r_json_get (content_item, "data");
-								const RJson *thinking = r_json_get (content_item, "thinking");
-								const RJson *signature = r_json_get (content_item, "signature");
-								if (tdata && tdata->type == R_JSON_STRING) {
-									block->data = strdup (tdata->str_value);
-								}
-								if (thinking && thinking->type == R_JSON_STRING) {
-									block->thinking = strdup (thinking->str_value);
-								}
-								if (signature && signature->type == R_JSON_STRING) {
-									block->signature = strdup (signature->str_value);
-								}
-								block->type = strdup ("thinking");
-
-								r_strbuf_append (content_buf, "\n" Color_GRAY "<thinking>\n");
-								r_strbuf_append (content_buf, block->thinking);
-								r_strbuf_append (content_buf, "\n</thinking>" Color_RESET "\n");
-							}
-							r_list_append (cb, block);
-						}
-						content_item = content_item->next;
-					}
-					message->content_blocks = cb;
-				}
-
-				message->content = r_strbuf_drain (content_buf);
-
-				if (!message->content && (!message->tool_calls || r_list_empty (message->tool_calls))) {
-					r2ai_message_free (message);
-					message = NULL;
-				}
-			}
-			r_json_free (jres);
-		}
-		free (response_copy);
-	}
-
-	result->message = message;
-	result->usage = usage;
-	return result;
+static char *jstr(const RJson *j, const char *key) {
+	return r_str_new (r_json_get_str (j, key));
 }
 
-R_IPI char *r2ai_anthropic_stream(RCore *core, R2AIArgs args) {
-	(void)core;
-	(void)args;
-	// Not implemented yet
-	return NULL;
+// fill the block from the content item and append its text to the message content
+static void parse_block(R2AI_ContentBlock *b, const RJson *item, R2AI_Message *msg, RStrBuf *sb) {
+	if (!strcmp (b->type, "text")) {
+		b->text = jstr (item, "text");
+		r_strbuf_append (sb, r_str_get (b->text));
+	} else if (!strcmp (b->type, "tool_use")) {
+		const RJson *input = r_json_get (item, "input");
+		b->id = jstr (item, "id");
+		b->name = jstr (item, "name");
+		b->input = (input && input->type == R_JSON_OBJECT)? r_json_to_string (input): NULL;
+		R2AI_ToolCall *tc = R_NEW0 (R2AI_ToolCall);
+		tc->id = r_str_new (b->id);
+		tc->name = r_str_new (b->name);
+		tc->arguments = r_str_new (b->input);
+		if (!msg->tool_calls) {
+			msg->tool_calls = r_list_newf ((RListFree)r2ai_tool_call_free);
+		}
+		r_list_append (msg->tool_calls, tc);
+	} else if (!strcmp (b->type, "thinking")) {
+		b->data = jstr (item, "data");
+		b->thinking = jstr (item, "thinking");
+		b->signature = jstr (item, "signature");
+		r_strbuf_appendf (sb, "\n" Color_GRAY "<thinking>\n%s\n</thinking>" Color_RESET "\n", r_str_get (b->thinking));
+	}
+}
+
+// parses (and modifies) the json response of the anthropic and vertex-anthropic providers
+R_IPI R2AI_ChatResponse *r2ai_anthropic_parse_response(char *json, char **error) {
+	RJson *j = r_json_parse (json);
+	if (!j) {
+		*error = strdup ("Failed to parse Anthropic response JSON");
+		return NULL;
+	}
+	R2AI_ChatResponse *res = R_NEW0 (R2AI_ChatResponse);
+	const RJson *u = r_json_get (j, "usage");
+	if (u) {
+		R2AI_Usage *usage = R_NEW0 (R2AI_Usage);
+		usage->prompt_tokens = r_json_get_num (u, "input_tokens");
+		usage->completion_tokens = r_json_get_num (u, "output_tokens");
+		usage->total_tokens = usage->prompt_tokens + usage->completion_tokens;
+		res->usage = usage;
+	}
+	R2AI_Message *msg = R_NEW0 (R2AI_Message);
+	msg->role = strdup ("assistant");
+	RStrBuf *sb = r_strbuf_new ("");
+	const RJson *content = r_json_get (j, "content");
+	if (content && content->type == R_JSON_ARRAY) {
+		msg->content_blocks = r2ai_content_blocks_new ();
+		const RJson *item;
+		for (item = content->children.first; item; item = item->next) {
+			char *type = jstr (item, "type");
+			if (!type) {
+				continue;
+			}
+			R2AI_ContentBlock *b = R_NEW0 (R2AI_ContentBlock);
+			b->type = type;
+			parse_block (b, item, msg, sb);
+			r_list_append (msg->content_blocks, b);
+		}
+	}
+	msg->content = r_strbuf_drain (sb);
+	res->message = msg;
+	r_json_free (j);
+	return res;
 }
