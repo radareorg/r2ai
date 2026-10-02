@@ -290,7 +290,6 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 
 // json helpers that must be moved into r2
 R_API char *r_json_to_string(const RJson *json);
-R_API PJ *r_json_to_pj(const RJson *json, PJ *existing_pj);
 
 // commands
 R_API void r2ai_cmd_q(RCorePluginSession *cps, const char *input);
