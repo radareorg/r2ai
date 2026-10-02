@@ -19,7 +19,11 @@ R_API PJ *r_json_to_pj(const RJson *json, PJ *existing_pj) {
 		pj_s (pj, json->str_value);
 		break;
 	case R_JSON_INTEGER:
-		pj_n (pj, json->num.u_value);
+		if (json->num.dbl_value < 0) {
+			pj_N (pj, json->num.s_value);
+		} else {
+			pj_n (pj, json->num.u_value);
+		}
 		break;
 	case R_JSON_DOUBLE:
 		pj_d (pj, json->num.dbl_value);
@@ -43,7 +47,11 @@ R_API PJ *r_json_to_pj(const RJson *json, PJ *existing_pj) {
 					pj_ks (pj, prop->key, prop->str_value);
 					break;
 				case R_JSON_INTEGER:
-					pj_kn (pj, prop->key, prop->num.u_value);
+					if (prop->num.dbl_value < 0) {
+						pj_kN (pj, prop->key, prop->num.s_value);
+					} else {
+						pj_kn (pj, prop->key, prop->num.u_value);
+					}
 					break;
 				case R_JSON_DOUBLE:
 					pj_kd (pj, prop->key, prop->num.dbl_value);
@@ -96,7 +104,11 @@ R_API PJ *r_json_to_pj(const RJson *json, PJ *existing_pj) {
 				pj_s (pj, item->str_value);
 				break;
 			case R_JSON_INTEGER:
-				pj_n (pj, item->num.u_value);
+				if (item->num.dbl_value < 0) {
+					pj_N (pj, item->num.s_value);
+				} else {
+					pj_n (pj, item->num.u_value);
+				}
 				break;
 			case R_JSON_DOUBLE:
 				pj_d (pj, item->num.dbl_value);
