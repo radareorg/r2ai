@@ -34,7 +34,11 @@ R_IPI char *r2ai_gemini_request(const R2AIArgs *args) {
 	if (args->max_tokens > 0) {
 		pj_kn (pj, "maxOutputTokens", args->max_tokens);
 	}
-	if (args->temperature > 0) {
+	if (args->deterministic) {
+		pj_kn (pj, "temperature", 0);
+		pj_kn (pj, "topP", 1);
+		pj_kn (pj, "topK", 1);
+	} else if (args->temperature > 0) {
 		pj_kd (pj, "temperature", args->temperature);
 	}
 	pj_end (pj);

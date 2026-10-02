@@ -23,6 +23,10 @@ R_IPI char *r2ai_anthropic_request(const R2AIArgs *args, bool vertex) {
 		pj_ks (pj, "type", "enabled");
 		pj_kn (pj, "budget_tokens", args->thinking_tokens);
 		pj_end (pj);
+	} else if (args->deterministic) {
+		// top_p is not sent because newer models reject it along with temperature
+		pj_kn (pj, "temperature", 0);
+		pj_kn (pj, "top_k", 1);
 	}
 	if (R_STR_ISNOTEMPTY (args->system_prompt)) {
 		pj_ks (pj, "system", args->system_prompt);

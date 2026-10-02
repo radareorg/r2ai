@@ -108,6 +108,7 @@ R_IPI R2AI_ChatResponse *r2ai_llmcall(RCorePluginSession *cps, R2AIArgs args) {
 		const char *configtemp = r_config_get (core->config, "r2ai.temperature");
 		args.temperature = configtemp? atof (configtemp): 0;
 	}
+	args.deterministic = r_config_get_b (core->config, "r2ai.deterministic");
 
 	const R2AIProvider *prov = r2ai_get_provider (provider);
 	if (!prov) {

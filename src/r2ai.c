@@ -733,6 +733,8 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_desc (core->config, "r2ai.thinking_tokens", "Number of tokens reserved for internal thinking/context messages");
 	r_config_set (core->config, "r2ai.temperature", "0.01");
 	r_config_desc (core->config, "r2ai.temperature", "Sampling temperature for LLM output (0 = deterministic)");
+	r_config_set_b (core->config, "r2ai.deterministic", false);
+	r_config_desc (core->config, "r2ai.deterministic", "Remove randomness from responses by forcing greedy sampling parameters (overrides r2ai.temperature)");
 	r_config_set (core->config, "r2ai.cmds", "pdc");
 	r_config_desc (core->config, "r2ai.cmds", "Default command sequence used by automation (e.g. 'pdc')");
 	r_config_set (core->config, "r2ai.lang", "C");

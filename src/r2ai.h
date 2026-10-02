@@ -147,6 +147,7 @@ typedef struct {
 	int max_tokens;
 	int thinking_tokens;
 	float temperature;
+	bool deterministic; // greedy sampling to remove randomness from responses
 	bool dorag;
 	char **error;
 } R2AIArgs;

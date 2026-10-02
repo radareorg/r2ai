@@ -154,7 +154,14 @@ static char *chat_request_json(RCorePluginSession *cps, const R2AIArgs *args, co
 		if (args->max_tokens) {
 			pj_kn (pj, "num_predict", args->max_tokens);
 		}
-		if (args->temperature > 0) {
+		if (args->deterministic) {
+			pj_kn (pj, "temperature", 0);
+			pj_kn (pj, "top_p", 1);
+			pj_kn (pj, "top_k", 1);
+			pj_kn (pj, "repeat_last_n", 0);
+			pj_kn (pj, "repeat_penalty", 1);
+			pj_kn (pj, "seed", 123);
+		} else if (args->temperature > 0) {
 			pj_kd (pj, "temperature", args->temperature);
 		}
 		pj_end (pj);
