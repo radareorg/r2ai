@@ -280,6 +280,24 @@ R_API void r2ai_tool_result_fini(R2AI_ToolResult *result) {
 	memset (result, 0, sizeof (*result));
 }
 
+// let the user review or edit the text before running it, returns NULL when cancelled
+static char *confirm(RCore *core, const char *text) {
+	RCons *cons = core->cons;
+	if (strchr (text, '\n')) {
+		char *edited = r2ai_cons_editor (cons, NULL, text);
+		return edited? edited: strdup (text);
+	}
+	r_cons_newline (cons);
+	r_cons_readpush (cons, text, strlen (text));
+	r_cons_readpush (cons, "\x05", 1); // ctrl+e moves the cursor to the end
+	r_line_set_prompt (cons->line, "[r2ai]> ");
+	const char *line = r_line_readline (cons);
+	if (r_cons_is_breaked (cons) || R_STR_ISEMPTY (line)) {
+		return NULL;
+	}
+	return strdup (line);
+}
+
 static R2AI_ToolResult r2ai_r2cmd(RCore *core, RJson *args, bool verbose) {
 	R2AI_ToolResult result = { 0 };
 	if (!args) {
@@ -308,45 +326,19 @@ static R2AI_ToolResult r2ai_r2cmd(RCore *core, RJson *args, bool verbose) {
 		return result;
 	}
 
-	bool ask_to_execute = r_config_get_b (core->config, "r2ai.auto.yolo") != true;
-	if (ask_to_execute) {
-		char *input_command = compose_command_with_comment (command, comment);
-		if (!input_command) {
+	if (!r_config_get_b (core->config, "r2ai.auto.yolo")) {
+		char *input = compose_command_with_comment (command, comment);
+		char *edited = confirm (core, input);
+		free (input);
+		if (!edited) {
 			free (command);
 			free (comment);
-			result.output = strdup ("{ \"res\":\"Failed to prepare command\" }");
+			result.output = strdup ("R2AI_SIGINT");
 			return result;
 		}
-		bool is_multiline = strchr (input_command, '\n') != NULL;
-
-		if (is_multiline) {
-			char *edited = r2ai_cons_editor (core->cons, NULL, input_command);
-			if (edited) {
-				free (input_command);
-				input_command = edited;
-			}
-		} else {
-			r_cons_newline (core->cons);
-			r_cons_readpush (core->cons, input_command, strlen (input_command));
-			r_cons_readpush (core->cons, "\x05", 1);
-			r_line_set_prompt (core->cons->line, "[r2ai]> ");
-			const char *readline_result = r_line_readline (core->cons);
-			if (r_cons_is_breaked (core->cons) || R_STR_ISEMPTY (readline_result)) {
-				R_LOG_INFO ("Command execution cancelled %s", readline_result);
-				free (input_command);
-				free (command);
-				free (comment);
-				result.output = strdup ("R2AI_SIGINT");
-				return result;
-			}
-			if (R_STR_ISNOTEMPTY (readline_result)) {
-				free (input_command);
-				input_command = strdup (readline_result);
-			}
-		}
-
 		char *new_comment = NULL;
-		char *new_command = strip_command_comment (input_command, &new_comment);
+		char *new_command = strip_command_comment (edited, &new_comment);
+		free (edited);
 		if (new_command) {
 			free (command);
 			command = new_command;
@@ -355,7 +347,6 @@ static R2AI_ToolResult r2ai_r2cmd(RCore *core, RJson *args, bool verbose) {
 		} else {
 			free (new_comment);
 		}
-		free (input_command);
 	}
 
 	result.edited_command = strdup (command);
@@ -441,46 +432,15 @@ static R2AI_ToolResult r2ai_qjs(RCore *core, R2AI_State *state, RJson *args, boo
 		return result;
 	}
 
-	bool ask_to_execute = r_config_get_b (core->config, "r2ai.auto.yolo") != true;
-	const char *script = script_json->str_value;
-	char *edited_script = NULL;
-
-	if (ask_to_execute) {
-		// Check if script contains newlines to determine if it's multi-line
-		bool is_multiline = strchr (script, '\n') != NULL;
-
-		if (is_multiline) {
-			// Use editor for multi-line scripts
-			edited_script = r2ai_cons_editor (core->cons, NULL, script);
-			if (!edited_script) {
-				edited_script = strdup (script);
-			}
-			script = edited_script;
-		} else {
-			// For single-line scripts, push the script to input buffer
-
-			r_cons_readpush (core->cons, script, strlen (script));
-			r_cons_readpush (core->cons, "\x05", 1); // Ctrl+E - move to end
-			r_line_set_prompt (core->cons->line, "[r2ai]> ");
-			const char *readline_result = r_line_readline (core->cons);
-
-			// Check if interrupted or ESC pressed (readline_result is NULL or empty)
-			if (r_cons_is_breaked (core->cons) || R_STR_ISEMPTY (readline_result)) {
-				free (edited_script); // Free if already allocated
-				result.output = strdup ("R2AI_SIGINT");
-				return result;
-			}
-
-			// Process the result
-			if (readline_result && *readline_result) {
-				edited_script = strdup (readline_result);
-				script = edited_script;
-			} else {
-				// If user just pressed enter, keep the original script
-				edited_script = strdup (script);
-				script = edited_script;
-			}
+	char *script = strdup (script_json->str_value);
+	if (!r_config_get_b (core->config, "r2ai.auto.yolo")) {
+		char *edited = confirm (core, script);
+		free (script);
+		if (!edited) {
+			result.output = strdup ("R2AI_SIGINT");
+			return result;
 		}
+		script = edited;
 	}
 
 	result.edited_command = strdup (script);
@@ -494,9 +454,7 @@ static R2AI_ToolResult r2ai_qjs(RCore *core, R2AI_State *state, RJson *args, boo
 		free (print_script_rendered);
 	}
 	char *payload = r_str_newf ("var console = { log:r2log, warn:r2log, info:r2log, error:r2log, debug:r2log };%s", script);
-
-	// Free edited_script after we're done using it
-	free (edited_script);
+	free (script);
 
 	if (!payload) {
 		r2ai_tool_result_fini (&result);
