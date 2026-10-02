@@ -319,7 +319,6 @@ R_IPI R2AI_ChatResponse *r2ai_openai(RCorePluginSession *cps, R2AIArgs args) {
 	const char *headers[] = { "Content-Type: application/json", NULL, NULL };
 	if (R_STR_ISNOTEMPTY (args.api_key)) {
 		auth_header = r_str_newf ("Authorization: Bearer %s", args.api_key);
-		R_LOG_DEBUG ("Auth header: %s", auth_header);
 		headers[1] = auth_header;
 	}
 	if (r_list_empty (temp_msgs)) {
