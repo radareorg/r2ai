@@ -6,9 +6,10 @@
 
 // Create a new global DF entry.
 static void gtfidf_add(RList *db_tokens, const char *token) {
-	RVdbToken *t = R_NEW (RVdbToken);
+	RVdbToken *t = R_NEW0 (RVdbToken);
 	t->token = r_str_trim_dup (token);
 	t->count = 1;
+	t->df = 1.0f;
 	r_list_append (db_tokens, t);
 }
 
