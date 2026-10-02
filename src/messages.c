@@ -11,20 +11,41 @@ R_API void r2ai_tool_call_free(R2AI_ToolCall *tc) {
 	}
 }
 
-R_API RList *r2ai_content_blocks_new(void) {
-	RList *cb = r_list_new ();
-	if (!cb) {
-		return NULL;
-	}
-	cb->free = (RListFree)free; // ContentBlocks contain pointers to structs, not structs themselves
-	return cb;
+static void block_free(R2AI_ContentBlock *b) {
+	free (b->type);
+	free (b->id);
+	free (b->name);
+	free (b->input);
+	free (b->data);
+	free (b->thinking);
+	free (b->signature);
+	free (b->text);
+	free (b);
 }
 
-R_API void r2ai_content_blocks_free(RList *cb) {
-	if (!cb) {
-		return;
-	}
-	r_list_free (cb);
+static R2AI_ContentBlock *block_dup(const R2AI_ContentBlock *b) {
+	R2AI_ContentBlock *d = R_NEW0 (R2AI_ContentBlock);
+	d->type = r_str_new (b->type);
+	d->id = r_str_new (b->id);
+	d->name = r_str_new (b->name);
+	d->input = r_str_new (b->input);
+	d->data = r_str_new (b->data);
+	d->thinking = r_str_new (b->thinking);
+	d->signature = r_str_new (b->signature);
+	d->text = r_str_new (b->text);
+	return d;
+}
+
+static R2AI_ToolCall *tc_dup(const R2AI_ToolCall *tc) {
+	R2AI_ToolCall *d = R_NEW0 (R2AI_ToolCall);
+	d->id = r_str_new (tc->id);
+	d->name = r_str_new (tc->name);
+	d->arguments = r_str_new (tc->arguments);
+	return d;
+}
+
+R_API RList *r2ai_content_blocks_new(void) {
+	return r_list_newf ((RListFree)block_free);
 }
 
 R_API void r2ai_message_fini(R2AI_Message *msg) {
@@ -35,19 +56,12 @@ R_API void r2ai_message_fini(R2AI_Message *msg) {
 	free ((void *)msg->content);
 	free (msg->reasoning_content);
 	free (msg->tool_call_id);
-	if (msg->tool_calls) {
-		r_list_free (msg->tool_calls);
-	}
-	if (msg->content_blocks) {
-		r2ai_content_blocks_free (msg->content_blocks);
-	}
+	r_list_free (msg->tool_calls);
+	r_list_free (msg->content_blocks);
 	memset (msg, 0, sizeof (*msg));
 }
 
 R_API void r2ai_message_free(R2AI_Message *msg) {
-	if (!msg) {
-		return;
-	}
 	r2ai_message_fini (msg);
 	free (msg);
 }
@@ -61,263 +75,54 @@ R_IPI void r2ai_chat_response_free(R2AI_ChatResponse *res) {
 	free (res);
 }
 
-// Conversation is now stored in R2AI_State
-
 R_API void r2ai_conversation_init(R2AI_State *state) {
-	if (!state || state->conversation) {
-		// Already initialized or invalid state
-		return;
+	if (state && !state->conversation) {
+		state->conversation = r2ai_msgs_new ();
 	}
-
-	state->conversation = r2ai_msgs_new ();
 }
 
 R_API RList *r2ai_conversation_get(R2AI_State *state) {
 	return state? state->conversation: NULL;
 }
 
-// Create a new temporary messages container
 R_API RList *r2ai_msgs_new(void) {
-	RList *msgs = r_list_new ();
-	if (!msgs) {
-		return NULL;
-	}
-	msgs->free = (RListFree)r2ai_message_free;
-	return msgs;
+	return r_list_newf ((RListFree)r2ai_message_free);
 }
 
 R_API void r2ai_msgs_free(RList *msgs) {
-	if (msgs) {
-		r_list_free (msgs);
-	}
+	r_list_free (msgs);
 }
 
-// Free the conversation when plugin is unloaded
 R_API void r2ai_conversation_free(R2AI_State *state) {
-	if (state && state->conversation) {
-		r2ai_msgs_free (state->conversation);
+	if (state) {
+		r_list_free (state->conversation);
 		state->conversation = NULL;
 	}
 }
 
-// Clear messages in a container without freeing the container itself
 R_API void r2ai_msgs_clear(RList *msgs) {
-	if (!msgs) {
-		return;
-	}
 	r_list_purge (msgs);
 }
 
+// append a deep copy of the message
 R_API bool r2ai_msgs_add(RList *msgs, const R2AI_Message *msg) {
 	if (!msgs || !msg) {
 		return false;
 	}
-
-	R2AI_Message *new_msg = R_NEW0 (R2AI_Message);
-	new_msg->role = msg->role? strdup (msg->role): NULL;
-	new_msg->content = msg->content? strdup (msg->content): NULL;
-	new_msg->reasoning_content = msg->reasoning_content? strdup (msg->reasoning_content): NULL;
-
+	R2AI_Message *m = R_NEW0 (R2AI_Message);
+	m->role = r_str_new (msg->role);
+	m->content = r_str_new (msg->content);
+	m->reasoning_content = r_str_new (msg->reasoning_content);
+	m->tool_call_id = r_str_new (msg->tool_call_id);
 	if (msg->content_blocks) {
-		RList *cb = r2ai_content_blocks_new ();
-		if (!cb) {
-			r2ai_message_free (new_msg);
-			return false;
-		}
-		RListIter *iter;
-		R2AI_ContentBlock *src;
-		r_list_foreach (msg->content_blocks, iter, src) {
-			R2AI_ContentBlock *dst = R_NEW0 (R2AI_ContentBlock);
-			dst->type = src->type? strdup (src->type): NULL;
-			dst->data = src->data? strdup (src->data): NULL;
-			dst->thinking = src->thinking? strdup (src->thinking): NULL;
-			dst->signature = src->signature? strdup (src->signature): NULL;
-			dst->text = src->text? strdup (src->text): NULL;
-			dst->id = src->id? strdup (src->id): NULL;
-			dst->name = src->name? strdup (src->name): NULL;
-			dst->input = src->input? strdup (src->input): NULL;
-			r_list_append (cb, dst);
-		}
-		new_msg->content_blocks = cb;
+		m->content_blocks = r_list_clone (msg->content_blocks, (RListClone)block_dup);
+		m->content_blocks->free = (RListFree)block_free;
 	}
-
-	new_msg->tool_call_id = msg->tool_call_id? strdup (msg->tool_call_id): NULL;
-	new_msg->tool_calls = r_list_new ();
-	if (!new_msg->tool_calls) {
-		r2ai_message_free (new_msg);
-		return false;
-	}
-	new_msg->tool_calls->free = (RListFree)r2ai_tool_call_free;
-
-	// Copy tool calls if any
-	if (msg->tool_calls) {
-		RListIter *iter;
-		R2AI_ToolCall *src_tc;
-		r_list_foreach (msg->tool_calls, iter, src_tc) {
-			R2AI_ToolCall *dst_tc = R_NEW0 (R2AI_ToolCall);
-			dst_tc->name = src_tc->name? strdup (src_tc->name): NULL;
-			dst_tc->arguments = src_tc->arguments? strdup (src_tc->arguments): NULL;
-			dst_tc->id = src_tc->id? strdup (src_tc->id): NULL;
-			r_list_append (new_msg->tool_calls, dst_tc);
-		}
-	}
-
-	r_list_append (msgs, new_msg);
-	return true;
-}
-
-R_API bool r2ai_msgs_add_tool_call(RList *msgs, const R2AI_ToolCall *tc) {
-	if (!msgs || !tc || r_list_empty (msgs)) {
-		return false;
-	}
-
-	R2AI_Message *msg = r_list_get_n (msgs, r_list_length (msgs) - 1);
-	if (!msg) {
-		return false;
-	}
-
-	// Ensure tool_calls list exists
-	if (!msg->tool_calls) {
-		msg->tool_calls = r_list_new ();
-		if (!msg->tool_calls) {
-			return false;
-		}
-		msg->tool_calls->free = (RListFree)r2ai_tool_call_free;
-	}
-
-	// Copy the tool call
-	R2AI_ToolCall *dst_tc = R_NEW0 (R2AI_ToolCall);
-	dst_tc->name = tc->name? strdup (tc->name): NULL;
-	dst_tc->arguments = tc->arguments? strdup (tc->arguments): NULL;
-	dst_tc->id = tc->id? strdup (tc->id): NULL;
-
-	r_list_append (msg->tool_calls, dst_tc);
-	return true;
-}
-
-R_API bool r2ai_msgs_from_response(RList *msgs, const char *json_str) {
-	if (!msgs || !json_str) {
-		return false;
-	}
-
-	bool result = false;
-	// r_json_parse expects (and modifies) non-const char*, so we need to cast it
-	RJson *json = r_json_parse ((char *)json_str);
-	if (json) {
-		result = r2ai_msgs_from_json (msgs, json);
-		r_json_free (json);
-	}
-	return result;
-}
-
-R_API bool r2ai_msgs_from_json(RList *msgs, const RJson *json) {
-	if (!msgs || !json) {
-		return false;
-	}
-
-	const RJson *choices = r_json_get (json, "choices");
-	if (!choices || choices->type != R_JSON_ARRAY) {
-		return false;
-	}
-
-	const RJson *choice = r_json_item (choices, 0);
-	if (!choice) {
-		return false;
-	}
-
-	const RJson *message = r_json_get (choice, "message");
-	if (!message) {
-		return false;
-	}
-
-	const RJson *role = r_json_get (message, "role");
-	const RJson *content = r_json_get (message, "content");
-	const RJson *content_blocks = r_json_get (message, "content_blocks");
-
-	// Create a new message to add
-	R2AI_Message new_msg = { 0 };
-	new_msg.role = (role && role->type == R_JSON_STRING)? strdup (role->str_value): strdup ("assistant");
-	new_msg.content = (content && content->type == R_JSON_STRING)? strdup (content->str_value): NULL;
-	new_msg.tool_call_id = NULL;
-	new_msg.tool_calls = NULL;
-
-	if (content_blocks && content_blocks->type == R_JSON_ARRAY && content_blocks->children.count > 0) {
-		RList *cb = r2ai_content_blocks_new ();
-		if (!cb) {
-			r2ai_message_fini (&new_msg);
-			return false;
-		}
-		for (size_t i = 0; i < content_blocks->children.count; i++) {
-			const RJson *block = r_json_item (content_blocks, i);
-			if (!block) {
-				continue;
-			}
-			R2AI_ContentBlock *dst = R_NEW0 (R2AI_ContentBlock);
-			if (!dst) {
-				r2ai_content_blocks_free (cb);
-				r2ai_message_fini (&new_msg);
-				return false;
-			}
-			const RJson *type = r_json_get (block, "type");
-			const RJson *data = r_json_get (block, "data");
-			const RJson *thinking = r_json_get (block, "thinking");
-			const RJson *signature = r_json_get (block, "signature");
-			const RJson *text = r_json_get (block, "text");
-			const RJson *id = r_json_get (block, "id");
-			const RJson *name = r_json_get (block, "name");
-			const RJson *input = r_json_get (block, "input");
-
-			dst->type = (type && type->type == R_JSON_STRING)? strdup (type->str_value): NULL;
-			dst->data = (data && data->type == R_JSON_STRING)? strdup (data->str_value): NULL;
-			dst->thinking = (thinking && thinking->type == R_JSON_STRING)? strdup (thinking->str_value): NULL;
-			dst->signature = (signature && signature->type == R_JSON_STRING)? strdup (signature->str_value): NULL;
-			dst->text = (text && text->type == R_JSON_STRING)? strdup (text->str_value): NULL;
-			dst->id = (id && id->type == R_JSON_STRING)? strdup (id->str_value): NULL;
-			dst->name = (name && name->type == R_JSON_STRING)? strdup (name->str_value): NULL;
-			dst->input = (input && input->type == R_JSON_STRING)? strdup (input->str_value): NULL;
-			r_list_append (cb, dst);
-		}
-		new_msg.content_blocks = cb;
-	}
-
-	// Add the message without tool calls first
-	// r2ai_msgs_add stores a deep copy, so the local message is always released
-	bool added = r2ai_msgs_add (msgs, &new_msg);
-	r2ai_message_fini (&new_msg);
-	if (!added) {
-		return false;
-	}
-
-	// Now add tool calls if present
-	const RJson *tool_calls = r_json_get (message, "tool_calls");
-	if (tool_calls && tool_calls->type == R_JSON_ARRAY) {
-		// Iterate through array elements
-		for (size_t i = 0; i < tool_calls->children.count; i++) {
-			const RJson *tool_call = r_json_item (tool_calls, i);
-			if (!tool_call) {
-				continue;
-			}
-
-			const RJson *id = r_json_get (tool_call, "id");
-			const RJson *function = r_json_get (tool_call, "function");
-			if (!function) {
-				continue;
-			}
-
-			const RJson *name = r_json_get (function, "name");
-			const RJson *arguments = r_json_get (function, "arguments");
-
-			R2AI_ToolCall tc = { 0 };
-			tc.name = (name && name->type == R_JSON_STRING)? name->str_value: NULL;
-			tc.arguments = (arguments && arguments->type == R_JSON_STRING)? arguments->str_value: NULL;
-			tc.id = (id && id->type == R_JSON_STRING)? id->str_value: NULL;
-
-			if (!r2ai_msgs_add_tool_call (msgs, &tc)) {
-				return false;
-			}
-		}
-	}
-
+	m->tool_calls = msg->tool_calls
+		? r_list_clone (msg->tool_calls, (RListClone)tc_dup)
+		: r_list_new ();
+	m->tool_calls->free = (RListFree)r2ai_tool_call_free;
+	r_list_append (msgs, m);
 	return true;
 }
 

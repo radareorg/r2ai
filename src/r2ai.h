@@ -101,11 +101,6 @@ typedef struct {
  */
 R_API RList *r2ai_content_blocks_new(void);
 
-/**
- * Free a content blocks RList
- */
-R_API void r2ai_content_blocks_free(RList *cb);
-
 typedef struct {
 	char *role;
 	char *content;
@@ -195,9 +190,6 @@ R_API void r2ai_conversation_free(R2AI_State *state);
 R_API RList *r2ai_msgs_new(void);
 R_API void r2ai_msgs_clear(RList *msgs);
 R_API bool r2ai_msgs_add(RList *msgs, const R2AI_Message *msg);
-R_API bool r2ai_msgs_add_tool_call(RList *msgs, const R2AI_ToolCall *tc);
-R_API bool r2ai_msgs_from_response(RList *msgs, const char *json_str);
-R_API bool r2ai_msgs_from_json(RList *msgs, const RJson *json);
 R_API char *r2ai_msgs_to_json(const RList *msgs, bool raw_tool_args);
 R_API char *r2ai_msgs_to_anthropic_json(const RList *msgs);
 R_API void r2ai_msgs_free(RList *msgs);
