@@ -406,47 +406,52 @@ R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query) {
 	free (system_prompt);
 }
 
-// Helper function to display content with length indication for long content
-static void print_content_with_length(RCore *core, const char *content, const char *empty_msg) {
-	if (R_STR_ISEMPTY (content)) {
-		r_cons_println (core->cons, empty_msg? empty_msg: "<no content>");
-	} else {
-		r_cons_println (core->cons, content);
+static char *log_tostring(const RList *messages, bool color) {
+	const char *bold = color? Color_BOLD: "";
+	const char *reset = color? Color_RESET: "";
+	RStrBuf *sb = r_strbuf_new ("");
+	RListIter *iter, *iter2;
+	const R2AI_Message *msg;
+	R2AI_ToolCall *tc;
+	r_list_foreach (messages, iter, msg) {
+		const char *role = msg->role;
+		bool tool = !strcmp (role, "tool");
+		const char *clr = !color? "": !strcmp (role, "user")? Color_GREEN: !strcmp (role, "assistant")? Color_CYAN: tool? Color_MAGENTA: Color_WHITE;
+		const char *text = R_STR_ISNOTEMPTY (msg->content)? msg->content: tool? "<no result>": "<no content>";
+		r_strbuf_appendf (sb, "%s%s[%s]:%s %s\n", bold, clr, role, reset, text);
+		r_list_foreach (msg->tool_calls, iter2, tc) {
+			r_strbuf_appendf (sb, "  %s%s[tool call]:%s %s\n", bold, color? Color_MAGENTA: "", reset, tc->name? tc->name: "<unnamed>");
+			if (tc->arguments) {
+				r_strbuf_appendf (sb, "    %s\n", tc->arguments);
+			}
+		}
+		if (color) {
+			r_strbuf_append (sb, "\n");
+		}
 	}
+	return r_strbuf_drain (sb);
 }
 
-// Add this function right after cmd_r2ai_a
 R_IPI void cmd_r2ai_logs(RCorePluginSession *cps, const char *flags) {
 	RCore *core = cps->core;
-	R2AI_State *state = cps->data;
-	// Get conversation
-	RList *messages = r2ai_conversation_get (state);
-	if (!messages || r_list_empty (messages)) {
+	RList *messages = r2ai_conversation_get (cps->data);
+	if (r_list_empty (messages)) {
 		r_cons_printf (core->cons, "No conversation history available\n");
 		return;
 	}
-
-	bool json_mode = flags && strchr (flags, 'j');
-
-	if (json_mode) {
+	if (flags && strchr (flags, 'j')) {
 		PJ *pj = pj_new ();
-		if (!pj) {
-			return;
-		}
-
 		pj_a (pj);
-
-		RListIter *iter;
+		RListIter *iter, *iter2;
 		const R2AI_Message *msg;
+		R2AI_ToolCall *tc;
 		r_list_foreach (messages, iter, msg) {
 			pj_o (pj);
-			pj_ks (pj, "role", msg->role? msg->role: "unknown");
-			pj_ks (pj, "content", msg->content? msg->content: "");
-			if (msg->tool_calls && r_list_length (msg->tool_calls) > 0) {
+			pj_ks (pj, "role", r_str_get_fail (msg->role, "unknown"));
+			pj_ks (pj, "content", r_str_get (msg->content));
+			if (!r_list_empty (msg->tool_calls)) {
 				pj_ka (pj, "tool_calls");
-				RListIter *iter;
-				R2AI_ToolCall *tc;
-				r_list_foreach (msg->tool_calls, iter, tc) {
+				r_list_foreach (msg->tool_calls, iter2, tc) {
 					pj_o (pj);
 					if (tc->name) {
 						pj_ks (pj, "name", tc->name);
@@ -460,94 +465,17 @@ R_IPI void cmd_r2ai_logs(RCorePluginSession *cps, const char *flags) {
 			}
 			pj_end (pj);
 		}
-
 		pj_end (pj);
-
 		char *json_str = pj_drain (pj);
-		r_cons_printf (core->cons, "%s\n", json_str);
+		r_cons_println (core->cons, json_str);
 		free (json_str);
-
 		return;
 	}
-
-	r_cons_printf (core->cons, Color_BOLD Color_BLUE "[r2ai] Chat Logs (%d messages)" Color_RESET "\n", r_list_length (messages));
-
-	r_cons_printf (core->cons, Color_BOLD Color_YELLOW "Note: System prompt is applied automatically but not stored in history" Color_RESET "\n\n");
-
-	// Display each message in the conversation
-	RListIter *iter;
-	const R2AI_Message *msg;
-	r_list_foreach (messages, iter, msg) {
-		const char *role = msg->role;
-
-		// Format based on role
-		if (!strcmp (role, "user")) {
-			r_cons_printf (core->cons, Color_BOLD Color_GREEN "[user]:" Color_RESET " ");
-			print_content_with_length (core, msg->content, "<no content>");
-		} else if (!strcmp (role, "assistant")) {
-			r_cons_printf (core->cons, Color_BOLD Color_CYAN "[assistant]:" Color_RESET " ");
-			print_content_with_length (core, msg->content, "<no content>");
-			// Show tool calls if present
-			if (msg->tool_calls && r_list_length (msg->tool_calls) > 0) {
-				RListIter *iter;
-				R2AI_ToolCall *tc;
-				r_list_foreach (msg->tool_calls, iter, tc) {
-					r_cons_printf (core->cons, "  " Color_BOLD Color_MAGENTA "[tool call]:" Color_RESET " %s\n", tc->name? tc->name: "<unnamed>");
-
-					if (tc->arguments) {
-						r_cons_printf (core->cons, "    %s\n", tc->arguments);
-					}
-				}
-			}
-		} else if (!strcmp (role, "tool")) {
-			r_cons_printf (core->cons, Color_BOLD Color_MAGENTA "[tool]:" Color_RESET " ");
-			print_content_with_length (core, msg->content, "<no result>");
-
-			// Don't show the tool call ID as requested
-		} else {
-			// Other roles (system, etc.)
-			r_cons_printf (core->cons, Color_BOLD Color_WHITE "[%s]:" Color_RESET " ", role);
-			print_content_with_length (core, msg->content, "<no content>");
-		}
-
-		r_cons_newline (core->cons);
-		r_cons_flush (core->cons);
-	}
-}
-
-// Helper function to format conversation log as string
-static char *format_conversation_log(RList *messages) {
-	RStrBuf *sb = r_strbuf_new ("");
-	r_strbuf_append (sb, "Conversation Log:\n");
-
-	RListIter *iter;
-	const R2AI_Message *msg;
-	r_list_foreach (messages, iter, msg) {
-		const char *role = msg->role;
-
-		if (!strcmp (role, "user")) {
-			r_strbuf_appendf (sb, "[user]: %s\n", msg->content? msg->content: "<no content>");
-		} else if (!strcmp (role, "assistant")) {
-			r_strbuf_appendf (sb, "[assistant]: %s\n", msg->content? msg->content: "<no content>");
-			// Include tool calls if present
-			if (msg->tool_calls && r_list_length (msg->tool_calls) > 0) {
-				RListIter *iter_tc;
-				R2AI_ToolCall *tc;
-				r_list_foreach (msg->tool_calls, iter_tc, tc) {
-					r_strbuf_appendf (sb, "  [tool call]: %s\n", tc->name? tc->name: "<unnamed>");
-					if (tc->arguments) {
-						r_strbuf_appendf (sb, "    %s\n", tc->arguments);
-					}
-				}
-			}
-		} else if (!strcmp (role, "tool")) {
-			r_strbuf_appendf (sb, "[tool]: %s\n", msg->content? msg->content: "<no result>");
-		} else {
-			r_strbuf_appendf (sb, "[%s]: %s\n", role, msg->content? msg->content: "<no content>");
-		}
-	}
-
-	return r_strbuf_drain (sb);
+	char *log = log_tostring (messages, true);
+	r_cons_printf (core->cons, Color_BOLD Color_BLUE "[r2ai] Chat Logs (%d messages)" Color_RESET "\n"
+		Color_BOLD Color_YELLOW "Note: System prompt is applied automatically but not stored in history" Color_RESET "\n\n%s",
+		r_list_length (messages), log);
+	free (log);
 }
 
 // Helper function to process conversation with LLM and handle result
@@ -562,7 +490,9 @@ static void process_conversation_with_llm(RCorePluginSession *cps, bool compact)
 	}
 
 	// Format conversation as string
-	char *log_str = format_conversation_log (messages);
+	char *log = log_tostring (messages, false);
+	char *log_str = r_str_newf ("Conversation Log:\n%s", log);
+	free (log);
 
 	// Load the compact prompt from file
 	char *prompt_text = r2ai_load_prompt_text (core, "compact");
