@@ -269,6 +269,7 @@ R_IPI R2AI_ChatResponse *r2ai_gemini(RCorePluginSession *cps, R2AIArgs args);
 // auto mode
 R_IPI void cmd_r2ai_a(RCorePluginSession *cps, const char *user_query);
 R_IPI char *r2ai_auto_system_prompt(RCorePluginSession *cps);
+R_IPI void r2ai_print_response(RCore *core, const char *text);
 // R_API char *r2ai(RCore *core, R2AI_State *state, R2AIArgs args);
 R_API char *r2ai(RCorePluginSession *cps, R2AIArgs args);
 R_API bool r2ai_init(RCorePluginSession *cps);

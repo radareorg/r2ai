@@ -316,6 +316,26 @@ static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool re
 	r_list_free (cmdslist);
 }
 
+R_IPI void r2ai_print_response(RCore *core, const char *text) {
+	if (!text) {
+		return;
+	}
+#if R2_VERSION_NUMBER >= 60106
+	if (r_config_get_b (core->config, "r2ai.markdown")) {
+		char *md = r_core_md2txt (core, text, false);
+		if (md) {
+			r_cons_print (core->cons, md);
+			if (!r_str_endswith (md, "\n")) {
+				r_cons_newline (core->cons);
+			}
+			free (md);
+			return;
+		}
+	}
+#endif
+	r_cons_println (core->cons, text);
+}
+
 static void cmd_r2ai_repl(RCorePluginSession *cps) {
 	RCore *core = cps->core;
 	RConfigHold *hold = r_config_hold_new (core->config);
@@ -357,7 +377,7 @@ static void cmd_r2ai_repl(RCorePluginSession *cps) {
 				r_core_call (core, cmd);
 				free (cmd);
 			} else {
-				r_cons_printf (core->cons, "%s\n", res);
+				r2ai_print_response (core, res);
 			}
 			r_cons_flush (core->cons);
 		}
@@ -427,7 +447,7 @@ static void cmd_r2ai_i(RCorePluginSession *cps, const char *arg) {
 		R_LOG_ERROR ("%s", error);
 		free (error);
 	} else {
-		r_cons_printf (core->cons, "%s\n", res);
+		r2ai_print_response (core, res);
 	}
 	free (fname);
 	free (res);
@@ -648,7 +668,7 @@ R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 				R_FREE (err);
 			}
 			if (res) {
-				r_cons_printf (core->cons, "%s\n", res);
+				r2ai_print_response (core, res);
 				free (res);
 			}
 		}
@@ -837,6 +857,8 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_desc (core->config, "r2ai.clippy", "Responses from the llm will be displayed by clippy");
 	r_config_set_b (core->config, "r2ai.wizard", true);
 	r_config_desc (core->config, "r2ai.wizard", "Run the setup wizard automatically on the first interactive chat session");
+	r_config_set_b (core->config, "r2ai.markdown", true);
+	r_config_desc (core->config, "r2ai.markdown", "Render LLM responses using the radare2 markdown colorizer");
 	r_config_set_b (core->config, "r2ai.stream", false);
 	r_config_desc (core->config, "r2ai.stream", "Enable streaming responses from the LLM (true/false)");
 	r_config_set_i (core->config, "r2ai.auto.max_runs", 50);
@@ -894,6 +916,7 @@ R_API bool r2ai_fini(RCorePluginSession *cps) {
 	r_config_rm (core->config, "r2ai.apitype");
 	r_config_rm (core->config, "r2ai.cacheck");
 	r_config_rm (core->config, "r2ai.prompt");
+	r_config_rm (core->config, "r2ai.markdown");
 	r_config_rm (core->config, "r2ai.stream");
 	r_config_rm (core->config, "r2ai.system");
 	r_config_rm (core->config, "r2ai.data");

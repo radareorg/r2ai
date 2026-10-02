@@ -87,8 +87,7 @@ static void handle_final_response_attempt(RCorePluginSession *cps, RList *messag
 				r_cons_flush (core->cons);
 			}
 			if (final_msg->content) {
-				r_cons_printf (core->cons, "%s", final_msg->content);
-				r_cons_newline (core->cons);
+				r2ai_print_response (core, final_msg->content);
 				r_cons_flush (core->cons);
 			}
 			// Add final response to messages for completeness
@@ -255,8 +254,7 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 			r_cons_flush (core->cons);
 		}
 		if (message->content) {
-			r_cons_printf (core->cons, "%s", message->content);
-			r_cons_newline (core->cons);
+			r2ai_print_response (core, message->content);
 			r_cons_flush (core->cons);
 		}
 	}

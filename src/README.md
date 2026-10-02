@@ -104,6 +104,7 @@ These can be set with `r2ai -e <keyname>=<value>`
 | r2ai.hlang       | Tells LLM in which language to speak                                                           |
 | r2ai.prompt      | User prompt to send to LLM with `r2ai -d` |
 | r2ai.clippy      | Display chat replies using `r2clippy` instead of plain text |
+| r2ai.markdown    | Render LLM responses with the radare2 markdown colorizer (default: true) |
 | r2ai.wizard      | Auto-start the setup wizard on the first interactive chat session |
 | r2ai.auto.max_runs | Maximum loops when using auto mode `r2ai -a` |
 | r2ai.auto.verbose | Only for auto mode `r2ai -a`. Will show the output of the tool which ran locally |
