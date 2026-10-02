@@ -173,7 +173,11 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 	if (!system_prompt) {
 		const char *init_commands = r_config_get (core->config, "r2ai.auto.init_commands");
 		if (R_STR_ISNOTEMPTY (init_commands)) {
-			char *tool_args = r_str_newf ("{\"command\":\"%s\"}", init_commands);
+			PJ *pj = pj_new ();
+			pj_o (pj);
+			pj_ks (pj, "command", init_commands);
+			pj_end (pj);
+			char *tool_args = pj_drain (pj);
 			R2AI_ToolResult tool_result = execute_tool (cps, "r2cmd", tool_args);
 			free (tool_args);
 			if (R_STR_ISNOTEMPTY (tool_result.output)) {
