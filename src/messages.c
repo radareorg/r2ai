@@ -281,8 +281,10 @@ R_API bool r2ai_msgs_from_json(RList *msgs, const RJson *json) {
 	}
 
 	// Add the message without tool calls first
-	if (!r2ai_msgs_add (msgs, &new_msg)) {
-		r2ai_message_fini (&new_msg);
+	// r2ai_msgs_add stores a deep copy, so the local message is always released
+	bool added = r2ai_msgs_add (msgs, &new_msg);
+	r2ai_message_fini (&new_msg);
+	if (!added) {
 		return false;
 	}
 
@@ -311,7 +313,6 @@ R_API bool r2ai_msgs_from_json(RList *msgs, const RJson *json) {
 			tc.id = (id && id->type == R_JSON_STRING)? id->str_value: NULL;
 
 			if (!r2ai_msgs_add_tool_call (msgs, &tc)) {
-				r2ai_message_fini (&new_msg);
 				return false;
 			}
 		}
