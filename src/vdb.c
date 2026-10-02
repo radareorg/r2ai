@@ -109,8 +109,7 @@ void r_vdb_insert(RVdb *db, const char *text) {
 		return;
 	}
 	float *embedding = (float *)calloc (db->dimension, sizeof (float));
-	// New call: pass the db pointer so TF-IDF stats are updated.
-	compute_embedding (db, text, embedding, db->dimension);
+	compute_embedding (db, text, embedding, db->dimension, true);
 	Vector v;
 	v.dim = db->dimension;
 	v.data = embedding;
@@ -269,7 +268,7 @@ RVdbResultSet *r_vdb_query_embedding(RVdb *db, const float *query_data, int k) {
 
 RVdbResultSet *r_vdb_query(RVdb *db, const char *text, int k) {
 	float *query_embedding = (float *)calloc (db->dimension, sizeof (float));
-	compute_embedding (db, text, query_embedding, db->dimension);
+	compute_embedding (db, text, query_embedding, db->dimension, false);
 	// No extra normalization is needed.
 	RVdbResultSet *res = r_vdb_query_embedding (db, query_embedding, k);
 	free (query_embedding);

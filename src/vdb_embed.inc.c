@@ -49,7 +49,7 @@ static bool valid_token(const char *a) {
 
 #if USE_OLLAMA_EMBED
 // experimental ollama
-static void compute_embedding(RVdb *db, const char *text, float *embedding, unsigned int dim) {
+static void compute_embedding(RVdb *db, const char *text, float *embedding, unsigned int dim, bool update_stats) {
 	// curl http://localhost:11434/api/embed -d '{ "model": "llama3:latest", "input": "text" }' |jq -r '.embeddings[0]'
 	char *json_text = r_str_escape_utf8_for_json (text, -1);
 	const char *model = "llama3:latest";
@@ -75,7 +75,7 @@ static void compute_embedding(RVdb *db, const char *text, float *embedding, unsi
 	free (s);
 }
 #else
-static void compute_embedding(RVdb *db, const char *text, float *embedding, unsigned int dim) {
+static void compute_embedding(RVdb *db, const char *text, float *embedding, unsigned int dim, bool update_stats) {
 	// gtfidf_list (db);
 
 	// Zero the embedding vector.
@@ -112,24 +112,24 @@ static void compute_embedding(RVdb *db, const char *text, float *embedding, unsi
 		token = strtok_r (NULL, " \t\r\n", &saveptr);
 	}
 	free (buffer);
-	db->total_docs++;
 
-	/* --- Step 2. Update Global Document Frequencies --- */
-	// Here we use the global definition of token_df (do not re-declare it locally).
+	/* --- Step 2. Update Global Document Frequencies (only when indexing, never for queries) --- */
 	RListIter *iter;
 	RVdbToken *dt_token;
-	r_list_foreach (doc_tokens, iter, dt_token) {
-		RVdbToken *t = gtfidf_find (db->tokens, dt_token->token);
-		if (t) {
-			if (valid_token (dt_token->token)) {
-				t->count++;
-				t->df += 1.0f;
+	if (update_stats) {
+		db->total_docs++;
+		r_list_foreach (doc_tokens, iter, dt_token) {
+			RVdbToken *t = gtfidf_find (db->tokens, dt_token->token);
+			if (t) {
+				if (valid_token (dt_token->token)) {
+					t->count++;
+					t->df += 1.0f;
+				}
+			} else {
+				gtfidf_add (db->tokens, dt_token->token);
 			}
-		} else {
-			gtfidf_add (db->tokens, dt_token->token);
 		}
 	}
-	// Increment the total number of documents.
 
 	/* --- Step 3. Compute TF-IDF for Each Token and Update the Embedding --- */
 	RVdbToken *dt;
