@@ -328,8 +328,6 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 				free (cmd_output);
 				cmd_output = strdup ("<user interrupted>");
 				interrupted = true;
-
-				handle_final_response_attempt (cps, messages, effective_prompt, &error);
 			}
 			if (comment) {
 				char *msg = r_str_newf ("HINT: %s\n%s", comment, cmd_output);
@@ -365,6 +363,10 @@ R_API void process_messages(RCorePluginSession *cps, RList *messages, const char
 			process_messages (cps, messages, effective_prompt, n_run + 1);
 		} else {
 			R_LOG_DEBUG ("Auto mode loop ending - no more tool calls or interrupted");
+			if (interrupted) {
+				// all tool responses are in place, so the history stays well ordered
+				handle_final_response_attempt (cps, messages, effective_prompt, &error);
+			}
 		}
 	} else {
 		r2ai_print_run_end (cps, usage, n_run, max_runs);
