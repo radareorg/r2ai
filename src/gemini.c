@@ -46,15 +46,11 @@ R_IPI R2AI_ChatResponse *r2ai_gemini(RCorePluginSession *cps, R2AIArgs args) {
 	}
 
 	// Setup headers for Gemini API
-	const char **headers = NULL;
+	const char *headers[3] = { "Content-Type: application/json", NULL, NULL };
 	char *auth_header = NULL;
 	char *api_key_header = NULL;
 
 	if (R_STR_ISNOTEMPTY (args.api_key)) {
-		static const char *static_headers[] = { NULL, NULL, NULL };
-		headers = static_headers;
-		headers[0] = "Content-Type: application/json";
-
 		// Check if it's an OAuth token (starts with "ya29.")
 		if (r_str_startswith (args.api_key, "ya29.")) {
 			auth_header = r_str_newf ("Authorization: Bearer %s", args.api_key);
