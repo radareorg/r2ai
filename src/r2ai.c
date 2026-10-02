@@ -512,12 +512,11 @@ static bool load_r2airc(RCorePluginSession *cps) {
 				if (R_STR_ISEMPTY (trimmed) || *trimmed == '#') {
 					continue;
 				}
-				if (r_str_startswith (trimmed, "r2ai -e ") || r_str_startswith (trimmed, "-e ")) {
-					const char *arg = trimmed + (r_str_startswith (trimmed, "r2ai -e ")? 7: 3);
-					cmd_r2ai (cps, r_str_newf ("-e%s", arg));
-				} else if (r_str_startswith (trimmed, "r2ai -") || r_str_startswith (trimmed, "-")) {
-					const char *arg = trimmed + (r_str_startswith (trimmed, "r2ai -")? 6: 1);
-					cmd_r2ai (cps, r_str_newf ("-%s", arg));
+				if (r_str_startswith (trimmed, "r2ai -")) {
+					trimmed += strlen ("r2ai ");
+				}
+				if (*trimmed == '-') {
+					cmd_r2ai (cps, trimmed);
 				} else {
 					R_LOG_ERROR ("Invalid line in r2ai rc: %s", trimmed);
 				}
