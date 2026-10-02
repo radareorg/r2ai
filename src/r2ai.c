@@ -229,13 +229,13 @@ static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool re
 	RListIter *iter;
 	const char *cmd;
 	RList *refslist = NULL;
+	char *refs = NULL;
 	RList *offsetslist = offsets? r_list_newf (free): NULL;
 	char *offset_fallback = NULL;
 	int offset_width = 0;
 	if (recursive) {
-		char *refs = r_core_cmd_str (core, "axff~^C[2]~$$");
+		refs = r_core_cmd_str (core, "axff~^C[2]~$$");
 		refslist = r_str_split_list (refs, ",", 0);
-		free (refs);
 	}
 	RConfigHold *hold = r_config_hold_new (core->config);
 	r_config_hold (hold, "scr.color", "scr.utf8", NULL);
@@ -278,6 +278,7 @@ static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool re
 	r_config_hold_restore (hold);
 	r_config_hold_free (hold);
 	r_list_free (refslist);
+	free (refs);
 	char *s = r_strbuf_drain (sb);
 	if (r_config_get_b (core->config, "r2ai.async")) {
 		const char *sys = r_config_get (core->config, "r2ai.system");
@@ -314,6 +315,7 @@ static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool re
 	free (offset_fallback);
 	r_list_free (offsetslist);
 	r_list_free (cmdslist);
+	free (cmds);
 }
 
 R_IPI void r2ai_print_response(RCore *core, const char *text) {
