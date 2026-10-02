@@ -30,7 +30,7 @@ static RCoreHelpMessage help_msg_r2ai = {
 	"r2ai", " -q [name] (inst)", "run predefined prompt with optional instructions",
 	"r2ai", " -r", "enter the chat repl",
 	"r2ai", " -s[?ijynak*]", "async task queue: list, show, interact, approve, decline, kill (see r2ai -s?)",
-	"r2ai", " -L", "show chat logs (See -Lj for json). Only for auto mode.",
+	"r2ai", " -L", "show chat logs (See -Lj for json)",
 	"r2ai", " -C", "compact conversation history",
 	"r2ai", " -LR", "create a log report",
 	"r2ai", " -L-[N]", "delete the last (or N last messages from the chat history)",
@@ -209,13 +209,24 @@ static char *r2ai_apply_offsets(const char *text, RList *offsets, int width) {
 }
 
 // query the llm with rag and log the error if any, returns NULL on failure
-static char *ask(RCorePluginSession *cps, const char *input) {
+// when r2ai.history is set the exchange is kept in the conversation (see -L, -R)
+static char *ask(RCorePluginSession *cps, const char *input, bool chat) {
+	R2AI_State *state = cps->data;
+	RList *history = (chat && r_config_get_b (cps->core->config, "r2ai.history"))
+		? r2ai_conversation_get (state)
+		: NULL;
 	char *err = NULL;
-	char *res = r2ai (cps, (R2AIArgs){ .input = input, .error = &err, .dorag = true });
+	char *res = r2ai (cps, (R2AIArgs){ .input = input, .messages = history, .error = &err, .dorag = true });
 	if (err) {
 		R_LOG_ERROR ("%s", err);
 		free (err);
 		R_FREE (res);
+	}
+	if (history && res) {
+		R2AI_Message user = { .role = "user", .content = (char *)input };
+		R2AI_Message assistant = { .role = "assistant", .content = res };
+		r2ai_msgs_add (history, &user);
+		r2ai_msgs_add (history, &assistant);
 	}
 	return res;
 }
@@ -290,7 +301,7 @@ static void cmd_r2ai_d(RCorePluginSession *cps, const char *input, const bool re
 		enqueue (cps, title, s);
 		free (title);
 	} else {
-		char *res = ask (cps, s);
+		char *res = ask (cps, s, true);
 		if (res && offsets) {
 			char *ores = R_STR_ISNOTEMPTY (res)
 				? r2ai_apply_offsets (res, offsetslist, offset_width)
@@ -358,7 +369,7 @@ static void cmd_r2ai_repl(RCorePluginSession *cps) {
 			}
 		}
 		r_strbuf_appendf (sb, "User: %s\n", ptr);
-		char *res = ask (cps, r_strbuf_tostring (sb));
+		char *res = ask (cps, r_strbuf_tostring (sb), false);
 		if (res) {
 			r_strbuf_appendf (sb, "Assistant: %s\n", res);
 			if (r_config_get_b (core->config, "r2ai.clippy")) {
@@ -419,7 +430,7 @@ static void cmd_r2ai_i(RCorePluginSession *cps, const char *arg) {
 	const char *prompt = R_STR_ISNOTEMPTY (query)? query: "Analyze the contents of the following file:";
 	char *q = r_str_newf ("%s\n```\n%s\n```\n", prompt, s);
 	free (s);
-	char *res = ask (cps, q);
+	char *res = ask (cps, q, true);
 	free (q);
 	r2ai_print_response (core, res);
 	free (fname);
@@ -579,7 +590,7 @@ R_API void cmd_r2ai(RCorePluginSession *cps, const char *input) {
 		if (r_config_get_b (core->config, "r2ai.async")) {
 			enqueue (cps, input, input);
 		} else {
-			char *res = ask (cps, input);
+			char *res = ask (cps, input, true);
 			r2ai_print_response (core, res);
 			free (res);
 		}
@@ -780,6 +791,8 @@ R_IPI bool r2ai_init(RCorePluginSession *cps) {
 	r_config_desc (core->config, "r2ai.auto.init_commands", "Initial commands executed when auto mode starts (semicolon separated)");
 	r_config_set_b (core->config, "r2ai.auto.yolo", false);
 	r_config_desc (core->config, "r2ai.auto.yolo", "Execute potentially dangerous commands in auto mode without asking");
+	r_config_set_b (core->config, "r2ai.history", false);
+	r_config_desc (core->config, "r2ai.history", "Keep direct queries (r2ai [query], -d, -i) in the conversation context (see -L, -R)");
 	r_config_set_b (core->config, "r2ai.auto.reset_on_query", false);
 	r_config_desc (core->config, "r2ai.auto.reset_on_query", "Reset auto-mode conversation state on new user queries");
 	r_config_set_b (core->config, "r2ai.auto.think", true);
@@ -833,6 +846,7 @@ R_API bool r2ai_fini(RCorePluginSession *cps) {
 	r_config_rm (core->config, "r2ai.data");
 	r_config_rm (core->config, "r2ai.data.path");
 	r_config_rm (core->config, "r2ai.data.nth");
+	r_config_rm (core->config, "r2ai.history");
 	r_config_rm (core->config, "r2ai.auto.reset_on_query");
 	r_config_rm (core->config, "r2ai.http.timeout");
 	r_config_rm (core->config, "r2ai.http.max_retries");
