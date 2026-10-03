@@ -34,11 +34,35 @@ R_API void r2ai_apikeys_edit(RCorePluginSession *cps) {
 	free (keys_path);
 }
 
-/* Return a malloc'd API key read from ~/.config/r2ai/apikeys.txt
- * Provider matching is case-insensitive */
+static char *r2ai_apikeys_env(const char *provider) {
+	char *upper = strdup (provider);
+	r_str_case (upper, true);
+	char *name = r_str_newf ("%s_API_KEY", upper);
+	char *val = r_sys_getenv (name);
+	if (val) {
+		r_str_trim (val);
+	}
+	free (name);
+	free (upper);
+	if (R_STR_ISNOTEMPTY (val)) {
+		return val;
+	}
+	free (val);
+	return NULL;
+}
+
+/* Return a malloc'd API key for a provider.
+ * Resolution order:
+ *   1. environment variable "<PROVIDER>_API_KEY" (provider upper-cased)
+ *   2. the ~/.config/r2ai/apikeys.txt file
+ * Provider matching against the file is case-insensitive. */
 R_API char *r2ai_apikeys_get(const char *provider) {
 	if (!provider) {
 		return NULL;
+	}
+	char *env_key = r2ai_apikeys_env (provider);
+	if (env_key) {
+		return env_key;
 	}
 	bool exists = false;
 	char *config_file = r2ai_apikeys_path (&exists);
