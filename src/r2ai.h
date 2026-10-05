@@ -2,7 +2,6 @@
 #define R2AI_H
 
 #define _GNU_SOURCE
-#define _POSIX_C_SOURCE 200809L
 
 #include <time.h>
 #include <stdint.h>
