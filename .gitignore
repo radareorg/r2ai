@@ -12,3 +12,6 @@ venv
 *.dylib
 *.a
 third_party
+
+# r2pm binary packages
+r2ai-*.zip
