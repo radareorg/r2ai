@@ -8,6 +8,7 @@ R2BINDIR=$(shell r2pm -H R2PM_BINDIR)
 R2INCDIR=$(shell r2 -NNH R2_INCDIR)/libr
 R2LIBDIR=$(shell r2 -NNH R2_LIBDIR)
 R2MANDIR=$(shell r2pm -H R2PM_MANDIR)
+R2AI_PROMPTSDIR=$(HOME)/.config/r2ai/prompts
 ifeq ($(R2MANDIR),)
 R2MANDIR=$(shell r2 -NNH R2_PREFIX)/share/man
 endif
@@ -70,6 +71,37 @@ all: $(OBJS) r2check
 	$(AR) rcs libr2ai.a $(OBJS)
 	$(CC) -pie -o r2ai$(DOTEXE) $(OBJS) $(CFLAGS) $(LDFLAGS) -lm main.c
 
+# Binary package for r2pm -bi: plugins/, bin/, man/ and prompts/ for this r2 version and platform
+# r2pm -H R2PM_* needs a recent r2pm; fall back to uname when missing
+R2PM_OS_SH=$(shell r2pm -H R2PM_OS 2>/dev/null)
+R2PM_ARCH_SH=$(shell r2pm -H R2PM_ARCH 2>/dev/null)
+R2PM_BITS_SH=$(shell r2pm -H R2PM_BITS 2>/dev/null)
+ifeq ($(R2PM_OS_SH),)
+ifeq ($(shell uname -s),Darwin)
+R2PM_OS_SH=darwin
+else
+R2PM_OS_SH=linux
+endif
+endif
+ifeq ($(R2PM_ARCH_SH),)
+ifeq ($(shell uname -m),x86_64)
+R2PM_ARCH_SH=x86
+else ifneq (,$(filter $(shell uname -m),aarch64 arm64))
+R2PM_ARCH_SH=arm
+else
+R2PM_ARCH_SH=$(shell uname -m)
+endif
+endif
+ifeq ($(R2PM_BITS_SH),)
+R2PM_BITS_SH=$(shell getconf LONG_BIT 2>/dev/null || echo 64)
+endif
+BINDIST_ZIP=r2ai-$(shell r2 -qv)-$(R2PM_OS_SH)-$(R2PM_ARCH_SH)-$(R2PM_BITS_SH).zip
+
+bindist: all
+	rm -rf build/bindist ../$(BINDIST_ZIP)
+	$(MAKE) user-install R2USRPLUGDIR=$(CURDIR)/build/bindist/plugins R2BINDIR=$(CURDIR)/build/bindist/bin R2MANDIR=$(CURDIR)/build/bindist/man R2AI_PROMPTSDIR=$(CURDIR)/build/bindist/prompts
+	cd build/bindist && zip -q -r $(CURDIR)/../$(BINDIST_ZIP) plugins bin man prompts
+
 try: all
 	$(MAKE) user-install
 	$(MAKE) doc-install
@@ -87,12 +119,12 @@ user-install: user-uninstall
 	mkdir -p $(R2USRPLUGDIR)
 	mkdir -p $(R2BINDIR)
 	mkdir -p $(R2MANDIR)/man1
-	mkdir -p $(HOME)/.config/r2ai/prompts
+	mkdir -p $(R2AI_PROMPTSDIR)
 	$(MAKE) user-uninstall
 	cp -f r2ai$(DOTLIB) $(R2USRPLUGDIR)/r2ai$(DOTLIB)
 	cp -f r2ai$(DOTEXE) $(R2BINDIR)/r2ai$(DOTEXE)
 	cp -f r2ai.1 $(R2MANDIR)/man1/r2ai.1
-	cp -r ../prompts/* $(HOME)/.config/r2ai/prompts/
+	cp -r ../prompts/* $(R2AI_PROMPTSDIR)/
 
 user-uninstall:
 	rm -f $(R2USRPLUGDIR)/r2ai$(DOTLIB)
@@ -120,3 +152,5 @@ r2check:
 	@r2 -NN -qcq --
 clean:
 	rm -f *.o *.d
+
+.PHONY: all bindist try doc-install fmt user-install user-uninstall install uninstall r2check clean test

@@ -56,39 +56,76 @@ jobs:
           if ($LASTEXITCODE -ne 0) { meson configure build }
           meson compile -C build
 
-      - name: Create release artifacts (tags only)
-        if: startsWith(github.ref, 'refs/tags/')
-        shell: bash
-        run: |
-          mkdir -p release
-          # Collect common binary artefact names produced by Make/Meson
-          # Include both "r2ai.*" and "libr2ai.*" variants for DLL/dylib/so on all platforms.
-          find src -type f \( -iname "r2ai.dll" -o -iname "libr2ai.dll" -o -iname "r2ai.dylib" -o -iname "libr2ai.dylib" -o -iname "r2ai.so" -o -iname "libr2ai.so" -o -iname "r2ai.exe" \) -exec cp -f {} release/ \; || true
-          # Also check top-level build output directories
-          find . -maxdepth 3 -type f \( -iname "r2ai.dll" -o -iname "libr2ai.dll" -o -iname "r2ai.dylib" -o -iname "libr2ai.dylib" -o -iname "r2ai.so" -o -iname "libr2ai.so" -o -iname "r2ai.exe" \) -exec cp -f {} release/ \; || true
-          cp -f decai/decai.r2.js release/ || true
-          if command -v zip >/dev/null 2>&1; then
-            zip -j "release/r2ai-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.build_system }}.zip" release/*
-          else
-            powershell.exe -Command "Compress-Archive -Path release/* -DestinationPath 'release/r2ai-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.build_system }}.zip'"
-          fi
+  bindist:
+    name: Build r2pm binary (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
 
-      - name: Upload artifacts (tags only)
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Install radare2
+        uses: radareorg/github-actions@v3
+
+      - name: Package r2pm binary
+        run: make -C src bindist
+
+      - name: Upload r2pm binary artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.os }}-${{ matrix.build_system }}-binary
-          path: release/r2ai-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.build_system }}.zip
+          name: bindist-${{ matrix.os }}
+          path: r2ai-*.zip
+          if-no-files-found: error
 
-#      - name: Smoke test
-#        run: |
-#          if command -v r2 >/dev/null 2>&1; then
-#            r2 -q -c 'r2ai -h' -- || true
-#          fi
+  windows-bindist:
+    name: Build r2pm binary (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Meson/Ninja
+        run: |
+          python -m pip install --upgrade pip
+          pip install meson ninja
+
+      - name: Install radare2
+        id: r2
+        uses: radareorg/github-actions@v3
+
+      - name: Build with Meson
+        shell: powershell
+        run: |
+          cd src
+          $prefix = "${{ steps.r2.outputs.prefix }}"
+          meson setup build --backend ninja --prefix="$prefix" -Dr2_prefix="$prefix"
+          if ($LASTEXITCODE -ne 0) { meson configure build }
+          meson compile -C build
+
+      - name: Package r2pm binary
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path bindist\plugins,bindist\bin,bindist\prompts | Out-Null
+          Get-ChildItem src\build\ -Filter "*r2ai*.dll" -ErrorAction SilentlyContinue | Copy-Item -Destination bindist\plugins
+          Get-ChildItem src\..\build\ -Filter "*r2ai*.dll" -ErrorAction SilentlyContinue | Copy-Item -Destination bindist\plugins
+          Copy-Item src\build\r2ai.exe bindist\bin
+          Copy-Item prompts\*.r2ai.md bindist\prompts
+          $rv = (& radare2 -qv).Trim()
+          Compress-Archive -Path bindist\* -DestinationPath "r2ai-$rv-windows-x86-64.zip" -Force
+
+      - name: Upload r2pm binary artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-bindist
+          path: r2ai-*.zip
+          if-no-files-found: error
 
   release:
     name: Create Release
-    needs: build
+    needs: [bindist, windows-bindist]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
@@ -105,10 +142,12 @@ jobs:
             exit 0
           fi
 
-      - name: Download artifacts
+      - name: Download r2pm binary artifacts
         uses: actions/download-artifact@v8
         with:
+          pattern: '*bindist*'
           path: release-artifacts
+          merge-multiple: true
 
       - name: Add decai.r2.js to release artifacts
         run: cp decai/decai.r2.js release-artifacts/
@@ -117,6 +156,6 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           files: |
-            release-artifacts/**/*.zip
+            release-artifacts/*.zip
             release-artifacts/decai.r2.js
           generate_release_notes: true
