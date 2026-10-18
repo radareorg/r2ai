@@ -212,3 +212,21 @@ void daemonize() {
 }
 ...
 ```
+
+## WASM HTTP
+
+With radare2's WASI HTTP build, decai uses `r2.http()` to reach the existing
+`r_socket_http_get/post` C APIs. Headers and JSON payloads go directly to the
+host HTTP adapter; no shell curl, temporary payload file or WebSocket proxy is
+needed. A failed/denied HTTP call is returned as an error, without a shell
+fallback. Older/native runtimes retain their existing curl path.
+
+Enable HTTP in the embedding application (`enabled: true` in JavaScript or
+`network=True` in Python). The radare2 sandbox must permit both `socket` and
+`network`; process execution is not needed. Browser requests remain subject
+to CORS. The host adapter controls the HTTP deadline in WASM; decai's `timeout`
+setting still controls native curl only. Responses are buffered, not streamed.
+
+This requires radareorg/radare2#27037 and the rebuilt decai script. For the
+C r2ai plugin compiled into WASM, the `auto` HTTP backend likewise selects
+radare2's C HTTP implementation; native backend selection is unchanged.
