@@ -29,7 +29,7 @@ static R2AI_HttpConfig get_http_config(RCore *core) {
 	return config;
 }
 
-#if R2__UNIX__
+#if R2__UNIX__ && !__wasi__
 // Signal handler for timeout (SIGALRM)
 static void r2ai_http_sigint_handler(int sig) {
 	if (sig == SIGALRM) {
@@ -66,7 +66,7 @@ static HttpResponse r2ai_http_request_with_retry(HttpRequestFunc func, const HTT
 	// Reset interrupt flag
 	r2ai_http_interrupted = 0;
 
-#if R2__UNIX__
+#if R2__UNIX__ && !__wasi__
 	// Ignore SIGWINCH to prevent window resize from interrupting child processes
 	struct sigaction old_winch_act;
 	sigaction (SIGWINCH, &(struct sigaction){ .sa_handler = SIG_IGN }, &old_winch_act);
@@ -129,7 +129,7 @@ static HttpResponse r2ai_http_request_with_retry(HttpRequestFunc func, const HTT
 		r_cons_break_pop (core->cons);
 	}
 
-#if R2__UNIX__
+#if R2__UNIX__ && !__wasi__
 	// Restore SIGWINCH handler
 	sigaction (SIGWINCH, &old_winch_act, NULL);
 #endif

@@ -6,14 +6,14 @@ static HttpResponse socket_http_post_with_interrupt(const HTTPRequest *request) 
 #if R2__WINDOWS__
 	r_sys_setenv ("R2_CURL", "1");
 #endif
-#if R2__UNIX__
+#if R2__UNIX__ && !__wasi__
 	signal (SIGALRM, r2ai_http_sigint_handler);
 	alarm (request->config.timeout); // Use configured timeout
 #endif
 	int code = 0;
 	int rlen = 0;
 	char *result = r_socket_http_post (request->url, request->headers, request->data, &code, &rlen);
-#if R2__UNIX__
+#if R2__UNIX__ && !__wasi__
 	alarm (0);
 #endif
 	if (r2ai_http_interrupted) {
@@ -32,14 +32,14 @@ static HttpResponse socket_http_get_with_interrupt(const HTTPRequest *request) {
 #if R2__WINDOWS__
 	r_sys_setenv ("R2_CURL", "1");
 #endif
-#if R2__UNIX__
+#if R2__UNIX__ && !__wasi__
 	signal (SIGALRM, r2ai_http_sigint_handler);
 	alarm (request->config.timeout); // Use configured timeout
 #endif
 	int code = 0;
 	int rlen = 0;
 	char *result = r_socket_http_get (request->url, request->headers, &code, &rlen);
-#if R2__UNIX__
+#if R2__UNIX__ && !__wasi__
 	alarm (0);
 #endif
 	if (r2ai_http_interrupted) {
