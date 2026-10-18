@@ -145,7 +145,9 @@ static HttpResponse r2ai_http_request_with_retry(HttpRequestFunc func, const HTT
 static HttpRequestFunc select_backend(const char *backend, bool is_post) {
 	HttpRequestFunc func = NULL;
 	if (!strcmp (backend, "auto")) {
-#if R2__WINDOWS__
+#if __wasi__
+		backend = "socket";
+#elif R2__WINDOWS__
 		// TODO: we should use pwsh or r2 by default, but for not it seems the only backend that works on Windows is r2curl+system
 		r_sys_setenv ("R2_CURL", "1");
 		backend = "system";

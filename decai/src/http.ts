@@ -16,14 +16,21 @@ function shellEscape(arg: string): string {
 
 function executeCurl(options: HttpRequestOptions): string {
   const { method, url, headers, payload } = options;
-  const cmdParts = ["curl", "-s"];
-  if (state.timeout > 0) {
-    cmdParts.push("--max-time", String(state.timeout));
-  }
   const requestHeaders = mergeHeaders(
     ["Content-Type: application/json"],
     headers,
   );
+  // WASI provides HTTP through the host; never fall back after a denied request.
+  const http = (r2 as unknown as { http?: (
+    method: string, url: string, headers: string, data?: string,
+  ) => { status: number; body: string } }).http;
+  if (http) {
+    return http(method, url, requestHeaders.join("\n"), payload ?? "").body;
+  }
+  const cmdParts = ["curl", "-s"];
+  if (state.timeout > 0) {
+    cmdParts.push("--max-time", String(state.timeout));
+  }
   requestHeaders.forEach((h) => cmdParts.push("-H", shellEscape(h)));
 
   if (method === "POST") {
