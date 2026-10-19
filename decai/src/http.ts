@@ -14,18 +14,14 @@ function shellEscape(arg: string): string {
   return `'${arg.replace(/'/g, `'"'"'`)}'`;
 }
 
-function executeCurl(options: HttpRequestOptions): string {
+function executeRequest(options: HttpRequestOptions): string {
   const { method, url, headers, payload } = options;
   const requestHeaders = mergeHeaders(
     ["Content-Type: application/json"],
     headers,
   );
-  // WASI provides HTTP through the host; never fall back after a denied request.
-  const http = (r2 as unknown as { http?: (
-    method: string, url: string, headers: string, data?: string,
-  ) => { status: number; body: string } }).http;
-  if (http) {
-    return http(method, url, requestHeaders.join("\n"), payload ?? "").body;
+  if (r2.http) {
+    return r2.http(method, url, requestHeaders.join("\n"), payload ?? "").body;
   }
   const cmdParts = ["curl", "-s"];
   if (state.timeout > 0) {
@@ -77,7 +73,7 @@ function parseNdjson(output: string): HttpResponse | null {
 
 export function httpRequest(options: HttpRequestOptions): HttpResponse {
   try {
-    const output = executeCurl(options).trim();
+    const output = executeRequest(options).trim();
     if (output === "") {
       return { error: "empty response" };
     }

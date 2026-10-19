@@ -1,5 +1,17 @@
 export type R2Address = number | string | unknown;
 
+export interface R2HttpResponse {
+  status: number;
+  body: string;
+}
+
+export type R2HttpRequest = (
+  method: "GET" | "POST",
+  url: string,
+  headers: string,
+  data?: string,
+) => R2HttpResponse;
+
 export interface R2LogEntry {
   type: string;
   message: string;
@@ -23,8 +35,10 @@ export type R2PluginFactory = () => R2Plugin;
 
 export class R2PipeAdapter {
   r2p: R2Pipe;
+  http?: R2HttpRequest;
   constructor(r2p: R2Pipe) {
     this.r2p = r2p;
+    this.http = r2p.http?.bind(r2p);
   }
   /**
    * Run a command in the associated instance of radare2 and return the output as a string
@@ -140,6 +154,7 @@ export interface R2Pipe {
   syscmd(cmd: string): string;
   syscmds(cmd: string): string;
   fdump(data: string): string;
+  http?: R2HttpRequest;
 
   /**
    * Same as cmdj but using .call which avoids command injection problems
@@ -231,6 +246,7 @@ export interface R2PipeSync {
   syscmd(cmd: string): string;
   syscmds(cmd: string): string;
   fdump(data: string): string;
+  http?: R2HttpRequest;
 
   /**
    * Same as cmdj but using .call which avoids command injection problems
