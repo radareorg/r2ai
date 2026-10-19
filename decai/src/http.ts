@@ -20,8 +20,13 @@ function executeRequest(options: HttpRequestOptions): string {
     ["Content-Type: application/json"],
     headers,
   );
-  if (r2.http) {
-    return r2.http(method, url, requestHeaders.join("\n"), payload ?? "").body;
+  if (state.http !== "curl") {
+    if (r2.http) {
+      return r2.http(method, url, requestHeaders.join("\n"), payload ?? "").body;
+    }
+    if (state.http === "r2") {
+      throw new Error("r2.http is not available in this runtime");
+    }
   }
   const cmdParts = ["curl", "-s"];
   if (state.timeout > 0) {

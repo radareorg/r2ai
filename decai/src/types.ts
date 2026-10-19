@@ -51,6 +51,7 @@ export interface AppState {
   deterministic: boolean;
   debug: boolean;
   timeout: number;
+  http: "auto" | "r2" | "curl";
   think: string;
   apitype: OllamaApiType;
   useFiles: boolean;

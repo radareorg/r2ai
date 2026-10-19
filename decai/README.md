@@ -103,6 +103,12 @@ Persist user defaults in `~/.config/r2ai/decai.txt` with one `key=value` entry
 per line, then edit it with `decai -E`. That file is loaded on the first
 `decai` command in a session and reloaded after `decai -E` exits.
 
+Use `decai -e http=curl` to force system curl, `http=r2` to require `r2.http()`,
+or `http=auto` (the default) to use `r2.http()` when available and curl otherwise.
+Failed `r2.http()` calls return an error without falling back to curl. The
+`timeout` setting applies only to system curl. Save `http=curl` in
+`~/.config/r2ai/decai.txt` to persist the override.
+
 List possible APIs to discuss with AI: `decai -e api=?`:
 
 ```
@@ -215,11 +221,11 @@ void daemonize() {
 
 ## WASM HTTP
 
-With radare2's WASI HTTP build, decai uses `r2.http()` to reach the existing
+With radare2's WASI HTTP build, decai defaults to `r2.http()` to reach the existing
 `r_socket_http_get/post` C APIs. Headers and JSON payloads go directly to the
 host HTTP adapter; no shell curl, temporary payload file or WebSocket proxy is
 needed. A failed/denied HTTP call is returned as an error, without a shell
-fallback. Older/native runtimes retain their existing curl path.
+fallback. In `http=auto` mode, runtimes without `r2.http()` use system curl.
 
 Enable HTTP in the embedding application (`enabled: true` in JavaScript or
 `network=True` in Python). The radare2 sandbox must permit both `socket` and

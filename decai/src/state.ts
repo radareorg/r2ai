@@ -17,6 +17,7 @@ export const defaultState: AppState = {
   deterministic: true,
   debug: false,
   timeout: 180,
+  http: "auto",
   think: "",
   apitype: "chat",
   useFiles: false,

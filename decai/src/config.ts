@@ -83,6 +83,17 @@ export const configHandlers: ConfigHandlers = {
     },
   },
   debug: boolHandler("debug"),
+  http: {
+    get: () => state.http,
+    set: (v: string) => {
+      const backend = v.trim();
+      if (backend === "auto" || backend === "r2" || backend === "curl") {
+        state.http = backend;
+      } else {
+        console.error("Invalid http backend. Use auto, r2 or curl.");
+      }
+    },
+  },
   timeout: {
     get: () => state.timeout,
     set: (v: string) => { state.timeout = Math.max(0, parseInt(v, 10) || 0); },
