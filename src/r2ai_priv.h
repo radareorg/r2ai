@@ -82,7 +82,9 @@ typedef struct {
 
 R_API void cmd_r2ai(RCorePluginSession *cps, const char *input);
 static inline char *r2ai_cons_editor(RCons *cons, const char *file, const char *str) {
-#if R2_ABIVERSION >= 120
+#if R2_ABIVERSION >= 160
+	return r_cons_editor (cons, file, str, 0, NULL);
+#elif R2_ABIVERSION >= 120
 	return r_cons_editor (cons, file, str, NULL);
 #else
 	return r_cons_editor (cons, file, str);
