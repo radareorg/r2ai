@@ -49,7 +49,7 @@ python3 main.py
 **Example selecting a remote models:**
 
 ```
-[r2ai:0x00006aa0]> -m anthropic:claude-3-7-sonnet-20250219
+[r2ai:0x00006aa0]> -m anthropic:claude-sonnet-5-5
 [r2ai:0x00006aa0]> -m openai:gpt-4
 ```
 

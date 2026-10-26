@@ -170,8 +170,7 @@ def slurp_until(endword):
 def list_models():
     print("ollama/llama3:latest")
     print("ollama/granite-code:8b")
-    print("anthropic/claude-3-5-sonnet-20240620")
-    print("anthropic/claude-3-7-sonnet-20250219")
+    print("anthropic/claude-sonnet-5-5")
     print("openai/gpt-4o")
     print("mistral/mistral-tiny")
 
