@@ -322,7 +322,7 @@ const providerRuntimes: Record<ApiStyle, ProviderRuntime> = {
 
 export const providerRegistry: ProviderRegistry = {
   anthropic: {
-    defaultModel: "claude-3-7-sonnet-20250219",
+    defaultModel: "claude-sonnet-5-5",
     defaultBaseUrl: "https://api.anthropic.com",
     authKey: "ANTHROPIC_API_KEY",
     keyName: "anthropic",
@@ -330,7 +330,7 @@ export const providerRegistry: ProviderRegistry = {
     apiStyle: "anthropic",
   },
   claude: {
-    defaultModel: "claude-3-7-sonnet-20250219",
+    defaultModel: "claude-sonnet-5-5",
     defaultBaseUrl: "https://api.anthropic.com",
     authKey: "ANTHROPIC_API_KEY",
     keyName: "claude",

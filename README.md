@@ -97,7 +97,7 @@ then you can type the commands you want to run when the r2ai plugin is loaded:
 
 ```console
 r2ai -e api=anthropic
-r2ai -e model=claude-3-7-sonnet-20250219
+r2ai -e model=claude-sonnet-5-5
 r2ai -e max_tokens=64000
 ```
 

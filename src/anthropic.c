@@ -15,7 +15,7 @@ R_IPI char *r2ai_anthropic_request(const R2AIArgs *args, bool vertex) {
 		pj_ks (pj, "anthropic_version", "vertex-2023-10-16");
 		pj_kb (pj, "stream", false);
 	} else {
-		pj_ks (pj, "model", R_STR_ISNOTEMPTY (args->model)? args->model: "claude-3-7-sonnet-20250219");
+		pj_ks (pj, "model", R_STR_ISNOTEMPTY (args->model)? args->model: "claude-sonnet-5-5");
 	}
 	pj_kn (pj, "max_tokens", args->max_tokens? args->max_tokens: 4096);
 	if (args->thinking_tokens >= 1024) {

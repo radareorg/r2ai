@@ -23,12 +23,12 @@ if [ -f ~/.r2ai.openai-key ]; then
 	OPENAI_KEY=$(cat ~/.r2ai.openai-key)
 fi
 CLAUDE_KEY=""
-CLAUDE_MODEL="claude-3-5-sonnet-20241022"
+CLAUDE_MODEL="claude-sonnet-5-5"
 if [ -f ~/.r2ai.anthropic-key ]; then
 	CLAUDE_KEY=$(cat ~/.r2ai.anthropic-key)
 fi
 DEEPSEEK_KEY=""
-DEEPSEEK_MODEL="claude-3-5-sonnet-20241022"
+DEEPSEEK_MODEL="claude-sonnet-5-5"
 if [ -f ~/.r2ai.deepseek-key ]; then
 	DEEPSEEK_KEY=$(cat ~/.r2ai.anthropic-key)
 fi
@@ -138,7 +138,7 @@ GEMINI_KEY=~/.r2ai-gemini.key
 OPENAI_KEY=~/.r2ai-openai.key
 CLAUDE_KEY=~/.r2ai-anthropic.key
 DEEPSEEK_KEY=~/.r2ai-deepseek.key
-CLAUDE_MODEL=claude-3-5-sonnet-20241022
+CLAUDE_MODEL=claude-sonnet-5-5
 EOF
 	exit 0
 }

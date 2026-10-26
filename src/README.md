@@ -121,7 +121,7 @@ These can be set with `r2ai -e <keyname>=<value>`
 ```
 $ r2 ./substitute
 [0x000010a0]> r2ai -e api=anthropic
-[0x000010a0]> r2ai -e model=claude-3-7-sonnet-20250219
+[0x000010a0]> r2ai -e model=claude-sonnet-5-5
 [0x000010a0]> aa
 ```
 

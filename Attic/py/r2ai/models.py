@@ -62,7 +62,7 @@ Uncensored:
 Remote:
 -m openapi:http://localhost:5001
 -m openai:gpt-4
--m anthropic:claude-3-7-sonnet-20250219
+-m anthropic:claude-sonnet-5-5
 -m bedrock:anthropic.claude-3-5-sonnet-20241022-v1
 -m kobaldcpp:http://localhost:5001
 """
@@ -80,12 +80,9 @@ OpenAI:
 -m openai:gpt-4
 -m openai:gpt-4-1106-preview
 Anthropic:
--m anthropic:claude-2.1
--m anthropic:claude-3-haiku-20240307
--m anthropic:claude-3-opus-20240229
--m anthropic:claude-3-sonnet-20240229
--m anthropic:claude-3-5-sonnet-20241022
--m anthropic:claude-3-7-sonnet-20250219
+-m anthropic:claude-opus-4-8
+-m anthropic:claude-sonnet-5-5
+-m anthropic:claude-haiku-4-5-20251001
 groq:
 -m groq:gemma-7b-it
 -m groq:llama2-70b-4096
