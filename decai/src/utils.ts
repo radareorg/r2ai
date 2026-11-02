@@ -5,9 +5,18 @@ export function tmpdir(path: string): string {
   return dir + "/" + path;
 }
 
+// r2's mkdir and touch commands do not expand '~'
+export function expandHome(path: string): string {
+  if (!path.startsWith("~/")) {
+    return path;
+  }
+  const home = r2.cmd("'%HOME").trim() || r2.cmd("'%USERPROFILE").trim();
+  return home ? home + path.slice(1) : path;
+}
+
 export function ensurePath(dir: string, file: string): void {
-  r2.cmd("'mkdir -p " + dir);
-  r2.cmd("'touch " + file);
+  r2.cmd("'mkdir -p " + expandHome(dir));
+  r2.cmd("'touch " + expandHome(file));
 }
 
 export function fileExists(path: string): boolean {
