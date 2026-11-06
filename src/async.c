@@ -96,6 +96,8 @@ static void task_free(R2AITask *t) {
 		r2ai_msgs_free (t->messages);
 	}
 	r_list_free (t->tools);
+	r_config_free (t->llm_core->config);
+	free (t->llm_core);
 	free (t->title);
 	free (t->query);
 	free (t->system_prompt);
@@ -143,7 +145,9 @@ static RThreadFunctionRet finish(R2AITask *t, R2AITaskState st, char *err) {
 	return R_TH_STOP;
 }
 
-// run one llm turn, r2ai_llmcall and the providers still read core->config
+/* Providers read core->config throughout a request. The HTTP server swaps
+ * that pointer between its web and shell contexts, so use the task snapshot.
+ * Tool execution still uses the original session on the main thread. */
 static R2AI_ChatResponse *run_llm_once(R2AITask *t) {
 	char *error = NULL;
 	R2AIArgs args = {
@@ -154,7 +158,9 @@ static R2AI_ChatResponse *run_llm_once(R2AITask *t) {
 		.tools = t->tools,
 		.error = &error,
 	};
-	R2AI_ChatResponse *res = r2ai_llmcall (t->cps, args);
+	RCorePluginSession worker_session = *t->cps;
+	worker_session.core = t->llm_core;
+	R2AI_ChatResponse *res = r2ai_llmcall (&worker_session, args);
 	if (error) {
 		task_lock (t);
 		free (t->error);
@@ -323,6 +329,11 @@ static R2AITask *task_new(RCorePluginSession *cps, R2AITaskKind kind, const char
 	RCore *core = cps->core;
 	R2AITask *t = R_NEW0 (R2AITask);
 	t->cps = cps;
+	/* Snapshot on the main thread, before it can mutate the shared core.
+	 * Only config is owned; providers borrow the remaining session fields. */
+	t->llm_core = R_NEW (RCore);
+	*t->llm_core = *core;
+	t->llm_core->config = r_config_clone (core->config);
 	t->kind = kind;
 	t->state = R2AI_TASK_PENDING;
 	t->title = strdup (title? title: "");

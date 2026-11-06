@@ -52,6 +52,7 @@ typedef struct r2ai_task_t {
 	RThreadLock *lock;
 	RThreadSemaphore *gate;
 	RCorePluginSession *cps;
+	RCore *llm_core; /* shallow core view with an owned request config snapshot */
 	time_t created;
 	time_t started;
 	time_t finished;
