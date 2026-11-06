@@ -1,5 +1,8 @@
 name: CI and Release
 
+env:
+  R2V: 6.2.6
+
 on:
   push:
     branches:
@@ -34,6 +37,8 @@ jobs:
       - name: Install radare2
         id: r2
         uses: radareorg/github-actions@v3
+        with:
+          version: ${{ env.R2V }}
 
       - name: Build with Make
         if: matrix.build_system == 'make'
@@ -69,6 +74,8 @@ jobs:
 
       - name: Install radare2
         uses: radareorg/github-actions@v3
+        with:
+          version: ${{ env.R2V }}
 
       - name: Package r2pm binary
         run: make -C src bindist
@@ -95,6 +102,8 @@ jobs:
       - name: Install radare2
         id: r2
         uses: radareorg/github-actions@v3
+        with:
+          version: ${{ env.R2V }}
 
       - name: Build with Meson
         shell: powershell
